@@ -1,0 +1,703 @@
+<title>Bracket Ballot</title>
+<meta name="description" content="Track the MLB postseason bracket, rank who you want to win it all, and keep your ranking synced across the year.">
+<style>
+:root{
+  --bg:#f6f1e4;
+  --paper:#ffffff;
+  --ink:#16241d;
+  --ink-dim:#5b6b60;
+  --line:#dcd3ba;
+  --accent:#c2872b;
+  --accent-ink:#3a2a08;
+  --good:#2f6d4f;
+  --bad:#9c3b34;
+  --al:#1f4e8c;
+  --nl:#8c1f2b;
+  --shadow: 0 1px 0 rgba(22,36,29,.06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1a15;
+    --paper:#182620;
+    --ink:#eee7d6;
+    --ink-dim:#93a89b;
+    --line:#2c3c33;
+    --accent:#e0a83f;
+    --accent-ink:#1c1204;
+    --good:#5fbf8f;
+    --bad:#e07a6f;
+    --al:#7fb0e8;
+    --nl:#e88c96;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1a15;
+  --paper:#182620;
+  --ink:#eee7d6;
+  --ink-dim:#93a89b;
+  --line:#2c3c33;
+  --accent:#e0a83f;
+  --accent-ink:#1c1204;
+  --good:#5fbf8f;
+  --bad:#e07a6f;
+  --al:#7fb0e8;
+  --nl:#e88c96;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+  padding-inline:16px;
+  padding-block:20px 40px;
+  max-width:920px;
+  margin:0 auto;
+}
+h1,h2,h3{ font-family:'Teko','Oswald',Impact,sans-serif; letter-spacing:.02em; margin:0; text-wrap:balance;}
+.tabular{ font-variant-numeric: tabular-nums; }
+
+header.top{
+  display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  border-bottom:3px solid var(--ink); padding-bottom:10px; margin-bottom:14px;
+}
+header.top h1{ font-size:2.6rem; line-height:1; color:var(--ink);}
+header.top .sub{ font-size:.85rem; color:var(--ink-dim); }
+.year-picker{ display:flex; align-items:center; gap:6px; font-size:.95rem; }
+.year-picker select{ font:inherit; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:4px 8px; }
+
+nav.tabs{ display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
+nav.tabs button{
+  font-family:'Teko','Oswald',Impact,sans-serif; font-size:1.15rem; letter-spacing:.03em;
+  background:none; border:1px solid var(--line); color:var(--ink-dim);
+  padding:6px 16px; border-radius:999px; cursor:pointer;
+}
+nav.tabs button.active{ background:var(--ink); color:var(--bg); border-color:var(--ink); }
+
+section.view{ display:none; }
+section.view.active{ display:block; }
+
+.banner{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px;
+  padding:12px 16px; margin-bottom:18px; box-shadow:var(--shadow);
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.banner .pick-badge{
+  background:var(--accent); color:var(--accent-ink); font-family:'Teko','Oswald',Impact,sans-serif;
+  font-size:1.1rem; padding:2px 12px; border-radius:6px; white-space:nowrap;
+}
+.banner .status{ font-size:.92rem; color:var(--ink-dim); }
+.banner .status b{ color:var(--ink); }
+
+.setup-card{
+  background:var(--paper); border:1px dashed var(--line); border-radius:12px; padding:18px;
+  margin-bottom:18px; text-align:center;
+}
+.setup-card p{ color:var(--ink-dim); font-size:.95rem; }
+button.primary{
+  font-family:'Teko','Oswald',Impact,sans-serif; font-size:1.2rem; letter-spacing:.03em;
+  background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px;
+  padding:8px 22px; cursor:pointer;
+}
+button.ghost{
+  font:inherit; background:none; border:1px solid var(--line); color:var(--ink);
+  border-radius:8px; padding:6px 14px; cursor:pointer; font-size:.85rem;
+}
+
+/* Bracket */
+.bracket{ display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; }
+.round-col{ min-width:210px; flex:0 0 auto; }
+.round-col h3{ font-size:1.3rem; color:var(--ink-dim); margin-bottom:8px; }
+.round-col .series-stack{ display:flex; flex-direction:column; gap:14px; height:100%; justify-content:space-around; }
+
+.series{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:var(--shadow);
+}
+.series .bestof{ font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); padding:4px 10px; border-bottom:1px solid var(--line); }
+.matchup-row{ display:flex; align-items:center; justify-content:space-between; padding:7px 10px; gap:8px; }
+.matchup-row + .matchup-row{ border-top:1px solid var(--line); }
+.matchup-row.winner{ background:color-mix(in srgb, var(--good) 14%, transparent); }
+.matchup-row.eliminated .team-name{ color:var(--ink-dim); text-decoration:line-through; text-decoration-color:var(--line); }
+.team-id{ display:flex; align-items:center; gap:7px; min-width:0; }
+.seed{ font-size:.72rem; color:var(--ink-dim); width:16px; text-align:right; flex:none; }
+.dot{ width:10px; height:10px; border-radius:50%; flex:none; }
+.team-name{ font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tbd{ color:var(--ink-dim); font-style:italic; font-size:.85rem; }
+.score-controls{ display:flex; align-items:center; gap:5px; flex:none; }
+.score-controls button{
+  width:22px; height:22px; border-radius:5px; border:1px solid var(--line); background:var(--bg);
+  color:var(--ink); font-size:.9rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.score-controls button:disabled{ opacity:.3; cursor:default; }
+.score-controls .n{ min-width:14px; text-align:center; font-weight:600; }
+
+/* Ranking */
+.rank-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.rank-item{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:9px 12px;
+  display:flex; align-items:center; gap:10px; box-shadow:var(--shadow);
+}
+.rank-item.eliminated{ opacity:.55; }
+.rank-num{ font-family:'Teko','Oswald',Impact,sans-serif; font-size:1.5rem; color:var(--accent); width:28px; text-align:center; flex:none; }
+.rank-info{ flex:1; min-width:0; }
+.rank-info .name-row{ display:flex; align-items:center; gap:7px; }
+.rank-info .name-row .team-name{ font-weight:600; font-size:1rem; }
+.rank-info .meta{ font-size:.78rem; color:var(--ink-dim); }
+.rank-move{ display:flex; flex-direction:column; gap:2px; flex:none; }
+.rank-move button{
+  width:26px; height:20px; border-radius:5px; border:1px solid var(--line); background:var(--bg); color:var(--ink);
+  font-size:.75rem; cursor:pointer;
+}
+.rank-move button:disabled{ opacity:.25; cursor:default; }
+.status-pill{ font-size:.7rem; padding:2px 8px; border-radius:999px; flex:none; white-space:nowrap; }
+.status-pill.alive{ background:color-mix(in srgb, var(--good) 20%, transparent); color:var(--good); }
+.status-pill.out{ background:color-mix(in srgb, var(--bad) 18%, transparent); color:var(--bad); }
+.status-pill.champ{ background:var(--accent); color:var(--accent-ink); }
+
+/* Reference table */
+table.ref{ width:100%; border-collapse:collapse; font-size:.92rem; }
+table.ref th{ text-align:left; font-family:'Teko','Oswald',Impact,sans-serif; font-size:1.05rem; letter-spacing:.03em; color:var(--ink-dim); border-bottom:2px solid var(--ink); padding:6px 8px; }
+table.ref td{ padding:6px 8px; border-bottom:1px solid var(--line); }
+table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--accent) 10%, transparent); }
+.league-tag{ font-size:.72rem; font-weight:700; padding:1px 6px; border-radius:4px; }
+.league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
+.league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }
+.ref-controls{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;}
+.ref-controls input[type=search]{ font:inherit; padding:5px 10px; border-radius:6px; border:1px solid var(--line); background:var(--paper); color:var(--ink); flex:1; min-width:140px;}
+
+/* Setup team picker */
+.pick-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin:14px 0; text-align:left;}
+.pick-team{
+  border:1px solid var(--line); border-radius:8px; padding:7px 9px; cursor:pointer; background:var(--bg);
+  display:flex; align-items:center; gap:8px; font-size:.88rem;
+}
+.pick-team.selected{ border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, transparent); }
+.pick-team input{ display:none; }
+.seed-row{ display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 9px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; background:var(--bg); }
+.seed-row select{ font:inherit; background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:2px 6px; }
+.setup-columns{ display:flex; gap:20px; flex-wrap:wrap; text-align:left; margin-top:14px;}
+.setup-columns > div{ flex:1; min-width:240px; }
+footer.hint{ text-align:center; color:var(--ink-dim); font-size:.8rem; margin-top:24px; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+
+<header class="top">
+  <div>
+    <h1>Bracket Ballot</h1>
+    <div class="sub">Your postseason, ranked your way.</div>
+  </div>
+  <div class="year-picker">
+    <label for="yearSel">Season</label>
+    <select id="yearSel"></select>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button data-tab="bracket" class="active">Bracket</button>
+  <button data-tab="ranking">My Ranking</button>
+  <button data-tab="reference">All 30 Teams</button>
+</nav>
+
+<div id="banner" class="banner" hidden></div>
+
+<section id="view-bracket" class="view active">
+  <div id="setupPrompt" class="setup-card" hidden>
+    <h2>Set this year's playoff field</h2>
+    <p>Pick the 12 teams that made it and assign seeds 1&ndash;6 in each league. You can change this later.</p>
+    <button class="primary" id="openSetupBtn">Set the field</button>
+  </div>
+  <div id="bracketWrap"></div>
+</section>
+
+<section id="view-ranking" class="view">
+  <p style="color:var(--ink-dim); font-size:.9rem; margin-bottom:12px;">Order the field by who you want to win it all. Move teams up or down &mdash; your order is saved automatically.</p>
+  <ul class="rank-list" id="rankList"></ul>
+</section>
+
+<section id="view-reference" class="view">
+  <div class="ref-controls">
+    <input type="search" id="refSearch" placeholder="Search all 30 teams&hellip;">
+  </div>
+  <table class="ref">
+    <thead><tr><th>Team</th><th>Lg</th><th>Last WS Win</th><th>Drought</th></tr></thead>
+    <tbody id="refBody"></tbody>
+  </table>
+</section>
+
+<div id="setupModalBg" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:50; align-items:flex-start; justify-content:center; overflow:auto; padding:24px 12px;">
+  <div style="background:var(--paper); border-radius:14px; padding:22px; max-width:760px; width:100%; margin-bottom:40px;">
+    <h2 style="margin-bottom:6px;">Set the playoff field</h2>
+    <p style="color:var(--ink-dim); font-size:.9rem; margin-bottom:4px;">Tap 6 AL teams and 6 NL teams.</p>
+    <div class="pick-grid" id="pickGrid"></div>
+    <div id="seedArea" class="setup-columns"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+      <button class="ghost" id="cancelSetupBtn">Cancel</button>
+      <button class="primary" id="saveSetupBtn">Save field</button>
+    </div>
+  </div>
+</div>
+
+<footer class="hint">Tap a series' + / &minus; to log game wins. Rounds fill in automatically as each series is decided.</footer>
+
+<script>
+const TEAMS = {
+  ARI:{name:"Diamondbacks",league:"NL",lastWS:2001,color:"#A71930"},
+  ATL:{name:"Braves",league:"NL",lastWS:2021,color:"#CE1141"},
+  BAL:{name:"Orioles",league:"AL",lastWS:1983,color:"#DF4601"},
+  BOS:{name:"Red Sox",league:"AL",lastWS:2018,color:"#BD3039"},
+  CHC:{name:"Cubs",league:"NL",lastWS:2016,color:"#0E3386"},
+  CWS:{name:"White Sox",league:"AL",lastWS:2005,color:"#27251F"},
+  CIN:{name:"Reds",league:"NL",lastWS:1990,color:"#C6011F"},
+  CLE:{name:"Guardians",league:"AL",lastWS:1948,color:"#00385D"},
+  COL:{name:"Rockies",league:"NL",lastWS:null,color:"#33006F"},
+  DET:{name:"Tigers",league:"AL",lastWS:1984,color:"#0C2340"},
+  HOU:{name:"Astros",league:"AL",lastWS:2022,color:"#002D62"},
+  KC:{name:"Royals",league:"AL",lastWS:2015,color:"#004687"},
+  LAA:{name:"Angels",league:"AL",lastWS:2002,color:"#BA0021"},
+  LAD:{name:"Dodgers",league:"NL",lastWS:2024,color:"#005A9C"},
+  MIA:{name:"Marlins",league:"NL",lastWS:2003,color:"#00A3E0"},
+  MIL:{name:"Brewers",league:"NL",lastWS:null,color:"#12284B"},
+  MIN:{name:"Twins",league:"AL",lastWS:1991,color:"#002B5C"},
+  NYM:{name:"Mets",league:"NL",lastWS:1986,color:"#002D72"},
+  NYY:{name:"Yankees",league:"AL",lastWS:2009,color:"#003087"},
+  ATH:{name:"Athletics",league:"AL",lastWS:1989,color:"#003831"},
+  PHI:{name:"Phillies",league:"NL",lastWS:2008,color:"#E81828"},
+  PIT:{name:"Pirates",league:"NL",lastWS:1979,color:"#FDB827"},
+  SD:{name:"Padres",league:"NL",lastWS:null,color:"#2F241D"},
+  SF:{name:"Giants",league:"NL",lastWS:2014,color:"#FD5A1E"},
+  SEA:{name:"Mariners",league:"AL",lastWS:null,color:"#0C2C56"},
+  STL:{name:"Cardinals",league:"NL",lastWS:2011,color:"#C41E3A"},
+  TB:{name:"Rays",league:"AL",lastWS:null,color:"#092C5C"},
+  TEX:{name:"Rangers",league:"AL",lastWS:2023,color:"#003278"},
+  TOR:{name:"Blue Jays",league:"AL",lastWS:1993,color:"#134A8E"},
+  WSH:{name:"Nationals",league:"NL",lastWS:2019,color:"#AB0003"}
+};
+
+const ROUND_LABEL = {WC:"Wild Card", DS:"Division Series", CS:"Championship Series", WS:"World Series"};
+const BEST_OF = {WC:3, DS:5, CS:7, WS:7};
+const CURRENT_YEAR = new Date().getFullYear();
+const seasonYear = () => (new Date().getMonth() >= 8 ? CURRENT_YEAR : CURRENT_YEAR - 1);
+
+let db = null;
+let state = null; // current season doc
+let years = [];
+let activeYear = seasonYear();
+let activeTab = "bracket";
+
+function emptySeason(year){
+  return { year, teams:{}, series:{}, ranking:[] };
+}
+
+function winsNeeded(round){ return Math.ceil(BEST_OF[round]/2); }
+
+// Build the 4-round bracket per league from stored seeds + game tallies.
+function buildLeagueBracket(lg){
+  const teamsInLeague = Object.entries(state.teams).filter(([,t]) => t.league === lg);
+  if(teamsInLeague.length < 6) return null;
+  const bySeed = {};
+  teamsInLeague.forEach(([id,t]) => bySeed[t.seed] = id);
+
+  function seriesState(id, teamA, teamB, round){
+    const rec = state.series[id] || {winsA:0, winsB:0};
+    const need = winsNeeded(round);
+    let winner = null;
+    if(teamA && teamB){
+      if(rec.winsA >= need) winner = teamA;
+      else if(rec.winsB >= need) winner = teamB;
+    }
+    return { id, round, teamA, teamB, winsA:rec.winsA||0, winsB:rec.winsB||0, need, bestOf:BEST_OF[round], winner };
+  }
+
+  const wc1 = seriesState(`${lg}_WC1`, bySeed[3], bySeed[6], "WC");
+  const wc2 = seriesState(`${lg}_WC2`, bySeed[4], bySeed[5], "WC");
+
+  // Reseed: #1 draws the surviving wild-card team with the worse (higher) seed number; #2 draws the other.
+  let ds1TeamA = bySeed[1], ds1TeamB = null, ds2TeamA = bySeed[2], ds2TeamB = null;
+  if(wc1.winner && wc2.winner){
+    const seedOf = id => state.teams[id].seed;
+    const winners = [wc1.winner, wc2.winner].sort((a,b) => seedOf(b)-seedOf(a));
+    ds1TeamB = winners[0]; // worse remaining seed -> plays #1
+    ds2TeamB = winners[1];
+  }
+  const ds1 = seriesState(`${lg}_DS1`, ds1TeamA, ds1TeamB, "DS");
+  const ds2 = seriesState(`${lg}_DS2`, ds2TeamA, ds2TeamB, "DS");
+
+  const cs = seriesState(`${lg}_CS`, ds1.winner, ds2.winner, "CS");
+
+  return { wc:[wc1,wc2], ds:[ds1,ds2], cs:[cs], champion: cs.winner };
+}
+
+function buildWorldSeries(alBr, nlBr){
+  const alChamp = alBr && alBr.champion;
+  const nlChamp = nlBr && nlBr.champion;
+  return buildGenericSeries("WS", alChamp, nlChamp, "WS");
+}
+function buildGenericSeries(id, teamA, teamB, round){
+  const rec = state.series[id] || {winsA:0, winsB:0};
+  const need = winsNeeded(round);
+  let winner = null;
+  if(teamA && teamB){
+    if(rec.winsA >= need) winner = teamA;
+    else if(rec.winsB >= need) winner = teamB;
+  }
+  return { id, round, teamA, teamB, winsA:rec.winsA||0, winsB:rec.winsB||0, need, bestOf:BEST_OF[round], winner };
+}
+
+function fullBracket(){
+  const al = buildLeagueBracket("AL");
+  const nl = buildLeagueBracket("NL");
+  const ws = (al && nl) ? buildWorldSeries(al, nl) : null;
+  return {al, nl, ws};
+}
+
+function teamEliminated(id){
+  const br = fullBracket();
+  if(!br.al && !br.nl) return false;
+  const t = state.teams[id];
+  if(!t) return false;
+  const lgBr = t.league === "AL" ? br.al : br.nl;
+  if(!lgBr) return false;
+  const all = [...lgBr.wc, ...lgBr.ds, ...lgBr.cs, br.ws].filter(Boolean);
+  for(const s of all){
+    if(s.winner && (s.teamA === id || s.teamB === id) && s.winner !== id) return true;
+  }
+  return false;
+}
+function teamStatusLabel(id){
+  const br = fullBracket();
+  if(br.ws && br.ws.winner === id) return {label:"World Series Champs", cls:"champ"};
+  if(teamEliminated(id)){
+    const t = state.teams[id];
+    const lgBr = t.league === "AL" ? br.al : br.nl;
+    const all = [["WC",lgBr.wc],["DS",lgBr.ds],["CS",lgBr.cs],["WS",br.ws?[br.ws]:[]]];
+    for(const [round, arr] of all){
+      for(const s of arr){
+        if(s && s.winner && (s.teamA===id||s.teamB===id) && s.winner!==id) return {label:`Out &mdash; ${ROUND_LABEL[round]}`, cls:"out"};
+      }
+    }
+    return {label:"Eliminated", cls:"out"};
+  }
+  return {label:"Alive", cls:"alive"};
+}
+
+/* ---------- persistence ---------- */
+async function loadSeasonList(){
+  const list = await db.collection("seasons").list({limit:50});
+  years = (list.docs||[]).map(d=>d.id).sort().reverse();
+  if(!years.includes(String(activeYear))) years = [String(activeYear), ...years];
+  years = [...new Set(years)];
+}
+async function loadSeason(year){
+  const doc = await db.doc(`seasons/${year}`).get();
+  state = doc || emptySeason(year);
+  if(!state.teams) state.teams = {};
+  if(!state.series) state.series = {};
+  if(!state.ranking) state.ranking = [];
+}
+async function saveSeries(id, patch){
+  state.series[id] = {...(state.series[id]||{winsA:0,winsB:0}), ...patch};
+  await db.doc(`seasons/${activeYear}`).set(state);
+}
+async function saveTeams(teamsMap){
+  state.teams = teamsMap;
+  const ids = Object.keys(teamsMap);
+  state.ranking = ids.sort((a,b)=> teamsMap[a].seed - teamsMap[b].seed);
+  state.series = {};
+  await db.doc(`seasons/${activeYear}`).set(state);
+}
+async function saveRanking(order){
+  state.ranking = order;
+  await db.doc(`seasons/${activeYear}`).set(state);
+}
+
+/* ---------- rendering ---------- */
+function teamDot(id){ return `<span class="dot" style="background:${TEAMS[id]?.color||'#999'}"></span>`; }
+function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
+
+function renderSeriesCard(s){
+  if(!s || (!s.teamA && !s.teamB)){
+    return `<div class="series"><div class="bestof">Best of ${s?s.bestOf:"—"}</div>
+      <div class="matchup-row"><span class="tbd">TBD</span></div>
+      <div class="matchup-row"><span class="tbd">TBD</span></div></div>`;
+  }
+  const rowA = matchupRow(s, "A");
+  const rowB = matchupRow(s, "B");
+  return `<div class="series"><div class="bestof">Best of ${s.bestOf} &middot; first to ${s.need}</div>${rowA}${rowB}</div>`;
+}
+function matchupRow(s, side){
+  const id = side === "A" ? s.teamA : s.teamB;
+  const wins = side === "A" ? s.winsA : s.winsB;
+  const otherWins = side === "A" ? s.winsB : s.winsA;
+  if(!id) return `<div class="matchup-row"><span class="tbd">TBD</span></div>`;
+  const t = TEAMS[id];
+  const isWinner = s.winner === id;
+  const isLoser = s.winner && s.winner !== id;
+  const seed = state.teams[id] ? state.teams[id].seed : "";
+  const canInc = !s.winner;
+  const canDec = wins > 0 && !s.winner;
+  return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''}">
+    <div class="team-id">${teamDot(id)}<span class="seed">${seed}</span><span class="team-name">${t.name}</span></div>
+    <div class="score-controls">
+      <button data-act="dec" data-series="${s.id}" data-side="${side}" ${canDec?'':'disabled'}>&minus;</button>
+      <span class="n tabular">${wins}</span>
+      <button data-act="inc" data-series="${s.id}" data-side="${side}" ${canInc?'':'disabled'}>+</button>
+    </div>
+  </div>`;
+}
+
+function renderBracket(){
+  const wrap = document.getElementById("bracketWrap");
+  const setupPrompt = document.getElementById("setupPrompt");
+  const hasField = Object.keys(state.teams).length >= 12;
+  setupPrompt.hidden = hasField;
+  if(!hasField){ wrap.innerHTML = ""; renderBanner(null); return; }
+
+  const br = fullBracket();
+  function col(label, series){
+    return `<div class="round-col"><h3>${label}</h3><div class="series-stack">${series.map(renderSeriesCard).join("")}</div></div>`;
+  }
+  const alCol1 = col("AL Wild Card", br.al.wc);
+  const alCol2 = col("AL Division Series", br.al.ds);
+  const alCol3 = col("AL Championship", br.al.cs);
+  const nlCol1 = col("NL Wild Card", br.nl.wc);
+  const nlCol2 = col("NL Division Series", br.nl.ds);
+  const nlCol3 = col("NL Championship", br.nl.cs);
+  const wsCol = col("World Series", [br.ws]);
+
+  wrap.innerHTML = `
+    <h2 style="color:var(--al); margin:6px 0;">American League</h2>
+    <div class="bracket">${alCol1}${alCol2}${alCol3}</div>
+    <h2 style="color:var(--nl); margin:18px 0 6px;">National League</h2>
+    <div class="bracket">${nlCol1}${nlCol2}${nlCol3}</div>
+    <h2 style="margin:18px 0 6px;">Championship</h2>
+    <div class="bracket">${wsCol}</div>
+  `;
+  renderBanner(br);
+
+  wrap.querySelectorAll("button[data-act]").forEach(btn=>{
+    btn.addEventListener("click", async () => {
+      const seriesId = btn.dataset.series;
+      const side = btn.dataset.side;
+      const key = side === "A" ? "winsA" : "winsB";
+      const cur = state.series[seriesId] || {winsA:0, winsB:0};
+      const round = seriesId.split("_")[1]?.replace(/[0-9]/g,"") || (seriesId==="WS"?"WS":"");
+      const delta = btn.dataset.act === "inc" ? 1 : -1;
+      const next = Math.max(0, (cur[key]||0) + delta);
+      await saveSeries(seriesId, {[key]: next});
+      renderAll();
+    });
+  });
+}
+
+function renderBanner(br){
+  const banner = document.getElementById("banner");
+  if(!br || !state.ranking.length){ banner.hidden = true; return; }
+  const aliveRanked = state.ranking.filter(id => !teamEliminated(id));
+  banner.hidden = false;
+  if(aliveRanked.length === 0){
+    const champ = br.ws && br.ws.winner;
+    banner.innerHTML = champ
+      ? `<span class="pick-badge">${teamLabel(champ)} win it all</span><span class="status">Postseason complete.</span>`
+      : `<span class="status">All of your ranked teams have been eliminated.</span>`;
+    return;
+  }
+  const top = aliveRanked[0];
+  const st = teamStatusLabel(top);
+  banner.innerHTML = `<span class="pick-badge">${teamDot(top)} ${teamLabel(top)}</span>
+    <span class="status">Your highest remaining pick &mdash; <b>${st.label}</b></span>`;
+}
+
+function renderRanking(){
+  const list = document.getElementById("rankList");
+  if(!state.ranking.length){
+    list.innerHTML = `<li class="rank-item"><span class="rank-info">Set this year's playoff field first, on the Bracket tab.</span></li>`;
+    return;
+  }
+  list.innerHTML = state.ranking.map((id, i) => {
+    const t = state.teams[id];
+    const info = TEAMS[id];
+    const st = teamStatusLabel(id);
+    const eliminated = st.cls === "out";
+    return `<li class="rank-item ${eliminated?'eliminated':''}">
+      <span class="rank-num tabular">${i+1}</span>
+      <span class="rank-info">
+        <span class="name-row">${teamDot(id)}<span class="team-name">${info.name}</span></span>
+        <span class="meta">${t.league} &middot; Seed ${t.seed} &middot; Last WS ${info.lastWS||"never"}</span>
+      </span>
+      <span class="status-pill ${st.cls}">${st.label}</span>
+      <span class="rank-move">
+        <button data-move="up" data-id="${id}" ${i===0?'disabled':''}>&#9650;</button>
+        <button data-move="down" data-id="${id}" ${i===state.ranking.length-1?'disabled':''}>&#9660;</button>
+      </span>
+    </li>`;
+  }).join("");
+
+  list.querySelectorAll("button[data-move]").forEach(btn=>{
+    btn.addEventListener("click", async () => {
+      const id = btn.dataset.id;
+      const order = [...state.ranking];
+      const i = order.indexOf(id);
+      const j = btn.dataset.move === "up" ? i-1 : i+1;
+      if(j<0 || j>=order.length) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      await saveRanking(order);
+      renderRanking();
+    });
+  });
+}
+
+function renderReference(){
+  const q = (document.getElementById("refSearch").value||"").toLowerCase();
+  const body = document.getElementById("refBody");
+  const inField = new Set(Object.keys(state.teams||{}));
+  const rows = Object.entries(TEAMS)
+    .filter(([id,t]) => t.name.toLowerCase().includes(q) || t.league.toLowerCase().includes(q))
+    .sort((a,b)=> a[1].name.localeCompare(b[1].name));
+  body.innerHTML = rows.map(([id,t]) => {
+    const drought = t.lastWS ? (seasonYear() - t.lastWS) + " yrs" : "since 1969";
+    return `<tr class="${inField.has(id)?'in-playoffs':''}">
+      <td>${teamDot(id)} ${t.name}</td>
+      <td><span class="league-tag ${t.league}">${t.league}</span></td>
+      <td class="tabular">${t.lastWS || "&mdash;"}</td>
+      <td class="tabular">${drought}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderAll(){
+  renderBracket();
+  renderRanking();
+  renderReference();
+}
+
+/* ---------- setup modal ---------- */
+let picked = new Set();
+let seeds = {AL:{}, NL:{}};
+
+function openSetup(){
+  picked = new Set(Object.keys(state.teams));
+  seeds = {AL:{}, NL:{}};
+  Object.entries(state.teams).forEach(([id,t]) => seeds[t.league][t.seed] = id);
+  renderPickGrid();
+  document.getElementById("setupModalBg").style.display = "flex";
+}
+function closeSetup(){ document.getElementById("setupModalBg").style.display = "none"; }
+
+function renderPickGrid(){
+  const grid = document.getElementById("pickGrid");
+  grid.innerHTML = Object.entries(TEAMS).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([id,t]) => `
+    <label class="pick-team ${picked.has(id)?'selected':''}" data-id="${id}">
+      <input type="checkbox" ${picked.has(id)?'checked':''}>
+      ${teamDot(id)} ${t.name} <span style="color:var(--ink-dim); font-size:.78rem;">(${t.league})</span>
+    </label>`).join("");
+  grid.querySelectorAll(".pick-team").forEach(el => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      const id = el.dataset.id;
+      if(picked.has(id)) picked.delete(id); else picked.add(id);
+      renderPickGrid();
+      renderSeedArea();
+    });
+  });
+  renderSeedArea();
+}
+function renderSeedArea(){
+  const area = document.getElementById("seedArea");
+  ["AL","NL"].forEach(lg => {
+    const ids = [...picked].filter(id => TEAMS[id].league === lg);
+    Object.keys(seeds[lg]).forEach(s => { if(!ids.includes(seeds[lg][s])) delete seeds[lg][s]; });
+  });
+  area.innerHTML = ["AL","NL"].map(lg => {
+    const ids = [...picked].filter(id => TEAMS[id].league === lg);
+    return `<div>
+      <h3 style="color:var(--${lg.toLowerCase()}); font-size:1.2rem;">${lg} seeds (${ids.length}/6)</h3>
+      ${[1,2,3,4,5,6].map(seed => `
+        <div class="seed-row">
+          <span>Seed ${seed}</span>
+          <select data-lg="${lg}" data-seed="${seed}">
+            <option value="">&mdash;</option>
+            ${ids.map(id => `<option value="${id}" ${seeds[lg][seed]===id?'selected':''}>${TEAMS[id].name}</option>`).join("")}
+          </select>
+        </div>`).join("")}
+    </div>`;
+  }).join("");
+  area.querySelectorAll("select").forEach(sel => {
+    sel.addEventListener("change", () => {
+      const lg = sel.dataset.lg, seed = sel.dataset.seed;
+      seeds[lg][seed] = sel.value || null;
+    });
+  });
+}
+
+async function saveSetup(){
+  const teamsMap = {};
+  ["AL","NL"].forEach(lg => {
+    [1,2,3,4,5,6].forEach(seed => {
+      const id = seeds[lg][seed];
+      if(id) teamsMap[id] = {league:lg, seed:Number(seed)};
+    });
+  });
+  const alCount = Object.values(teamsMap).filter(t=>t.league==="AL").length;
+  const nlCount = Object.values(teamsMap).filter(t=>t.league==="NL").length;
+  if(alCount !== 6 || nlCount !== 6){
+    alert("Assign all 6 seeds in both AL and NL before saving.");
+    return;
+  }
+  await saveTeams(teamsMap);
+  closeSetup();
+  renderAll();
+}
+
+/* ---------- tabs / year switching ---------- */
+function switchTab(tab){
+  activeTab = tab;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab===tab));
+  document.querySelectorAll("section.view").forEach(v => v.classList.toggle("active", v.id === "view-"+tab));
+}
+
+async function switchYear(year){
+  activeYear = year;
+  await loadSeason(year);
+  renderAll();
+}
+
+async function boot(){
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+  document.getElementById("openSetupBtn").addEventListener("click", openSetup);
+  document.getElementById("cancelSetupBtn").addEventListener("click", closeSetup);
+  document.getElementById("saveSetupBtn").addEventListener("click", saveSetup);
+  document.getElementById("refSearch").addEventListener("input", renderReference);
+
+  const yearSel = document.getElementById("yearSel");
+  const fallbackYears = [seasonYear(), seasonYear()-1, seasonYear()-2];
+
+  try{
+    db = await window.claude?.use?.("db");
+  }catch(e){ db = null; }
+
+  if(db){
+    await loadSeasonList();
+    if(!years.length) years = fallbackYears.map(String);
+  } else {
+    years = fallbackYears.map(String);
+  }
+  yearSel.innerHTML = years.map(y => `<option value="${y}" ${Number(y)===activeYear?'selected':''}>${y}</option>`).join("");
+  yearSel.addEventListener("change", () => switchYear(Number(yearSel.value)));
+
+  if(db){
+    await loadSeason(activeYear);
+  } else {
+    state = emptySeason(activeYear);
+  }
+  renderAll();
+}
+
+if(window.claude?.hot){
+  const start = () => boot();
+  window.claude.hot.ready ? window.claude.hot.ready(start) : start();
+} else {
+  boot();
+}
+</script>
