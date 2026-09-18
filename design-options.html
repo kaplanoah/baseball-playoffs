@@ -1,107 +1,202 @@
-<title>Bracket Ballot Directions</title>
-<meta name="description" content="Three visual directions for the postseason bracket tool — pick one to build out.">
+<title>Broadcast Direction</title>
+<meta name="description" content="Refining the broadcast-style scoreboard direction, plus a preview of the full bracket tree.">
 <style>
-:root{
-  --bg:#f2ede0; --ink:#181818; --ink-dim:#6b6558; --line:#ddd4bd;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){ --bg:#151512; --ink:#eee7d6; --ink-dim:#9a9384; --line:#33322c; }
-}
+:root{ --bg:#f2ede0; --ink:#181818; --ink-dim:#6b6558; --line:#ddd4bd; color-scheme: light; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#151512; --ink:#eee7d6; --ink-dim:#9a9384; --line:#33322c; } }
 :root[data-theme="dark"]{ --bg:#151512; --ink:#eee7d6; --ink-dim:#9a9384; --line:#33322c; }
-
 *{box-sizing:border-box;}
 body{ background:var(--bg); color:var(--ink); font-family:'Source Sans 3',Arial,sans-serif; padding-inline:16px; padding-block:24px 48px; max-width:1180px; margin:0 auto; }
 h1{ font-size:1.8rem; margin:0 0 4px; }
-p.lede{ color:var(--ink-dim); margin:0 0 28px; max-width:60ch; }
-.options{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:22px; }
-.opt{ border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-.opt .label{ padding:12px 16px 4px; }
-.opt .label h2{ margin:0; font-size:1.05rem; }
-.opt .label p{ margin:4px 0 0; font-size:.82rem; color:var(--ink-dim); }
-.stage{ padding:18px; }
+h2.section{ font-size:1.2rem; margin:36px 0 4px; }
+p.lede{ color:var(--ink-dim); margin:0 0 8px; max-width:62ch; }
+.options{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; margin-top:18px; }
+.opt{ border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.opt .label{ padding:10px 14px 2px; }
+.opt .label h3{ margin:0; font-size:.95rem; }
+.opt .label p{ margin:3px 0 0; font-size:.78rem; color:var(--ink-dim); }
+.stage{ padding:16px; }
 
-/* ============ Option A: Night Game Scorecard ============ */
-.a-stage{ background:#0d1f16; color:#f1ead4; font-family:'Teko',sans-serif; border-radius:0; }
-.a-card{ background:#132a1f; border:1px solid #2a4536; border-radius:8px; padding:12px 14px; margin-bottom:10px; }
-.a-row{ display:flex; align-items:center; justify-content:space-between; font-size:1.15rem; letter-spacing:.02em; padding:4px 0; }
-.a-row .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:8px; }
-.a-row.win{ color:#f4c15c; }
-.a-score{ font-variant-numeric:tabular-nums; font-family:'Source Sans 3',sans-serif; font-weight:600; }
-.a-rank{ display:flex; align-items:center; gap:10px; background:#132a1f; border:1px solid #2a4536; border-radius:8px; padding:8px 12px; font-size:1.1rem; }
-.a-rank b{ color:#f4c15c; font-family:'Source Sans 3',sans-serif; }
-.a-tag{ font-size:.65rem; font-family:'Source Sans 3',sans-serif; text-transform:uppercase; letter-spacing:.1em; color:#7fa88f; }
+/* shared broadcast base */
+.bstage{ background:#0a0a0c; border-radius:0; font-family:'Chivo Mono', monospace; }
+.bcard{ background:#131318; border:1px solid #2b2b33; border-radius:4px; }
+.bhead{ display:flex; justify-content:space-between; font-size:.6rem; text-transform:uppercase; letter-spacing:.12em; color:#6f7480; padding:5px 10px; border-bottom:1px solid #2b2b33; }
+.brow{ display:flex; align-items:center; justify-content:space-between; padding:6px 10px; color:#e7e9ee; font-size:.85rem; gap:6px; }
+.brow + .brow{ border-top:1px solid #1e1e24; }
+.brow .dot{ width:8px; height:8px; margin-right:7px; display:inline-block; flex:none; }
+.bscore{ font-weight:700; font-size:.95rem; padding:1px 7px; border-radius:3px; background:#1e1e24; min-width:1.4em; text-align:center; }
 
-/* ============ Option B: Broadcast Scoreboard ============ */
-.b-stage{ background:#0a0a0c; border-radius:0; font-family:'Chivo Mono', monospace; }
-.b-card{ background:#131318; border:1px solid #2b2b33; border-radius:4px; margin-bottom:8px; }
-.b-head{ display:flex; justify-content:space-between; font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:#6f7480; padding:6px 12px; border-bottom:1px solid #2b2b33; }
-.b-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 12px; color:#e7e9ee; font-size:.92rem; }
-.b-row + .b-row{ border-top:1px solid #1e1e24; }
-.b-row .dot{ width:8px; height:8px; margin-right:8px; display:inline-block; }
-.b-score{ font-weight:700; font-size:1.05rem; padding:1px 8px; border-radius:3px; background:#1e1e24; }
-.b-score.lead{ background:#ffb100; color:#0a0a0c; }
-.b-rank{ display:flex; align-items:center; gap:10px; padding:7px 12px; color:#e7e9ee; font-size:.92rem; border-bottom:1px solid #1e1e24; }
-.b-rank .n{ color:#ffb100; font-weight:700; width:18px; }
+/* B1: amber lead */
+.b1 .bscore.lead{ background:#ffb100; color:#0a0a0c; }
+.b1 .brow.side-rail{ border-left:3px solid transparent; }
 
-/* ============ Option C: Stat Sheet / Broadsheet ============ */
-.c-stage{ background:#faf8f2; color:#1a1a1a; border-radius:0; }
-.c-card{ border:1px solid #1a1a1a; margin-bottom:10px; }
-.c-head{ font-size:.68rem; text-transform:uppercase; letter-spacing:.14em; padding:5px 10px; border-bottom:1px solid #1a1a1a; color:#5a5a52; }
-.c-row{ display:flex; justify-content:space-between; align-items:center; padding:7px 10px; font-family:'Source Serif 4',Georgia,serif; font-size:.98rem; }
-.c-row + .c-row{ border-top:1px solid #d8d4c8; }
-.c-score{ font-variant-numeric:tabular-nums; font-weight:600; }
-.c-row.win{ background:#eee9da; }
-.c-rank{ display:flex; justify-content:space-between; padding:6px 10px; font-family:'Source Serif 4',Georgia,serif; border-bottom:1px solid #d8d4c8; }
-.c-rank b{ font-family:'Source Sans 3',sans-serif; margin-right:6px; }
+/* B2: team-color side rail, no amber */
+.b2 .brow{ border-left:3px solid var(--tc,#444); padding-left:8px; }
+.b2 .bscore.lead{ background:#e7e9ee; color:#0a0a0c; }
+
+/* B3: cyan "on air" accent, bolder condensed head */
+.b3 .bhead{ color:#5ad1e0; font-weight:700; }
+.b3 .bscore.lead{ background:#5ad1e0; color:#0a0a0c; }
+.b3 .brow{ font-family:'Teko',sans-serif; font-size:1.05rem; letter-spacing:.02em; }
+.b3 .bscore{ font-family:'Chivo Mono',monospace; font-size:.85rem; }
+
+.rank{ display:flex; align-items:center; gap:9px; padding:6px 10px; color:#e7e9ee; font-size:.85rem; border-bottom:1px solid #1e1e24; }
+.rank .n{ color:#ffb100; font-weight:700; width:16px; font-family:'Chivo Mono',monospace; }
+.b2 .rank .n{ color:#e7e9ee; }
+.b3 .rank .n{ color:#5ad1e0; }
+
+/* ============ bracket tree ============ */
+.tree-wrap{ background:#0a0a0c; padding:22px 18px; overflow-x:auto; }
+.lg-label{ font-family:'Teko',sans-serif; font-size:1.3rem; letter-spacing:.03em; padding:2px 0; }
+.lg-label.al{ color:#7fb0e8; }
+.lg-label.nl{ color:#e88c96; }
+.bracket{ display:flex; align-items:stretch; gap:0; min-width:760px; }
+.round{ display:flex; flex-direction:column; justify-content:space-around; flex:1; min-width:140px; padding:0 10px; position:relative; }
+.round h4{ font-family:'Chivo Mono',monospace; font-size:.6rem; text-transform:uppercase; letter-spacing:.1em; color:#6f7480; margin:0 0 8px; text-align:center; }
+.slot{ position:relative; margin:6px 0; }
+.slot .bcard{ font-size:.8rem; }
+.slot .brow{ padding:5px 8px; font-size:.78rem; }
+.slot .bscore{ font-size:.8rem; padding:0 6px; }
+/* connector lines */
+.round:not(.round-first) .slot::before{
+  content:""; position:absolute; left:-10px; top:50%; width:10px; height:1px; background:#2b2b33;
+}
+.round:not(.round-last) .slot::after{
+  content:""; position:absolute; right:-10px; top:50%; width:10px; height:1px; background:#2b2b33;
+}
+.pair{ position:relative; }
+.pair::before{
+  content:""; position:absolute; right:-10px; top:25%; bottom:25%; width:1px; background:#2b2b33;
+}
+.champ-badge{ font-family:'Teko',sans-serif; font-size:1rem; color:#ffb100; text-align:center; margin-top:10px; }
+.example-tag{ font-size:.68rem; color:#6f7480; text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px; }
 
 footer{ margin-top:32px; color:var(--ink-dim); font-size:.85rem; text-align:center; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Chivo+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Source+Sans+3:wght@400;600;700&family=Chivo+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-<h1>Three directions</h1>
-<p class="lede">Same content, three treatments. React to these &mdash; palette, type, mood &mdash; and I'll carry the winner (or a mix) into the real tool.</p>
+<h1>Broadcast, refined</h1>
+<p class="lede">Three takes on the card itself, then the full bracket tree below in that language so you can see how rounds connect across a season.</p>
 
 <div class="options">
-
   <div class="opt">
-    <div class="label"><h2>A &middot; Night Game</h2><p>Ballpark-at-dusk green, warm scoreboard gold, condensed athletic type.</p></div>
-    <div class="stage a-stage">
-      <div class="a-tag">NLCS &middot; Best of 7</div>
-      <div class="a-card">
-        <div class="a-row win"><span><span class="dot" style="background:#005A9C"></span>Dodgers</span><span class="a-score">4</span></div>
-        <div class="a-row"><span><span class="dot" style="background:#E81828"></span>Phillies</span><span class="a-score">2</span></div>
+    <div class="label"><h3>B1 &middot; Amber lead</h3><p>The original &mdash; amber block marks whoever's ahead in the series.</p></div>
+    <div class="stage bstage b1">
+      <div class="bcard">
+        <div class="bhead"><span>NLCS</span><span>BEST OF 7</span></div>
+        <div class="brow"><span><span class="dot" style="background:#005A9C"></span>Dodgers</span><span class="bscore lead">4</span></div>
+        <div class="brow"><span><span class="dot" style="background:#E81828"></span>Phillies</span><span class="bscore">2</span></div>
       </div>
-      <div class="a-tag" style="margin-top:14px;">My ranking</div>
-      <div class="a-rank"><b>1</b> Dodgers &mdash; Alive</div>
+      <div class="rank"><span class="n">1</span>Dodgers &mdash; Alive</div>
     </div>
   </div>
-
   <div class="opt">
-    <div class="label"><h2>B &middot; Broadcast</h2><p>Blackout studio graphic, monospace digits, amber "on air" lead indicator.</p></div>
-    <div class="stage b-stage">
-      <div class="b-card">
-        <div class="b-head"><span>NLCS</span><span>BEST OF 7</span></div>
-        <div class="b-row"><span><span class="dot" style="background:#005A9C"></span>LAD</span><span class="b-score lead">4</span></div>
-        <div class="b-row"><span><span class="dot" style="background:#E81828"></span>PHI</span><span class="b-score">2</span></div>
+    <div class="label"><h3>B2 &middot; Team rail</h3><p>Each row carries its team's own color as a left rail &mdash; more color throughout, no amber.</p></div>
+    <div class="stage bstage b2">
+      <div class="bcard">
+        <div class="bhead"><span>NLCS</span><span>BEST OF 7</span></div>
+        <div class="brow" style="--tc:#005A9C"><span>Dodgers</span><span class="bscore lead">4</span></div>
+        <div class="brow" style="--tc:#E81828"><span>Phillies</span><span class="bscore">2</span></div>
       </div>
-      <div class="b-rank"><span class="n">1</span>LAD &mdash; Alive</div>
+      <div class="rank"><span class="n">1</span>Dodgers &mdash; Alive</div>
     </div>
   </div>
-
   <div class="opt">
-    <div class="label"><h2>C &middot; Stat Sheet</h2><p>Cream broadsheet, serif body, ledger-line rules &mdash; reads like a printed bracket.</p></div>
-    <div class="stage c-stage">
-      <div class="c-card">
-        <div class="c-head">NLCS &middot; Best of 7</div>
-        <div class="c-row win"><span>Dodgers</span><span class="c-score">4</span></div>
-        <div class="c-row"><span>Phillies</span><span class="c-score">2</span></div>
+    <div class="label"><h3>B3 &middot; On-air cyan</h3><p>Condensed athletic type for names, cyan "on air" accent instead of amber, monospace only for digits.</p></div>
+    <div class="stage bstage b3">
+      <div class="bcard">
+        <div class="bhead"><span>NLCS</span><span>BEST OF 7</span></div>
+        <div class="brow"><span><span class="dot" style="background:#005A9C"></span>Dodgers</span><span class="bscore lead">4</span></div>
+        <div class="brow"><span><span class="dot" style="background:#E81828"></span>Phillies</span><span class="bscore">2</span></div>
       </div>
-      <div class="c-rank"><span><b>1</b>Dodgers</span><span>Alive</span></div>
+      <div class="rank"><span class="n">1</span>Dodgers &mdash; Alive</div>
     </div>
   </div>
-
 </div>
 
-<footer>Tell me which one (or which pieces of each) and I'll build the full tool in that direction.</footer>
+<h2 class="section">The full bracket tree</h2>
+<p class="lede">Shown in the B1 language, using last year's actual results as a stand-in so you can see the shape &mdash; wild card into division series into championship series into the World Series, connected. Your real tool starts each season blank and fills in as you log games.</p>
+
+<div class="tree-wrap">
+  <div class="example-tag">Example data &middot; 2025 postseason, for layout preview only</div>
+  <div class="lg-label al">American League</div>
+  <div class="bracket">
+    <div class="round round-first"><h4>Wild Card</h4>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>WC</span><span>BO3</span></div>
+        <div class="brow"><span><span class="dot" style="background:#0C2C56"></span>(3) Mariners</span><span class="bscore lead">2</span></div>
+        <div class="brow"><span><span class="dot" style="background:#003087"></span>(6) Yankees</span><span class="bscore">0</span></div>
+      </div></div>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>WC</span><span>BO3</span></div>
+        <div class="brow"><span><span class="dot" style="background:#BD3039"></span>(4) Red Sox</span><span class="bscore">1</span></div>
+        <div class="brow"><span><span class="dot" style="background:#0C2340"></span>(5) Tigers</span><span class="bscore lead">2</span></div>
+      </div></div>
+    </div>
+    <div class="round"><h4>Division Series</h4>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>ALDS</span><span>BO5</span></div>
+        <div class="brow"><span><span class="dot" style="background:#134A8E"></span>(1) Blue Jays</span><span class="bscore lead">3</span></div>
+        <div class="brow"><span><span class="dot" style="background:#0C2340"></span>(5) Tigers</span><span class="bscore">1</span></div>
+      </div></div>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>ALDS</span><span>BO5</span></div>
+        <div class="brow"><span><span class="dot" style="background:#00385D"></span>(2) Guardians</span><span class="bscore">1</span></div>
+        <div class="brow"><span><span class="dot" style="background:#0C2C56"></span>(3) Mariners</span><span class="bscore lead">3</span></div>
+      </div></div>
+    </div>
+    <div class="round round-last"><h4>ALCS &middot; BO7</h4>
+      <div class="slot"><div class="bcard b1">
+        <div class="brow"><span><span class="dot" style="background:#134A8E"></span>Blue Jays</span><span class="bscore lead">4</span></div>
+        <div class="brow"><span><span class="dot" style="background:#0C2C56"></span>Mariners</span><span class="bscore">3</span></div>
+      </div></div>
+      <div class="champ-badge">Blue Jays advance</div>
+    </div>
+  </div>
+
+  <div class="lg-label nl" style="margin-top:20px;">National League</div>
+  <div class="bracket">
+    <div class="round round-first"><h4>Wild Card</h4>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>WC</span><span>BO3</span></div>
+        <div class="brow"><span><span class="dot" style="background:#2F241D"></span>(3) Padres</span><span class="bscore">1</span></div>
+        <div class="brow"><span><span class="dot" style="background:#C6011F"></span>(6) Reds</span><span class="bscore lead">2</span></div>
+      </div></div>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>WC</span><span>BO3</span></div>
+        <div class="brow"><span><span class="dot" style="background:#E81828"></span>(4) Phillies</span><span class="bscore">0</span></div>
+        <div class="brow"><span><span class="dot" style="background:#12284B"></span>(5) Brewers</span><span class="bscore lead">2</span></div>
+      </div></div>
+    </div>
+    <div class="round"><h4>Division Series</h4>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>NLDS</span><span>BO5</span></div>
+        <div class="brow"><span><span class="dot" style="background:#0E3386"></span>(1) Cubs</span><span class="bscore">1</span></div>
+        <div class="brow"><span><span class="dot" style="background:#12284B"></span>(5) Brewers</span><span class="bscore lead">3</span></div>
+      </div></div>
+      <div class="slot pair"><div class="bcard b1">
+        <div class="bhead"><span>NLDS</span><span>BO5</span></div>
+        <div class="brow"><span><span class="dot" style="background:#005A9C"></span>(2) Dodgers</span><span class="bscore lead">3</span></div>
+        <div class="brow"><span><span class="dot" style="background:#C6011F"></span>(6) Reds</span><span class="bscore">0</span></div>
+      </div></div>
+    </div>
+    <div class="round round-last"><h4>NLCS &middot; BO7</h4>
+      <div class="slot"><div class="bcard b1">
+        <div class="brow"><span><span class="dot" style="background:#005A9C"></span>Dodgers</span><span class="bscore lead">4</span></div>
+        <div class="brow"><span><span class="dot" style="background:#12284B"></span>Brewers</span><span class="bscore">0</span></div>
+      </div></div>
+      <div class="champ-badge">Dodgers advance</div>
+    </div>
+  </div>
+
+  <div class="lg-label" style="margin-top:20px; color:#ffb100;">World Series &middot; BO7</div>
+  <div style="max-width:260px;">
+    <div class="bcard b1">
+      <div class="brow"><span><span class="dot" style="background:#134A8E"></span>Blue Jays</span><span class="bscore">3</span></div>
+      <div class="brow"><span><span class="dot" style="background:#005A9C"></span>Dodgers</span><span class="bscore lead">4</span></div>
+    </div>
+    <div class="champ-badge">Dodgers win it all</div>
+  </div>
+</div>
+
+<footer>Say the word on B1 / B2 / B3 (or mix-and-match) and I'll build the real, blank-for-2026 tool.</footer>
