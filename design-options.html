@@ -1,0 +1,107 @@
+<title>Bracket Ballot Directions</title>
+<meta name="description" content="Three visual directions for the postseason bracket tool — pick one to build out.">
+<style>
+:root{
+  --bg:#f2ede0; --ink:#181818; --ink-dim:#6b6558; --line:#ddd4bd;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#151512; --ink:#eee7d6; --ink-dim:#9a9384; --line:#33322c; }
+}
+:root[data-theme="dark"]{ --bg:#151512; --ink:#eee7d6; --ink-dim:#9a9384; --line:#33322c; }
+
+*{box-sizing:border-box;}
+body{ background:var(--bg); color:var(--ink); font-family:'Source Sans 3',Arial,sans-serif; padding-inline:16px; padding-block:24px 48px; max-width:1180px; margin:0 auto; }
+h1{ font-size:1.8rem; margin:0 0 4px; }
+p.lede{ color:var(--ink-dim); margin:0 0 28px; max-width:60ch; }
+.options{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:22px; }
+.opt{ border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.opt .label{ padding:12px 16px 4px; }
+.opt .label h2{ margin:0; font-size:1.05rem; }
+.opt .label p{ margin:4px 0 0; font-size:.82rem; color:var(--ink-dim); }
+.stage{ padding:18px; }
+
+/* ============ Option A: Night Game Scorecard ============ */
+.a-stage{ background:#0d1f16; color:#f1ead4; font-family:'Teko',sans-serif; border-radius:0; }
+.a-card{ background:#132a1f; border:1px solid #2a4536; border-radius:8px; padding:12px 14px; margin-bottom:10px; }
+.a-row{ display:flex; align-items:center; justify-content:space-between; font-size:1.15rem; letter-spacing:.02em; padding:4px 0; }
+.a-row .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:8px; }
+.a-row.win{ color:#f4c15c; }
+.a-score{ font-variant-numeric:tabular-nums; font-family:'Source Sans 3',sans-serif; font-weight:600; }
+.a-rank{ display:flex; align-items:center; gap:10px; background:#132a1f; border:1px solid #2a4536; border-radius:8px; padding:8px 12px; font-size:1.1rem; }
+.a-rank b{ color:#f4c15c; font-family:'Source Sans 3',sans-serif; }
+.a-tag{ font-size:.65rem; font-family:'Source Sans 3',sans-serif; text-transform:uppercase; letter-spacing:.1em; color:#7fa88f; }
+
+/* ============ Option B: Broadcast Scoreboard ============ */
+.b-stage{ background:#0a0a0c; border-radius:0; font-family:'Chivo Mono', monospace; }
+.b-card{ background:#131318; border:1px solid #2b2b33; border-radius:4px; margin-bottom:8px; }
+.b-head{ display:flex; justify-content:space-between; font-size:.62rem; text-transform:uppercase; letter-spacing:.12em; color:#6f7480; padding:6px 12px; border-bottom:1px solid #2b2b33; }
+.b-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 12px; color:#e7e9ee; font-size:.92rem; }
+.b-row + .b-row{ border-top:1px solid #1e1e24; }
+.b-row .dot{ width:8px; height:8px; margin-right:8px; display:inline-block; }
+.b-score{ font-weight:700; font-size:1.05rem; padding:1px 8px; border-radius:3px; background:#1e1e24; }
+.b-score.lead{ background:#ffb100; color:#0a0a0c; }
+.b-rank{ display:flex; align-items:center; gap:10px; padding:7px 12px; color:#e7e9ee; font-size:.92rem; border-bottom:1px solid #1e1e24; }
+.b-rank .n{ color:#ffb100; font-weight:700; width:18px; }
+
+/* ============ Option C: Stat Sheet / Broadsheet ============ */
+.c-stage{ background:#faf8f2; color:#1a1a1a; border-radius:0; }
+.c-card{ border:1px solid #1a1a1a; margin-bottom:10px; }
+.c-head{ font-size:.68rem; text-transform:uppercase; letter-spacing:.14em; padding:5px 10px; border-bottom:1px solid #1a1a1a; color:#5a5a52; }
+.c-row{ display:flex; justify-content:space-between; align-items:center; padding:7px 10px; font-family:'Source Serif 4',Georgia,serif; font-size:.98rem; }
+.c-row + .c-row{ border-top:1px solid #d8d4c8; }
+.c-score{ font-variant-numeric:tabular-nums; font-weight:600; }
+.c-row.win{ background:#eee9da; }
+.c-rank{ display:flex; justify-content:space-between; padding:6px 10px; font-family:'Source Serif 4',Georgia,serif; border-bottom:1px solid #d8d4c8; }
+.c-rank b{ font-family:'Source Sans 3',sans-serif; margin-right:6px; }
+
+footer{ margin-top:32px; color:var(--ink-dim); font-size:.85rem; text-align:center; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Source+Sans+3:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Chivo+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<h1>Three directions</h1>
+<p class="lede">Same content, three treatments. React to these &mdash; palette, type, mood &mdash; and I'll carry the winner (or a mix) into the real tool.</p>
+
+<div class="options">
+
+  <div class="opt">
+    <div class="label"><h2>A &middot; Night Game</h2><p>Ballpark-at-dusk green, warm scoreboard gold, condensed athletic type.</p></div>
+    <div class="stage a-stage">
+      <div class="a-tag">NLCS &middot; Best of 7</div>
+      <div class="a-card">
+        <div class="a-row win"><span><span class="dot" style="background:#005A9C"></span>Dodgers</span><span class="a-score">4</span></div>
+        <div class="a-row"><span><span class="dot" style="background:#E81828"></span>Phillies</span><span class="a-score">2</span></div>
+      </div>
+      <div class="a-tag" style="margin-top:14px;">My ranking</div>
+      <div class="a-rank"><b>1</b> Dodgers &mdash; Alive</div>
+    </div>
+  </div>
+
+  <div class="opt">
+    <div class="label"><h2>B &middot; Broadcast</h2><p>Blackout studio graphic, monospace digits, amber "on air" lead indicator.</p></div>
+    <div class="stage b-stage">
+      <div class="b-card">
+        <div class="b-head"><span>NLCS</span><span>BEST OF 7</span></div>
+        <div class="b-row"><span><span class="dot" style="background:#005A9C"></span>LAD</span><span class="b-score lead">4</span></div>
+        <div class="b-row"><span><span class="dot" style="background:#E81828"></span>PHI</span><span class="b-score">2</span></div>
+      </div>
+      <div class="b-rank"><span class="n">1</span>LAD &mdash; Alive</div>
+    </div>
+  </div>
+
+  <div class="opt">
+    <div class="label"><h2>C &middot; Stat Sheet</h2><p>Cream broadsheet, serif body, ledger-line rules &mdash; reads like a printed bracket.</p></div>
+    <div class="stage c-stage">
+      <div class="c-card">
+        <div class="c-head">NLCS &middot; Best of 7</div>
+        <div class="c-row win"><span>Dodgers</span><span class="c-score">4</span></div>
+        <div class="c-row"><span>Phillies</span><span class="c-score">2</span></div>
+      </div>
+      <div class="c-rank"><span><b>1</b>Dodgers</span><span>Alive</span></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Tell me which one (or which pieces of each) and I'll build the full tool in that direction.</footer>
