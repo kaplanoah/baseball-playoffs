@@ -364,14 +364,14 @@ function teamStatusLabel(id){
 
 /* ---------- persistence ---------- */
 async function loadSeasonList(){
-  const list = await db.collection("seasons").list({limit:50});
-  years = (list.docs||[]).map(d=>d.id).sort().reverse();
+  const snap = await db.collection("seasons").limit(50).get();
+  years = snap.docs.map(d=>d.id).sort().reverse();
   if(!years.includes(String(activeYear))) years = [String(activeYear), ...years];
   years = [...new Set(years)];
 }
 async function loadSeason(year){
-  const doc = await db.doc(`seasons/${year}`).get();
-  state = doc || emptySeason(year);
+  const snap = await db.doc(`seasons/${year}`).get();
+  state = snap.exists ? snap.data() : emptySeason(year);
   if(!state.teams) state.teams = {};
   if(!state.series) state.series = {};
   if(!state.ranking) state.ranking = [];
@@ -723,20 +723,23 @@ async function boot(){
     db = await window.claude?.use?.("db");
   }catch(e){ db = null; }
 
-  if(db){
-    await loadSeasonList();
-    if(!years.length) years = fallbackYears.map(String);
-  } else {
-    years = fallbackYears.map(String);
-  }
+  try{
+    if(db){
+      await loadSeasonList();
+      if(!years.length) years = fallbackYears.map(String);
+    } else {
+      years = fallbackYears.map(String);
+    }
+  }catch(e){ db = null; years = fallbackYears.map(String); }
+
   yearSel.innerHTML = years.map(y => `<option value="${y}" ${Number(y)===activeYear?'selected':''}>${y}</option>`).join("");
   yearSel.addEventListener("change", () => switchYear(Number(yearSel.value)));
 
-  if(db){
-    await loadSeason(activeYear);
-  } else {
-    state = emptySeason(activeYear);
-  }
+  try{
+    if(db){ await loadSeason(activeYear); }
+    else { state = emptySeason(activeYear); }
+  }catch(e){ db = null; state = emptySeason(activeYear); }
+
   renderAll();
 }
 
