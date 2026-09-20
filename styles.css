@@ -132,7 +132,7 @@ button.ghost{
 .team-id{ display:flex; align-items:center; gap:8px; min-width:0; }
 .dot{ display:inline-block; vertical-align:middle; width:13px; height:13px; border-radius:50%; flex:none; }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tbd{ color:var(--ink-dim); font-style:italic; font-size:.88rem; }
+.tbd{ color:color-mix(in srgb, var(--ink-dim) 55%, var(--card)); font-style:italic; font-size:.88rem; }
 .nscore{ min-width:1.5em; text-align:center; font-weight:700; font-size:1rem; padding:2px 8px; border-radius:3px; background:var(--divider); }
 .nscore.lead{ background:var(--gold); color:var(--gold-ink); }
 
