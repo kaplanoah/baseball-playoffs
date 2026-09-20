@@ -139,7 +139,8 @@ button.ghost{
   display:flex; align-items:center; gap:12px; touch-action:none; cursor:grab;
 }
 .rank-item:active{ cursor:grabbing; }
-.rank-item.dragging{ opacity:.6; box-shadow:0 8px 20px rgba(0,0,0,.4); }
+.rank-item.dragging{ box-shadow:0 8px 20px rgba(0,0,0,.4); }
+.rank-item.drag-ghost{ opacity:.35; }
 .rank-item.eliminated{ opacity:.55; }
 .grip{ flex:none; color:var(--ink-dim); font-size:1.05rem; letter-spacing:-2px; }
 .rank-num{ font-weight:700; color:var(--gold); width:28px; text-align:center; flex:none; font-size:1.2rem; }

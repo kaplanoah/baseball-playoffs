@@ -227,71 +227,32 @@ function renderRanking(){
   wireDrag(list);
 }
 
-/* The dragged row moves in the DOM as you go, so the list itself is the record
-   of where things are — no index math to drift out of sync with the screen, and
-   the final order is just read back off the DOM. */
+/* Reordering runs on Sortable (vendored, see sortable.min.js), which handles
+   mouse, touch and pen across browsers. Bound once to the list element, which
+   survives re-renders, so re-rendering the rows doesn't need to rebind. */
+let sortable = null;
+
 function wireDrag(list){
-  let dragging = null;
+  if(sortable || typeof Sortable === "undefined") return;
+  sortable = Sortable.create(list, {
+    animation: 140,
+    chosenClass: "dragging",
+    ghostClass: "drag-ghost",
+    onEnd: () => {
+      const rows = [...list.querySelectorAll(".rank-item")];
+      const order = rows.map(el => el.dataset.id);
+      if(order.join() === state.ranking.join()) return;
 
-  const rows = () => [...list.querySelectorAll(".rank-item")];
-
-  function renumber(){
-    rows().forEach((row, i) => {
-      const n = row.querySelector(".rank-num");
-      if(n) n.textContent = i + 1;
-    });
-  }
-
-  function onMove(ev){
-    if(!dragging) return;
-    ev.preventDefault();
-    for(const row of rows()){
-      if(row === dragging) continue;
-      const r = row.getBoundingClientRect();
-      const mid = r.top + r.height / 2;
-      const draggingIsAfter = !!(row.compareDocumentPosition(dragging) & Node.DOCUMENT_POSITION_FOLLOWING);
-      if(ev.clientY < mid && draggingIsAfter){
-        list.insertBefore(dragging, row);
-        renumber();
-        break;
-      }
-      if(ev.clientY > mid && !draggingIsAfter){
-        list.insertBefore(dragging, row.nextSibling);
-        renumber();
-        break;
-      }
+      // Sortable already placed the row; just renumber in place rather than
+      // re-rendering the list out from under it.
+      state.ranking = order;
+      rows.forEach((row, i) => {
+        const n = row.querySelector(".rank-num");
+        if(n) n.textContent = i + 1;
+      });
+      renderBracket();
+      saveRanking(order);
     }
-  }
-
-  function onUp(){
-    if(!dragging) return;
-    dragging.classList.remove("dragging");
-    dragging = null;
-    document.body.style.userSelect = "";
-    window.removeEventListener("pointermove", onMove);
-    window.removeEventListener("pointerup", onUp);
-    window.removeEventListener("pointercancel", onUp);
-
-    const order = rows().map(el => el.dataset.id);
-    if(order.join() === state.ranking.join()) return;
-
-    state.ranking = order;
-    renderRanking();
-    renderBracket();
-    saveRanking(order);
-  }
-
-  rows().forEach(el => {
-    el.addEventListener("pointerdown", (e) => {
-      if(!el.dataset.id) return;
-      e.preventDefault();
-      dragging = el;
-      el.classList.add("dragging");
-      document.body.style.userSelect = "none";
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
-      window.addEventListener("pointercancel", onUp);
-    });
   });
 }
 
