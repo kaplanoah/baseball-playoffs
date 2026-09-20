@@ -2,44 +2,93 @@
 
 A personal postseason tracker: the full 12-team bracket, your ranking of who you
 want to win the World Series, and last-title context for all 30 clubs. A
-scheduled job keeps the scores current so nothing has to be updated by hand.
+scheduled job keeps the scores current, so nothing gets updated by hand.
 
-## Set it up
+You end up with a private page that works on your phone, already filled in with
+this year's bracket.
 
-### 1. Publish the page
+## Setup
 
-Publish `index.html` as a Claude Artifact with the `db` capability and the other
-files alongside it:
-
-```
-capabilities: { "db": {} }
-files: { "styles.css": ..., "teams.js": ..., "bracket.js": ..., "app.js": ... }
-```
-
-Save the artifact URL — the next two steps need it.
-
-### 2. Let the job reach MLB
-
-Scheduled runs inherit their cloud environment's network policy, and the default
-("Trusted") blocks `statsapi.mlb.com`, so every run would fail with a 403 from
-the egress proxy. In the environment's settings, set **Network access** to
-**Custom** and add `statsapi.mlb.com`, or pick **Full**.
-
-### 3. Create the routine
-
-At [claude.ai/code/routines](https://claude.ai/code/routines), create a routine
-on the environment from step 2, scheduled `0 15-23,0-6 * 9-11 *` — hourly from
-roughly 11am to 2am ET, September through November. Hourly is the platform
-minimum; the prompt makes off-hours runs exit immediately. Turn on push
-notifications if you want an alert when a series is decided.
-
-Paste this as the prompt, with your artifact URL in the first line:
+Paste this into Claude Code:
 
 ```
+Set up the MLB postseason tracker from
+https://github.com/kaplanoah/baseball-playoffs for me. Clone it, read the
+"Setup, for Claude" section of its README, and do everything in it.
+```
+
+Claude publishes the page, fills in the current bracket, and schedules the job
+that keeps it updated. It'll pause once to ask you to allow the MLB API through
+your environment's network policy, which is the one part it can't do on your
+behalf. The whole thing takes a couple of minutes.
+
+## Setup, for Claude
+
+Work through these in order. Steps 3 and 4 need the artifact URL from step 1.
+
+**1. Publish the page.** Using the Artifact tool, publish `index.html` with
+`icon: "baseball"`, `capabilities: {"db": {}}`, and the supporting files:
+
+```
+files: {
+  "styles.css": "styles.css",
+  "teams.js":   "teams.js",
+  "bracket.js": "bracket.js",
+  "app.js":     "app.js"
+}
+```
+
+The `db` capability is what gives the page a place to keep state, and the page
+reads its siblings by relative path, so all four have to go up with it.
+
+**2. Get the MLB API unblocked.** Scheduled runs inherit the cloud
+environment's network policy, and the default ("Trusted") rejects
+`statsapi.mlb.com` with a 403 from the egress proxy. Ask the user to open their
+cloud environment's settings, set **Network access** to **Custom**, and add
+`statsapi.mlb.com` — or choose **Full**. Wait for them to confirm, then verify
+before going on:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" \
+  "https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=$(date +%F)"
+```
+
+A 200 means you're clear; a 403 means the policy hasn't taken effect yet.
+
+**3. Fill in the bracket.** The page is empty until the season doc exists, so
+seed it now rather than leaving the user at a setup screen.
+
+Fetch
+`/api/v1/schedule/postseason?season=<YEAR>` and check whether real team names
+have replaced placeholder seed labels like "AL Wild Card #3". If they have, use
+that official bracket. If they haven't, build the field that would happen if the
+season ended today, from
+`/api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason`:
+per league, the three division leaders (`divisionRank` 1) seeded 1–3 by win
+percentage, then the top three by `wildCardRank` seeded 4–6.
+
+Write it with the ArtifactData tool to collection `seasons`, doc id `<YEAR>`,
+using the team ids and doc shape under [Data](#data) below. Set `ranking` to the
+12 ids ordered by seed as a starting point — the user drags it into their real
+order — and `projected` to `true` unless the official bracket was already set.
+
+**4. Schedule the routine.** Create it with the `create_trigger` tool (or, if
+that isn't available, have the user create it at
+[claude.ai/code/routines](https://claude.ai/code/routines)):
+
+- **Schedule:** `0 15-23,0-6 * 9-11 *` — hourly from roughly 11am to 2am ET,
+  September through November. Hourly is the platform minimum, and the prompt
+  makes off-hours runs exit immediately.
+- **Environment:** the one from step 2.
+- **Fresh session per run**, with push notifications on, so a decided series
+  reaches the user's phone.
+- **Prompt:** the block below, with the artifact URL and year filled in.
+
+````
 You are maintaining a published Claude Artifact — a personal MLB postseason
 bracket tracker — at this URL:
 
-<YOUR ARTIFACT URL>
+<ARTIFACT URL>
 
 It stores its state via the ArtifactData tool (load via ToolSearch for
 "ArtifactData" if it isn't in your tool list). The season's state lives in
@@ -111,10 +160,10 @@ Keep each run terse — this is unattended maintenance, not a conversation. Spea
 up only for something worth knowing: the projected field changed, the real
 bracket locked in, a series was decided, or the API or environment access is
 broken.
-```
+````
 
-Before the field is official, the routine fills in the bracket that would happen
-if the season ended today and refreshes it as the standings move.
+When you're done, give the user the artifact link and mention that their ranking
+is theirs to set on the Ranking tab.
 
 ## Files
 
@@ -150,9 +199,9 @@ One document per season, at `seasons/<year>`:
 }
 ```
 
-`ranking` is yours alone — the routine only ever appends teams that join the
-field or drops ones that leave it. Series scores are read-only in the UI because
-the routine owns them.
+`ranking` is yours alone — the routine only appends teams that join the field or
+drops ones that leave it. Series scores are read-only in the UI because the
+routine owns them.
 
 Nothing here needs credentials: MLB's Stats API is public, and writes to the
 artifact store are authorized by the routine running under your own account.

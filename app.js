@@ -227,85 +227,67 @@ function renderRanking(){
   wireDrag(list);
 }
 
-// Rows are measured once at drag start, so the target index is computed against
-// stable positions; siblings only shift visually until the drop commits.
+/* The dragged row moves in the DOM as you go, so the list itself is the record
+   of where things are — no index math to drift out of sync with the screen, and
+   the final order is just read back off the DOM. */
 function wireDrag(list){
-  list.querySelectorAll(".rank-item").forEach(dragEl => {
-    dragEl.addEventListener("pointerdown", (e) => {
-      if(!dragEl.dataset.id) return;
+  let dragging = null;
+
+  const rows = () => [...list.querySelectorAll(".rank-item")];
+
+  function renumber(){
+    rows().forEach((row, i) => {
+      const n = row.querySelector(".rank-num");
+      if(n) n.textContent = i + 1;
+    });
+  }
+
+  function onMove(ev){
+    if(!dragging) return;
+    ev.preventDefault();
+    for(const row of rows()){
+      if(row === dragging) continue;
+      const r = row.getBoundingClientRect();
+      const mid = r.top + r.height / 2;
+      const draggingIsAfter = !!(row.compareDocumentPosition(dragging) & Node.DOCUMENT_POSITION_FOLLOWING);
+      if(ev.clientY < mid && draggingIsAfter){
+        list.insertBefore(dragging, row);
+        renumber();
+        break;
+      }
+      if(ev.clientY > mid && !draggingIsAfter){
+        list.insertBefore(dragging, row.nextSibling);
+        renumber();
+        break;
+      }
+    }
+  }
+
+  function onUp(){
+    if(!dragging) return;
+    dragging.classList.remove("dragging");
+    dragging = null;
+    document.body.style.userSelect = "";
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onUp);
+
+    const order = rows().map(el => el.dataset.id);
+    if(order.join() === state.ranking.join()) return;
+
+    state.ranking = order;
+    renderRanking();
+    renderBracket();
+    saveRanking(order);
+  }
+
+  rows().forEach(el => {
+    el.addEventListener("pointerdown", (e) => {
+      if(!el.dataset.id) return;
       e.preventDefault();
-
-      const items = [...list.querySelectorAll(".rank-item")];
-      const startIndex = items.indexOf(dragEl);
-      // Document-space rects: a scroll mid-drag must not shift the targets.
-      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
-      const startRects = items.map(el => {
-        const r = el.getBoundingClientRect();
-        return { top: r.top + scrollY, height: r.height };
-      });
-      const dragRect = startRects[startIndex];
-      const itemStep = dragRect.height + 8; // row height + list gap
-      const startY = e.pageY;
-      let targetIndex = startIndex;
-
-      dragEl.setPointerCapture(e.pointerId);
+      dragging = el;
+      el.classList.add("dragging");
       document.body.style.userSelect = "none";
-      dragEl.classList.add("dragging");
-      dragEl.style.position = "relative";
-      dragEl.style.zIndex = "10";
-
-      function onMove(ev){
-        ev.preventDefault();
-        const dy = ev.pageY - startY;
-        dragEl.style.transform = `translateY(${dy}px)`;
-        const centerY = dragRect.top + dragRect.height/2 + dy;
-
-        let next = startIndex;
-        startRects.forEach((r, i) => {
-          if(i === startIndex) return;
-          const c = r.top + r.height/2;
-          if(i < startIndex && centerY < c) next = Math.min(next, i);
-          if(i > startIndex && centerY > c) next = Math.max(next, i);
-        });
-        targetIndex = next;
-
-        items.forEach((el, i) => {
-          if(el === dragEl) return;
-          let shift = 0;
-          if(targetIndex < startIndex && i >= targetIndex && i < startIndex) shift = itemStep;
-          if(targetIndex > startIndex && i <= targetIndex && i > startIndex) shift = -itemStep;
-          el.style.transition = "transform 120ms ease";
-          el.style.transform = shift ? `translateY(${shift}px)` : "";
-        });
-      }
-
-      function onUp(ev){
-        try{ dragEl.releasePointerCapture(ev.pointerId); }catch(_){}
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        window.removeEventListener("pointercancel", onUp);
-        document.body.style.userSelect = "";
-
-        items.forEach(el => {
-          el.style.transform = "";
-          el.style.transition = "";
-          el.style.position = "";
-          el.style.zIndex = "";
-        });
-        dragEl.classList.remove("dragging");
-        if(targetIndex === startIndex) return;
-
-        const order = items.map(el => el.dataset.id);
-        const [moved] = order.splice(startIndex, 1);
-        order.splice(targetIndex, 0, moved);
-
-        // Re-render from the new order immediately; persisting can lag behind
-        // without the row appearing to snap back to where it started.
-        state.ranking = order;
-        renderRanking();
-        renderBracket();
-        saveRanking(order);
-      }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
