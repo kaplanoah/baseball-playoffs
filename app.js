@@ -106,10 +106,23 @@ async function saveRanking(order){
 }
 
 /* ---------- shared render helpers ---------- */
+const perceivedLightness = hex => {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+};
+
+/* Split vertically, not diagonally: the dot's inner shadow falls across its
+   top edge, and on a diagonal that shades the primary's corner while leaving
+   the secondary untouched. Side by side, both halves take the same shading.
+
+   A light color also reads larger than a dark one at equal area, so when the
+   secondary is much lighter the boundary moves a little to even them out. */
 function teamDot(id){
   const t = TEAMS[id];
   if(!t) return `<span class="dot" style="background:#999"></span>`;
-  return `<span class="dot" style="background:linear-gradient(135deg, ${t.color} 50%, ${t.color2} 50%)"></span>`;
+  const contrastGap = perceivedLightness(t.color2) - perceivedLightness(t.color);
+  const split = contrastGap > 90 ? 54 : contrastGap < -90 ? 46 : 50;
+  return `<span class="dot" style="background:linear-gradient(90deg, ${t.color} ${split}%, ${t.color2} ${split}%)"></span>`;
 }
 function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
 /* `solid` fills the tag, marking the team you rank higher in a given matchup.
