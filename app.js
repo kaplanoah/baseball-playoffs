@@ -51,7 +51,8 @@ function droughtLabel(id){
   const won = lastTitle(id);
   if(!won) return "since 1969";
   if(won >= seasonYear()) return "reigning";
-  return (seasonYear() - won) + " yrs";
+  const n = seasonYear() - won;
+  return n + (n === 1 ? " yr" : " yrs");
 }
 function normalize(doc, year){
   const s = doc || emptySeason(year);
@@ -371,13 +372,13 @@ function renderRanking(){
     const info = TEAMS[id];
     const st = teamStatusLabel(state, id);
     const won = lastTitle(id);
-    const title = won ? `Last WS ${won} &middot; ${droughtLabel(id)}` : "Last WS never";
+    const title = won ? `Last WS ${won} &bull; ${droughtLabel(id)}` : "Last WS never";
     return `<li class="rank-item ${st.cls === 'out' ? 'eliminated' : ''}" data-id="${id}">
       <span class="grip">&#8942;&#8942;</span>
       <span class="rank-num tabular">${i+1}</span>
       <span class="rank-info">
         <span class="name-row">${teamDot(id)}<span class="team-name">${info.name}</span></span>
-        <span class="meta"><span class="lg ${t.league}">${t.league}</span> <span class="seed">#${t.seed}</span> &middot; ${title}</span>
+        <span class="meta"><span class="lg ${t.league}">${t.league}</span> <span class="seed">${t.seed} seed</span> &bull; ${title}</span>
       </span>
       <span class="status-pill ${st.cls}">${st.label}</span>
     </li>`;
