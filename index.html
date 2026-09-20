@@ -1,4 +1,4 @@
-<title>Bracket Ballot</title>
+<title>MLB Postseason</title>
 <meta name="description" content="Track the MLB postseason bracket, rank who you want to win it all, and keep your ranking synced across the year.">
 <style>
 :root{
@@ -154,8 +154,6 @@ table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--copper) 10%, trans
 .league-tag{ font-size:.62rem; font-weight:700; padding:1px 6px; border-radius:4px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
 .league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }
-.ref-controls{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;}
-.ref-controls input[type=search]{ font:inherit; font-size:.78rem; padding:5px 9px; border-radius:6px; border:1px solid var(--card-border); background:var(--card); color:var(--ink); flex:1; min-width:140px;}
 
 /* ---------- Setup team picker ---------- */
 .pick-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:7px; margin:12px 0; text-align:left;}
@@ -170,15 +168,13 @@ table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--copper) 10%, trans
 .setup-columns{ display:flex; gap:18px; flex-wrap:wrap; text-align:left; margin-top:12px;}
 .setup-columns > div{ flex:1; min-width:230px; }
 .setup-columns h3{ font-size:.85rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
-footer.hint{ text-align:center; color:var(--ink-dim); font-size:.68rem; margin-top:22px; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <header class="top">
   <div>
-    <h1>Bracket Ballot</h1>
-    <div class="sub">Your postseason, ranked your way.</div>
+    <h1>MLB Postseason</h1>
   </div>
   <div class="year-picker">
     <label for="yearSel">Season</label>
@@ -209,9 +205,6 @@ footer.hint{ text-align:center; color:var(--ink-dim); font-size:.68rem; margin-t
 </section>
 
 <section id="view-reference" class="view">
-  <div class="ref-controls">
-    <input type="search" id="refSearch" placeholder="Search all 30 teams&hellip;">
-  </div>
   <table class="ref">
     <thead><tr><th>Team</th><th>Lg</th><th>Last WS Win</th><th>Drought</th></tr></thead>
     <tbody id="refBody"></tbody>
@@ -231,7 +224,6 @@ footer.hint{ text-align:center; color:var(--ink-dim); font-size:.68rem; margin-t
   </div>
 </div>
 
-<footer class="hint">Scores update automatically as games finish. Rounds fill in as each series is decided.</footer>
 
 <script>
 const TEAMS = {
@@ -588,11 +580,9 @@ function wireDrag(list){
 }
 
 function renderReference(){
-  const q = (document.getElementById("refSearch").value||"").toLowerCase();
   const body = document.getElementById("refBody");
   const inField = new Set(Object.keys(state.teams||{}));
   const rows = Object.entries(TEAMS)
-    .filter(([id,t]) => t.name.toLowerCase().includes(q) || t.league.toLowerCase().includes(q))
     .sort((a,b)=> a[1].name.localeCompare(b[1].name));
   body.innerHTML = rows.map(([id,t]) => {
     const drought = t.lastWS ? (seasonYear() - t.lastWS) + " yrs" : "since 1969";
@@ -707,7 +697,6 @@ async function boot(){
   document.getElementById("openSetupBtn").addEventListener("click", openSetup);
   document.getElementById("cancelSetupBtn").addEventListener("click", closeSetup);
   document.getElementById("saveSetupBtn").addEventListener("click", saveSetup);
-  document.getElementById("refSearch").addEventListener("input", renderReference);
 
   const yearSel = document.getElementById("yearSel");
   const fallbackYears = [seasonYear(), seasonYear()-1, seasonYear()-2];
