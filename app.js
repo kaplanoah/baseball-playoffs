@@ -51,13 +51,25 @@ function rankTag(id){
   return idx === -1 ? "" : `<span class="rank-tag">#${idx+1}</span>`;
 }
 
+// Which side of this matchup you rank higher — null until both teams are known.
+function preferredSide(s){
+  if(!s.teamA || !s.teamB) return null;
+  const a = state.ranking.indexOf(s.teamA);
+  const b = state.ranking.indexOf(s.teamB);
+  if(a === -1 && b === -1) return null;
+  if(a === -1) return "B";
+  if(b === -1) return "A";
+  return a < b ? "A" : "B";
+}
+
 function matchupRow(s, side){
   const id = side === "A" ? s.teamA : s.teamB;
   const wins = side === "A" ? s.winsA : s.winsB;
   if(!id) return `<div class="matchup-row"><span class="tbd">TBD</span></div>`;
   const isWinner = s.winner === id;
   const isLoser = s.winner && s.winner !== id;
-  return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''}">
+  const isPreferred = preferredSide(s) === side;
+  return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''} ${isPreferred?'preferred':''}">
     <div class="team-id">${rankTag(id)}${teamDot(id)}<span class="team-name">${TEAMS[id].name}</span></div>
     <span class="nscore tabular ${isWinner?'lead':''}">${wins}</span>
   </div>`;

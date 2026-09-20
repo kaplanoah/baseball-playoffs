@@ -107,6 +107,8 @@ button.ghost{
 .matchup-row{ display:flex; align-items:center; justify-content:space-between; height:38px; padding:0 10px; gap:8px; font-size:.95rem; }
 .matchup-row + .matchup-row{ border-top:1px solid var(--divider); }
 .matchup-row.winner{ background:color-mix(in srgb, var(--gold) 8%, transparent); }
+/* Amber edge marks whichever team you rank higher in this matchup. */
+.matchup-row.preferred{ box-shadow:inset 3px 0 0 var(--gold); }
 .matchup-row.eliminated .team-name{ color:var(--out); text-decoration:line-through; text-decoration-color:var(--card-border); }
 .team-id{ display:flex; align-items:center; gap:8px; min-width:0; }
 /* Faint ring keeps the dark half of a dot (black/navy secondaries) readable
