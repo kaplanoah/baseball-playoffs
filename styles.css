@@ -170,6 +170,7 @@ button.ghost{
 .rank-info .meta .lg{ font-weight:700; }
 .rank-info .meta .lg.AL{ color:var(--al); }
 .rank-info .meta .lg.NL{ color:var(--nl); }
+.rank-info .meta .seed{ font-variant-numeric:tabular-nums; }
 /* inline-flex + fixed height centers the uppercase text inside the pill,
    which sat high on its baseline otherwise. */
 .status-pill{ display:inline-flex; align-items:center; height:21px; font-size:.7rem; line-height:1; padding:0 10px; border-radius:999px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
