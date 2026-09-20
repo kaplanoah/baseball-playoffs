@@ -168,6 +168,9 @@ table.ref th{ text-align:left; font-size:.7rem; text-transform:uppercase; letter
 table.ref td{ padding:6px 10px; border-bottom:1px solid var(--divider); }
 table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--copper) 10%, transparent); }
 table.ref td .cell{ display:flex; align-items:center; gap:9px; }
+/* Rank sits in its own column so every dot and team name starts on the same
+   line, ranked or not. Shrinks to the tag's width. */
+table.ref th:first-child, table.ref td.rank-col{ width:1%; white-space:nowrap; }
 table.ref td.tabular{ font-size:.85rem; color:var(--ink-dim); }
 .league-tag{ display:inline-flex; align-items:center; height:20px; line-height:1; font-size:.72rem; font-weight:700; padding:0 9px; border-radius:4px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }

@@ -338,7 +338,8 @@ function renderReference(){
   body.innerHTML = rows.map(([id,t]) => {
     const won = lastTitle(id);
     return `<tr class="${inField.has(id) ? 'in-playoffs' : ''}">
-      <td><span class="cell">${rankTag(id)}${teamDot(id)} ${t.name}</span></td>
+      <td class="rank-col">${rankTag(id)}</td>
+      <td><span class="cell">${teamDot(id)} ${t.name}</span></td>
       <td><span class="league-tag ${t.league}">${t.league}</span></td>
       <td class="tabular">${won || "&mdash;"}</td>
       <td class="tabular">${droughtLabel(id)}</td>
