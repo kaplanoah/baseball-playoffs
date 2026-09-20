@@ -108,7 +108,9 @@ collection "seasons", doc id "<YEAR>" (a JSON object). Read it first with a
 The doc shape:
 {
   year: <YEAR>,
-  teams: { "<TEAM_ID>": { league: "AL"|"NL", seed: 1-6 }, ... },   // 12 entries
+  teams: { "<TEAM_ID>": { league: "AL"|"NL", seed: 1-6, w: n, l: n }, ... },
+                                   // 12 entries; w/l are final regular-season
+                                   // win and loss totals
   series: {
     "<SERIES_ID>": {
       winsA: n, winsB: n,
@@ -146,9 +148,13 @@ WRITING — read this before any write:
   id in its existing relative order, drop ids no longer in the field, and append
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
-- When you write `series`, send the whole `series` object with every series you
-  know about, preserving existing win counts — a nested merge would otherwise
-  leave stale entries behind.
+- When you write `series` or `teams`, send that whole object with every entry
+  you know about, preserving existing win counts — a nested merge would
+  otherwise leave stale entries behind.
+- `w` and `l` are the final regular-season win and loss totals. The page needs
+  them for one thing: World Series home field goes to the pennant winner with
+  the better regular-season record, and seeds don't compare across leagues.
+  Always include them when you write `teams`, and never drop them.
 
 TEAM_ID map (MLB team name -> id): ARI Diamondbacks, ATL Braves, BAL Orioles,
 BOS Red Sox, CHC Cubs, CWS White Sox, CIN Reds, CLE Guardians, COL Rockies,
@@ -182,14 +188,16 @@ EACH RUN, after the early-exit checks above:
      from standings — per league, the 3 division leaders (divisionRank 1) seeded
      1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Compare
      those 12 team ids against the doc's current `teams`. If the SET of ids is
-     unchanged, write only `projectedAsOf` (today) and stop — reseeding within
-     the same 12 is not worth disturbing the doc. If the set did change, update
-     `teams`, reset `series` to {}, adjust `ranking` under the rules above, keep
-     `projected: true`, and set `projectedAsOf` to today.
-   - If the official bracket IS now set: write the 12 real teams and seeds,
-     reset `series` to {} only if `teams` is actually changing, set
-     `projected: false`, remove `projectedAsOf`, and adjust `ranking` under the
-     rules above.
+     unchanged, refresh each team's `w`/`l` from the same standings response if
+     they moved, write `projectedAsOf` (today), and stop — reseeding within the
+     same 12 is not worth disturbing the doc. If the set did change, update
+     `teams` with seeds and current `w`/`l`, reset `series` to {}, adjust
+     `ranking` under the rules above, keep `projected: true`, and set
+     `projectedAsOf` to today.
+   - If the official bracket IS now set: write the 12 real teams with their
+     seeds and their final regular-season `w`/`l` from standings, reset `series`
+     to {} only if the set of teams is actually changing, set `projected: false`,
+     remove `projectedAsOf`, and adjust `ranking` under the rules above.
 
 2. Refresh each undecided series' `next` from
    /api/v1/schedule/postseason?season=<YEAR>: its earliest game today or later,
@@ -228,8 +236,8 @@ is theirs to set on the Ranking tab.
 read and changed in one place.
 
 Card geometry is shared between `styles.css` and the `LAY` constants in
-`app.js`: a bracket card is 106px tall, with its top row centered 48px down, the
-divider between its two teams at 67px, and its bottom row at 86px. The connector
+`app.js`: a bracket card is 90px tall, with its top row centered 41px down, the
+divider between its two teams at 57px, and its bottom row at 73px. The connector
 lines are computed from those numbers, so changing a card's padding or font size
 means updating both.
 
@@ -240,7 +248,7 @@ One document per season, at `seasons/<year>`:
 ```json
 {
   "year": 2026,
-  "teams": { "TB": { "league": "AL", "seed": 1 }, "...": {} },
+  "teams": { "TB": { "league": "AL", "seed": 1, "w": 94, "l": 68 }, "...": {} },
   "series": {
     "AL_WC1": {
       "winsA": 2, "winsB": 0,
@@ -258,6 +266,7 @@ Fields, and who owns each:
 | Field | Written by | Notes |
 | --- | --- | --- |
 | `teams` | routine | The 12-team field, 6 per league, seeded 1–6 |
+| `teams.*.w` / `.l` | routine | Regular-season win and loss totals. Used to decide World Series home field, where seeds from two leagues can't be compared |
 | `series` | routine | Win counts per series, plus `next` |
 | `series.*.next` | routine | The next scheduled game: `at` (timestamp), `date` (plain calendar date), `tbd` (whether MLB has set a real first pitch), `game` (number within the series). Dropped once the series is decided |
 | `ranking` | you | Your preference order, best first |
@@ -267,6 +276,12 @@ Fields, and who owns each:
 `ranking` is yours alone — the routine only appends teams that join the field or
 drops ones that leave it. Series scores are read-only in the UI because the
 routine owns them.
+
+Every bracket card puts the home team on the bottom. Within a league that's
+the higher seed, which hosts every round; the World Series goes to whichever
+pennant winner had the better regular-season record, which is what `w` and `l`
+are there for. A matchup with an empty side keeps its structural order until
+both teams are known.
 
 `next.at` is a placeholder until `tbd` turns false, so the page reads `date`
 rather than the timestamp while a time is unset — converting a placeholder

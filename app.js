@@ -162,15 +162,17 @@ function matchupRow(s, side){
    a card is 90px tall, its top row centered 41px down, the divider between its
    two teams at 57px, its bottom row at 73px.
 
-   Cards are offset so a line leaving a card's divider runs dead straight into
-   the slot it feeds: each wild card sits 16px outboard of its division series
-   (57 - 41), so divider and destination row share a y. Division to
-   championship needs a jog, since those cards feed rows 32px apart. */
+   Both division cards keep the host at the bottom and the incoming wild-card
+   slot on top, so both wild card cards sit 16px above their partner (57 - 41)
+   and their connectors run dead straight into that slot. Division and
+   championship lines converge on the next card's divider instead of a
+   particular row, which is what lets those rows reorder by host without the
+   lines crossing. */
 const LAY = {
   colW:200, gap:22,
   cardH:90, rowTopY:41, rowDivY:57, rowBotY:73,
-  stageH:432, // room for a next-game note under the lowest cards
-  yWc1:24, yDs1:40, yMid:160, yDs2:280, yWc2:296
+  stageH:400, // room for a next-game note under the lowest cards
+  yWc1:24, yDs1:40, yMid:160, yDs2:280, yWc2:264
 };
 const colX = i => i * (LAY.colW + LAY.gap);
 const colR = i => colX(i) + LAY.colW;
@@ -218,12 +220,37 @@ function nextGameNote(s){
   return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} &bull; ${days} days`;
 }
 
-// One bracket box. `flip` renders side B above side A, so a division series
-// shows its incoming wild-card slot on the side the line arrives from.
+/* Which side hosts. Inside a league the higher seed hosts every round — the
+   wild card round outright, later rounds by the extra home game — so the seed
+   settles it. The World Series is the exception: the two teams come from
+   different leagues, where seeds don't compare, and it goes to the better
+   regular-season record instead. */
+function homeSide(s){
+  if(!s.teamA || !s.teamB) return null;
+  const a = state.teams[s.teamA], b = state.teams[s.teamB];
+  if(!a || !b) return null;
+
+  if(s.round === "WS"){
+    const pct = t => (t.w != null && t.l != null && t.w + t.l > 0) ? t.w / (t.w + t.l) : null;
+    const pa = pct(a), pb = pct(b);
+    if(pa == null || pb == null) return null; // records not recorded yet
+    return pa >= pb ? "A" : "B";
+  }
+  return a.seed <= b.seed ? "A" : "B";
+}
+
+// Host on the bottom, the way a line score puts the team batting last there.
+// Until a matchup is settled, fall back to the structural order — which for
+// the wild card and division rounds already has the host at the bottom.
+function rowOrder(s){
+  const home = homeSide(s);
+  if(home) return home === "A" ? ["B", "A"] : ["A", "B"];
+  return (s.round === "WC" || s.round === "DS") ? ["B", "A"] : ["A", "B"];
+}
+
 function box(s, top, col, opts = {}){
-  const rows = opts.flip
-    ? `${matchupRow(s,"B")}${matchupRow(s,"A")}`
-    : `${matchupRow(s,"A")}${matchupRow(s,"B")}`;
+  const [first, second] = rowOrder(s);
+  const rows = `${matchupRow(s, first)}${matchupRow(s, second)}`;
   const note = opts.champLine
     ? `<div class="card-note champ">${opts.champLine}</div>`
     : (n => n ? `<div class="card-note">${n}</div>` : "")(nextGameNote(s));
@@ -263,19 +290,19 @@ function renderBracket(){
   const wc1Out = LAY.yWc1 + LAY.rowDivY, wc2Out = LAY.yWc2 + LAY.rowDivY;
   const ds1Out = LAY.yDs1 + LAY.rowDivY, ds2Out = LAY.yDs2 + LAY.rowDivY;
   const midOut = LAY.yMid + LAY.rowDivY;
-  const ds1Slot = LAY.yDs1 + LAY.rowTopY, ds2Slot = LAY.yDs2 + LAY.rowBotY;
-  const midTopSlot = LAY.yMid + LAY.rowTopY, midBotSlot = LAY.yMid + LAY.rowBotY;
+  // Both division cards take their wild-card winner in the top slot.
+  const ds1Slot = LAY.yDs1 + LAY.rowTopY, ds2Slot = LAY.yDs2 + LAY.rowTopY;
 
   const paths = [
     connector(colR(0), wc1Out, colX(1), ds1Slot),
     connector(colR(0), wc2Out, colX(1), ds2Slot),
-    connector(colR(1), ds1Out, colX(2), midTopSlot),
-    connector(colR(1), ds2Out, colX(2), midBotSlot),
+    connector(colR(1), ds1Out, colX(2), midOut),
+    connector(colR(1), ds2Out, colX(2), midOut),
     connector(colR(2), midOut, colX(3), midOut),
     connector(colX(6), wc1Out, colR(5), ds1Slot),
     connector(colX(6), wc2Out, colR(5), ds2Slot),
-    connector(colX(5), ds1Out, colR(4), midTopSlot),
-    connector(colX(5), ds2Out, colR(4), midBotSlot),
+    connector(colX(5), ds1Out, colR(4), midOut),
+    connector(colX(5), ds2Out, colR(4), midOut),
     connector(colX(4), midOut, colR(3), midOut)
   ].map(d => `<path d="${d}"/>`).join("");
 
@@ -285,12 +312,12 @@ function renderBracket(){
   const boxes = [
     box(br.al.wc[1], LAY.yWc1, 0),
     box(br.al.wc[0], LAY.yWc2, 0),
-    box(br.al.ds[0], LAY.yDs1, 1, {flip:true}),
+    box(br.al.ds[0], LAY.yDs1, 1),
     box(br.al.ds[1], LAY.yDs2, 1),
     box(br.al.cs[0], LAY.yMid, 2, {champLine:alChampLine}),
     box(br.ws,       LAY.yMid, 3, {champLine:wsChampLine}),
     box(br.nl.cs[0], LAY.yMid, 4, {champLine:nlChampLine}),
-    box(br.nl.ds[0], LAY.yDs1, 5, {flip:true}),
+    box(br.nl.ds[0], LAY.yDs1, 5),
     box(br.nl.ds[1], LAY.yDs2, 5),
     box(br.nl.wc[1], LAY.yWc1, 6),
     box(br.nl.wc[0], LAY.yWc2, 6)
