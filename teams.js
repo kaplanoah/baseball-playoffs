@@ -1,5 +1,10 @@
 /* All 30 clubs: league, year of last World Series win (null = never), and the
-   club's two official colors, used for the split-circle team dot. */
+   club's two official colors, used for the split-circle team dot.
+
+   `lastWS` is only a starting point. Once a season is tracked here, its World
+   Series result supersedes this table (see lastTitle in app.js), so these
+   values never need editing again — they just cover titles won before the
+   tracker existed. */
 const TEAMS = {
   ARI:{name:"Diamondbacks",league:"NL",lastWS:2001,color:"#A71930",color2:"#E3D4AD"},
   ATL:{name:"Braves",league:"NL",lastWS:2021,color:"#CE1141",color2:"#13274F"},
@@ -14,7 +19,7 @@ const TEAMS = {
   HOU:{name:"Astros",league:"AL",lastWS:2022,color:"#002D62",color2:"#EB6E1F"},
   KC:{name:"Royals",league:"AL",lastWS:2015,color:"#004687",color2:"#BD9B60"},
   LAA:{name:"Angels",league:"AL",lastWS:2002,color:"#BA0021",color2:"#003263"},
-  LAD:{name:"Dodgers",league:"NL",lastWS:2024,color:"#005A9C",color2:"#FFFFFF"},
+  LAD:{name:"Dodgers",league:"NL",lastWS:2025,color:"#005A9C",color2:"#FFFFFF"},
   MIA:{name:"Marlins",league:"NL",lastWS:2003,color:"#00A3E0",color2:"#EF3340"},
   MIL:{name:"Brewers",league:"NL",lastWS:null,color:"#12284B",color2:"#FFC52F"},
   MIN:{name:"Twins",league:"AL",lastWS:1991,color:"#002B5C",color2:"#D31145"},

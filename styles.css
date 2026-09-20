@@ -58,14 +58,18 @@ button:focus-visible, select:focus-visible{ outline:2px solid var(--copper-ink);
 section.view{ display:none; }
 section.view.active{ display:block; }
 
-/* Centered, not baseline-aligned: .banner-team is an inline-flex whose baseline
-   comes from the rank tag, which pushes the team name below its neighbours. */
+/* Baseline-aligned so the differently-sized labels sit on one line. The team
+   name must be plain text flow, not an inline-flex — a flex box takes its
+   baseline from its first child (the rank tag), which knocks the name off the
+   line its neighbours sit on. Tag and dot are centered against it instead. */
 .banner{
   border-left:3px solid var(--copper); padding:4px 0 4px 14px; margin-bottom:22px;
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
 }
 .banner .banner-label{ font-size:.7rem; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
-.banner .banner-team{ display:inline-flex; align-items:center; gap:8px; font-size:1.15rem; font-weight:700; color:var(--ink); }
+.banner .banner-team{ font-size:1.15rem; font-weight:700; color:var(--ink); }
+.banner .banner-team .rank-tag,
+.banner .banner-team .dot{ vertical-align:middle; margin-right:7px; }
 .banner .banner-status{ font-size:.9rem; color:var(--ink-dim); }
 
 .setup-card{
@@ -126,7 +130,7 @@ button.ghost{
 .team-id{ display:flex; align-items:center; gap:8px; min-width:0; }
 /* Faint ring keeps the dark half of a dot (black/navy secondaries) readable
    against the dark ground. */
-.dot{ width:11px; height:11px; border-radius:50%; flex:none; box-shadow:inset 0 0 0 1px rgba(241,234,212,.22); }
+.dot{ display:inline-block; vertical-align:middle; width:11px; height:11px; border-radius:50%; flex:none; box-shadow:inset 0 0 0 1px rgba(241,234,212,.22); }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tbd{ color:var(--ink-dim); font-style:italic; font-size:.88rem; }
 .nscore{ min-width:1.5em; text-align:center; font-weight:700; font-size:1rem; padding:2px 8px; border-radius:3px; background:var(--divider); }

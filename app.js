@@ -9,6 +9,7 @@ let db = null;
 let state = null;
 let years = [];
 let activeYear = seasonYear();
+let trackedTitles = {}; // team id -> most recent year it won a tracked World Series
 
 function emptySeason(year){
   return { year, teams:{}, series:{}, ranking:[] };
@@ -20,6 +21,28 @@ async function loadSeasonList(){
   years = snap.docs.map(d => d.id).sort().reverse();
   if(!years.includes(String(activeYear))) years = [String(activeYear), ...years];
   years = [...new Set(years)];
+
+  // Every season this tool has tracked already records who won the World
+  // Series, so titles stay current on their own — teams.js only has to cover
+  // what happened before it existed.
+  trackedTitles = {};
+  snap.docs.forEach(d => {
+    const doc = d.data();
+    if(!doc || !doc.teams || !doc.series) return;
+    const year = Number(doc.year ?? d.id);
+    const champ = fullBracket(doc).ws?.winner;
+    if(champ && Number.isFinite(year) && !(trackedTitles[champ] >= year)){
+      trackedTitles[champ] = year;
+    }
+  });
+}
+
+// Most recent World Series win: whatever this tool has seen, else the seed data.
+function lastTitle(id){
+  const seeded = TEAMS[id].lastWS;
+  const tracked = trackedTitles[id];
+  if(seeded && tracked) return Math.max(seeded, tracked);
+  return tracked || seeded;
 }
 async function loadSeason(year){
   const snap = await db.doc(`seasons/${year}`).get();
@@ -219,7 +242,7 @@ function renderRanking(){
       <span class="rank-num tabular">${i+1}</span>
       <span class="rank-info">
         <span class="name-row">${teamDot(id)}<span class="team-name">${info.name}</span></span>
-        <span class="meta">${t.league} &middot; Seed ${t.seed} &middot; Last WS ${info.lastWS || "never"}</span>
+        <span class="meta">${t.league} &middot; Seed ${t.seed} &middot; Last WS ${lastTitle(id) || "never"}</span>
       </span>
       <span class="status-pill ${st.cls}">${st.label}</span>
     </li>`;
@@ -261,11 +284,14 @@ function renderReference(){
   const inField = new Set(Object.keys(state.teams || {}));
   const rows = Object.entries(TEAMS).sort((a,b) => a[1].name.localeCompare(b[1].name));
   body.innerHTML = rows.map(([id,t]) => {
-    const drought = t.lastWS ? (seasonYear() - t.lastWS) + " yrs" : "since 1969";
+    const won = lastTitle(id);
+    const drought = !won ? "since 1969"
+      : won >= seasonYear() ? "reigning"
+      : (seasonYear() - won) + " yrs";
     return `<tr class="${inField.has(id) ? 'in-playoffs' : ''}">
       <td><span class="cell">${rankTag(id)}${teamDot(id)} ${t.name}</span></td>
       <td><span class="league-tag ${t.league}">${t.league}</span></td>
-      <td class="tabular">${t.lastWS || "&mdash;"}</td>
+      <td class="tabular">${won || "&mdash;"}</td>
       <td class="tabular">${drought}</td>
     </tr>`;
   }).join("");
