@@ -253,20 +253,25 @@ function renderBracket(){
 function renderBanner(br){
   const banner = document.getElementById("banner");
   if(!br || !state.ranking.length){ banner.hidden = true; return; }
-  const aliveRanked = state.ranking.filter(id => !teamEliminated(state, id));
   banner.hidden = false;
 
-  if(aliveRanked.length === 0){
-    const champ = br.ws && br.ws.winner;
-    banner.innerHTML = champ
-      ? `<span class="banner-label">Final</span><span class="banner-team">${teamDot(champ)} ${teamLabel(champ)}</span><span class="banner-status">win the World Series</span>`
-      : `<span class="banner-status">All of your ranked teams have been eliminated.</span>`;
+  const champ = br.ws && br.ws.winner;
+  if(champ){
+    banner.innerHTML = `<span class="banner-label">Final</span>
+      <span class="banner-team">${teamDot(champ)} ${teamLabel(champ)}</span>
+      <span class="banner-status">win the World Series</span>`;
     return;
   }
+
+  const aliveRanked = state.ranking.filter(id => !teamEliminated(state, id));
+  if(aliveRanked.length === 0){
+    banner.innerHTML = `<span class="banner-status">All of your ranked teams have been eliminated.</span>`;
+    return;
+  }
+  // No status label — "remaining" already says they're alive.
   const top = aliveRanked[0];
   banner.innerHTML = `<span class="banner-label">Highest remaining pick</span>
-    <span class="banner-team">${rankTag(top)}${teamDot(top)} ${teamLabel(top)}</span>
-    <span class="banner-status">${teamStatusLabel(state, top).label}</span>`;
+    <span class="banner-team">${rankTag(top)}${teamDot(top)} ${teamLabel(top)}</span>`;
 }
 
 /* ---------- ranking: drag anywhere on a card to reorder ---------- */
