@@ -112,10 +112,13 @@ function teamDot(id){
   return `<span class="dot" style="background:linear-gradient(135deg, ${t.color} 50%, ${t.color2} 50%)"></span>`;
 }
 function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
-// `solid` fills the tag, marking the team you rank higher in a given matchup.
+/* `solid` fills the tag, marking the team you rank higher in a given matchup.
+   The slot is a fixed width so a two-digit rank doesn't push the dot and name
+   further right than a one-digit one; the tag itself still hugs its text. */
 function rankTag(id, solid){
   const idx = state.ranking.indexOf(id);
-  return idx === -1 ? "" : `<span class="rank-tag ${solid ? "solid" : ""}">#${idx+1}</span>`;
+  if(idx === -1) return "";
+  return `<span class="rank-slot"><span class="rank-tag ${solid ? "solid" : ""}">#${idx+1}</span></span>`;
 }
 
 // Which side of this matchup you rank higher — null until both teams are known.

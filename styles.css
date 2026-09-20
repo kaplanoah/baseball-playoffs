@@ -86,6 +86,9 @@ button.ghost{
   border-radius:6px; padding:7px 16px; cursor:pointer;
 }
 
+/* Fixed-width slot, right-aligned, so every tag ends at the same x and the
+   dot and name after it line up regardless of one or two digits. */
+.rank-slot{ display:inline-flex; justify-content:flex-end; width:31px; flex:none; }
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;
