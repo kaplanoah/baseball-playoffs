@@ -156,7 +156,7 @@ function matchupRow(s, side){
 const LAY = {
   colW:200, gap:22,
   cardH:90, rowTopY:41, rowDivY:57, rowBotY:73,
-  stageH:412,
+  stageH:432, // room for a next-game note under the lowest cards
   yWc1:24, yDs1:40, yMid:160, yDs2:280, yWc2:296
 };
 const colX = i => i * (LAY.colW + LAY.gap);
@@ -176,17 +176,33 @@ function connector(x1, y1, x2, y2){
 function nextGameNote(s){
   const next = (state.series[s.id] || {}).next;
   if(s.winner || !next) return "";
+  const timeKnown = next.tbd === false && next.at;
 
-  if(next.tbd !== false && next.date){
+  let day;
+  if(next.date){
     const [y, m, d] = next.date.split("-").map(Number);
-    const day = new Date(y, m - 1, d);
-    return `Next game &middot; ${day.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" })}`;
-  }
-  if(!next.at) return "";
-  const at = new Date(next.at);
-  if(isNaN(at)) return "";
-  return `Next game &middot; ${at.toLocaleDateString(undefined, { month:"short", day:"numeric" })}, `
-       + at.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+    day = new Date(y, m - 1, d);
+  } else if(next.at){
+    const at = new Date(next.at);
+    if(isNaN(at)) return "";
+    day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
+  } else return "";
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((day - today) / 86400000);
+
+  const time = timeKnown
+    ? ", " + new Date(next.at).toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" })
+    : "";
+  if(days === 0) return `Next game today${time}`;
+  if(days === 1) return `Next game tomorrow${time}`;
+
+  // Drop the weekday once a time is shown, to keep the note on one line.
+  const date = day.toLocaleDateString(undefined, timeKnown
+    ? { month:"short", day:"numeric" }
+    : { weekday:"short", month:"short", day:"numeric" });
+  return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} (${days} days)`;
 }
 
 // One bracket box. `flip` renders side B above side A, so a division series

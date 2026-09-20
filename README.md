@@ -253,9 +253,29 @@ One document per season, at `seasons/<year>`:
 }
 ```
 
+Fields, and who owns each:
+
+| Field | Written by | Notes |
+| --- | --- | --- |
+| `teams` | routine | The 12-team field, 6 per league, seeded 1–6 |
+| `series` | routine | Win counts per series, plus `next` |
+| `series.*.next` | routine | The next scheduled game: `at` (timestamp), `date` (plain calendar date), `tbd` (whether MLB has set a real first pitch), `game` (number within the series). Dropped once the series is decided |
+| `ranking` | you | Your preference order, best first |
+| `projected` | routine | `true` while the field is a projection from standings |
+| `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
+
 `ranking` is yours alone — the routine only appends teams that join the field or
 drops ones that leave it. Series scores are read-only in the UI because the
 routine owns them.
+
+`next.at` is a placeholder until `tbd` turns false, so the page reads `date`
+rather than the timestamp while a time is unset — converting a placeholder
+through local time can land on the wrong calendar day in western timezones.
+
+Last World Series wins stay current on their own: `lastTitle` in `app.js` takes
+the later of the seeded year in `teams.js` and the champion of any season this
+tool has tracked, so a title won while the tracker is running supersedes the
+static table without anyone editing it.
 
 Nothing here needs credentials: MLB's Stats API is public, and writes to the
 artifact store are authorized by the routine running under your own account.
