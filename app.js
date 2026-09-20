@@ -10,6 +10,8 @@ let state = null;
 let years = [];
 let activeYear = seasonYear();
 let trackedTitles = {}; // team id -> most recent year it won a tracked World Series
+let unwatchSeason = null;
+let reordering = false; // true mid-drag, so a live update can't yank the list
 
 function emptySeason(year){
   return { year, teams:{}, series:{}, ranking:[] };
@@ -44,22 +46,56 @@ function lastTitle(id){
   if(seeded && tracked) return Math.max(seeded, tracked);
   return tracked || seeded;
 }
+function normalize(doc, year){
+  const s = doc || emptySeason(year);
+  if(!s.teams) s.teams = {};
+  if(!s.series) s.series = {};
+  if(!s.ranking) s.ranking = [];
+  return s;
+}
+
 async function loadSeason(year){
   const snap = await db.doc(`seasons/${year}`).get();
-  state = snap.exists ? snap.data() : emptySeason(year);
-  if(!state.teams) state.teams = {};
-  if(!state.series) state.series = {};
-  if(!state.ranking) state.ranking = [];
+  state = normalize(snap.exists ? snap.data() : null, year);
 }
+
+/* Stay subscribed so the routine's scores and field changes land without a
+   reload, instead of this page holding a copy that drifts for hours. */
+function watchSeason(year){
+  if(unwatchSeason){ unwatchSeason(); unwatchSeason = null; }
+  if(!db) return;
+  unwatchSeason = db.doc(`seasons/${year}`).onSnapshot(snap => {
+    if(!snap.exists || reordering) return;
+    const incoming = normalize(snap.data(), year);
+    if(JSON.stringify(incoming) === JSON.stringify(state)) return;
+    state = incoming;
+    renderAll();
+  }, () => {});
+}
+/* Write only the fields this page owns. Writing the whole document would send
+   our in-memory copy of everything else back too, and that copy goes stale the
+   moment the routine updates the field — which is how a saved ranking gets
+   overwritten by a reload of an older one. */
+async function writeSeason(fields){
+  if(!db) return;
+  const ref = db.doc(`seasons/${activeYear}`);
+  try{
+    await ref.update(fields);
+  }catch(e){
+    // update() rejects when the document doesn't exist yet; create it once.
+    await ref.set({ year: activeYear, teams:{}, series:{}, ranking:[], ...fields });
+  }
+}
+
 async function saveTeams(teamsMap){
   state.teams = teamsMap;
   state.ranking = Object.keys(teamsMap).sort((a,b) => teamsMap[a].seed - teamsMap[b].seed);
   state.series = {};
-  if(db) await db.doc(`seasons/${activeYear}`).set(state);
+  await writeSeason({ teams: state.teams, series: {}, ranking: state.ranking });
 }
 async function saveRanking(order){
   state.ranking = order;
-  if(db) await db.doc(`seasons/${activeYear}`).set(state);
+  await writeSeason({ ranking: order });
 }
 
 /* ---------- shared render helpers ---------- */
@@ -261,7 +297,9 @@ function wireDrag(list){
     animation: 140,
     chosenClass: "dragging",
     ghostClass: "drag-ghost",
+    onStart: () => { reordering = true; },
     onEnd: () => {
+      reordering = false;
       const rows = [...list.querySelectorAll(".rank-item")];
       const order = rows.map(el => el.dataset.id);
       if(order.join() === state.ranking.join()) return;
@@ -390,6 +428,7 @@ async function switchYear(year){
   activeYear = year;
   await loadSeason(year);
   renderAll();
+  watchSeason(year);
 }
 
 async function boot(){
@@ -423,6 +462,7 @@ async function boot(){
   }catch(e){ db = null; state = emptySeason(activeYear); }
 
   renderAll();
+  watchSeason(activeYear);
 }
 
 if(window.claude?.hot){
