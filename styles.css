@@ -89,6 +89,9 @@ button.ghost{
 /* Fixed-width slot, right-aligned, so every tag ends at the same x and the
    dot and name after it line up regardless of one or two digits. */
 .rank-slot{ display:inline-flex; justify-content:flex-end; width:31px; flex:none; }
+/* Breathing room between the chip and the team color, where they sit together.
+   Outside the slot's fixed width, so tags stay aligned across rows. */
+.team-id .rank-slot, .banner-team .rank-slot{ margin-right:4px; }
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;
