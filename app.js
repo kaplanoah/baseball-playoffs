@@ -169,18 +169,41 @@ function connector(x1, y1, x2, y2){
   return `M ${crisp(x1)} ${crisp(y1)} H ${crisp(xm)} V ${crisp(y2)} H ${crisp(x2)}`;
 }
 
+/* When the next game is scheduled. MLB publishes postseason dates long before
+   first pitch and fills `at` with a placeholder until the time is set, so
+   while it's TBD read the plain calendar date instead — converting a
+   placeholder through local time can land on the wrong day out west. */
+function nextGameNote(s){
+  const next = (state.series[s.id] || {}).next;
+  if(s.winner || !next) return "";
+
+  if(next.tbd !== false && next.date){
+    const [y, m, d] = next.date.split("-").map(Number);
+    const day = new Date(y, m - 1, d);
+    return `Next game &middot; ${day.toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" })}`;
+  }
+  if(!next.at) return "";
+  const at = new Date(next.at);
+  if(isNaN(at)) return "";
+  return `Next game &middot; ${at.toLocaleDateString(undefined, { month:"short", day:"numeric" })}, `
+       + at.toLocaleTimeString(undefined, { hour:"numeric", minute:"2-digit" });
+}
+
 // One bracket box. `flip` renders side B above side A, so a division series
 // shows its incoming wild-card slot on the side the line arrives from.
 function box(s, top, col, opts = {}){
   const rows = opts.flip
     ? `${matchupRow(s,"B")}${matchupRow(s,"A")}`
     : `${matchupRow(s,"A")}${matchupRow(s,"B")}`;
+  const note = opts.champLine
+    ? `<div class="card-note champ">${opts.champLine}</div>`
+    : (n => n ? `<div class="card-note">${n}</div>` : "")(nextGameNote(s));
   return `<div class="box" style="left:${colX(col)}px; top:${top}px; width:${LAY.colW}px;">
     <div class="series">
       <div class="bestof"><span>${ROUND_LABEL[s.round]}</span><span>BO${s.bestOf}</span></div>
       ${rows}
     </div>
-    ${opts.champLine ? `<div class="champ-line">${opts.champLine}</div>` : ""}
+    ${note}
   </div>`;
 }
 
@@ -227,9 +250,12 @@ function renderBracket(){
     connector(colX(4), midOut, colR(3), midOut)
   ].map(d => `<path d="${d}"/>`).join("");
 
+  // wc[1] is the 4/5 series and feeds the #1 seed, so it takes the top slot
+  // beside DS1; wc[0] (3/6) sits below beside DS2. Keeps the lines from
+  // crossing now that the bracket is fixed rather than reseeded.
   const boxes = [
-    box(br.al.wc[0], LAY.yWc1, 0),
-    box(br.al.wc[1], LAY.yWc2, 0),
+    box(br.al.wc[1], LAY.yWc1, 0),
+    box(br.al.wc[0], LAY.yWc2, 0),
     box(br.al.ds[0], LAY.yDs1, 1, {flip:true}),
     box(br.al.ds[1], LAY.yDs2, 1),
     box(br.al.cs[0], LAY.yMid, 2, {champLine:alChampLine}),
@@ -237,8 +263,8 @@ function renderBracket(){
     box(br.nl.cs[0], LAY.yMid, 4, {champLine:nlChampLine}),
     box(br.nl.ds[0], LAY.yDs1, 5, {flip:true}),
     box(br.nl.ds[1], LAY.yDs2, 5),
-    box(br.nl.wc[0], LAY.yWc1, 6),
-    box(br.nl.wc[1], LAY.yWc2, 6)
+    box(br.nl.wc[1], LAY.yWc1, 6),
+    box(br.nl.wc[0], LAY.yWc2, 6)
   ].join("");
 
   wrap.innerHTML = `

@@ -109,7 +109,12 @@ The doc shape:
 {
   year: <YEAR>,
   teams: { "<TEAM_ID>": { league: "AL"|"NL", seed: 1-6 }, ... },   // 12 entries
-  series: { "<SERIES_ID>": { winsA: n, winsB: n }, ... },
+  series: {
+    "<SERIES_ID>": {
+      winsA: n, winsB: n,
+      next: { at: "<ISO timestamp>", date: "YYYY-MM-DD", tbd: true|false, game: n }
+    }, ...
+  },
   ranking: [ "<TEAM_ID>", ... ],   // the user's preference order — NEVER
                                    // overwrite or reorder it; only append team
                                    // ids new to the field and drop ids that
@@ -141,6 +146,9 @@ WRITING — read this before any write:
   id in its existing relative order, drop ids no longer in the field, and append
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
+- When you write `series`, send the whole `series` object with every series you
+  know about, preserving existing win counts — a nested merge would otherwise
+  leave stale entries behind.
 
 TEAM_ID map (MLB team name -> id): ARI Diamondbacks, ATL Braves, BAL Orioles,
 BOS Red Sox, CHC Cubs, CWS White Sox, CIN Reds, CLE Guardians, COL Rockies,
@@ -149,15 +157,20 @@ MIL Brewers, MIN Twins, NYM Mets, NYY Yankees, ATH Athletics, PHI Phillies,
 PIT Pirates, SD Padres, SF Giants, SEA Mariners, STL Cardinals, TB Rays,
 TEX Rangers, TOR Blue Jays, WSH Nationals.
 
-SERIES_ID scheme (per league LG = AL or NL):
+SERIES_ID scheme (per league LG = AL or NL). The bracket is FIXED, not reseeded:
 - LG_WC1 = seed 3 (side A) vs seed 6 (side B), best-of-3
 - LG_WC2 = seed 4 (side A) vs seed 5 (side B), best-of-3
-- LG_DS1 = seed 1 (side A) vs [surviving wild card with the WORSE/higher seed
-  number] (side B), best-of-5
-- LG_DS2 = seed 2 (side A) vs [the other wild card winner] (side B), best-of-5
+- LG_DS1 = seed 1 (side A) vs the LG_WC2 (4/5) winner (side B), best-of-5
+- LG_DS2 = seed 2 (side A) vs the LG_WC1 (3/6) winner (side B), best-of-5
 - LG_CS  = LG_DS1 winner (A) vs LG_DS2 winner (B), best-of-7
 - WS     = AL_CS winner (A) vs NL_CS winner (B), best-of-7
 A series is decided at 2 wins (best-of-3), 3 (best-of-5), or 4 (best-of-7).
+
+In /api/v1/schedule/postseason, map a game to a SERIES_ID from its
+seriesDescription plus its placeholder team names: a Wild Card game hosted at
+"<LG> #3 Seed" is LG_WC1 and one hosted at "<LG> Wild Card #1" is LG_WC2; a
+Division Series game whose away side is "<LG> 4/5 Winner" is LG_DS1 and
+"<LG> 3/6 Winner" is LG_DS2.
 
 EACH RUN, after the early-exit checks above:
 
@@ -178,13 +191,20 @@ EACH RUN, after the early-exit checks above:
      `projected: false`, remove `projectedAsOf`, and adjust `ranking` under the
      rules above.
 
-2. If `projected` is false: check today's schedule for games that are "Final"
+2. Refresh each undecided series' `next` from
+   /api/v1/schedule/postseason?season=<YEAR>: its earliest game today or later,
+   as { at: <that game's gameDate>, date: <its officialDate>,
+   tbd: <its status.startTimeTBD>, game: <its seriesGameNumber> }. Drop `next`
+   from a series once it's decided. Only write if something actually changed —
+   game times firm up gradually, so don't rewrite identical values.
+
+3. If `projected` is false: check today's schedule for games that are "Final"
    and belong to an undecided SERIES_ID matchup. Update `series` so winsA/winsB
    match MLB's current series record for that matchup whenever it's ahead of the
    doc. Only act on a confirmed "Final" — never guess or project a result. Write
    only the `series` field.
 
-3. If nothing changed, end the run without writing.
+4. If nothing changed, end the run without writing.
 
 Keep each run terse — this is unattended maintenance, not a conversation. Speak
 up only for something worth knowing: the field changed, the real bracket locked
@@ -201,7 +221,7 @@ is theirs to set on the Ranking tab.
 | `index.html` | Page markup |
 | `styles.css` | All styling (single dark "night broadcast" theme) |
 | `teams.js` | The 30 clubs: league, last title, official colors |
-| `bracket.js` | Bracket rules as pure functions — seeding, reseeding, elimination |
+| `bracket.js` | Bracket rules as pure functions — seeding, advancement, elimination |
 | `app.js` | Rendering, the artifact store, drag-to-rank, manual setup fallback |
 
 `bracket.js` never touches the DOM or storage, so the postseason rules can be
@@ -221,7 +241,12 @@ One document per season, at `seasons/<year>`:
 {
   "year": 2026,
   "teams": { "TB": { "league": "AL", "seed": 1 }, "...": {} },
-  "series": { "AL_WC1": { "winsA": 2, "winsB": 0 }, "...": {} },
+  "series": {
+    "AL_WC1": {
+      "winsA": 2, "winsB": 0,
+      "next": { "at": "2026-09-29T23:08:00Z", "date": "2026-09-29", "tbd": false, "game": 3 }
+    }
+  },
   "ranking": ["TB", "MIL", "..."],
   "projected": true,
   "projectedAsOf": "2026-09-19"

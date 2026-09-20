@@ -27,17 +27,11 @@ function buildLeagueBracket(state, lg){
   const wc1 = seriesState(state, `${lg}_WC1`, bySeed[3], bySeed[6], "WC");
   const wc2 = seriesState(state, `${lg}_WC2`, bySeed[4], bySeed[5], "WC");
 
-  // Reseed: #1 draws the surviving wild-card team with the worse (higher) seed
-  // number; #2 draws the other.
-  let ds1TeamB = null, ds2TeamB = null;
-  if(wc1.winner && wc2.winner){
-    const seedOf = id => state.teams[id].seed;
-    const winners = [wc1.winner, wc2.winner].sort((a,b) => seedOf(b) - seedOf(a));
-    ds1TeamB = winners[0];
-    ds2TeamB = winners[1];
-  }
-  const ds1 = seriesState(state, `${lg}_DS1`, bySeed[1], ds1TeamB, "DS");
-  const ds2 = seriesState(state, `${lg}_DS2`, bySeed[2], ds2TeamB, "DS");
+  // The bracket is fixed, not reseeded: #1 draws the 4/5 winner and #2 draws
+  // the 3/6 winner, whatever seeds survive. MLB's own schedule spells this out
+  // as "AL 4/5 Winner at AL #1 Seed" and "AL 3/6 Winner at AL #2 Seed".
+  const ds1 = seriesState(state, `${lg}_DS1`, bySeed[1], wc2.winner, "DS");
+  const ds2 = seriesState(state, `${lg}_DS2`, bySeed[2], wc1.winner, "DS");
   const cs = seriesState(state, `${lg}_CS`, ds1.winner, ds2.winner, "CS");
 
   return { wc:[wc1,wc2], ds:[ds1,ds2], cs:[cs], champion: cs.winner };
