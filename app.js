@@ -46,9 +46,10 @@ function teamDot(id){
   return `<span class="dot" style="background:linear-gradient(135deg, ${t.color} 50%, ${t.color2} 50%)"></span>`;
 }
 function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
-function rankTag(id){
+// `solid` fills the tag, marking the team you rank higher in a given matchup.
+function rankTag(id, solid){
   const idx = state.ranking.indexOf(id);
-  return idx === -1 ? "" : `<span class="rank-tag">#${idx+1}</span>`;
+  return idx === -1 ? "" : `<span class="rank-tag ${solid ? "solid" : ""}">#${idx+1}</span>`;
 }
 
 // Which side of this matchup you rank higher — null until both teams are known.
@@ -69,8 +70,8 @@ function matchupRow(s, side){
   const isWinner = s.winner === id;
   const isLoser = s.winner && s.winner !== id;
   const isPreferred = preferredSide(s) === side;
-  return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''} ${isPreferred?'preferred':''}">
-    <div class="team-id">${rankTag(id)}${teamDot(id)}<span class="team-name">${TEAMS[id].name}</span></div>
+  return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''}">
+    <div class="team-id">${rankTag(id, isPreferred)}${teamDot(id)}<span class="team-name">${TEAMS[id].name}</span></div>
     <span class="nscore tabular ${isWinner?'lead':''}">${wins}</span>
   </div>`;
 }
