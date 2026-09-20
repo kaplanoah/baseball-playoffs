@@ -132,8 +132,8 @@ button.ghost{
 .series{
   background:var(--card); border:1px solid var(--card-border); border-radius:6px; overflow:hidden;
 }
-.series .bestof{ display:flex; align-items:center; justify-content:space-between; height:24px; font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-dim); padding:0 10px; border-bottom:1px solid var(--divider); }
-.matchup-row{ display:flex; align-items:center; justify-content:space-between; height:32px; padding:0 10px; gap:8px; font-size:.9rem; }
+.series .bestof{ display:flex; align-items:center; justify-content:space-between; height:24px; font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-dim); padding:0 8px; border-bottom:1px solid var(--divider); }
+.matchup-row{ display:flex; align-items:center; justify-content:space-between; height:32px; padding:0 8px; gap:8px; font-size:.9rem; }
 .matchup-row + .matchup-row{ border-top:1px solid var(--divider); }
 .matchup-row.winner{ background:color-mix(in srgb, var(--gold) 8%, transparent); }
 .matchup-row.eliminated .team-name{ color:var(--out); text-decoration:line-through; text-decoration-color:var(--card-border); }
