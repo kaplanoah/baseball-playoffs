@@ -32,17 +32,28 @@ header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
   border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:18px;
 }
-header.top h1{ font-size:2rem; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.04em; }
+header.top h1{ font-size:1.6rem; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.04em; }
 .year-picker{ display:flex; align-items:center; gap:8px; font-size:.95rem; color:var(--ink-dim); }
-.year-picker select{ font:inherit; font-size:.95rem; background:var(--card); color:var(--ink); border:1px solid var(--card-border); border-radius:6px; padding:6px 10px; }
+/* Own caret rather than the UA's, so there's real space to the right of it. */
+.year-picker select{
+  font:inherit; font-size:.95rem; background-color:var(--card); color:var(--ink);
+  border:1px solid var(--card-border); border-radius:6px; padding:5px 34px 5px 10px;
+  appearance:none; -webkit-appearance:none;
+  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa88f' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 13px center; background-size:10px 6px;
+}
 
 nav.tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
 nav.tabs button{
   font:inherit; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em;
   background:none; border:1px solid var(--card-border); color:var(--ink-dim);
-  padding:9px 20px; border-radius:6px; cursor:pointer;
+  padding:6px 18px; border-radius:6px; cursor:pointer;
 }
 nav.tabs button.active{ background:var(--gold); color:var(--gold-ink); border-color:var(--gold); }
+
+/* Replace the UA's blue focus ring with one that belongs to this palette. */
+button:focus:not(:focus-visible), select:focus:not(:focus-visible){ outline:none; }
+button:focus-visible, select:focus-visible{ outline:2px solid var(--copper-ink); outline-offset:2px; }
 
 section.view{ display:none; }
 section.view.active{ display:block; }
@@ -64,11 +75,11 @@ section.view.active{ display:block; }
 button.primary{
   font:inherit; font-size:.9rem; text-transform:uppercase; letter-spacing:.06em;
   background:var(--gold); color:var(--gold-ink); border:none; border-radius:6px;
-  padding:10px 22px; cursor:pointer; font-weight:700;
+  padding:8px 20px; cursor:pointer; font-weight:700;
 }
 button.ghost{
   font:inherit; font-size:.88rem; background:none; border:1px solid var(--card-border); color:var(--ink);
-  border-radius:6px; padding:9px 18px; cursor:pointer;
+  border-radius:6px; padding:7px 16px; cursor:pointer;
 }
 
 .rank-tag{
@@ -134,7 +145,9 @@ button.ghost{
 .rank-info .name-row{ display:flex; align-items:center; gap:8px; }
 .rank-info .name-row .team-name{ font-weight:700; font-size:1.05rem; }
 .rank-info .meta{ font-size:.78rem; color:var(--ink-dim); margin-top:2px; }
-.status-pill{ font-size:.72rem; padding:3px 10px; border-radius:999px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
+/* inline-flex + fixed height centers the uppercase text inside the pill,
+   which sat high on its baseline otherwise. */
+.status-pill{ display:inline-flex; align-items:center; height:23px; font-size:.72rem; line-height:1; padding:0 11px; border-radius:999px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
 .status-pill.alive{ background:color-mix(in srgb, var(--ink) 15%, transparent); color:var(--ink); }
 .status-pill.out{ background:color-mix(in srgb, var(--out) 25%, transparent); color:var(--out); }
 .status-pill.champ{ background:var(--gold); color:var(--gold-ink); }
@@ -148,7 +161,8 @@ table.ref th{ text-align:left; font-size:.72rem; text-transform:uppercase; lette
 table.ref td{ padding:9px 10px; border-bottom:1px solid var(--divider); }
 table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--copper) 10%, transparent); }
 table.ref td .cell{ display:flex; align-items:center; gap:9px; }
-.league-tag{ font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:4px; }
+table.ref td.tabular{ font-size:.85rem; color:var(--ink-dim); }
+.league-tag{ display:inline-flex; align-items:center; height:20px; line-height:1; font-size:.72rem; font-weight:700; padding:0 9px; border-radius:4px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
 .league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }
 

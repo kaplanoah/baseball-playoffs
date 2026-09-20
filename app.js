@@ -76,31 +76,37 @@ function matchupRow(s, side){
   </div>`;
 }
 
-/* Bracket geometry. Rounds sit progressively closer to the centerline so the
-   two leagues funnel inward to the World Series, and every connector ends on
-   the exact row that team will occupy. Card metrics mirror styles.css. */
+/* Bracket geometry, in card-top coordinates. Card metrics mirror styles.css:
+   a card is 106px tall, its top row centered 48px down, the divider between
+   its two teams at 67px, its bottom row at 86px.
+
+   Cards are offset so a line leaving a card's divider runs dead straight into
+   the slot it feeds: each wild card sits 19px outboard of its division series
+   (67 - 48), so divider and destination row share a y. Division to
+   championship needs a jog, since two cards 360px apart feed rows 38px apart. */
 const LAY = {
   colW:200, gap:22,
-  cardH:106, rowTopY:48, rowBotY:86,
-  stageH:640,
-  yWcTop:100, yDsTop:210, yMid:330, yDsBot:450, yWcBot:560
+  cardH:106, rowTopY:48, rowDivY:67, rowBotY:86,
+  stageH:620,
+  yWc1:101, yDs1:120, yMid:300, yDs2:480, yWc2:499
 };
 const colX = i => i * (LAY.colW + LAY.gap);
-const boxTop = centerY => centerY - LAY.cardH/2;
+const colR = i => colX(i) + LAY.colW;
 const crisp = n => Math.round(n) + 0.5; // keep 1px strokes off half-pixels
 
-function elbow(x1, y1, x2, y2){
+// Renders straight when y1 === y2, jogged at the midpoint otherwise.
+function connector(x1, y1, x2, y2){
   const xm = (x1 + x2) / 2;
   return `M ${crisp(x1)} ${crisp(y1)} H ${crisp(xm)} V ${crisp(y2)} H ${crisp(x2)}`;
 }
 
 // One bracket box. `flip` renders side B above side A, so a division series
 // shows its incoming wild-card slot on the side the line arrives from.
-function box(s, centerY, col, opts = {}){
+function box(s, top, col, opts = {}){
   const rows = opts.flip
     ? `${matchupRow(s,"B")}${matchupRow(s,"A")}`
     : `${matchupRow(s,"A")}${matchupRow(s,"B")}`;
-  return `<div class="box" style="left:${colX(col)}px; top:${boxTop(centerY)}px; width:${LAY.colW}px;">
+  return `<div class="box" style="left:${colX(col)}px; top:${top}px; width:${LAY.colW}px;">
     <div class="series">
       <div class="bestof"><span>${ROUND_LABEL[s.round]}</span><span>BO${s.bestOf}</span></div>
       ${rows}
@@ -120,9 +126,9 @@ function renderBracket(){
   const br = fullBracket(state);
   const alChampLine = br.al.champion ? `${teamLabel(br.al.champion)} advance` : "";
   const nlChampLine = br.nl.champion ? `${teamLabel(br.nl.champion)} advance` : "";
-  const wsChampLine = br.ws.winner ? `${teamLabel(br.ws.winner)} win it all` : "";
+  const wsChampLine = br.ws.winner ? `${teamLabel(br.ws.winner)} win the World Series` : "";
 
-  const W = colX(6) + LAY.colW;
+  const W = colR(6);
   const labels = [
     ["AL Wild Card","al"], ["AL Division","al"], ["AL Championship","al"],
     ["World Series","champ"],
@@ -131,38 +137,39 @@ function renderBracket(){
     `<div class="lg-label ${cls}" style="left:${colX(i)}px; width:${LAY.colW}px;">${text}</div>`
   ).join("");
 
-  // Entry points: each line lands on the slot its winner will fill.
-  const dsTopSlot = boxTop(LAY.yDsTop) + LAY.rowTopY;
-  const dsBotSlot = boxTop(LAY.yDsBot) + LAY.rowBotY;
-  const midTopSlot = boxTop(LAY.yMid) + LAY.rowTopY;
-  const midBotSlot = boxTop(LAY.yMid) + LAY.rowBotY;
-  const R = i => colX(i) + LAY.colW;
+  // Lines leave a card at the divider between its two teams and land on the
+  // slot the winner will fill.
+  const wc1Out = LAY.yWc1 + LAY.rowDivY, wc2Out = LAY.yWc2 + LAY.rowDivY;
+  const ds1Out = LAY.yDs1 + LAY.rowDivY, ds2Out = LAY.yDs2 + LAY.rowDivY;
+  const midOut = LAY.yMid + LAY.rowDivY;
+  const ds1Slot = LAY.yDs1 + LAY.rowTopY, ds2Slot = LAY.yDs2 + LAY.rowBotY;
+  const midTopSlot = LAY.yMid + LAY.rowTopY, midBotSlot = LAY.yMid + LAY.rowBotY;
 
   const paths = [
-    elbow(R(0), LAY.yWcTop, colX(1), dsTopSlot),
-    elbow(R(0), LAY.yWcBot, colX(1), dsBotSlot),
-    elbow(R(1), LAY.yDsTop, colX(2), midTopSlot),
-    elbow(R(1), LAY.yDsBot, colX(2), midBotSlot),
-    elbow(R(2), LAY.yMid,   colX(3), midTopSlot),
-    elbow(colX(6), LAY.yWcTop, R(5), dsTopSlot),
-    elbow(colX(6), LAY.yWcBot, R(5), dsBotSlot),
-    elbow(colX(5), LAY.yDsTop, R(4), midTopSlot),
-    elbow(colX(5), LAY.yDsBot, R(4), midBotSlot),
-    elbow(colX(4), LAY.yMid,   R(3), midBotSlot)
+    connector(colR(0), wc1Out, colX(1), ds1Slot),
+    connector(colR(0), wc2Out, colX(1), ds2Slot),
+    connector(colR(1), ds1Out, colX(2), midTopSlot),
+    connector(colR(1), ds2Out, colX(2), midBotSlot),
+    connector(colR(2), midOut, colX(3), midOut),
+    connector(colX(6), wc1Out, colR(5), ds1Slot),
+    connector(colX(6), wc2Out, colR(5), ds2Slot),
+    connector(colX(5), ds1Out, colR(4), midTopSlot),
+    connector(colX(5), ds2Out, colR(4), midBotSlot),
+    connector(colX(4), midOut, colR(3), midOut)
   ].map(d => `<path d="${d}"/>`).join("");
 
   const boxes = [
-    box(br.al.wc[0], LAY.yWcTop, 0),
-    box(br.al.wc[1], LAY.yWcBot, 0),
-    box(br.al.ds[0], LAY.yDsTop, 1, {flip:true}),
-    box(br.al.ds[1], LAY.yDsBot, 1),
-    box(br.al.cs[0], LAY.yMid,   2, {champLine:alChampLine}),
-    box(br.ws,       LAY.yMid,   3, {champLine:wsChampLine}),
-    box(br.nl.cs[0], LAY.yMid,   4, {champLine:nlChampLine}),
-    box(br.nl.ds[0], LAY.yDsTop, 5, {flip:true}),
-    box(br.nl.ds[1], LAY.yDsBot, 5),
-    box(br.nl.wc[0], LAY.yWcTop, 6),
-    box(br.nl.wc[1], LAY.yWcBot, 6)
+    box(br.al.wc[0], LAY.yWc1, 0),
+    box(br.al.wc[1], LAY.yWc2, 0),
+    box(br.al.ds[0], LAY.yDs1, 1, {flip:true}),
+    box(br.al.ds[1], LAY.yDs2, 1),
+    box(br.al.cs[0], LAY.yMid, 2, {champLine:alChampLine}),
+    box(br.ws,       LAY.yMid, 3, {champLine:wsChampLine}),
+    box(br.nl.cs[0], LAY.yMid, 4, {champLine:nlChampLine}),
+    box(br.nl.ds[0], LAY.yDs1, 5, {flip:true}),
+    box(br.nl.ds[1], LAY.yDs2, 5),
+    box(br.nl.wc[0], LAY.yWc1, 6),
+    box(br.nl.wc[1], LAY.yWc2, 6)
   ].join("");
 
   wrap.innerHTML = `
@@ -186,7 +193,7 @@ function renderBanner(br){
   if(aliveRanked.length === 0){
     const champ = br.ws && br.ws.winner;
     banner.innerHTML = champ
-      ? `<span class="banner-label">Final</span><span class="banner-team">${teamDot(champ)} ${teamLabel(champ)}</span><span class="banner-status">win it all</span>`
+      ? `<span class="banner-label">Final</span><span class="banner-team">${teamDot(champ)} ${teamLabel(champ)}</span><span class="banner-status">win the World Series</span>`
       : `<span class="banner-status">All of your ranked teams have been eliminated.</span>`;
     return;
   }
@@ -230,10 +237,15 @@ function wireDrag(list){
 
       const items = [...list.querySelectorAll(".rank-item")];
       const startIndex = items.indexOf(dragEl);
-      const startRects = items.map(el => el.getBoundingClientRect());
+      // Document-space rects: a scroll mid-drag must not shift the targets.
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const startRects = items.map(el => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top + scrollY, height: r.height };
+      });
       const dragRect = startRects[startIndex];
       const itemStep = dragRect.height + 8; // row height + list gap
-      const startY = e.clientY;
+      const startY = e.pageY;
       let targetIndex = startIndex;
 
       dragEl.setPointerCapture(e.pointerId);
@@ -244,7 +256,7 @@ function wireDrag(list){
 
       function onMove(ev){
         ev.preventDefault();
-        const dy = ev.clientY - startY;
+        const dy = ev.pageY - startY;
         dragEl.style.transform = `translateY(${dy}px)`;
         const centerY = dragRect.top + dragRect.height/2 + dy;
 
@@ -267,15 +279,12 @@ function wireDrag(list){
         });
       }
 
-      async function onUp(ev){
-        dragEl.releasePointerCapture(ev.pointerId);
+      function onUp(ev){
+        try{ dragEl.releasePointerCapture(ev.pointerId); }catch(_){}
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
         document.body.style.userSelect = "";
-
-        const order = items.map(el => el.dataset.id);
-        const [moved] = order.splice(startIndex, 1);
-        order.splice(targetIndex, 0, moved);
 
         items.forEach(el => {
           el.style.transform = "";
@@ -284,13 +293,22 @@ function wireDrag(list){
           el.style.zIndex = "";
         });
         dragEl.classList.remove("dragging");
+        if(targetIndex === startIndex) return;
 
-        await saveRanking(order);
+        const order = items.map(el => el.dataset.id);
+        const [moved] = order.splice(startIndex, 1);
+        order.splice(targetIndex, 0, moved);
+
+        // Re-render from the new order immediately; persisting can lag behind
+        // without the row appearing to snap back to where it started.
+        state.ranking = order;
         renderRanking();
         renderBracket();
+        saveRanking(order);
       }
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
     });
   });
 }
