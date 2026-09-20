@@ -22,7 +22,7 @@ body{
   font-size:16px;
   padding-inline:18px;
   padding-block:22px 48px;
-  max-width:1360px;
+  max-width:1570px;
   margin:0 auto;
 }
 h1,h2,h3{ font-weight:700; margin:0; letter-spacing:.01em; }
@@ -77,31 +77,22 @@ button.ghost{
   background:transparent; border:1px solid var(--copper); color:var(--copper-ink);
 }
 
-/* ---------- bracket tree ---------- */
+/* ---------- bracket tree ----------
+   Card parts have fixed heights so app.js can compute exact connector
+   endpoints: a card is 1 + 28 + 38 + 38 + 1 = 106px tall, its top row centered
+   48px down and its bottom row 86px down. Keep these in sync with LAY in app.js. */
 .tree-scroll{ overflow-x:auto; padding-bottom:10px; margin-inline:-18px; padding-inline:18px; }
-.bracket-inner{ min-width:1230px; }
-.lg-labels-row, .bracket-grid{ display:grid; grid-template-columns:repeat(7, 1fr); }
-.lg-labels-row{ margin-bottom:10px; }
-.lg-labels-row > div{ text-align:center; }
-.lg-label{ font-size:.72rem; text-transform:uppercase; letter-spacing:.09em; }
+.bracket-inner{ position:relative; }
+.lg-labels-row{ position:relative; height:20px; margin-bottom:8px; }
+.lg-label{ position:absolute; top:0; text-align:center; font-size:.72rem; text-transform:uppercase; letter-spacing:.09em; }
 .lg-label.al{ color:var(--al); }
 .lg-label.nl{ color:var(--nl); }
 .lg-label.champ{ color:var(--gold); }
 
-.bracket-grid{ height:540px; }
-.col{ position:relative; height:100%; }
-
-/* Boxes are absolutely positioned at fixed percentages so every round lines
-   up exactly and the connector stubs meet at the column boundaries. */
-.box{ position:absolute; left:11px; right:11px; transform:translateY(-50%); }
-.box.pos-top{ top:25%; }
-.box.pos-mid{ top:50%; }
-.box.pos-bot{ top:75%; }
-.box.line-l::before{ content:""; position:absolute; top:50%; left:-11px; width:11px; height:1px; background:var(--card-border); }
-.box.line-r::after{ content:""; position:absolute; top:50%; right:-11px; width:11px; height:1px; background:var(--card-border); }
-.vjoin{ position:absolute; top:25%; bottom:25%; width:1px; background:var(--card-border); }
-.vjoin.at-right{ right:0; }
-.vjoin.at-left{ left:0; }
+.bracket-stage{ position:relative; }
+.bracket-lines{ position:absolute; top:0; left:0; pointer-events:none; }
+.bracket-lines path{ fill:none; stroke:var(--card-border); stroke-width:1; }
+.box{ position:absolute; }
 
 .champ-line{
   position:absolute; top:100%; left:0; right:0; margin-top:8px;
@@ -112,8 +103,8 @@ button.ghost{
 .series{
   background:var(--card); border:1px solid var(--card-border); border-radius:6px; overflow:hidden;
 }
-.series .bestof{ display:flex; justify-content:space-between; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-dim); padding:6px 10px; border-bottom:1px solid var(--divider); }
-.matchup-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 10px; gap:8px; font-size:.95rem; }
+.series .bestof{ display:flex; align-items:center; justify-content:space-between; height:28px; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-dim); padding:0 10px; border-bottom:1px solid var(--divider); }
+.matchup-row{ display:flex; align-items:center; justify-content:space-between; height:38px; padding:0 10px; gap:8px; font-size:.95rem; }
 .matchup-row + .matchup-row{ border-top:1px solid var(--divider); }
 .matchup-row.winner{ background:color-mix(in srgb, var(--gold) 8%, transparent); }
 .matchup-row.eliminated .team-name{ color:var(--out); text-decoration:line-through; text-decoration-color:var(--card-border); }
@@ -146,6 +137,8 @@ button.ghost{
 .status-pill.out{ background:color-mix(in srgb, var(--out) 25%, transparent); color:var(--out); }
 .status-pill.champ{ background:var(--gold); color:var(--gold-ink); }
 .rank-hint{ color:var(--ink-dim); font-size:.88rem; margin:0 0 16px; }
+/* The bracket wants the full page width; these read better narrow. */
+.rank-list, .rank-hint, table.ref{ max-width:900px; }
 
 /* ---------- Reference table ---------- */
 table.ref{ width:100%; border-collapse:collapse; font-size:.95rem; }

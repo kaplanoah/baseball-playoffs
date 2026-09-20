@@ -63,17 +63,36 @@ function matchupRow(s, side){
   </div>`;
 }
 
-// One bracket box: the series card, placed and line-connected by its classes.
-function box(s, posCls, lineCls, champLine){
-  const inner = (!s.teamA && !s.teamB)
-    ? `<div class="matchup-row"><span class="tbd">TBD</span></div><div class="matchup-row"><span class="tbd">TBD</span></div>`
+/* Bracket geometry. Rounds sit progressively closer to the centerline so the
+   two leagues funnel inward to the World Series, and every connector ends on
+   the exact row that team will occupy. Card metrics mirror styles.css. */
+const LAY = {
+  colW:200, gap:22,
+  cardH:106, rowTopY:48, rowBotY:86,
+  stageH:640,
+  yWcTop:100, yDsTop:210, yMid:330, yDsBot:450, yWcBot:560
+};
+const colX = i => i * (LAY.colW + LAY.gap);
+const boxTop = centerY => centerY - LAY.cardH/2;
+const crisp = n => Math.round(n) + 0.5; // keep 1px strokes off half-pixels
+
+function elbow(x1, y1, x2, y2){
+  const xm = (x1 + x2) / 2;
+  return `M ${crisp(x1)} ${crisp(y1)} H ${crisp(xm)} V ${crisp(y2)} H ${crisp(x2)}`;
+}
+
+// One bracket box. `flip` renders side B above side A, so a division series
+// shows its incoming wild-card slot on the side the line arrives from.
+function box(s, centerY, col, opts = {}){
+  const rows = opts.flip
+    ? `${matchupRow(s,"B")}${matchupRow(s,"A")}`
     : `${matchupRow(s,"A")}${matchupRow(s,"B")}`;
-  return `<div class="box ${posCls} ${lineCls}">
+  return `<div class="box" style="left:${colX(col)}px; top:${boxTop(centerY)}px; width:${LAY.colW}px;">
     <div class="series">
       <div class="bestof"><span>${ROUND_LABEL[s.round]}</span><span>BO${s.bestOf}</span></div>
-      ${inner}
+      ${rows}
     </div>
-    ${champLine ? `<div class="champ-line">${champLine}</div>` : ""}
+    ${opts.champLine ? `<div class="champ-line">${opts.champLine}</div>` : ""}
   </div>`;
 }
 
@@ -90,45 +109,55 @@ function renderBracket(){
   const nlChampLine = br.nl.champion ? `${teamLabel(br.nl.champion)} advance` : "";
   const wsChampLine = br.ws.winner ? `${teamLabel(br.ws.winner)} win it all` : "";
 
+  const W = colX(6) + LAY.colW;
+  const labels = [
+    ["AL Wild Card","al"], ["AL Division","al"], ["AL Championship","al"],
+    ["World Series","champ"],
+    ["NL Championship","nl"], ["NL Division","nl"], ["NL Wild Card","nl"]
+  ].map(([text,cls],i) =>
+    `<div class="lg-label ${cls}" style="left:${colX(i)}px; width:${LAY.colW}px;">${text}</div>`
+  ).join("");
+
+  // Entry points: each line lands on the slot its winner will fill.
+  const dsTopSlot = boxTop(LAY.yDsTop) + LAY.rowTopY;
+  const dsBotSlot = boxTop(LAY.yDsBot) + LAY.rowBotY;
+  const midTopSlot = boxTop(LAY.yMid) + LAY.rowTopY;
+  const midBotSlot = boxTop(LAY.yMid) + LAY.rowBotY;
+  const R = i => colX(i) + LAY.colW;
+
+  const paths = [
+    elbow(R(0), LAY.yWcTop, colX(1), dsTopSlot),
+    elbow(R(0), LAY.yWcBot, colX(1), dsBotSlot),
+    elbow(R(1), LAY.yDsTop, colX(2), midTopSlot),
+    elbow(R(1), LAY.yDsBot, colX(2), midBotSlot),
+    elbow(R(2), LAY.yMid,   colX(3), midTopSlot),
+    elbow(colX(6), LAY.yWcTop, R(5), dsTopSlot),
+    elbow(colX(6), LAY.yWcBot, R(5), dsBotSlot),
+    elbow(colX(5), LAY.yDsTop, R(4), midTopSlot),
+    elbow(colX(5), LAY.yDsBot, R(4), midBotSlot),
+    elbow(colX(4), LAY.yMid,   R(3), midBotSlot)
+  ].map(d => `<path d="${d}"/>`).join("");
+
+  const boxes = [
+    box(br.al.wc[0], LAY.yWcTop, 0),
+    box(br.al.wc[1], LAY.yWcBot, 0),
+    box(br.al.ds[0], LAY.yDsTop, 1, {flip:true}),
+    box(br.al.ds[1], LAY.yDsBot, 1),
+    box(br.al.cs[0], LAY.yMid,   2, {champLine:alChampLine}),
+    box(br.ws,       LAY.yMid,   3, {champLine:wsChampLine}),
+    box(br.nl.cs[0], LAY.yMid,   4, {champLine:nlChampLine}),
+    box(br.nl.ds[0], LAY.yDsTop, 5, {flip:true}),
+    box(br.nl.ds[1], LAY.yDsBot, 5),
+    box(br.nl.wc[0], LAY.yWcTop, 6),
+    box(br.nl.wc[1], LAY.yWcBot, 6)
+  ].join("");
+
   wrap.innerHTML = `
-    <div class="tree-scroll"><div class="bracket-inner">
-      <div class="lg-labels-row">
-        <div><span class="lg-label al">AL Wild Card</span></div>
-        <div><span class="lg-label al">AL Division</span></div>
-        <div><span class="lg-label al">AL Championship</span></div>
-        <div><span class="lg-label champ">World Series</span></div>
-        <div><span class="lg-label nl">NL Championship</span></div>
-        <div><span class="lg-label nl">NL Division</span></div>
-        <div><span class="lg-label nl">NL Wild Card</span></div>
-      </div>
-      <div class="bracket-grid">
-        <div class="col">
-          ${box(br.al.wc[0], "pos-top", "line-r")}
-          ${box(br.al.wc[1], "pos-bot", "line-r")}
-        </div>
-        <div class="col">
-          ${box(br.al.ds[0], "pos-top", "line-l line-r")}
-          ${box(br.al.ds[1], "pos-bot", "line-l line-r")}
-          <div class="vjoin at-right"></div>
-        </div>
-        <div class="col">
-          ${box(br.al.cs[0], "pos-mid", "line-l line-r", alChampLine)}
-        </div>
-        <div class="col">
-          ${box(br.ws, "pos-mid", "line-l line-r", wsChampLine)}
-        </div>
-        <div class="col">
-          ${box(br.nl.cs[0], "pos-mid", "line-l line-r", nlChampLine)}
-        </div>
-        <div class="col">
-          ${box(br.nl.ds[0], "pos-top", "line-l line-r")}
-          ${box(br.nl.ds[1], "pos-bot", "line-l line-r")}
-          <div class="vjoin at-left"></div>
-        </div>
-        <div class="col">
-          ${box(br.nl.wc[0], "pos-top", "line-l")}
-          ${box(br.nl.wc[1], "pos-bot", "line-l")}
-        </div>
+    <div class="tree-scroll"><div class="bracket-inner" style="width:${W}px;">
+      <div class="lg-labels-row">${labels}</div>
+      <div class="bracket-stage" style="height:${LAY.stageH}px;">
+        <svg class="bracket-lines" width="${W}" height="${LAY.stageH}" viewBox="0 0 ${W} ${LAY.stageH}">${paths}</svg>
+        ${boxes}
       </div>
     </div></div>
   `;
