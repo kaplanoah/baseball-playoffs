@@ -92,7 +92,7 @@ button.ghost{
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;
-  background:transparent; border:1px solid var(--copper); color:var(--copper-ink);
+  background:transparent; border:1px solid var(--copper); color:var(--copper);
 }
 /* Filled tag = the team you rank higher in that matchup. */
 .rank-tag.solid{ background:var(--copper); color:var(--gold-ink); }
