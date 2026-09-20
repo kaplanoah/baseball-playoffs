@@ -46,6 +46,13 @@ function lastTitle(id){
   if(seeded && tracked) return Math.max(seeded, tracked);
   return tracked || seeded;
 }
+
+function droughtLabel(id){
+  const won = lastTitle(id);
+  if(!won) return "since 1969";
+  if(won >= seasonYear()) return "reigning";
+  return (seasonYear() - won) + " yrs";
+}
 function normalize(doc, year){
   const s = doc || emptySeason(year);
   if(!s.teams) s.teams = {};
@@ -136,18 +143,18 @@ function matchupRow(s, side){
 }
 
 /* Bracket geometry, in card-top coordinates. Card metrics mirror styles.css:
-   a card is 106px tall, its top row centered 48px down, the divider between
-   its two teams at 67px, its bottom row at 86px.
+   a card is 90px tall, its top row centered 41px down, the divider between its
+   two teams at 57px, its bottom row at 73px.
 
    Cards are offset so a line leaving a card's divider runs dead straight into
-   the slot it feeds: each wild card sits 19px outboard of its division series
-   (67 - 48), so divider and destination row share a y. Division to
-   championship needs a jog, since two cards 360px apart feed rows 38px apart. */
+   the slot it feeds: each wild card sits 16px outboard of its division series
+   (57 - 41), so divider and destination row share a y. Division to
+   championship needs a jog, since those cards feed rows 32px apart. */
 const LAY = {
   colW:200, gap:22,
-  cardH:106, rowTopY:48, rowDivY:67, rowBotY:86,
-  stageH:620,
-  yWc1:101, yDs1:120, yMid:300, yDs2:480, yWc2:499
+  cardH:90, rowTopY:41, rowDivY:57, rowBotY:73,
+  stageH:412,
+  yWc1:24, yDs1:40, yMid:160, yDs2:280, yWc2:296
 };
 const colX = i => i * (LAY.colW + LAY.gap);
 const colR = i => colX(i) + LAY.colW;
@@ -273,12 +280,14 @@ function renderRanking(){
     const t = state.teams[id];
     const info = TEAMS[id];
     const st = teamStatusLabel(state, id);
+    const won = lastTitle(id);
+    const title = won ? `Last WS ${won} &middot; ${droughtLabel(id)}` : "Last WS never";
     return `<li class="rank-item ${st.cls === 'out' ? 'eliminated' : ''}" data-id="${id}">
       <span class="grip">&#8942;&#8942;</span>
       <span class="rank-num tabular">${i+1}</span>
       <span class="rank-info">
         <span class="name-row">${teamDot(id)}<span class="team-name">${info.name}</span></span>
-        <span class="meta">${t.league} &middot; Seed ${t.seed} &middot; Last WS ${lastTitle(id) || "never"}</span>
+        <span class="meta"><span class="lg ${t.league}">${t.league}</span> &middot; ${title}</span>
       </span>
       <span class="status-pill ${st.cls}">${st.label}</span>
     </li>`;
@@ -323,14 +332,11 @@ function renderReference(){
   const rows = Object.entries(TEAMS).sort((a,b) => a[1].name.localeCompare(b[1].name));
   body.innerHTML = rows.map(([id,t]) => {
     const won = lastTitle(id);
-    const drought = !won ? "since 1969"
-      : won >= seasonYear() ? "reigning"
-      : (seasonYear() - won) + " yrs";
     return `<tr class="${inField.has(id) ? 'in-playoffs' : ''}">
       <td><span class="cell">${rankTag(id)}${teamDot(id)} ${t.name}</span></td>
       <td><span class="league-tag ${t.league}">${t.league}</span></td>
       <td class="tabular">${won || "&mdash;"}</td>
-      <td class="tabular">${drought}</td>
+      <td class="tabular">${droughtLabel(id)}</td>
     </tr>`;
   }).join("");
 }

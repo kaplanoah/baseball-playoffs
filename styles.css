@@ -32,15 +32,15 @@ header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
   border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:18px;
 }
-header.top h1{ font-size:1.6rem; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.04em; }
-.year-picker{ display:flex; align-items:center; gap:8px; font-size:.95rem; color:var(--ink-dim); }
+header.top h1{ font-size:1.35rem; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.04em; }
+.year-picker{ display:flex; align-items:center; gap:8px; font-size:.8rem; color:var(--ink-dim); }
 /* Own caret rather than the UA's, so there's real space to the right of it. */
 .year-picker select{
-  font:inherit; font-size:.95rem; background-color:var(--card); color:var(--ink);
-  border:1px solid var(--card-border); border-radius:6px; padding:5px 34px 5px 10px;
+  font:inherit; font-size:.85rem; background-color:var(--card); color:var(--ink);
+  border:1px solid var(--card-border); border-radius:6px; padding:5px 23px 5px 10px;
   appearance:none; -webkit-appearance:none;
   background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa88f' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position:right 13px center; background-size:10px 6px;
+  background-repeat:no-repeat; background-position:right 8px center; background-size:9px 5px;
 }
 
 nav.tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
@@ -58,19 +58,17 @@ button:focus-visible, select:focus-visible{ outline:2px solid var(--copper-ink);
 section.view{ display:none; }
 section.view.active{ display:block; }
 
-/* Baseline-aligned so the differently-sized labels sit on one line. The team
-   name must be plain text flow, not an inline-flex — a flex box takes its
-   baseline from its first child (the rank tag), which knocks the name off the
-   line its neighbours sit on. Tag and dot are centered against it instead. */
+/* Every part centers on one axis: the rule, the label, the team name and the
+   status. Each child is itself a centered flex row, so nothing depends on
+   baselines, which is what threw the label and tag low before. */
 .banner{
-  border-left:3px solid var(--copper); padding:4px 0 4px 14px; margin-bottom:22px;
-  display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  border-left:3px solid var(--copper); padding:5px 0 5px 14px; margin-bottom:20px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
 }
-.banner .banner-label{ font-size:.7rem; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
-.banner .banner-team{ font-size:1.15rem; font-weight:700; color:var(--ink); }
-.banner .banner-team .rank-tag,
-.banner .banner-team .dot{ vertical-align:middle; margin-right:7px; }
-.banner .banner-status{ font-size:.9rem; color:var(--ink-dim); }
+.banner > *{ display:flex; align-items:center; }
+.banner .banner-label{ font-size:.7rem; line-height:1; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
+.banner .banner-team{ gap:7px; font-size:1.1rem; line-height:1; font-weight:700; color:var(--ink); }
+.banner .banner-status{ font-size:.88rem; line-height:1; color:var(--ink-dim); }
 
 .setup-card{
   background:var(--card); border:1px dashed var(--card-border); border-radius:10px; padding:22px;
@@ -98,8 +96,9 @@ button.ghost{
 
 /* ---------- bracket tree ----------
    Card parts have fixed heights so app.js can compute exact connector
-   endpoints: a card is 1 + 28 + 38 + 38 + 1 = 106px tall, its top row centered
-   48px down and its bottom row 86px down. Keep these in sync with LAY in app.js. */
+   endpoints: a card is 1 + 24 + 32 + 32 + 1 = 90px tall, its top row centered
+   41px down, the divider between its teams at 57px, its bottom row at 73px.
+   Keep these in sync with LAY in app.js. */
 .tree-scroll{ overflow-x:auto; padding-bottom:10px; margin-inline:-18px; padding-inline:18px; }
 .bracket-inner{ position:relative; }
 .lg-labels-row{ position:relative; height:20px; margin-bottom:8px; }
@@ -122,15 +121,13 @@ button.ghost{
 .series{
   background:var(--card); border:1px solid var(--card-border); border-radius:6px; overflow:hidden;
 }
-.series .bestof{ display:flex; align-items:center; justify-content:space-between; height:28px; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-dim); padding:0 10px; border-bottom:1px solid var(--divider); }
-.matchup-row{ display:flex; align-items:center; justify-content:space-between; height:38px; padding:0 10px; gap:8px; font-size:.95rem; }
+.series .bestof{ display:flex; align-items:center; justify-content:space-between; height:24px; font-size:.64rem; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-dim); padding:0 10px; border-bottom:1px solid var(--divider); }
+.matchup-row{ display:flex; align-items:center; justify-content:space-between; height:32px; padding:0 10px; gap:8px; font-size:.9rem; }
 .matchup-row + .matchup-row{ border-top:1px solid var(--divider); }
 .matchup-row.winner{ background:color-mix(in srgb, var(--gold) 8%, transparent); }
 .matchup-row.eliminated .team-name{ color:var(--out); text-decoration:line-through; text-decoration-color:var(--card-border); }
 .team-id{ display:flex; align-items:center; gap:8px; min-width:0; }
-/* Faint ring keeps the dark half of a dot (black/navy secondaries) readable
-   against the dark ground. */
-.dot{ display:inline-block; vertical-align:middle; width:11px; height:11px; border-radius:50%; flex:none; box-shadow:inset 0 0 0 1px rgba(241,234,212,.22); }
+.dot{ display:inline-block; vertical-align:middle; width:13px; height:13px; border-radius:50%; flex:none; }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tbd{ color:var(--ink-dim); font-style:italic; font-size:.88rem; }
 .nscore{ min-width:1.5em; text-align:center; font-weight:700; font-size:1rem; padding:2px 8px; border-radius:3px; background:var(--divider); }
@@ -139,7 +136,7 @@ button.ghost{
 /* ---------- Ranking ---------- */
 .rank-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; user-select:none; -webkit-user-select:none; }
 .rank-item{
-  background:var(--card); border:1px solid var(--card-border); border-radius:8px; padding:12px 14px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:8px; padding:8px 17px 8px 13px;
   display:flex; align-items:center; gap:12px; touch-action:none; cursor:grab;
 }
 .rank-item:active{ cursor:grabbing; }
@@ -147,25 +144,28 @@ button.ghost{
 .rank-item.drag-ghost{ opacity:.35; }
 .rank-item.eliminated{ opacity:.55; }
 .grip{ flex:none; color:var(--ink-dim); font-size:1.05rem; letter-spacing:-2px; }
-.rank-num{ font-weight:700; color:var(--gold); width:28px; text-align:center; flex:none; font-size:1.2rem; }
+.rank-num{ font-weight:700; color:var(--gold); width:24px; text-align:center; flex:none; font-size:.98rem; }
 .rank-info{ flex:1; min-width:0; }
 .rank-info .name-row{ display:flex; align-items:center; gap:8px; }
-.rank-info .name-row .team-name{ font-weight:700; font-size:1.05rem; }
-.rank-info .meta{ font-size:.78rem; color:var(--ink-dim); margin-top:2px; }
+.rank-info .name-row .team-name{ font-weight:700; font-size:.98rem; }
+.rank-info .meta{ font-size:.74rem; color:var(--ink-dim); margin-top:1px; }
+.rank-info .meta .lg{ font-weight:700; }
+.rank-info .meta .lg.AL{ color:var(--al); }
+.rank-info .meta .lg.NL{ color:var(--nl); }
 /* inline-flex + fixed height centers the uppercase text inside the pill,
    which sat high on its baseline otherwise. */
-.status-pill{ display:inline-flex; align-items:center; height:23px; font-size:.72rem; line-height:1; padding:0 11px; border-radius:999px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
+.status-pill{ display:inline-flex; align-items:center; height:21px; font-size:.7rem; line-height:1; padding:0 10px; border-radius:999px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
 .status-pill.alive{ background:color-mix(in srgb, var(--ink) 15%, transparent); color:var(--ink); }
 .status-pill.out{ background:color-mix(in srgb, var(--out) 25%, transparent); color:var(--out); }
 .status-pill.champ{ background:var(--gold); color:var(--gold-ink); }
-.rank-hint{ color:var(--ink-dim); font-size:.88rem; margin:0 0 16px; }
+.rank-hint{ color:var(--ink-dim); font-size:.76rem; margin:0 0 14px; }
 /* The bracket wants the full page width; these read better narrow. */
 .rank-list, .rank-hint, table.ref{ max-width:900px; }
 
 /* ---------- Reference table ---------- */
-table.ref{ width:100%; border-collapse:collapse; font-size:.95rem; }
-table.ref th{ text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); border-bottom:2px solid var(--card-border); padding:9px 10px; }
-table.ref td{ padding:9px 10px; border-bottom:1px solid var(--divider); }
+table.ref{ width:100%; border-collapse:collapse; font-size:.9rem; }
+table.ref th{ text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); border-bottom:2px solid var(--card-border); padding:7px 10px; }
+table.ref td{ padding:6px 10px; border-bottom:1px solid var(--divider); }
 table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--copper) 10%, transparent); }
 table.ref td .cell{ display:flex; align-items:center; gap:9px; }
 table.ref td.tabular{ font-size:.85rem; color:var(--ink-dim); }

@@ -2,10 +2,10 @@
 
 A personal postseason tracker: the full 12-team bracket, your ranking of who you
 want to win the World Series, and last-title context for all 30 clubs. A
-scheduled job keeps the scores current, so nothing gets updated by hand.
+scheduled job keeps the scores current.
 
-You end up with a private page that works on your phone, already filled in with
-this year's bracket.
+You end up with a private page, already filled in with this year's bracket, that
+you can open on any device.
 
 ## Setup
 
@@ -76,9 +76,19 @@ order — and `projected` to `true` unless the official bracket was already set.
 that isn't available, have the user create it at
 [claude.ai/code/routines](https://claude.ai/code/routines)):
 
-- **Schedule:** `0 15-23,0-6 * 9-11 *` — hourly from roughly 11am to 2am ET,
-  September through November. Hourly is the platform minimum, and the prompt
-  makes off-hours runs exit immediately.
+- **Schedule:** `0 0-5,23 * 9-10 *` — hourly from 7pm to 1am ET, September and
+  October. Check the season's real dates first with
+  `/api/v1/schedule/postseason?season=<YEAR>` and adjust the months if that
+  year's World Series runs into November. The window is deliberately narrow,
+  since each run costs tokens whether or not anything changed:
+  - **Hours** cover when games *finish*, which is the only thing being
+    recorded. A result landing up to an hour late costs nothing, and a missed
+    run self-corrects — each run syncs to MLB's current series record rather
+    than incrementing, so the next one catches up.
+  - **Months** are coarse because cron ANDs day-of-month with month, so a
+    "Sept 15 → Oct 31" window can't be written as one expression. September
+    runs before the postseason are near-free: the prompt refreshes the
+    projected field once a day and exits immediately on every run after that.
 - **Environment:** the one from step 2.
 - **Fresh session per run**, with push notifications on, so a decided series
   reaches the user's phone.
@@ -109,6 +119,29 @@ The doc shape:
   projectedAsOf: "YYYY-MM-DD"
 }
 
+COST — this runs unattended several times a day, so bail out early rather than
+doing work that changes nothing:
+
+- If `projected` is true and `projectedAsOf` is already today's date, the field
+  has been refreshed today already. End the run immediately, without calling the
+  MLB API.
+- If `projected` is false and there are no MLB postseason games today, end the
+  run immediately after that one schedule check.
+
+WRITING — read this before any write:
+
+- Use "update" with ONLY the fields you are changing. Never "set" the whole
+  document. The page writes `ranking` from the user's browser; a full-document
+  write from here sends your copy of `ranking` back over theirs and silently
+  undoes their reordering.
+- Pass `if_version` from your "get" on every write. If it fails because the
+  version moved, re-read and redo — do not force it.
+- `ranking` is the USER'S FIELD. Do not include it in a write at all unless the
+  set of teams in the field actually changed. When it did: keep every surviving
+  id in its existing relative order, drop ids no longer in the field, and append
+  ids new to the field at the end. Never reorder, never regenerate it, never
+  sort it by seed.
+
 TEAM_ID map (MLB team name -> id): ARI Diamondbacks, ATL Braves, BAL Orioles,
 BOS Red Sox, CHC Cubs, CWS White Sox, CIN Reds, CLE Guardians, COL Rockies,
 DET Tigers, HOU Astros, KC Royals, LAA Angels, LAD Dodgers, MIA Marlins,
@@ -126,40 +159,36 @@ SERIES_ID scheme (per league LG = AL or NL):
 - WS     = AL_CS winner (A) vs NL_CS winner (B), best-of-7
 A series is decided at 2 wins (best-of-3), 3 (best-of-5), or 4 (best-of-7).
 
-EACH RUN:
+EACH RUN, after the early-exit checks above:
 
-1. Call statsapi.mlb.com. If `projected` is true or missing, or `teams` is
-   empty: fetch
+1. If `projected` is true or missing, or `teams` is empty: fetch
    /api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason
    and check /api/v1/schedule/postseason?season=<YEAR> for whether real team
    names have replaced placeholder seed labels (e.g. "AL Wild Card #3") yet.
-   - If the official bracket is NOT set yet, compute the current projected field
-     from standings: per league, the 3 division leaders (divisionRank 1) seeded
-     1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. If those 12
-     team ids differ from the doc's current `teams`, overwrite `teams`, reset
-     `series` to {}, append ids new to the field to the END of `ranking` (never
-     reordering existing entries) while dropping ids that left it, keep
-     `projected: true`, and set `projectedAsOf` to today. If nothing differs,
-     leave teams and series alone.
-   - If the official bracket IS now set, map those 12 real teams and seeds in,
+   - If the official bracket is NOT set yet: compute the current projected field
+     from standings — per league, the 3 division leaders (divisionRank 1) seeded
+     1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Compare
+     those 12 team ids against the doc's current `teams`. If the SET of ids is
+     unchanged, write only `projectedAsOf` (today) and stop — reseeding within
+     the same 12 is not worth disturbing the doc. If the set did change, update
+     `teams`, reset `series` to {}, adjust `ranking` under the rules above, keep
+     `projected: true`, and set `projectedAsOf` to today.
+   - If the official bracket IS now set: write the 12 real teams and seeds,
      reset `series` to {} only if `teams` is actually changing, set
-     `projected: false`, remove `projectedAsOf`, and handle `ranking` as above.
+     `projected: false`, remove `projectedAsOf`, and adjust `ranking` under the
+     rules above.
 
-2. If `projected` is false, check today's schedule for games that are "Final"
-   and belong to an undecided SERIES_ID matchup. Set winsA/winsB to match MLB's
-   current series record for that matchup whenever it's ahead of the doc. Only
-   act on a confirmed "Final" — never guess or project a result.
+2. If `projected` is false: check today's schedule for games that are "Final"
+   and belong to an undecided SERIES_ID matchup. Update `series` so winsA/winsB
+   match MLB's current series record for that matchup whenever it's ahead of the
+   doc. Only act on a confirmed "Final" — never guess or project a result. Write
+   only the `series` field.
 
-3. If nothing changed, end the run without further calls.
-
-4. Write back the WHOLE doc (read, modify in memory, then "set" the full doc
-   using `if_version` from the read) so fields you didn't intend to touch
-   survive.
+3. If nothing changed, end the run without writing.
 
 Keep each run terse — this is unattended maintenance, not a conversation. Speak
-up only for something worth knowing: the projected field changed, the real
-bracket locked in, a series was decided, or the API or environment access is
-broken.
+up only for something worth knowing: the field changed, the real bracket locked
+in, a series was decided, or the API or environment access is broken.
 ````
 
 When you're done, give the user the artifact link and mention that their ranking
