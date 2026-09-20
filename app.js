@@ -202,7 +202,7 @@ function nextGameNote(s){
   const date = day.toLocaleDateString(undefined, timeKnown
     ? { month:"short", day:"numeric" }
     : { weekday:"short", month:"short", day:"numeric" });
-  return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} (${days} days)`;
+  return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} &bull; ${days} days`;
 }
 
 // One bracket box. `flip` renders side B above side A, so a division series
