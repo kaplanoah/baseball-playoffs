@@ -197,8 +197,8 @@ LOGGING — the page shows the user what changed since they last looked, from
   `next` times and refreshed `w`/`l` are not changes — never log those.
 
 STANDINGS — a second document, collection "standings", doc id "<YEAR>", holding
-all 30 clubs for the Standings tab. It comes from the same
-`/api/v1/standings` response you already fetch, so it costs no extra API call:
+all 30 clubs for the Standings tab. Everything but `next` comes from the
+`/api/v1/standings` response you already fetch, so it is nearly free:
 
 ```
 {
@@ -216,7 +216,13 @@ all 30 clubs for the Standings tab. It comes from the same
       magic: "6" | null,           // magicNumber, null unless it has one
       clinched: true|false,        // clinchIndicator is x/y/z/w AND divisionLeader
       lead: true|false,            // divisionLeader
-      wcrank: "1" | null           // wildCardRank, null for division leaders
+      wcrank: "1" | null,          // wildCardRank, null for division leaders
+      next: {                      // this club's next unplayed game, or null
+        at: "<ISO timestamp>",     //   that game's gameDate
+        opp: "<TEAM_ID>",          //   the other club
+        home: true|false,          //   true when this club is hosting
+        tbd: true|false            //   its status.startTimeTBD
+      }
     }, ... ],
     "AL Central": [...], "AL West": [...],
     "NL East": [...], "NL Central": [...], "NL West": [...]
@@ -230,6 +236,11 @@ all 30 clubs for the Standings tab. It comes from the same
 - Once the regular season is over these stop moving. Leave the document alone
   rather than rewriting identical numbers — the page keeps showing the final
   table all postseason.
+- `next` needs one more request: `/api/v1/schedule?sportId=1&startDate=<today>
+  &endDate=<today + 4 days>`. Take each club's earliest game that isn't Final.
+  It's the only extra call in the run, and only while the regular season is on.
+- Once every club is out of games, drop `next` entirely rather than leaving
+  last week's matchup sitting in the table.
 - `left` reaching 0 is normal and correct in October.
 - Do not log standings changes. The update log is for the bracket; standings
   move every day and would bury it.
@@ -399,11 +410,19 @@ both teams are known.
 
 A second document, `standings/<year>`, holds all 30 clubs for the Standings
 tab: win percentage, games back, wild card games back, games remaining,
-elimination numbers and clinch status, grouped by division. It comes from the
-same standings response the routine already fetches, so it costs no extra API
-call, and it stops changing when the regular season ends — the page keeps
-showing the final table through October. The routine owns it outright; the page
-only reads it.
+elimination numbers, clinch status and each club's next game, grouped by
+division. Everything but the next game comes from the standings response the
+routine already fetches; the next game costs one more schedule request, and
+only while the regular season is on. The table stops changing when the season
+ends — the page keeps showing the final standings through October — and `next`
+is dropped once nobody has a game left. The routine owns this document
+outright; the page only reads it.
+
+Each standings table asks one question, so each marks one kind of elimination:
+a division table dims the clubs that can no longer win the division, a wild
+card table dims the ones that can no longer reach the wild card. A club can be
+bright in one and dim in the other, which is the honest answer — the Red Sox
+can be out of the AL East and still hold a wild card spot.
 
 `next.at` is a placeholder until `tbd` turns false, so the page reads `date`
 rather than the timestamp while a time is unset — converting a placeholder

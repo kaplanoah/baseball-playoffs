@@ -602,15 +602,32 @@ function leftState(rows){
   if(low !== high) return { column:true, label:"" };
   return { column:false, label:`${low} game${low === 1 ? "" : "s"} left` };
 }
+/* "Today 8:05 vs HOU" — short enough for a column, and the opponent as an id
+   rather than a name, since the club's own name is two cells to the left. */
+function nextCell(t){
+  const n = t.next;
+  if(!n || !n.at) return `<td class="next-cell"></td>`;
+  const d = new Date(n.at);
+  if(isNaN(d)) return `<td class="next-cell"></td>`;
+  const days = dayDiff(d, new Date());
+  const day = days === 0 ? "Today" : DAYS[d.getDay()].slice(0, 3);
+  const time = n.tbd ? "" : " " + d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})
+    .replace(/\s?[AP]M$/i, "");
+  return `<td class="next-cell">${day}${time} ${n.home ? "vs" : "@"} ${n.opp || ""}</td>`;
+}
+
 function elimCell(v){
   if(v === "E") return `<td class="elim-num">E</td>`;
   if(v == null || v === "-") return `<td class="elim-num clinched">&mdash;</td>`;
   return `<td class="elim-num live tabular">${v}</td>`;
 }
+/* Each table asks one question, so each has one kind of elimination: the
+   division tables mean out of the division, the wild card tables mean out of
+   the wild card. A club still in the race reads at full strength whether or
+   not it's in the projected field; a club that's out goes dim. One green. */
 function standRow(t, cells, opts = {}){
   const seed = state.teams[t.id] && state.teams[t.id].seed;
-  const out = t.elim === "E" && t.wce === "E";
-  const cls = seed ? "infield" : (out ? "eliminated" : "alive");
+  const cls = opts.out ? "eliminated" : "alive";
   const row = `<tr class="${cls} ${opts.cut ? "cut" : ""}">
     ${opts.lead || ""}<td class="rank-cell">${rankTag(t.id)}</td>
     <td class="seed-cell">${seed || ""}</td>
@@ -630,18 +647,25 @@ function divisionBlock(name, rows){
     ? `<span class="clinch-tag">clinched</span>`
     : (leader.magic ? `<span class="magic-tag">magic ${leader.magic}</span>` : "");
   const left = leftState(rows);
+  const anyNext = rows.some(t => t.next && t.next.at);
   return `<div class="div-block">
     <div class="div-title">
-      <span><span class="${lg}">${name}</span>${left.label ? `<span class="left-note">${left.label}</span>` : ""}</span>${tag}
+      <span class="${lg}">${name}</span>
+      <span class="title-right">
+        ${left.label ? `<span class="left-note">${left.label}</span>` : ""}${tag}
+      </span>
     </div>
     <table class="st">
       <thead><tr>
         <th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>GB</th>
         ${left.column ? "<th>Left</th>" : ""}<th title="${E_TITLE}">E#</th>
+        ${anyNext ? '<th class="left">Next</th>' : ""}
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
-        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.elim)
+        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.elim) +
+        (anyNext ? (t.elim === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
+        { out: t.elim === "E" }
       )).join("")}</tbody>
     </table>
   </div>`;
@@ -656,19 +680,26 @@ function wildCardBlock(lg, all){
     .slice(0, 7);
   if(!pool.length) return "";
   const left = leftState(pool);
+  const anyNext = pool.some(t => t.next && t.next.at);
+  const cols = 7 + (left.column ? 1 : 0) + (anyNext ? 1 : 0);
   return `<div class="div-block">
     <div class="div-title">
-      <span><span class="${lg}">${lg} Wild Card</span>${left.label ? `<span class="left-note">${left.label}</span>` : ""}</span>
+      <span class="${lg}">${lg} Wild Card</span>
+      <span class="title-right">
+        ${left.label ? `<span class="left-note">${left.label}</span>` : ""}
+      </span>
     </div>
     <table class="st">
       <thead><tr>
         <th></th><th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>WCGB</th>
         ${left.column ? "<th>Left</th>" : ""}<th title="${WC_TITLE}">WCE</th>
+        ${anyNext ? '<th class="left">Next</th>' : ""}
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
-        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.wce),
-        { cut: i === 2, cols: left.column ? 8 : 7, lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
+        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.wce) +
+        (anyNext ? (t.wce === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
+        { cut: i === 2, cols, out: t.wce === "E", lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
       )).join("")}</tbody>
     </table>
   </div>`;
