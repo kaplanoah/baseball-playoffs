@@ -659,7 +659,7 @@ function divisionBlock(name, rows){
       <thead><tr>
         <th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>GB</th>
         ${left.column ? "<th>Left</th>" : ""}<th title="${E_TITLE}">E#</th>
-        ${anyNext ? '<th class="left">Next</th>' : ""}
+        ${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
@@ -693,7 +693,7 @@ function wildCardBlock(lg, all){
       <thead><tr>
         <th></th><th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>WCGB</th>
         ${left.column ? "<th>Left</th>" : ""}<th title="${WC_TITLE}">WCE</th>
-        ${anyNext ? '<th class="left">Next</th>' : ""}
+        ${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +

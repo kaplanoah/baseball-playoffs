@@ -123,7 +123,14 @@ table.st tr.alive td{ color:var(--ink-dim); }
 table.st tr.alive td{ color:var(--ink); }
 table.st tr.eliminated td{ color:var(--ink-dim); }
 table.st tr.eliminated .dot{ opacity:.55; }
-table.st td.next-cell{ text-align:left; font-size:.72rem; color:var(--ink-dim); }
+/* Extra air on the left so the column reads as its own thing rather than a
+   continuation of the elimination number, and the page's cream turned down
+   rather than the dim green, which would read as a different kind of value. */
+table.st td.next-cell, table.st th.next-cell{ padding-left:24px; }
+table.st td.next-cell{
+  text-align:left; font-size:.70rem;
+  color:color-mix(in srgb, var(--ink) 78%, transparent);
+}
 table.st tr.eliminated .dot{ opacity:.5; }
 /* The cut line replaces that row's own divider, so it lands exactly where the
    green line would have been. It has to be ONE element spanning the table: a
