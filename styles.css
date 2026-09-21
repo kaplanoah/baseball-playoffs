@@ -81,10 +81,11 @@ section.view.active{ display:block; }
   margin:0 0 9px; padding-bottom:5px; border-bottom:1px solid var(--divider);
 }
 .stand-head.second{ margin-top:26px; }
-/* Two blocks to a row at most: with the Next column a table wants about
-   460px, and three across leaves every number cramped. minmax(0,1fr) lets a
-   column be narrower than the table's natural width rather than overflow it. */
-#standingsWrap{ max-width:1000px; }
+/* Two blocks to a row at most, and they take the full width between them —
+   the point of dropping to two was room for the Next column and space between
+   the numbers. minmax(0,1fr) lets a column be narrower than the table's
+   natural width rather than overflow it. */
+#standingsWrap{ max-width:1400px; }
 .div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:18px 30px; }
 @media (min-width:780px){
   .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
