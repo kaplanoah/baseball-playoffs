@@ -539,7 +539,7 @@ function renderUpdates(){
   el.innerHTML = `
     <div class="updates-head">
       <span class="updates-count">${head}</span>
-      <button class="updates-dismiss" id="dismissUpdates">Dismiss</button>
+      <button class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss">&times;</button>
     </div>
     <ul class="updates-list">
       ${shown.map(e => {
