@@ -114,11 +114,11 @@ table.st td{
 table.st td:first-child{ padding-left:0; }
 table.st td.team{ text-align:left; }
 table.st tr.alive td{ color:var(--ink-dim); }
-/* One green per table: in the race reads full strength, out of it goes dim
-   and the club's color mark drains with it. */
+/* One green per table: in the race reads full strength, out of it goes dim.
+   The club's colors stay themselves, just turned down with the row. */
 table.st tr.alive td{ color:var(--ink); }
 table.st tr.eliminated td{ color:var(--ink-dim); }
-table.st tr.eliminated .dot{ filter:grayscale(1); opacity:.6; }
+table.st tr.eliminated .dot{ opacity:.55; }
 table.st td.next-cell{ text-align:left; font-size:.72rem; color:var(--ink-dim); }
 table.st tr.eliminated .dot{ opacity:.5; }
 /* The cut line replaces that row's own divider, so it lands exactly where the
