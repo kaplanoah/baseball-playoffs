@@ -1,8 +1,8 @@
 # MLB Postseason
 
 A personal postseason tracker: the full 12-team bracket, your ranking of who you
-want to win the World Series, and last-title context for all 30 clubs. A
-scheduled job keeps the scores current.
+want to win the World Series, division and wild card standings, and last-title
+context for all 30 clubs. A scheduled job keeps the scores current.
 
 You end up with a private page, already filled in with this year's bracket, that
 you can open on any device.
@@ -122,6 +122,7 @@ The doc shape:
   log: [ { at: "<ISO timestamp>", kind: "...", ... }, ... ],
                                    // append-only change log, oldest first
   seenAt: "<ISO timestamp>",       // the user's dismiss marker — never write it
+  updatedAt: "<ISO timestamp>",    // when you last changed this document
   projected: true|false,           // true = teams/seeds are your projection
                                    // from standings, not the official bracket
   projectedAsOf: "YYYY-MM-DD"
@@ -156,6 +157,9 @@ WRITING — read this before any write:
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
 - `seenAt` is the user's too. Never write it under any circumstance.
+- Set `updatedAt` to the current time in every write to this document. The
+  page shows it as "Last updated", so it means the last real change, not the
+  last run — never write it on its own to mark a run that changed nothing.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
   log entries — a nested merge would otherwise leave stale entries behind.
@@ -190,6 +194,44 @@ LOGGING — the page shows the user what changed since they last looked, from
 - Log only what you actually wrote, and write nothing you don't log. Refreshed
   `next` times and refreshed `w`/`l` are not changes — never log those.
 
+STANDINGS — a second document, collection "standings", doc id "<YEAR>", holding
+all 30 clubs for the Standings tab. It comes from the same
+`/api/v1/standings` response you already fetch, so it costs no extra API call:
+
+```
+{
+  year: <YEAR>,
+  updatedAt: "<ISO timestamp>",    // when you last changed this document
+  divisions: {
+    "AL East": [ {                 // in divisionRank order, leader first
+      id: "<TEAM_ID>",
+      pct: ".613",                 // winningPercentage, as the API gives it
+      gb: "-" | "6.0",             // divisionGamesBack
+      wcgb: "-" | "+4.0" | "3.0",  // wildCardGamesBack
+      left: 6,                     // 162 - gamesPlayed
+      elim: "-" | "E" | "4",       // eliminationNumber (division)
+      wce: "-" | "E" | "3",        // wildCardEliminationNumber
+      magic: "6" | null,           // magicNumber, null unless it has one
+      clinched: true|false,        // clinchIndicator is x/y/z/w AND divisionLeader
+      lead: true|false,            // divisionLeader
+      wcrank: "1" | null           // wildCardRank, null for division leaders
+    }, ... ],
+    "AL Central": [...], "AL West": [...],
+    "NL East": [...], "NL Central": [...], "NL West": [...]
+  }
+}
+```
+
+- Write it with "set", not "update": it is entirely yours, the page never
+  writes it, and a stale club would otherwise linger.
+- Only write when a value actually changed. Compare against what you read.
+- Once the regular season is over these stop moving. Leave the document alone
+  rather than rewriting identical numbers — the page keeps showing the final
+  table all postseason.
+- `left` reaching 0 is normal and correct in October.
+- Do not log standings changes. The update log is for the bracket; standings
+  move every day and would bury it.
+
 TEAM_ID map (MLB team name -> id): ARI Diamondbacks, ATL Braves, BAL Orioles,
 BOS Red Sox, CHC Cubs, CWS White Sox, CIN Reds, CLE Guardians, COL Rockies,
 DET Tigers, HOU Astros, KC Royals, LAA Angels, LAD Dodgers, MIA Marlins,
@@ -218,6 +260,10 @@ EACH RUN, after the early-exit checks above:
    `/api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason`
    and check `/api/v1/schedule/postseason?season=<YEAR>` for whether real team
    names have replaced placeholder seed labels (e.g. "AL Wild Card #3") yet.
+   - FIRST, before the branches below and whichever one you end up in: rebuild
+     the `standings` document from that same response and write it if any value
+     moved. It needs no extra request, and a branch that ends in "stop" still
+     does this.
    - If the official bracket is NOT set yet: compute the current projected field
      from standings — per league, the 3 division leaders (divisionRank 1) seeded
      1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Then compare
@@ -305,6 +351,7 @@ One document per season, at `seasons/<year>`:
     { "at": "2026-10-01T02:41:00Z", "kind": "game", "series": "AL_WC1", "won": "TEX", "game": 2, "score": [2, 0] }
   ],
   "seenAt": "2026-09-19T13:02:00Z",
+  "updatedAt": "2026-09-21T13:14:00Z",
   "projected": true,
   "projectedAsOf": "2026-09-19"
 }
@@ -321,6 +368,7 @@ Fields, and who owns each:
 | `ranking` | you | Your preference order, best first |
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
+| `updatedAt` | routine | When the routine last changed this document. Shown in the tab row as "Last updated" |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 
@@ -345,6 +393,14 @@ the higher seed, which hosts every round; the World Series goes to whichever
 pennant winner had the better regular-season record, which is what `w` and `l`
 are there for. A matchup with an empty side keeps its structural order until
 both teams are known.
+
+A second document, `standings/<year>`, holds all 30 clubs for the Standings
+tab: win percentage, games back, wild card games back, games remaining,
+elimination numbers and clinch status, grouped by division. It comes from the
+same standings response the routine already fetches, so it costs no extra API
+call, and it stops changing when the regular season ends — the page keeps
+showing the final table through October. The routine owns it outright; the page
+only reads it.
 
 `next.at` is a placeholder until `tbd` turns false, so the page reads `date`
 rather than the timestamp while a time is unset — converting a placeholder

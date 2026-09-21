@@ -11,6 +11,8 @@ let years = [];
 let activeYear = seasonYear();
 let trackedTitles = {}; // team id -> most recent year it won a tracked World Series
 let unwatchSeason = null;
+let unwatchStandings = null;
+let standings = null; // regular-season table for the active year, or null
 let reordering = false; // true mid-drag, so a live update can't yank the list
 
 function emptySeason(year){
@@ -66,6 +68,30 @@ function normalize(doc, year){
 async function loadSeason(year){
   const snap = await db.doc(`seasons/${year}`).get();
   state = normalize(snap.exists ? snap.data() : null, year);
+}
+
+/* The 30-club regular-season table, written by the same routine. It lives in
+   its own document because it's five times the size of the season doc and
+   stops changing entirely once October starts. */
+async function loadStandings(year){
+  standings = null;
+  if(!db) return;
+  try{
+    const snap = await db.doc(`standings/${year}`).get();
+    if(snap.exists) standings = snap.data();
+  }catch(e){ standings = null; }
+}
+function watchStandings(year){
+  if(unwatchStandings){ unwatchStandings(); unwatchStandings = null; }
+  if(!db) return;
+  unwatchStandings = db.doc(`standings/${year}`).onSnapshot(snap => {
+    if(!snap.exists) return;
+    const incoming = snap.data();
+    if(JSON.stringify(incoming) === JSON.stringify(standings)) return;
+    standings = incoming;
+    renderStandings();
+    renderStamp();
+  }, () => {});
 }
 
 /* Stay subscribed so the routine's scores and field changes land without a
@@ -137,6 +163,8 @@ function teamDot(id){
   return `<span class="dot" style="background:linear-gradient(90deg, ${t.color} ${split}%, ${t.color2} ${split}%)"></span>`;
 }
 function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
+// A bare digit, the way a lineup card carries a uniform number.
+function seedMark(seed){ return seed ? `<span class="seed-pre tabular">${seed}</span>` : ""; }
 /* `solid` fills the tag, marking the team you rank higher in a given matchup.
    The slot is a fixed width so a two-digit rank doesn't push the dot and name
    further right than a one-digit one; the tag itself still hugs its text. */
@@ -167,8 +195,9 @@ function matchupRow(s, side){
   const isWinner = s.winner === id;
   const isLoser = s.winner && s.winner !== id;
   const isPreferred = preferredSide(s) === side;
+  const seed = state.teams[id] && state.teams[id].seed;
   return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''}">
-    <div class="team-id">${rankTag(id, isPreferred)}${teamDot(id)}<span class="team-name">${TEAMS[id].name}</span></div>
+    <div class="team-id">${rankTag(id, isPreferred)}${seedMark(seed)}${teamDot(id)}<span class="team-name">${TEAMS[id].name}</span></div>
     <span class="nscore tabular ${isWinner?'lead':''}">${wins}</span>
   </div>`;
 }
@@ -184,7 +213,7 @@ function matchupRow(s, side){
    particular row, which is what lets those rows reorder by host without the
    lines crossing. */
 const LAY = {
-  colW:200, gap:22,
+  colW:206, gap:20,
   cardH:90, rowTopY:41, rowDivY:57, rowBotY:73,
   stageH:400, // room for a next-game note under the lowest cards
   yWc1:24, yDs1:40, yMid:160, yDs2:280, yWc2:264
@@ -439,6 +468,7 @@ function renderReference(){
     const won = lastTitle(id);
     return `<tr class="${inField.has(id) ? 'in-playoffs' : ''}">
       <td class="rank-col">${rankTag(id)}</td>
+      <td class="seed-col">${(state.teams[id] && state.teams[id].seed) || ""}</td>
       <td><span class="cell">${teamDot(id)} ${t.name}</span></td>
       <td><span class="league-tag ${t.league}">${t.league}</span></td>
       <td class="tabular">${won || "&mdash;"}</td>
@@ -554,9 +584,117 @@ function renderUpdates(){
   document.getElementById("dismissUpdates").addEventListener("click", dismissUpdates);
 }
 
+/* ---------- standings ---------- */
+const DIV_ORDER = ["AL East","AL Central","AL West","NL East","NL Central","NL West"];
+const E_TITLE = "Division elimination number: combined wins by the division leader and losses by this team that would end its division chances. A dash means clinched, E means out.";
+const WC_TITLE = "Wild card elimination number: combined wins by the team holding the last spot and losses by this team that would end its wild card chances. A dash means clinched, E means out.";
+
+/* Games remaining says nothing in June, when everyone has a hundred to play,
+   and nothing in October, when everyone has none. The column shows up for the
+   stretch run and disappears again. */
+function showsLeft(rows){
+  const lefts = rows.map(r => r.left).filter(n => typeof n === "number");
+  if(!lefts.length) return false;
+  const low = Math.min(...lefts);
+  return low > 0 && low <= 10;
+}
+function elimCell(v){
+  if(v === "E") return `<td class="elim-num">E</td>`;
+  if(v == null || v === "-") return `<td class="elim-num clinched">&mdash;</td>`;
+  return `<td class="elim-num live tabular">${v}</td>`;
+}
+function standRow(t, cells, opts = {}){
+  const seed = state.teams[t.id] && state.teams[t.id].seed;
+  const out = t.elim === "E" && t.wce === "E";
+  const cls = seed ? "infield" : (out ? "eliminated" : "alive");
+  return `<tr class="${cls} ${opts.cut ? "cut" : ""}">
+    ${opts.lead || ""}<td class="rank-cell">${rankTag(t.id)}</td>
+    <td class="seed-cell">${seed || ""}</td>
+    <td class="team"><span class="st-team">${teamDot(t.id)}<span class="name">${teamLabel(t.id)}</span></span></td>
+    ${cells}
+  </tr>`;
+}
+
+function divisionBlock(name, rows){
+  const lg = name.slice(0, 2);
+  const leader = rows[0] || {};
+  const tag = leader.clinched
+    ? `<span class="clinch-tag">clinched</span>`
+    : (leader.magic ? `<span class="magic-tag">magic ${leader.magic}</span>` : "");
+  const left = showsLeft(rows);
+  return `<div class="div-block">
+    <div class="div-title"><span class="${lg}">${name}</span>${tag}</div>
+    <table class="st">
+      <thead><tr>
+        <th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>GB</th>
+        ${left ? "<th>Left</th>" : ""}<th title="${E_TITLE}">E#</th>
+      </tr></thead>
+      <tbody>${rows.map(t => standRow(t,
+        `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
+        (left ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.elim)
+      )).join("")}</tbody>
+    </table>
+  </div>`;
+}
+
+/* The wild card race is the same clubs minus the three division leaders, in
+   MLB's own order, with a line where the field cuts off. */
+function wildCardBlock(lg, all){
+  const pool = DIV_ORDER.filter(d => d.startsWith(lg))
+    .flatMap(d => (all[d] || []).filter(t => !t.lead))
+    .sort((a,b) => Number(a.wcrank || 99) - Number(b.wcrank || 99))
+    .slice(0, 7);
+  if(!pool.length) return "";
+  const left = showsLeft(pool);
+  return `<div class="div-block">
+    <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
+    <table class="st">
+      <thead><tr>
+        <th></th><th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>WCGB</th>
+        ${left ? "<th>Left</th>" : ""}<th title="${WC_TITLE}">WCE</th>
+      </tr></thead>
+      <tbody>${pool.map((t, i) => standRow(t,
+        `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
+        (left ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.wce),
+        { cut: i === 2, lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
+      )).join("")}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderStandings(){
+  const wrap = document.getElementById("standingsWrap");
+  const divs = standings && standings.divisions;
+  if(!divs || !Object.keys(divs).length){
+    wrap.innerHTML = `<p class="stand-empty">The scheduled update hasn't filed a standings table for
+      this season yet. It arrives with the next run.</p>`;
+    return;
+  }
+  const blocks = DIV_ORDER.filter(d => divs[d] && divs[d].length)
+    .map(d => divisionBlock(d, divs[d])).join("");
+  const races = ["AL","NL"].map(lg => wildCardBlock(lg, divs)).join("");
+  wrap.innerHTML = `
+    <div class="stand-head">Divisions</div>
+    <div class="div-grid">${blocks}</div>
+    ${races ? `<div class="stand-head second">Wild Card</div><div class="wc-grid">${races}</div>` : ""}`;
+}
+
+/* The stamp is the last time the routine changed anything, which is the season
+   doc or the standings table, whichever moved more recently. */
+function renderStamp(){
+  const el = document.getElementById("stamp");
+  const times = [state && state.updatedAt, standings && standings.updatedAt]
+    .map(t => t ? Date.parse(t) : NaN).filter(n => !isNaN(n));
+  if(!times.length){ el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `Last updated <b>${whenLabel(new Date(Math.max(...times)).toISOString())}</b>`;
+}
+
 function renderAll(){
+  renderStamp();
   renderUpdates();
   renderBracket();
+  renderStandings();
   renderRanking();
   renderReference();
 }
@@ -647,8 +785,10 @@ function switchTab(tab){
 async function switchYear(year){
   activeYear = year;
   await loadSeason(year);
+  await loadStandings(year);
   renderAll();
   watchSeason(year);
+  watchStandings(year);
 }
 
 async function boot(){
@@ -677,12 +817,13 @@ async function boot(){
   yearSel.addEventListener("change", () => switchYear(Number(yearSel.value)));
 
   try{
-    if(db){ await loadSeason(activeYear); }
+    if(db){ await loadSeason(activeYear); await loadStandings(activeYear); }
     else { state = emptySeason(activeYear); }
   }catch(e){ db = null; state = emptySeason(activeYear); }
 
   renderAll();
   watchSeason(activeYear);
+  watchStandings(activeYear);
 }
 
 if(window.claude?.hot){
