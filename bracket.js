@@ -44,6 +44,41 @@ function fullBracket(state){
   return {al, nl, ws};
 }
 
+/* The series that fills a slot, for the slots that aren't seeded directly.
+   Everything else is a seed, known from the moment the field is set. */
+function feederFor(seriesId, side){
+  if(seriesId === "WS") return side === "A" ? "AL_CS" : "NL_CS";
+  const [lg, key] = seriesId.split("_");
+  if(key === "DS1" && side === "B") return `${lg}_WC2`;
+  if(key === "DS2" && side === "B") return `${lg}_WC1`;
+  if(key === "CS") return side === "A" ? `${lg}_DS1` : `${lg}_DS2`;
+  return null;
+}
+
+/* Who can still end up in a slot: the team already there, else the winner of
+   whatever feeds it, else everyone still alive further down that branch. A #1
+   seed waiting on a wild card round has two or four possible opponents, and
+   once you've ranked them all the matchup is settled before it exists. */
+function slotCandidates(state, seriesId, side){
+  const br = fullBracket(state);
+  const all = {};
+  ["al","nl"].forEach(k => {
+    if(!br[k]) return;
+    [...br[k].wc, ...br[k].ds, ...br[k].cs].forEach(s => all[s.id] = s);
+  });
+  if(br.ws) all.WS = br.ws;
+
+  const walk = (id, sd) => {
+    const s = all[id];
+    if(!s) return [];
+    const team = sd === "A" ? s.teamA : s.teamB;
+    if(team) return [team];
+    const feeder = feederFor(id, sd);
+    return feeder ? [...walk(feeder, "A"), ...walk(feeder, "B")] : [];
+  };
+  return walk(seriesId, side);
+}
+
 function teamEliminated(state, id){
   const t = state.teams[id];
   if(!t) return false;

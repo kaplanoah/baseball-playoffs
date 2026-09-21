@@ -146,15 +146,18 @@ function rankTag(id, solid){
   return `<span class="rank-slot"><span class="rank-tag ${solid ? "solid" : ""}">#${idx+1}</span></span>`;
 }
 
-// Which side of this matchup you rank higher — null until both teams are known.
+/* Which side of this matchup you rank higher. A slot that's still TBD doesn't
+   stop this: if you rank the known team above — or below — everyone who could
+   still arrive, the answer can't change once they do, so say so now. Unranked
+   teams sort last, which is what an empty ranking slot means. */
 function preferredSide(s){
-  if(!s.teamA || !s.teamB) return null;
-  const a = state.ranking.indexOf(s.teamA);
-  const b = state.ranking.indexOf(s.teamB);
-  if(a === -1 && b === -1) return null;
-  if(a === -1) return "B";
-  if(b === -1) return "A";
-  return a < b ? "A" : "B";
+  const rank = id => { const i = state.ranking.indexOf(id); return i === -1 ? Infinity : i; };
+  const a = (s.teamA ? [s.teamA] : slotCandidates(state, s.id, "A")).map(rank);
+  const b = (s.teamB ? [s.teamB] : slotCandidates(state, s.id, "B")).map(rank);
+  if(!a.length || !b.length) return null;
+  if(Math.max(...a) < Math.min(...b)) return "A";
+  if(Math.max(...b) < Math.min(...a)) return "B";
+  return null;
 }
 
 function matchupRow(s, side){
