@@ -81,16 +81,14 @@ section.view.active{ display:block; }
   margin:0 0 9px; padding-bottom:5px; border-bottom:1px solid var(--divider);
 }
 .stand-head.second{ margin-top:26px; }
-/* Three across keeps a league to its own row; minmax(0,1fr) lets a column be
-   narrower than the table's natural width instead of overflowing it. The Next
-   column needs about 430px a block, so the third column waits for the room. */
-#standingsWrap{ max-width:1420px; }
-.div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:18px 26px; }
+/* Two blocks to a row at most: with the Next column a table wants about
+   460px, and three across leaves every number cramped. minmax(0,1fr) lets a
+   column be narrower than the table's natural width rather than overflow it. */
+#standingsWrap{ max-width:1000px; }
+.div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:18px 30px; }
 @media (min-width:780px){
-  .div-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
-  .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
-@media (min-width:1330px){ .div-grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); } }
 .div-block{ min-width:0; }
 .div-title{
   display:flex; align-items:baseline; justify-content:space-between; gap:10px;
