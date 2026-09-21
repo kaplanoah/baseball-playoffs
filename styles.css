@@ -117,7 +117,6 @@ table.st td{
 }
 table.st td:first-child{ padding-left:0; }
 table.st td.team{ text-align:left; }
-table.st tr.alive td{ color:var(--ink-dim); }
 /* One green per table: in the race reads full strength, out of it goes dim.
    The club's colors stay themselves, just turned down with the row. */
 table.st tr.alive td{ color:var(--ink); }
@@ -127,7 +126,9 @@ table.st tr.eliminated .dot{ opacity:.55; }
    continuation of the elimination number, and the page's cream turned down
    rather than the dim green, which would read as a different kind of value. */
 table.st td.next-cell, table.st th.next-cell{ padding-left:24px; }
-table.st td.next-cell{
+/* Named with the row class so it outranks the row's own color rule, which is
+   otherwise more specific and was repainting this cell at full strength. */
+table.st tr.alive td.next-cell, table.st tr.eliminated td.next-cell{
   text-align:left; font-size:.70rem;
   color:color-mix(in srgb, var(--ink) 78%, transparent);
 }
