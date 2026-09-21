@@ -77,7 +77,7 @@ section.view.active{ display:block; }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
 .stand-head{
-  font-size:.62rem; text-transform:uppercase; letter-spacing:.11em; color:var(--copper-ink);
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.11em; color:var(--copper-ink);
   margin:0 0 9px; padding-bottom:5px; border-bottom:1px solid var(--divider);
 }
 .stand-head.second{ margin-top:36px; }
@@ -95,12 +95,12 @@ section.view.active{ display:block; }
    name — the block reads as one object rather than a heading near a table. */
 .div-title{
   display:flex; align-items:baseline; justify-content:space-between; gap:10px;
-  font-size:.66rem; text-transform:uppercase; letter-spacing:.1em;
+  font-size:.74rem; text-transform:uppercase; letter-spacing:.1em;
   background:color-mix(in srgb, var(--divider) 80%, var(--card));
-  border-radius:5px 5px 0 0; padding:6px 10px;
+  border-radius:5px 5px 0 0; padding:7px 10px;
 }
 .title-right{ display:flex; align-items:baseline; gap:11px; }
-.left-note{ color:var(--ink-dim); font-size:.6rem; letter-spacing:.06em; }
+.left-note{ color:var(--ink-dim); font-size:.62rem; letter-spacing:.06em; }
 .div-title .AL{ color:var(--al); }
 .div-title .NL{ color:var(--nl); }
 table.st{ width:100%; border-collapse:collapse; }
@@ -131,7 +131,6 @@ table.st td.next-cell{
   text-align:left; font-size:.70rem;
   color:color-mix(in srgb, var(--ink) 78%, transparent);
 }
-table.st tr.eliminated .dot{ opacity:.5; }
 /* The cut line replaces that row's own divider, so it lands exactly where the
    green line would have been. It has to be ONE element spanning the table: a
    dashed border on each cell restarts its dash pattern at every column edge,
