@@ -70,6 +70,35 @@ section.view.active{ display:block; }
 .banner .banner-team{ gap:7px; font-size:1.1rem; line-height:1; font-weight:700; color:var(--ink); }
 .banner .banner-status{ font-size:.88rem; line-height:1; color:var(--ink-dim); }
 
+/* What's changed since you last looked. Sits above the tabs' content, since
+   news belongs to the season rather than to whichever view is open. */
+.updates{
+  border:1px solid var(--card-border); border-left:3px solid var(--gold);
+  background:var(--card); border-radius:6px;
+  padding:9px 13px 10px; margin-bottom:20px; max-width:900px;
+}
+.updates-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.updates-count{ font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); }
+.updates-dismiss{
+  background:transparent; border:1px solid var(--card-border); color:var(--ink-dim);
+  font-family:inherit; font-size:.66rem; text-transform:uppercase; letter-spacing:.07em;
+  padding:3px 9px; border-radius:3px; cursor:pointer;
+}
+.updates-dismiss:hover{ color:var(--ink); border-color:var(--ink-dim); }
+.updates-list{ list-style:none; margin:7px 0 0; padding:0; }
+.updates-list li{ display:flex; align-items:center; gap:10px; font-size:.82rem; padding:3px 0; }
+.updates-list li + li{ border-top:1px solid var(--divider); }
+.updates-list .when{
+  flex:none; width:72px; font-size:.68rem; color:var(--ink-dim);
+  font-variant-numeric:tabular-nums;
+}
+/* Not a flex row: the entries are sentences with team dots inside them, and
+   flex would space every stray word like a separate item. */
+.updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; }
+.updates-list .what b{ font-weight:700; }
+.updates-list .what .dot{ margin:0 5px 0 1px; }
+.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:82px; }
+
 .setup-card{
   background:var(--card); border:1px dashed var(--card-border); border-radius:10px; padding:22px;
   margin-bottom:18px; text-align:center;

@@ -106,25 +106,32 @@ collection "seasons", doc id "<YEAR>" (a JSON object). Read it first with a
 "get" call.
 
 The doc shape:
+```
 {
   year: <YEAR>,
-  teams: { "<TEAM_ID>": { league: "AL"|"NL", seed: 1-6, w: n, l: n }, ... },
-                                   // 12 entries; w/l are final regular-season
-                                   // win and loss totals
+  teams: {
+    "<TEAM_ID>": { league: "AL"|"NL", seed: 1-6, w: <wins>, l: <losses> }, ...
+  },                               // 12 entries
   series: {
     "<SERIES_ID>": {
       winsA: n, winsB: n,
       next: { at: "<ISO timestamp>", date: "YYYY-MM-DD", tbd: true|false, game: n }
     }, ...
   },
-  ranking: [ "<TEAM_ID>", ... ],   // the user's preference order — NEVER
-                                   // overwrite or reorder it; only append team
-                                   // ids new to the field and drop ids that
-                                   // left it
+  ranking: [ "<TEAM_ID>", ... ],   // the user's own preference order
+  log: [ { at: "<ISO timestamp>", kind: "...", ... }, ... ],
+                                   // append-only change log, oldest first
+  seenAt: "<ISO timestamp>",       // the user's dismiss marker — never write it
   projected: true|false,           // true = teams/seeds are your projection
                                    // from standings, not the official bracket
   projectedAsOf: "YYYY-MM-DD"
 }
+```
+
+`w` and `l` are final regular-season win/loss totals. The page needs them for
+one thing: World Series home field goes to the pennant winner with the better
+regular-season record, and seeds don't compare across leagues. Always include
+them when you write `teams`, and never drop them.
 
 COST — this runs unattended several times a day, so bail out early rather than
 doing work that changes nothing:
@@ -138,8 +145,8 @@ doing work that changes nothing:
 WRITING — read this before any write:
 
 - Use "update" with ONLY the fields you are changing. Never "set" the whole
-  document. The page writes `ranking` from the user's browser; a full-document
-  write from here sends your copy of `ranking` back over theirs and silently
+  document. The page writes `ranking` and `seenAt` from the user's browser; a
+  full-document write from here sends your copies back over theirs and silently
   undoes their reordering.
 - Pass `if_version` from your "get" on every write. If it fails because the
   version moved, re-read and redo — do not force it.
@@ -148,13 +155,40 @@ WRITING — read this before any write:
   id in its existing relative order, drop ids no longer in the field, and append
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
-- When you write `series` or `teams`, send that whole object with every entry
-  you know about, preserving existing win counts — a nested merge would
-  otherwise leave stale entries behind.
-- `w` and `l` are the final regular-season win and loss totals. The page needs
-  them for one thing: World Series home field goes to the pennant winner with
-  the better regular-season record, and seeds don't compare across leagues.
-  Always include them when you write `teams`, and never drop them.
+- `seenAt` is the user's too. Never write it under any circumstance.
+- When you write `teams`, `series` or `log`, send that whole object or array
+  with every entry you know about, preserving existing win counts, records and
+  log entries — a nested merge would otherwise leave stale entries behind.
+
+LOGGING — the page shows the user what changed since they last looked, from
+`log`, so every change you write gets an entry in the same write:
+
+- APPEND ONLY. Never reword, reorder or remove an entry that is already there.
+  `at` is the current time, ISO 8601 in UTC. Keep at most 50 entries: drop from
+  the front when a write would exceed that.
+- Entries are data, not prose — the page writes the sentence. Use these shapes
+  and no others:
+  { at, kind: "field", in: "<TEAM_ID>", out: "<TEAM_ID>" }
+      a team entered the projected field and the one it displaced. Omit either
+      side only if the field genuinely gained or lost a team on its own.
+  { at, kind: "seed", team: "<TEAM_ID>", from: n, to: n, over: "<TEAM_ID>" }
+      log ONLY teams that moved UP: every move up implies someone moved down,
+      and logging both sides says the same thing twice. `over` names the team
+      passed when exactly two teams swapped; omit it otherwise.
+  { at, kind: "game", series: "<SERIES_ID>", won: "<TEAM_ID>", game: n,
+    score: [<winner's wins>, <loser's wins>] }
+      one completed game. `score` is the series record after it, from the
+      perspective of whoever won that game.
+  { at, kind: "clinch", series: "<SERIES_ID>", team: "<TEAM_ID>",
+    over: "<TEAM_ID>", score: [<winner's wins>, <loser's wins>] }
+      the series is decided. Log this INSTEAD of a `game` entry for the
+      clinching game, never both.
+  { at, kind: "lock" }
+      the official bracket replaced your projection. Once per season.
+  { at, kind: "note", text: "<one short sentence>" }
+      only for something the shapes above can't express.
+- Log only what you actually wrote, and write nothing you don't log. Refreshed
+  `next` times and refreshed `w`/`l` are not changes — never log those.
 
 TEAM_ID map (MLB team name -> id): ARI Diamondbacks, ATL Braves, BAL Orioles,
 BOS Red Sox, CHC Cubs, CWS White Sox, CIN Reds, CLE Guardians, COL Rockies,
@@ -172,8 +206,8 @@ SERIES_ID scheme (per league LG = AL or NL). The bracket is FIXED, not reseeded:
 - WS     = AL_CS winner (A) vs NL_CS winner (B), best-of-7
 A series is decided at 2 wins (best-of-3), 3 (best-of-5), or 4 (best-of-7).
 
-In /api/v1/schedule/postseason, map a game to a SERIES_ID from its
-seriesDescription plus its placeholder team names: a Wild Card game hosted at
+In `/api/v1/schedule/postseason`, map a game to a SERIES_ID from its
+`seriesDescription` plus its placeholder team names: a Wild Card game hosted at
 "<LG> #3 Seed" is LG_WC1 and one hosted at "<LG> Wild Card #1" is LG_WC2; a
 Division Series game whose away side is "<LG> 4/5 Winner" is LG_DS1 and
 "<LG> 3/6 Winner" is LG_DS2.
@@ -181,36 +215,46 @@ Division Series game whose away side is "<LG> 4/5 Winner" is LG_DS1 and
 EACH RUN, after the early-exit checks above:
 
 1. If `projected` is true or missing, or `teams` is empty: fetch
-   /api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason
-   and check /api/v1/schedule/postseason?season=<YEAR> for whether real team
+   `/api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason`
+   and check `/api/v1/schedule/postseason?season=<YEAR>` for whether real team
    names have replaced placeholder seed labels (e.g. "AL Wild Card #3") yet.
    - If the official bracket is NOT set yet: compute the current projected field
      from standings — per league, the 3 division leaders (divisionRank 1) seeded
-     1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Compare
-     those 12 team ids against the doc's current `teams`. If the SET of ids is
-     unchanged, refresh each team's `w`/`l` from the same standings response if
-     they moved, write `projectedAsOf` (today), and stop — reseeding within the
-     same 12 is not worth disturbing the doc. If the set did change, update
-     `teams` with seeds and current `w`/`l`, reset `series` to {}, adjust
-     `ranking` under the rules above, keep `projected: true`, and set
-     `projectedAsOf` to today.
+     1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Then compare
+     it against the doc's current `teams`:
+     - Same 12 ids, same seeds: refresh `w`/`l` if they moved, write
+       `projectedAsOf` (today), and stop. Nothing to log.
+     - Same 12 ids, seeds moved: write `teams` with the new seeds and current
+       `w`/`l`, log a `seed` entry for each team that moved UP, set
+       `projectedAsOf` to today. Leave `series` and `ranking` alone.
+     - The set of ids changed: write `teams`, reset each series' win counts to
+       0, adjust `ranking` under the rules above, keep `projected: true`, set
+       `projectedAsOf` to today, and log a `field` entry per team that entered,
+       paired with one that left. Log the seed moves of teams that stayed only
+       if a team's seed changed for a reason other than the swap.
    - If the official bracket IS now set: write the 12 real teams with their
-     seeds and their final regular-season `w`/`l` from standings, reset `series`
-     to {} only if the set of teams is actually changing, set `projected: false`,
-     remove `projectedAsOf`, and adjust `ranking` under the rules above.
+     seeds and final `w`/`l`, reset win counts only if `teams` is actually
+     changing, set `projected: false`, remove `projectedAsOf`, adjust `ranking`
+     under the rules above, and log one `lock` entry plus a `field` entry for
+     each team the official bracket has that your projection didn't. Don't log
+     seed changes here — `lock` covers them.
 
 2. Refresh each undecided series' `next` from
-   /api/v1/schedule/postseason?season=<YEAR>: its earliest game today or later,
-   as { at: <that game's gameDate>, date: <its officialDate>,
-   tbd: <its status.startTimeTBD>, game: <its seriesGameNumber> }. Drop `next`
+   `/api/v1/schedule/postseason?season=<YEAR>`: its earliest game today or
+   later, as `{ at: <that game's gameDate>, date: <its officialDate>,
+   tbd: <its status.startTimeTBD>, game: <its seriesGameNumber> }`. Drop `next`
    from a series once it's decided. Only write if something actually changed —
-   game times firm up gradually, so don't rewrite identical values.
+   game times firm up gradually, so don't rewrite identical values, and never
+   log a `next` change.
 
 3. If `projected` is false: check today's schedule for games that are "Final"
    and belong to an undecided SERIES_ID matchup. Update `series` so winsA/winsB
    match MLB's current series record for that matchup whenever it's ahead of the
-   doc. Only act on a confirmed "Final" — never guess or project a result. Write
-   only the `series` field.
+   doc. Only act on a confirmed "Final" — never guess or project a result. Log
+   each game you record: a `game` entry, or a `clinch` entry if that game ended
+   the series. If the record moved by more than one game (a run was missed),
+   log one entry per finished game you can identify from the schedule, oldest
+   first.
 
 4. If nothing changed, end the run without writing.
 
@@ -256,6 +300,11 @@ One document per season, at `seasons/<year>`:
     }
   },
   "ranking": ["TB", "MIL", "..."],
+  "log": [
+    { "at": "2026-09-19T02:14:00Z", "kind": "seed", "team": "SD", "from": 5, "to": 4, "over": "CHC" },
+    { "at": "2026-10-01T02:41:00Z", "kind": "game", "series": "AL_WC1", "won": "TEX", "game": 2, "score": [2, 0] }
+  ],
+  "seenAt": "2026-09-19T13:02:00Z",
   "projected": true,
   "projectedAsOf": "2026-09-19"
 }
@@ -270,12 +319,26 @@ Fields, and who owns each:
 | `series` | routine | Win counts per series, plus `next` |
 | `series.*.next` | routine | The next scheduled game: `at` (timestamp), `date` (plain calendar date), `tbd` (whether MLB has set a real first pitch), `game` (number within the series). Dropped once the series is decided |
 | `ranking` | you | Your preference order, best first |
+| `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
+| `seenAt` | you | Set by Dismiss. Everything logged before it is read |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 
 `ranking` is yours alone — the routine only appends teams that join the field or
 drops ones that leave it. Series scores are read-only in the UI because the
 routine owns them.
+
+The update log answers "what happened since I last looked." The routine appends
+one entry per change it writes — a game, a clinched series, a team entering the
+projected field, a team passing another for a seed — and the page shows the ones
+newer than `seenAt`, which Dismiss moves to now. `seenAt` lives in the document
+rather than in browser storage, so dismissing on a laptop also clears the log on
+a phone.
+
+Entries carry data, not sentences: `{ kind, team, from, to, over }` rather than
+"the Padres passed the Cubs." `app.js` writes the wording, so the log reads the
+same every time and can be restyled without touching the job that fills it. Each
+`kind` and its fields are specified in the routine prompt above.
 
 Every bracket card puts the home team on the bottom. Within a league that's
 the higher seed, which hosts every round; the World Series goes to whichever
