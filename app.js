@@ -470,7 +470,7 @@ function renderReference(){
       <td class="rank-col">${rankTag(id)}</td>
       <td class="seed-col">${(state.teams[id] && state.teams[id].seed) || ""}</td>
       <td><span class="cell">${teamDot(id)} ${t.name}</span></td>
-      <td><span class="league-tag ${t.league}">${t.league}</span></td>
+      <td class="lg-col"><span class="league-tag ${t.league}">${t.league}</span></td>
       <td class="tabular">${won || "&mdash;"}</td>
       <td class="tabular">${droughtLabel(id)}</td>
     </tr>`;
@@ -590,13 +590,17 @@ const E_TITLE = "Division elimination number: combined wins by the division lead
 const WC_TITLE = "Wild card elimination number: combined wins by the team holding the last spot and losses by this team that would end its wild card chances. A dash means clinched, E means out.";
 
 /* Games remaining says nothing in June, when everyone has a hundred to play,
-   and nothing in October, when everyone has none. The column shows up for the
-   stretch run and disappears again. */
-function showsLeft(rows){
+   and nothing in October, when everyone has none. Inside the last ten it's
+   worth knowing — but it's one number for the whole block unless a postponement
+   has left somebody out of step, so it goes in the header and only becomes a
+   column when the clubs actually disagree. */
+function leftState(rows){
   const lefts = rows.map(r => r.left).filter(n => typeof n === "number");
-  if(!lefts.length) return false;
-  const low = Math.min(...lefts);
-  return low > 0 && low <= 10;
+  if(!lefts.length) return { column:false, label:"" };
+  const low = Math.min(...lefts), high = Math.max(...lefts);
+  if(low <= 0 || low > 10) return { column:false, label:"" };
+  if(low !== high) return { column:true, label:"" };
+  return { column:false, label:`${low} game${low === 1 ? "" : "s"} left` };
 }
 function elimCell(v){
   if(v === "E") return `<td class="elim-num">E</td>`;
@@ -607,12 +611,16 @@ function standRow(t, cells, opts = {}){
   const seed = state.teams[t.id] && state.teams[t.id].seed;
   const out = t.elim === "E" && t.wce === "E";
   const cls = seed ? "infield" : (out ? "eliminated" : "alive");
-  return `<tr class="${cls} ${opts.cut ? "cut" : ""}">
+  const row = `<tr class="${cls} ${opts.cut ? "cut" : ""}">
     ${opts.lead || ""}<td class="rank-cell">${rankTag(t.id)}</td>
     <td class="seed-cell">${seed || ""}</td>
     <td class="team"><span class="st-team">${teamDot(t.id)}<span class="name">${teamLabel(t.id)}</span></span></td>
     ${cells}
   </tr>`;
+  // One cell spanning the table, so the dashes run at a single even pitch.
+  return opts.cut
+    ? `${row}<tr class="cutline"><td colspan="${opts.cols}"></td></tr>`
+    : row;
 }
 
 function divisionBlock(name, rows){
@@ -621,17 +629,19 @@ function divisionBlock(name, rows){
   const tag = leader.clinched
     ? `<span class="clinch-tag">clinched</span>`
     : (leader.magic ? `<span class="magic-tag">magic ${leader.magic}</span>` : "");
-  const left = showsLeft(rows);
+  const left = leftState(rows);
   return `<div class="div-block">
-    <div class="div-title"><span class="${lg}">${name}</span>${tag}</div>
+    <div class="div-title">
+      <span><span class="${lg}">${name}</span>${left.label ? `<span class="left-note">${left.label}</span>` : ""}</span>${tag}
+    </div>
     <table class="st">
       <thead><tr>
         <th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>GB</th>
-        ${left ? "<th>Left</th>" : ""}<th title="${E_TITLE}">E#</th>
+        ${left.column ? "<th>Left</th>" : ""}<th title="${E_TITLE}">E#</th>
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
-        (left ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.elim)
+        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.elim)
       )).join("")}</tbody>
     </table>
   </div>`;
@@ -645,18 +655,20 @@ function wildCardBlock(lg, all){
     .sort((a,b) => Number(a.wcrank || 99) - Number(b.wcrank || 99))
     .slice(0, 7);
   if(!pool.length) return "";
-  const left = showsLeft(pool);
+  const left = leftState(pool);
   return `<div class="div-block">
-    <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
+    <div class="div-title">
+      <span><span class="${lg}">${lg} Wild Card</span>${left.label ? `<span class="left-note">${left.label}</span>` : ""}</span>
+    </div>
     <table class="st">
       <thead><tr>
         <th></th><th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>WCGB</th>
-        ${left ? "<th>Left</th>" : ""}<th title="${WC_TITLE}">WCE</th>
+        ${left.column ? "<th>Left</th>" : ""}<th title="${WC_TITLE}">WCE</th>
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
-        (left ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.wce),
-        { cut: i === 2, lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
+        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.wce),
+        { cut: i === 2, cols: left.column ? 8 : 7, lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
       )).join("")}</tbody>
     </table>
   </div>`;
@@ -679,8 +691,9 @@ function renderStandings(){
     ${races ? `<div class="stand-head second">Wild Card</div><div class="wc-grid">${races}</div>` : ""}`;
 }
 
-/* The stamp is the last time the routine changed anything, which is the season
-   doc or the standings table, whichever moved more recently. */
+/* The stamp is the last time the routine ran, which it records on the season
+   doc whether or not anything changed. The standings table is checked too, in
+   case it was written more recently than the season doc. */
 function renderStamp(){
   const el = document.getElementById("stamp");
   const times = [state && state.updatedAt, standings && standings.updatedAt]

@@ -16,8 +16,8 @@
 
 <nav class="tabs">
   <button data-tab="bracket" class="active">Bracket</button>
-  <button data-tab="standings">Standings</button>
   <button data-tab="ranking">Ranking</button>
+  <button data-tab="standings">Standings</button>
   <button data-tab="reference">All Teams</button>
   <span class="tab-spacer"></span>
   <span class="stamp" id="stamp" hidden></span>
@@ -34,18 +34,18 @@
   <div id="bracketWrap"></div>
 </section>
 
-<section id="view-standings" class="view">
-  <div id="standingsWrap"></div>
-</section>
-
 <section id="view-ranking" class="view">
   <p class="rank-hint">Drag any card to order the field by who you want to win the World Series. Order saves automatically and shows as a rank tag on the bracket.</p>
   <ul class="rank-list" id="rankList"></ul>
 </section>
 
+<section id="view-standings" class="view">
+  <div id="standingsWrap"></div>
+</section>
+
 <section id="view-reference" class="view">
   <table class="ref">
-    <thead><tr><th>Rank</th><th>Seed</th><th>Team</th><th>Lg</th><th>Last WS Win</th><th>Drought</th></tr></thead>
+    <thead><tr><th>Rank</th><th class="seed-col">Seed</th><th>Team</th><th class="lg-col">Lg</th><th>Last WS Win</th><th>Drought</th></tr></thead>
     <tbody id="refBody"></tbody>
   </table>
 </section>

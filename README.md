@@ -122,7 +122,7 @@ The doc shape:
   log: [ { at: "<ISO timestamp>", kind: "...", ... }, ... ],
                                    // append-only change log, oldest first
   seenAt: "<ISO timestamp>",       // the user's dismiss marker — never write it
-  updatedAt: "<ISO timestamp>",    // when you last changed this document
+  updatedAt: "<ISO timestamp>",    // when this routine last ran — see below
   projected: true|false,           // true = teams/seeds are your projection
                                    // from standings, not the official bracket
   projectedAsOf: "YYYY-MM-DD"
@@ -138,10 +138,10 @@ COST — this runs unattended several times a day, so bail out early rather than
 doing work that changes nothing:
 
 - If `projected` is true and `projectedAsOf` is already today's date, the field
-  has been refreshed today already. End the run immediately, without calling the
-  MLB API.
-- If `projected` is false and there are no MLB postseason games today, end the
-  run immediately after that one schedule check.
+  has been refreshed today already. Write `updatedAt` (see below) and end the
+  run, without calling the MLB API.
+- If `projected` is false and there are no MLB postseason games today, write
+  `updatedAt` and end the run after that one schedule check.
 
 WRITING — read this before any write:
 
@@ -157,9 +157,11 @@ WRITING — read this before any write:
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
 - `seenAt` is the user's too. Never write it under any circumstance.
-- Set `updatedAt` to the current time in every write to this document. The
-  page shows it as "Last updated", so it means the last real change, not the
-  last run — never write it on its own to mark a run that changed nothing.
+- Write `updatedAt` on EVERY run, set to the current time, including runs that
+  change nothing and runs that stop at an early exit above. The page shows it
+  as "Last updated", and it means the last time this job ran: a stamp from this
+  morning is how the user knows the tracker is being tended. A run with nothing
+  else to write still writes this one field.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
   log entries — a nested merge would otherwise leave stale entries behind.
@@ -302,7 +304,8 @@ EACH RUN, after the early-exit checks above:
    log one entry per finished game you can identify from the schedule, oldest
    first.
 
-4. If nothing changed, end the run without writing.
+4. If nothing else changed, still write `updatedAt` before ending the run.
+   That one field is the whole point of a quiet run.
 
 Keep each run terse — this is unattended maintenance, not a conversation. Speak
 up only for something worth knowing: the field changed, the real bracket locked
@@ -368,7 +371,7 @@ Fields, and who owns each:
 | `ranking` | you | Your preference order, best first |
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
-| `updatedAt` | routine | When the routine last changed this document. Shown in the tab row as "Last updated" |
+| `updatedAt` | routine | When the routine last ran, written on every run including quiet ones. Shown in the tab row as "Last updated" |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 

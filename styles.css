@@ -95,6 +95,7 @@ section.view.active{ display:block; }
   display:flex; align-items:baseline; justify-content:space-between; gap:10px;
   font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:5px;
 }
+.left-note{ color:var(--ink-dim); font-size:.6rem; letter-spacing:.06em; margin-left:9px; }
 .div-title .AL{ color:var(--al); }
 .div-title .NL{ color:var(--nl); }
 table.st{ width:100%; border-collapse:collapse; }
@@ -115,8 +116,11 @@ table.st tr.alive td{ color:var(--ink-dim); }
 table.st tr.infield td{ color:var(--ink); }
 table.st tr.eliminated .dot{ opacity:.5; }
 /* The cut line replaces that row's own divider, so it lands exactly where the
-   green line would have been. */
-table.st tr.cut td{ border-bottom:1px dashed var(--copper); }
+   green line would have been. It has to be ONE element spanning the table: a
+   dashed border on each cell restarts its dash pattern at every column edge,
+   which is what made the segments look uneven. */
+table.st tr.cut td{ border-bottom:0; }
+table.st tr.cutline td{ padding:0; height:0; border:0; border-top:1px dashed var(--copper); }
 table.st .rank-cell{ width:34px; }
 table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-nums; }
 table.st .wc-num{ width:20px; }
@@ -289,6 +293,10 @@ table.ref td .cell{ display:flex; align-items:center; gap:9px; }
 table.ref th:first-child, table.ref td.rank-col{ width:1%; white-space:nowrap; }
 table.ref td.tabular{ font-size:.85rem; color:var(--ink-dim); }
 table.ref td.seed-col{ width:1%; white-space:nowrap; font-size:.82rem; color:var(--ink-dim); font-variant-numeric:tabular-nums; }
+/* Seed and league are single glyphs in a narrow column; centering them keeps
+   each one over the middle of its own header. */
+table.ref td.seed-col, table.ref th.seed-col,
+table.ref td.lg-col, table.ref th.lg-col{ text-align:center; }
 .league-tag{ display:inline-flex; align-items:center; height:20px; line-height:1; font-size:.72rem; font-weight:700; padding:0 9px; border-radius:4px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
 .league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }
