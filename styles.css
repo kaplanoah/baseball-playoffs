@@ -91,9 +91,13 @@ section.view.active{ display:block; }
   .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
 .div-block{ min-width:0; }
+/* A filled strip above the table, the way a bracket card carries its round
+   name — the block reads as one object rather than a heading near a table. */
 .div-title{
   display:flex; align-items:baseline; justify-content:space-between; gap:10px;
-  font-size:.66rem; text-transform:uppercase; letter-spacing:.1em; margin-bottom:5px;
+  font-size:.66rem; text-transform:uppercase; letter-spacing:.1em;
+  background:color-mix(in srgb, var(--divider) 80%, var(--card));
+  border-radius:5px 5px 0 0; padding:6px 10px;
 }
 .title-right{ display:flex; align-items:baseline; gap:11px; }
 .left-note{ color:var(--ink-dim); font-size:.6rem; letter-spacing:.06em; }
@@ -102,7 +106,7 @@ section.view.active{ display:block; }
 table.st{ width:100%; border-collapse:collapse; }
 table.st th{
   text-align:right; font-weight:400; font-size:.58rem; text-transform:uppercase; letter-spacing:.09em;
-  color:var(--ink-dim); padding:0 0 4px 10px; border-bottom:1px solid var(--card-border); white-space:nowrap;
+  color:var(--ink-dim); padding:5px 0 4px 10px; border-bottom:1px solid var(--divider); white-space:nowrap;
 }
 table.st th.left{ text-align:left; }
 table.st th:first-child{ padding-left:0; }
