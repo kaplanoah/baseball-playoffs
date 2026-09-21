@@ -71,17 +71,13 @@ section.view.active{ display:block; }
 .banner .banner-status{ font-size:.88rem; line-height:1; color:var(--ink-dim); }
 
 /* What's changed since you last looked. Sits below the views, since news
-   belongs to the season rather than to whichever tab is open. The head row's
-   fill is what separates it from the list — no accent rule needed. */
+   belongs to the season rather than to whichever tab is open. No accent rule:
+   the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  overflow:hidden; margin:24px 0 0; max-width:900px;
+  padding:9px 13px 10px; margin:24px 0 0; max-width:900px;
 }
-.updates-head{
-  display:flex; align-items:center; justify-content:space-between; gap:14px;
-  background:color-mix(in srgb, var(--divider) 78%, var(--card));
-  border-bottom:1px solid var(--card-border); padding:7px 12px;
-}
+.updates-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .updates-count{ font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); }
 .updates-x{
   flex:none; width:22px; height:22px; margin:-3px -5px -3px 0;
@@ -90,7 +86,7 @@ section.view.active{ display:block; }
   color:var(--ink-dim); font-family:inherit; font-size:1.05rem; line-height:1; cursor:pointer;
 }
 .updates-x:hover{ color:var(--ink); background:var(--divider); }
-.updates-list{ list-style:none; margin:0; padding:3px 12px 8px; }
+.updates-list{ list-style:none; margin:7px 0 0; padding:0; }
 .updates-list li{ display:flex; align-items:center; gap:10px; font-size:.82rem; padding:3px 0; }
 .updates-list li + li{ border-top:1px solid var(--divider); }
 .updates-list .when{
