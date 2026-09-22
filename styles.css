@@ -188,7 +188,7 @@ table.st .wc-num{ width:20px; }
    Colour is all that changes between the four; shape never does. */
 .league-tag, .status-chip, .clinch-tag, .magic-tag{
   display:inline-flex; align-items:center; justify-content:center; flex:none;
-  height:19px; padding:1px 7px 0; border-radius:3px; line-height:1;
+  height:19px; padding:0 7px; border-radius:3px; line-height:1;
   font-size:.66rem; font-weight:400; text-transform:uppercase; letter-spacing:.07em;
   white-space:nowrap;
 }
@@ -259,12 +259,10 @@ button.ghost{
    the chip and the dot, so it keeps the extra 4. */
 .team-id .rank-slot{ margin-right:0; }
 .banner-team .rank-slot{ margin-right:0; }
-/* Chivo Mono's caps ride high in a line box at line-height:1 -- the font
-   reserves descender room no capital uses -- so at 1.1rem the name reads a
-   pixel above the dot it sits next to. This puts the two back on one line. */
-.banner-name{ position:relative; top:1px; }
+/* The name keeps its own element so it can be aligned apart from the dot,
+   but it needs no offset: flex centring lands it where it should be. */
 .rank-tag{
-  display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:1px 5px 0;
+  display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;
   background:transparent; border:1px solid var(--copper); color:var(--copper);
 }
