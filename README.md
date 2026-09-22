@@ -200,10 +200,13 @@ WRITING — read this before any write:
       - nothing finished, but a game is on: name it and where it stands.
         "Rays @ Yankees 2-1, 5th".
       - nothing finished and nothing on: name the last final you know of,
-        marked as old. "nothing new since Yankees 5 Rays 2".
-      - before the day's first pitch: "nothing final yet today".
-    Never write what did NOT happen — "no games finished since 7pm" tells
-    them nothing they can use.
+        marked as old. "nothing new since Yankees 5 Rays 2". This covers the
+        morning as well — before the day's first pitch the newest baseball is
+        yesterday's, so name yesterday's game rather than writing "nothing
+        final yet today", which is still an absence.
+    Never write what did NOT happen — "no games finished since 7pm" and
+    "nothing final yet today" tell them nothing they can use. Every one of
+    these reasons names an actual game.
   - WHEN SEVERAL GAMES ARE INVOLVED, name one and count the rest. The one to
     name is the game whose club sits highest in the user's `ranking` — it is
     their game, and the doc tells you their order — falling back to the
