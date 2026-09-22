@@ -178,11 +178,19 @@ table.st .wc-num{ width:20px; }
 .st-team .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .elim-num.clinched{ color:var(--gold); }
 .elim-num.live{ color:var(--copper-ink); }
-.clinch-tag{
-  font-size:.56rem; text-transform:uppercase; letter-spacing:.07em; color:var(--gold);
-  border:1px solid color-mix(in srgb, var(--gold) 45%, transparent); border-radius:3px; padding:1px 4px;
+/* ONE CHIP. Four labels, one geometry -- the rank tag is the single exception
+   (see .rank-tag): it is the user's own mark and keeps its size and weight.
+   Colour is all that changes between the four; shape never does. */
+.league-tag, .status-chip, .clinch-tag, .magic-tag{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  height:19px; padding:0 7px; border-radius:3px; line-height:1;
+  font-size:.62rem; font-weight:400; text-transform:uppercase; letter-spacing:.07em;
+  white-space:nowrap;
 }
-.magic-tag{ font-size:.62rem; color:var(--copper-ink); }
+.clinch-tag{ color:var(--gold); border:1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
+/* Magic had no box at all, which left a division title looking unbalanced
+   whenever it carried a number instead of CLINCHED. */
+.magic-tag{ color:var(--copper-ink); border:1px solid color-mix(in srgb, var(--copper) 45%, transparent); }
 .stand-empty{ color:var(--ink-dim); font-size:.78rem; line-height:1.6; max-width:60ch; }
 
 /* What's changed since you last looked. Sits below the views, since news
@@ -353,7 +361,6 @@ table.ref td .cell{ font-size:.84rem; font-weight:400; }
 .rank-id .team-name{ line-height:1.1; }
 /* League and seed share the second line, so the club name stands alone. */
 .rank-id .meta-row{ display:flex; align-items:center; gap:8px; }
-.rank-id .meta-row .league-tag{ height:17px; font-size:.62rem; padding:0 6px; }
 .rank-seed{ font-size:.7rem; color:var(--ink-dim); }
 /* Fixed widths so the years and droughts form two columns down the page. */
 .rank-cols{ margin-left:auto; flex:none; display:flex; align-items:center; font-size:.76rem; color:var(--ink-dim); }
@@ -380,11 +387,6 @@ table.ref td .cell{ font-size:.84rem; font-weight:400; }
    row and the headings above the list would sit over nothing. */
 .status-slot{
   flex:none; width:72px; margin-left:14px; display:flex; justify-content:flex-end;
-}
-.status-chip{
-  display:inline-flex; align-items:center; flex:none; white-space:nowrap;
-  line-height:1; font-size:.63rem; padding:4px 7px;
-  border-radius:3px; text-transform:uppercase; letter-spacing:.07em;
 }
 .status-chip.alive{ background:color-mix(in srgb, var(--ink) 15%, transparent); color:var(--ink); }
 .status-chip.out{ background:color-mix(in srgb, var(--out) 25%, transparent); color:var(--out); }
@@ -421,7 +423,6 @@ table.ref td.seed-col{ width:1%; white-space:nowrap; font-size:.82rem; color:var
 table.ref td.seed-col, table.ref th.seed-col,
 table.ref td.lg-col, table.ref th.lg-col,
 table.ref td.won-col, table.ref th.won-col{ text-align:center; }
-.league-tag{ display:inline-flex; align-items:center; height:20px; line-height:1; font-size:.72rem; font-weight:700; padding:0 9px; border-radius:4px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
 .league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }
 
