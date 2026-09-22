@@ -589,19 +589,12 @@ const DIV_ORDER = ["AL East","AL Central","AL West","NL East","NL Central","NL W
 const E_TITLE = "Division elimination number: combined wins by the division leader and losses by this team that would end its division chances. A dash means clinched, E means out.";
 const WC_TITLE = "Wild card elimination number: combined wins by the team holding the last spot and losses by this team that would end its wild card chances. A dash means clinched, E means out.";
 
-/* Games remaining says nothing in June, when everyone has a hundred to play,
-   and nothing in October, when everyone has none. Inside the last ten it's
-   worth knowing — but it's one number for the whole block unless a postponement
-   has left somebody out of step, so it goes in the header and only becomes a
-   column when the clubs actually disagree. */
-function leftState(rows){
-  const lefts = rows.map(r => r.left).filter(n => typeof n === "number");
-  if(!lefts.length) return { column:false, label:"" };
-  const low = Math.min(...lefts), high = Math.max(...lefts);
-  if(low <= 0 || low > 10) return { column:false, label:"" };
-  if(low !== high) return { column:true, label:"" };
-  return { column:false, label:`${low} game${low === 1 ? "" : "s"} left` };
+function elimCell(v){
+  if(v === "E") return `<td class="elim-num">E</td>`;
+  if(v == null || v === "-") return `<td class="elim-num clinched">&mdash;</td>`;
+  return `<td class="elim-num live tabular">${v}</td>`;
 }
+
 /* "Today 8:05 vs HOU" — short enough for a column, and the opponent as an id
    rather than a name, since the club's own name is two cells to the left. */
 function nextCell(t){
@@ -616,11 +609,6 @@ function nextCell(t){
   return `<td class="next-cell">${day}${time} ${n.home ? "vs" : "@"} ${n.opp || ""}</td>`;
 }
 
-function elimCell(v){
-  if(v === "E") return `<td class="elim-num">E</td>`;
-  if(v == null || v === "-") return `<td class="elim-num clinched">&mdash;</td>`;
-  return `<td class="elim-num live tabular">${v}</td>`;
-}
 /* Each table asks one question, so each has one kind of elimination: the
    division tables mean out of the division, the wild card tables mean out of
    the wild card. A club still in the race reads at full strength whether or
@@ -646,24 +634,20 @@ function divisionBlock(name, rows){
   const tag = leader.clinched
     ? `<span class="clinch-tag">clinched</span>`
     : (leader.magic ? `<span class="magic-tag">magic ${leader.magic}</span>` : "");
-  const left = leftState(rows);
   const anyNext = rows.some(t => t.next && t.next.at);
   return `<div class="div-block">
     <div class="div-title">
-      <span class="${lg}">${name}</span>
-      <span class="title-right">
-        ${left.label ? `<span class="left-note">${left.label}</span>` : ""}${tag}
-      </span>
+      <span class="${lg}">${name}</span><span class="title-right">${tag}</span>
     </div>
     <table class="st">
       <thead><tr>
-        <th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>GB</th>
-        ${left.column ? "<th>Left</th>" : ""}<th title="${E_TITLE}">E#</th>
-        ${anyNext ? '<th class="left next-cell">Next</th>' : ""}
+        <th></th><th>Seed</th><th class="left">Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th>
+        <th title="${E_TITLE}">E#</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
+        `<td class="tabular">${t.w ?? ""}</td><td class="tabular">${t.l ?? ""}</td>` +
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
-        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.elim) +
+        elimCell(t.elim) +
         (anyNext ? (t.elim === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { out: t.elim === "E" }
       )).join("")}</tbody>
@@ -679,25 +663,19 @@ function wildCardBlock(lg, all){
     .sort((a,b) => Number(a.wcrank || 99) - Number(b.wcrank || 99))
     .slice(0, 7);
   if(!pool.length) return "";
-  const left = leftState(pool);
   const anyNext = pool.some(t => t.next && t.next.at);
-  const cols = 7 + (left.column ? 1 : 0) + (anyNext ? 1 : 0);
+  const cols = 9 + (anyNext ? 1 : 0);
   return `<div class="div-block">
-    <div class="div-title">
-      <span class="${lg}">${lg} Wild Card</span>
-      <span class="title-right">
-        ${left.label ? `<span class="left-note">${left.label}</span>` : ""}
-      </span>
-    </div>
+    <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
     <table class="st">
       <thead><tr>
-        <th></th><th></th><th>Seed</th><th class="left">Team</th><th>PCT</th><th>WCGB</th>
-        ${left.column ? "<th>Left</th>" : ""}<th title="${WC_TITLE}">WCE</th>
-        ${anyNext ? '<th class="left next-cell">Next</th>' : ""}
+        <th></th><th></th><th>Seed</th><th class="left">Team</th><th>W</th><th>L</th><th>PCT</th><th>WCGB</th>
+        <th title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
+        `<td class="tabular">${t.w ?? ""}</td><td class="tabular">${t.l ?? ""}</td>` +
         `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
-        (left.column ? `<td class="tabular">${t.left ?? ""}</td>` : "") + elimCell(t.wce) +
+        elimCell(t.wce) +
         (anyNext ? (t.wce === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { cut: i === 2, cols, out: t.wce === "E", lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
       )).join("")}</tbody>
@@ -722,16 +700,26 @@ function renderStandings(){
     ${races ? `<div class="stand-head second">Wild Card</div><div class="wc-grid">${races}</div>` : ""}`;
 }
 
-/* The stamp is the last time the routine ran, which it records on the season
-   doc whether or not anything changed. The standings table is checked too, in
-   case it was written more recently than the season doc. */
+/* Two lines: when the routine last ran and what it found, then when it runs
+   next and what it will be looking at. The reasons are the routine's own
+   words for the games involved, so a quiet stretch explains itself. */
+function stampLine(label, iso, why){
+  const t = iso ? Date.parse(iso) : NaN;
+  if(isNaN(t)) return "";
+  const when = whenLabel(new Date(t).toISOString());
+  return `<span class="stamp-line">${label} <b>${when}</b>${why ? ` &mdash; ${why}` : ""}</span>`;
+}
 function renderStamp(){
   const el = document.getElementById("stamp");
-  const times = [state && state.updatedAt, standings && standings.updatedAt]
+  const lastAt = [state && state.updatedAt, standings && standings.updatedAt]
     .map(t => t ? Date.parse(t) : NaN).filter(n => !isNaN(n));
-  if(!times.length){ el.hidden = true; return; }
-  el.hidden = false;
-  el.innerHTML = `Last updated <b>${whenLabel(new Date(Math.max(...times)).toISOString())}</b>`;
+  const last = lastAt.length ? new Date(Math.max(...lastAt)).toISOString() : null;
+  const lines = [
+    stampLine("Last updated", last, state && state.updatedFor),
+    stampLine("Next update", state && state.nextAt, state && state.nextFor)
+  ].filter(Boolean).join("");
+  el.hidden = !lines;
+  el.innerHTML = lines;
 }
 
 function renderAll(){

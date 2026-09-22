@@ -123,6 +123,9 @@ The doc shape:
                                    // append-only change log, oldest first
   seenAt: "<ISO timestamp>",       // the user's dismiss marker — never write it
   updatedAt: "<ISO timestamp>",    // when this routine last ran — see below
+  updatedFor: "<short phrase>",    // what that run found
+  nextAt: "<ISO timestamp>",       // when the next run fires
+  nextFor: "<short phrase>",       // what it will be looking at
   projected: true|false,           // true = teams/seeds are your projection
                                    // from standings, not the official bracket
   projectedAsOf: "YYYY-MM-DD"
@@ -138,10 +141,10 @@ COST — this runs unattended several times a day, so bail out early rather than
 doing work that changes nothing:
 
 - If `projected` is true and `projectedAsOf` is already today's date, the field
-  has been refreshed today already. Write `updatedAt` (see below) and end the
-  run, without calling the MLB API.
+  has been refreshed today already. Write the four stamp fields (see WRITING)
+  and end the run, without calling the MLB API.
 - If `projected` is false and there are no MLB postseason games today, write
-  `updatedAt` and end the run after that one schedule check.
+  the stamp fields and end the run after that one schedule check.
 
 WRITING — read this before any write:
 
@@ -157,11 +160,21 @@ WRITING — read this before any write:
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
 - `seenAt` is the user's too. Never write it under any circumstance.
-- Write `updatedAt` on EVERY run, set to the current time, including runs that
-  change nothing and runs that stop at an early exit above. The page shows it
-  as "Last updated", and it means the last time this job ran: a stamp from this
-  morning is how the user knows the tracker is being tended. A run with nothing
-  else to write still writes this one field.
+- Write `updatedAt`, `updatedFor`, `nextAt` and `nextFor` on EVERY run,
+  including runs that change nothing and runs that stop at an early exit above.
+  The page shows them as two lines — "Last updated 9:14 AM — 4 finals, incl.
+  Yankees 4 Rays 2" and "Next update 11:00 PM — Astros at Mariners, 9:40" — so
+  a quiet stretch explains itself.
+  - `updatedAt` is the current time; `updatedFor` is six or eight words on
+    what this run actually saw: the games that were final, the standings
+    refresh, or plainly "no games today".
+  - `nextAt` is when your schedule fires next (hourly, 7pm to 1am Eastern,
+    September and October — work out the next one from the current time), and
+    `nextFor` names the games that run will be looking at, from the schedule
+    you already fetched: "Astros at Mariners, 9:40", "4 games, first at 7:05",
+    or "no games scheduled".
+  - Name real clubs and real times. These two lines are the only evidence the
+    user has that the job is alive, so a vague phrase wastes them.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
   log entries — a nested merge would otherwise leave stale entries behind.
@@ -210,7 +223,7 @@ all 30 clubs for the Standings tab. Everything but `next` comes from the
       pct: ".613",                 // winningPercentage, as the API gives it
       gb: "-" | "6.0",             // divisionGamesBack
       wcgb: "-" | "+4.0" | "3.0",  // wildCardGamesBack
-      left: 6,                     // 162 - gamesPlayed
+      w: 95, l: 60,                // wins and losses
       elim: "-" | "E" | "4",       // eliminationNumber (division)
       wce: "-" | "E" | "3",        // wildCardEliminationNumber
       magic: "6" | null,           // magicNumber, null unless it has one
@@ -241,7 +254,6 @@ all 30 clubs for the Standings tab. Everything but `next` comes from the
   It's the only extra call in the run, and only while the regular season is on.
 - Once every club is out of games, drop `next` entirely rather than leaving
   last week's matchup sitting in the table.
-- `left` reaching 0 is normal and correct in October.
 - Do not log standings changes. The update log is for the bracket; standings
   move every day and would bury it.
 
@@ -315,8 +327,8 @@ EACH RUN, after the early-exit checks above:
    log one entry per finished game you can identify from the schedule, oldest
    first.
 
-4. If nothing else changed, still write `updatedAt` before ending the run.
-   That one field is the whole point of a quiet run.
+4. If nothing else changed, still write the four stamp fields before ending
+   the run. They are the whole point of a quiet run.
 
 Keep each run terse — this is unattended maintenance, not a conversation. Speak
 up only for something worth knowing: the field changed, the real bracket locked
@@ -382,7 +394,8 @@ Fields, and who owns each:
 | `ranking` | you | Your preference order, best first |
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
-| `updatedAt` | routine | When the routine last ran, written on every run including quiet ones. Shown in the tab row as "Last updated" |
+| `updatedAt` / `updatedFor` | routine | When the routine last ran and what it found, written on every run including quiet ones |
+| `nextAt` / `nextFor` | routine | When the next run fires and which games it will be looking at |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 
@@ -409,7 +422,7 @@ are there for. A matchup with an empty side keeps its structural order until
 both teams are known.
 
 A second document, `standings/<year>`, holds all 30 clubs for the Standings
-tab: win percentage, games back, wild card games back, games remaining,
+tab: wins and losses, win percentage, games back, wild card games back,
 elimination numbers, clinch status and each club's next game, grouped by
 division. Everything but the next game comes from the standings response the
 routine already fetches; the next game costs one more schedule request, and
