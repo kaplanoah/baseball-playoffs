@@ -183,14 +183,14 @@ table.st .wc-num{ width:20px; }
    Colour is all that changes between the four; shape never does. */
 .league-tag, .status-chip, .clinch-tag, .magic-tag{
   display:inline-flex; align-items:center; justify-content:center; flex:none;
-  height:19px; padding:0 7px; border-radius:3px; line-height:1;
-  font-size:.62rem; font-weight:400; text-transform:uppercase; letter-spacing:.07em;
+  height:19px; padding:1px 7px 0; border-radius:3px; line-height:1;
+  font-size:.66rem; font-weight:400; text-transform:uppercase; letter-spacing:.07em;
   white-space:nowrap;
 }
 .clinch-tag{ color:var(--gold); border:1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
-/* Magic had no box at all, which left a division title looking unbalanced
-   whenever it carried a number instead of CLINCHED. */
-.magic-tag{ color:var(--copper-ink); border:1px solid color-mix(in srgb, var(--copper) 45%, transparent); }
+/* Magic is the one label that reads as running text rather than a state, so
+   it drops the box entirely and sits as bare copper in the title bar. */
+.magic-tag{ color:var(--copper-ink); border:0; padding:0; height:auto; }
 .stand-empty{ color:var(--ink-dim); font-size:.78rem; line-height:1.6; max-width:60ch; }
 
 /* What's changed since you last looked. Sits below the views, since news
@@ -249,7 +249,7 @@ button.ghost{
 .team-id .rank-slot{ margin-right:0; }
 .banner-team .rank-slot{ margin-right:4px; }
 .rank-tag{
-  display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
+  display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:1px 5px 0;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;
   background:transparent; border:1px solid var(--copper); color:var(--copper);
 }
@@ -423,6 +423,9 @@ table.ref td.seed-col{ width:1%; white-space:nowrap; font-size:.82rem; color:var
 table.ref td.seed-col, table.ref th.seed-col,
 table.ref td.lg-col, table.ref th.lg-col,
 table.ref td.won-col, table.ref th.won-col{ text-align:center; }
+/* th is padded on the left only, which offsets centered text by half of that.
+   Matching the cell's symmetric padding puts header and value on one axis. */
+table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:10px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
 .league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }
 
