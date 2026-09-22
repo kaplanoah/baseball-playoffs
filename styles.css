@@ -86,7 +86,7 @@ section.view.active{ display:block; }
 }
 .banner > *{ display:flex; align-items:center; }
 .banner .banner-label{ font-size:.7rem; line-height:1; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
-.banner .banner-team{ gap:7px; font-size:1.1rem; line-height:1; font-weight:500; color:var(--ink); }
+.banner .banner-team{ gap:10px; font-size:1.1rem; line-height:1; font-weight:500; color:var(--ink); }
 .banner .banner-status{ font-size:.88rem; line-height:1; color:var(--ink-dim); }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
@@ -247,7 +247,11 @@ button.ghost{
 /* The row's own 8px gap already spaces these; the banner has no seed between
    the chip and the dot, so it keeps the extra 4. */
 .team-id .rank-slot{ margin-right:0; }
-.banner-team .rank-slot{ margin-right:4px; }
+.banner-team .rank-slot{ margin-right:0; }
+/* Chivo Mono's caps ride high in a line box at line-height:1 -- the font
+   reserves descender room no capital uses -- so at 1.1rem the name reads a
+   pixel above the dot it sits next to. This puts the two back on one line. */
+.banner-name{ position:relative; top:1px; }
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:1px 5px 0;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;

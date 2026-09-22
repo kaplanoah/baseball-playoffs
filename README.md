@@ -200,13 +200,27 @@ WRITING — read this before any write:
       - one: name it.
       - two: name both, comma between. "Rays @ Yankees 2-1 in the 5th, Astros
         @ Mariners 3-0 in the 7th".
-      - three or more: call it a slate and name its best game.
+      - three or more: call it a slate and name one game out of it.
         "Slate of 8 ended with Mets 3 Braves 2 at 10:28"
         "Slate of 6 under way with Rays @ Yankees 2-1 in the 5th"
         "Slate of 3 starts with Astros @ Mariners first pitch at 9:40"
-    The game to name is the one whose club sits highest in the user's
-    `ranking` — it is their game, and the doc tells you their order — falling
-    back to the earliest first pitch when no club in the field is playing.
+    THE VERB DESCRIBES THE WHOLE SLATE, NOT THE ONE GAME YOU NAME. Take the
+    first of these three that has any game in it, and never skip a group
+    because the user's own club is in a later one — a game under way makes the
+    slate under way even when their club does not play until tonight:
+      - anything final since the last run → "ended with"
+      - else anything under way → "under way with"
+      - else nothing has started → "starts with"
+    Then name a game FROM THAT SAME GROUP. "Ended" and "starts" are claims
+    about the clock, so the clock picks:
+      - "ended with" → the one that finished LAST.
+      - "starts with" → the one with the EARLIEST first pitch.
+      - "under way with" claims nothing about the clock, so take the club that
+        sits highest in the user's `ranking` — it is their game, and the doc
+        tells you their order.
+    Where that leaves a tie — two finals at the same minute, two games sharing
+    a first pitch — `ranking` breaks it, and the earlier team in the doc's
+    order wins. A slate that starts at 1:05 is never described by a 7:40 game.
   - `updatedAt` is the current time. `updatedFor` names the newest baseball
     there is, and NEVER an absence. In order:
       - anything final since the last run: name it, by the rules above. When
