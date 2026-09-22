@@ -299,7 +299,13 @@ button.ghost{
 }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tbd{ color:color-mix(in srgb, var(--ink-dim) 55%, var(--card)); font-style:italic; font-size:.88rem; }
-.nscore{ min-width:1.5em; text-align:center; font-weight:700; font-size:1rem; padding:2px 6px; border-radius:3px; background:var(--divider); }
+/* Recessed the way the team dots are: the shadow falls inside the top edge
+   and a lit lip sits below, so a score reads as punched into the card. */
+.nscore{
+  min-width:1.5em; text-align:center; font-weight:700; font-size:1rem;
+  padding:2px 6px; border-radius:3px; background:var(--divider);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,.46), 0 1px 0 rgba(241,234,212,.13);
+}
 .nscore.lead{ background:var(--gold); color:var(--gold-ink); }
 
 /* ---------- Ranking ---------- */
@@ -396,7 +402,8 @@ table.ref td.seed-col{ width:1%; white-space:nowrap; font-size:.82rem; color:var
 /* Seed and league are single glyphs in a narrow column; centering them keeps
    each one over the middle of its own header. */
 table.ref td.seed-col, table.ref th.seed-col,
-table.ref td.lg-col, table.ref th.lg-col{ text-align:center; }
+table.ref td.lg-col, table.ref th.lg-col,
+table.ref td.won-col, table.ref th.won-col{ text-align:center; }
 .league-tag{ display:inline-flex; align-items:center; height:20px; line-height:1; font-size:.72rem; font-weight:700; padding:0 9px; border-radius:4px; }
 .league-tag.AL{ background:color-mix(in srgb, var(--al) 20%, transparent); color:var(--al); }
 .league-tag.NL{ background:color-mix(in srgb, var(--nl) 20%, transparent); color:var(--nl); }

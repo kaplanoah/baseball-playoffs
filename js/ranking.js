@@ -94,7 +94,7 @@ function renderReference(){
       <td class="seed-col">${(state.teams[id] && state.teams[id].seed) || ""}</td>
       <td><span class="cell">${teamDot(id)} ${t.name}</span></td>
       <td class="lg-col"><span class="league-tag ${t.league}">${t.league}</span></td>
-      <td class="tabular">${won || "&mdash;"}</td>
+      <td class="tabular won-col">${won || "&mdash;"}</td>
       <td class="tabular">${droughtLabel(id)}</td>
     </tr>`;
   }).join("");

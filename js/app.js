@@ -56,11 +56,11 @@ function lastTitle(id){
    They go back to counting the moment this season crowns someone else. */
 function droughtLabel(id){
   const won = lastTitle(id);
-  if(!won) return "since 1969";
+  if(!won) return "Since 1969";
   const yr = seasonYear();
-  if(won >= yr) return "reigning";
+  if(won >= yr) return "Reigning";
   const crowned = state && state.teams ? fullBracket(state).ws?.winner : null;
-  if(won === yr - 1 && !crowned) return "defending";
+  if(won === yr - 1 && !crowned) return "Defending";
   const n = yr - won;
   return n + (n === 1 ? " yr" : " yrs");
 }
