@@ -198,13 +198,21 @@ WRITING — read this before any write:
         final", "Mets, Braves and 4 others final", "Brewers 4 Cubs 1 final,
         Brewers lead 2-0" when the result moved a series.
       - nothing finished, but a game is on: name it and where it stands.
-        "Rays @ Yankees 2-1, 5th", or "2 games on, Rays @ Yankees 2-1 in the
-        5th" when there are several.
+        "Rays @ Yankees 2-1, 5th".
       - nothing finished and nothing on: name the last final you know of,
         marked as old. "nothing new since Yankees 5 Rays 2".
       - before the day's first pitch: "nothing final yet today".
     Never write what did NOT happen — "no games finished since 7pm" tells
     them nothing they can use.
+  - WHEN SEVERAL GAMES ARE INVOLVED, name one and count the rest. The one to
+    name is the game whose club sits highest in the user's `ranking` — it is
+    their game, and the doc tells you their order — falling back to the
+    earliest first pitch when no club in the field is playing. Then "+3 more"
+    for the others: "Rays @ Yankees 2-1, 5th, +3 more", "Yankees 5 Rays 2
+    final, +7 more", "Astros @ Mariners, first pitch 9:40, +2 more". A bare
+    count ("8 games on") names no baseball and is not enough; the exception
+    is a September slate, where "11 finals; Padres pass the Cubs for the 5
+    seed" says the thing that actually matters.
   - `nextAt` comes from the schedule, not from the clock: the next hour, on
     the hour, at which there will be something to look at — the hour after a
     game now in progress, the hour after the next first pitch, or, once
@@ -212,10 +220,11 @@ WRITING — read this before any write:
     Your schedule fires hourly on the hour, noon to 2am Eastern, September
     through November, so round to one of those hours; if the game you're
     waiting on falls outside them, use the first hour inside them after it.
-  - `nextFor` names the game that check is for: "Rays @ Yankees, first pitch
-    7:08", "Guardians @ Tigers, first pitch 1:08", "3 games on, first Astros
-    @ Mariners". LEAVE IT EMPTY when that check is the same game `updatedFor`
-    just named — the page shows the time alone rather than saying it twice.
+  - `nextFor` names the game that check is for, chosen the same way:
+    "Rays @ Yankees, first pitch 7:08", "Guardians @ Tigers, first pitch
+    1:08", "Astros @ Mariners, first pitch 9:40, +2 more". LEAVE IT EMPTY
+    when that check is the same game `updatedFor` just named — the page shows
+    the time alone rather than saying it twice.
   - NEVER put a day in a reason. The page prints the day with the time when
     it isn't today — "Next update tomorrow 2:00 PM" — so a reason that also
     says "tomorrow" says it twice, and the two can disagree.
