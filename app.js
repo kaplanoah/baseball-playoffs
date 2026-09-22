@@ -403,7 +403,7 @@ function renderBanner(br){
     <span class="banner-team">${rankTag(top)}${teamDot(top)} ${teamLabel(top)}</span>`;
 }
 
-/* ---------- ranking: drag anywhere on a card to reorder ---------- */
+/* ---------- ranking: drag a card by its grip to reorder ---------- */
 function renderRanking(){
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
