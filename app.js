@@ -52,11 +52,16 @@ function lastTitle(id){
   return tracked || seeded;
 }
 
+/* The defending champion isn't in a drought -- they're the ones holding it.
+   They go back to counting the moment this season crowns someone else. */
 function droughtLabel(id){
   const won = lastTitle(id);
   if(!won) return "since 1969";
-  if(won >= seasonYear()) return "reigning";
-  const n = seasonYear() - won;
+  const yr = seasonYear();
+  if(won >= yr) return "reigning";
+  const crowned = state && state.teams ? fullBracket(state).ws?.winner : null;
+  if(won === yr - 1 && !crowned) return "defending";
+  const n = yr - won;
   return n + (n === 1 ? " yr" : " yrs");
 }
 function normalize(doc, year){
