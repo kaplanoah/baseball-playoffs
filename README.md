@@ -98,10 +98,46 @@ that isn't available, have the user create it at
   - **Months** are coarse because cron ANDs day-of-month with month, so a
     "Sept 15 → Nov 5" window can't be written as one expression. The early-exit
     above is what keeps the out-of-season hours cheap.
+  - **The hour is not the floor.** Cron won't fire more than once an hour, but
+    a one-shot Routine can land on any minute, so a run that sees a game in the
+    9th schedules its own follow-up rather than waiting for the next hour. The
+    instructions cover when to do that and how to avoid stacking them up.
 - **Environment:** the one from step 2.
 - **Fresh session per run**, with push notifications on, so a decided series
   reaches the user's phone.
-- **Prompt:** the block below, with the artifact URL and year filled in.
+- **Prompt:** not the instructions themselves — just this bootstrap, with the
+  artifact URL filled in:
+
+  ```
+  You maintain a published Claude Artifact — a personal MLB postseason bracket
+  tracker — at this URL:
+
+  <ARTIFACT URL>
+
+  YOUR INSTRUCTIONS ARE NOT IN THIS MESSAGE. They live in the artifact's own
+  database, so that this schedule, the follow-up checks it schedules, and the
+  project's README all read one copy rather than three that drift apart.
+
+  Fetch them first, before anything else:
+
+  - Load the ArtifactData tool (ToolSearch for "ArtifactData" if it is not
+    already in your tool list).
+  - Read collection "routine", doc id "prompt", from the artifact URL above.
+  - Its `text` field holds your full instructions. Follow them exactly, as
+    though they had been given to you here directly. They tell you what to
+    fetch, what to write, and when to schedule your next check.
+
+  If that read fails, or the document is missing or empty, do NOT improvise a
+  run from memory and do NOT write anything to the artifact: a half-guessed
+  write is worse than a skipped hour. Say plainly that the instructions could
+  not be read, name the error, and stop.
+  ```
+
+**5. Store the instructions.** Write the block below, with the artifact URL and
+year filled in, to collection `routine`, doc id `prompt`, as a single field
+named `text`. That is the copy every run reads — the schedule's own runs and
+the one-shot follow-ups they create. Changing how the routine behaves later
+means editing this document, not the Routine.
 
 ````
 You are maintaining a published Claude Artifact — a personal MLB postseason
@@ -238,26 +274,64 @@ WRITING — read this before any write:
     Never write what did NOT happen — "no games finished since 7pm" and
     "nothing final yet today" tell them nothing they can use. Every one of
     these reasons names an actual game.
-  - `nextAt` comes from the schedule, not from the clock: the next run at which
-    there will be something to look at. YOUR SCHEDULE DOES NOT FIRE ON THE
-    HOUR. It fires hourly at NINE MINUTES PAST the hour — 12:09, 1:09, 2:09 and
-    so on, noon to 2am Eastern, September through November — because an hourly
-    Routine is anchored to the minute it was created, not to the top of the
-    hour. Write `nextAt` as one of those :09 times, never as a round hour: a
-    stamp promising "Next update 3:00 PM" is wrong by the time the run starts,
-    and the page has already sat a quarter of an hour looking stale. Of those
-    times, take the first that is:
-      - AFTER the next first pitch, never before it and never the same minute.
-        A check that lands before a game starts sees nothing: for a 1:05 game
-        that means 2:09, not 1:09.
-      - the next one, when a game is already under way — the score and inning
-        will have moved.
-      - the first qualifying one on the next day that has games, once today's
-        slate is over.
-    If the time you land on falls outside the window, use the first one inside
-    it that follows. A run itself takes three or four minutes, so the stamp it
-    writes appears a few minutes after the time you name; that is expected and
-    needs no allowance in `nextAt`.
+  - `nextAt` IS A GUESS AT WHEN THE PAGE WILL NEXT BE WRONG, so aim it at the
+    moment a game ENDS, never at the moment one starts. A check twenty minutes
+    into a 6:40 game finds the third inning and nothing final; the news is
+    three hours away, and a run spent on it is a run wasted. Work out that
+    moment first and call it T:
+      - a game is in the 7th inning or later → T is 20 minutes from now. It is
+        about to end and the final is worth having while it is still news.
+      - else a game is under way → T is its first pitch plus 3h05, the length
+        of an average game; never sooner than 25 minutes from now. With
+        several under way, take the one ending soonest.
+      - else games are scheduled today → T is the earliest first pitch plus
+        3h05.
+      - else → the next day that has games, its earliest first pitch plus 3h05.
+
+    Now get there in the cheapest way. YOUR CRON DOES NOT FIRE ON THE HOUR: it
+    fires hourly at NINE MINUTES PAST — 12:09, 1:09, 2:09 and so on, noon to
+    2am Eastern, September through November — because an hourly Routine is
+    anchored to the minute it was created. Those :09 times are free; they
+    happen whether you want them or not.
+      - If a :09 run falls between T and T plus 15 minutes, that run is close
+        enough. Write `nextAt` as that time and schedule nothing.
+      - Otherwise T is worth a run of its own, so SCHEDULE A ONE-SHOT for it
+        (see below) and write `nextAt` as T.
+      - If T is more than 8 hours away, or scheduling fails, fall back to the
+        first :09 time at or after T. Never promise a round hour.
+    If the time you land on falls outside the noon-to-2am window, use the
+    first one inside it that follows. A run takes three or four minutes, so
+    the stamp appears a little after the time you name; that is expected and
+    needs no allowance here.
+
+  - SCHEDULING A ONE-SHOT. The cron cannot fire more than once an hour, but a
+    one-shot Routine can land on any minute, which is how T gets hit exactly.
+    Use `create_trigger` (load it with ToolSearch —
+    `select:mcp__Claude_Code_Remote__create_trigger` — if it is not already in
+    your tool list), with:
+      - `run_once_at`: T, as an RFC3339 UTC timestamp.
+      - `name`: "Bracket Ballot check — <T as h:mm AM/PM Eastern>". The
+        "Bracket Ballot check" prefix is how the next run finds it again, so
+        write it exactly.
+      - `create_new_session_on_fire`: true. Without it the one-shot binds to
+        this run's session, which will be gone.
+      - `initiation`: "own_followup".
+      - `prompt`: exactly this, and nothing else —
+
+          Read the document in collection "routine", doc id "prompt", from the
+          artifact at <ARTIFACT URL> using
+          the ArtifactData tool (load it with ToolSearch for "ArtifactData" if
+          needed). Its `text` field holds your full instructions. Follow them
+          exactly, as though they had been given to you directly.
+
+    KEEP EXACTLY ONE PENDING. Before creating another, call `list_triggers`
+    and `delete_trigger` any enabled one-shot whose name starts with "Bracket
+    Ballot check" — an old one firing on top of a new one is two runs doing
+    one run's work. Never create a second without deleting the first.
+    NEVER schedule one less than 10 minutes out, and never more than 8 hours
+    out. If `create_trigger` is unavailable, refuses, or errors, say nothing
+    about it in the stamp, fall back to the :09 rule above, and carry on — the
+    cron alone keeps the page correct, just less promptly.
   - `nextFor` names what that check is for, by the same rules: "Astros @
     Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
     Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
