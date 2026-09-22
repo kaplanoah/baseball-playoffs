@@ -298,6 +298,9 @@ button.ghost{
   box-shadow: inset 0 2px 3px rgba(0,0,0,.46), 0 1px 0 rgba(241,234,212,.13);
 }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* A notch under the row's own size: the club name shares the line with a seed,
+   a rank chip and a score, and at .9rem it was the loudest thing on the card. */
+.matchup-row .team-name{ font-size:.84rem; }
 .tbd{ color:color-mix(in srgb, var(--ink-dim) 55%, var(--card)); font-style:italic; font-size:.88rem; }
 /* Recessed the way the team dots are: the shadow falls inside the top edge
    and a lit lip sits below, so a score reads as punched into the card. */
