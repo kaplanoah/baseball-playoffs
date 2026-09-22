@@ -83,10 +83,12 @@ order — and `projected` to `true` unless the official bracket was already set.
 that isn't available, have the user create it at
 [claude.ai/code/routines](https://claude.ai/code/routines)):
 
-- **Schedule:** `0 0-6,16-23 * 9-11 *` — hourly from noon to 2am ET, September
-  through November. Cron can only fire on a fixed clock, so the window is the
-  outer envelope of when a game could be on; the *schedule* decides what each
-  run actually does:
+- **Schedule:** `0 16,23,0-6 * 9-11 *` — noon ET, then hourly 7pm to 2am ET,
+  September through November. Nine fires a day, not twenty-four, because those
+  are the hours a game is on or ending; the long afternoon gap is deliberate,
+  since an afternoon check finds games in the third inning and nothing final.
+  Cron can only fire on a fixed clock, so this is the outer envelope; the
+  *schedule* decides what each run actually does:
   - **The prompt makes the call.** Every run starts with one call to
     `/api/v1/schedule`, and unless a game has gone final since the last run, a
     game is in progress, or one starts within the hour, it writes the two
@@ -98,10 +100,17 @@ that isn't available, have the user create it at
   - **Months** are coarse because cron ANDs day-of-month with month, so a
     "Sept 15 → Nov 5" window can't be written as one expression. The early-exit
     above is what keeps the out-of-season hours cheap.
-  - **The hour is not the floor.** Cron won't fire more than once an hour, but
-    a one-shot Routine can land on any minute, so a run that sees a game in the
-    9th schedules its own follow-up rather than waiting for the next hour. The
-    instructions cover when to do that and how to avoid stacking them up.
+  - **A run cannot schedule extra runs.** One-shot Routines would allow a
+    sub-hourly check, but `create_trigger` and its siblings are connector
+    (`mcp__*`) tools and a Routine-fired session does not get them — the
+    server says so when a trigger is created without connectors. So the cron
+    hours are the whole schedule, and the instructions tell each run to pick
+    its `nextAt` from that fixed list rather than promise a time that cannot
+    happen.
+  - **Keep each run small.** Cost is dominated by context re-read on every
+    turn, not by the number of runs: the MLB payloads are ~53k tokens if they
+    land raw. The instructions require filtering every response down to the
+    handful of fields actually used.
 - **Environment:** the one from step 2.
 - **Fresh session per run**, with push notifications on, so a decided series
   reaches the user's phone.
@@ -182,9 +191,32 @@ one thing: World Series home field goes to the pennant winner with the better
 regular-season record, and seeds don't compare across leagues. Always include
 them when you write `teams`, and never drop them.
 
-COST — this fires hourly across every hour a game could be on, so what a run
-does is decided by the schedule, not by the clock. Most runs should end in
-seconds:
+COST — a run is expensive, so two rules govern everything below: run rarely,
+and keep each run small. Rarely is handled by the schedule, which fires nine
+times a day at the hours baseball is actually on. Small is up to you, and it
+is mostly about how much text you let into your context:
+
+- NEVER LET A RAW API RESPONSE INTO YOUR CONTEXT. This is the single biggest
+  thing you control. The standings response is 80KB, the five-day schedule
+  90KB, the day's schedule with linescores 40KB — together about 53,000
+  tokens, and every one of them is re-read on every turn of the run for the
+  rest of the run. Pipe each fetch through a filter and print only the handful
+  of fields named below, a few hundred tokens instead of tens of thousands:
+
+      curl -sS "<url>" | python3 -c "
+      import sys, json
+      d = json.load(sys.stdin)
+      ...print only what the rules below need...
+      "
+
+  Never `curl` an endpoint and let the body land in the transcript, never
+  `cat` a saved response, and never read one back with the Read tool. If you
+  need a field you did not extract, widen the filter and run it again — that
+  is far cheaper than having had the whole body in context all along.
+  From the day's schedule you need, per game: start time, status, the two
+  clubs, the score, and the inning. From standings, per club: the fields the
+  STANDINGS section below lists, and nothing else. Work in as few turns as
+  you can: each turn re-reads everything already in context.
 
 - Fetch the day's schedule FIRST, before anything else:
   `/api/v1/schedule?sportId=1&date=<today>&hydrate=linescore` — the hydrate
@@ -218,7 +250,7 @@ WRITING — read this before any write:
 - Write `updatedAt`, `updatedFor`, `nextAt` and `nextFor` on EVERY run,
   including runs that change nothing and runs that stop at an early exit above.
   The page shows them as two lines — "Last updated 9:20 PM — Yankees 5 Rays 2
-  final at 9:14" and "Next update 10:09 PM — Astros @ Mariners first pitch at
+  final at 9:14" and "Next update 10:45 PM — Astros @ Mariners first pitch at
   9:40" — so a quiet stretch explains itself.
   - NAME GAMES, not internals. The user reads these to know which baseball
     caused the change and which game the job is waiting on. "Yankees 5 Rays 2
@@ -274,64 +306,34 @@ WRITING — read this before any write:
     Never write what did NOT happen — "no games finished since 7pm" and
     "nothing final yet today" tell them nothing they can use. Every one of
     these reasons names an actual game.
-  - `nextAt` IS A GUESS AT WHEN THE PAGE WILL NEXT BE WRONG, so aim it at the
-    moment a game ENDS, never at the moment one starts. A check twenty minutes
-    into a 6:40 game finds the third inning and nothing final; the news is
-    three hours away, and a run spent on it is a run wasted. Work out that
-    moment first and call it T:
-      - a game is in the 7th inning or later → T is 20 minutes from now. It is
-        about to end and the final is worth having while it is still news.
-      - else a game is under way → T is its first pitch plus 3h05, the length
-        of an average game; never sooner than 25 minutes from now. With
-        several under way, take the one ending soonest.
-      - else games are scheduled today → T is the earliest first pitch plus
-        3h05.
-      - else → the next day that has games, its earliest first pitch plus 3h05.
+  - WHEN THE NEXT RUN HAPPENS. Your cron fires at these hours Eastern, and
+    nowhere else: NOON, then 7pm, 8pm, 9pm, 10pm, 11pm, midnight, 1am, 2am.
+    Nine a day, chosen because that is when baseball is on; the long afternoon
+    gap is deliberate, since an afternoon check on a normal slate finds games
+    in the third inning and nothing final.
 
-    Now get there in the cheapest way. YOUR CRON DOES NOT FIRE ON THE HOUR: it
-    fires hourly at NINE MINUTES PAST — 12:09, 1:09, 2:09 and so on, noon to
-    2am Eastern, September through November — because an hourly Routine is
-    anchored to the minute it was created. Those :09 times are free; they
-    happen whether you want them or not.
-      - If a :09 run falls between T and T plus 15 minutes, that run is close
-        enough. Write `nextAt` as that time and schedule nothing.
-      - Otherwise T is worth a run of its own, so SCHEDULE A ONE-SHOT for it
-        (see below) and write `nextAt` as T.
-      - If T is more than 8 hours away, or scheduling fails, fall back to the
-        first :09 time at or after T. Never promise a round hour.
-    If the time you land on falls outside the noon-to-2am window, use the
-    first one inside it that follows. A run takes three or four minutes, so
-    the stamp appears a little after the time you name; that is expected and
-    needs no allowance here.
+    You cannot schedule extra runs. The tools that would do it
+    (`create_trigger` and friends) are not available inside a run, so do not
+    try, and do not promise a time that is not one of the hours above.
 
-  - SCHEDULING A ONE-SHOT. The cron cannot fire more than once an hour, but a
-    one-shot Routine can land on any minute, which is how T gets hit exactly.
-    Use `create_trigger` (load it with ToolSearch —
-    `select:mcp__Claude_Code_Remote__create_trigger` — if it is not already in
-    your tool list), with:
-      - `run_once_at`: T, as an RFC3339 UTC timestamp.
-      - `name`: "Bracket Ballot check — <T as h:mm AM/PM Eastern>". The
-        "Bracket Ballot check" prefix is how the next run finds it again, so
-        write it exactly.
-      - `create_new_session_on_fire`: true. Without it the one-shot binds to
-        this run's session, which will be gone.
-      - `initiation`: "own_followup".
-      - `prompt`: exactly this, and nothing else —
+    THE MINUTE IS NOT :00. Work it out from the time THIS run started: a cron
+    run starts on its slot, so the next slot is the same minute past the next
+    hour in the list. Never assume a round hour, and never hard-code a minute
+    you were told once.
 
-          Read the document in collection "routine", doc id "prompt", from the
-          artifact at <ARTIFACT URL> using
-          the ArtifactData tool (load it with ToolSearch for "ArtifactData" if
-          needed). Its `text` field holds your full instructions. Follow them
-          exactly, as though they had been given to you directly.
-
-    KEEP EXACTLY ONE PENDING. Before creating another, call `list_triggers`
-    and `delete_trigger` any enabled one-shot whose name starts with "Bracket
-    Ballot check" — an old one firing on top of a new one is two runs doing
-    one run's work. Never create a second without deleting the first.
-    NEVER schedule one less than 10 minutes out, and never more than 8 hours
-    out. If `create_trigger` is unavailable, refuses, or errors, say nothing
-    about it in the stamp, fall back to the :09 rule above, and carry on — the
-    cron alone keeps the page correct, just less promptly.
+  - `nextAt` IS THE FIRST SLOT AT OR AFTER THE MOMENT THE PAGE WILL NEXT BE
+    WRONG. Work out that moment, then round forward to a slot:
+      - a game is in the 7th or later → it ends within the hour, so the next
+        slot is the one you want.
+      - else a game is under way → its first pitch plus about 3h05, the length
+        of an average game. With several under way, take the one ending
+        soonest.
+      - else games are scheduled today → the earliest first pitch plus 3h05.
+      - else → the next day that has games, its earliest first pitch plus
+        3h05, and if that lands before noon, noon.
+    Then take the first slot at or after it. A run takes three or four
+    minutes, so the stamp appears a little after the time you name; that is
+    expected and needs no allowance here.
   - `nextFor` names what that check is for, by the same rules: "Astros @
     Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
     Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
@@ -341,7 +343,7 @@ WRITING — read this before any write:
   - A DAY belongs to the game, never to the check. "final last night" is
     right, because that is when the game was. "Guardians @ Tigers tomorrow"
     is not: the page already prints the day with the check's own time — "Next
-    update tomorrow 2:09 PM" — so saying it twice invites the two to disagree.
+    update tomorrow 12:00 PM" — so saying it twice invites the two to disagree.
   - When the season is over, write `nextAt` and `nextFor` as null. There is no
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
