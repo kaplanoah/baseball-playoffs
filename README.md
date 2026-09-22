@@ -83,12 +83,19 @@ order — and `projected` to `true` unless the official bracket was already set.
 that isn't available, have the user create it at
 [claude.ai/code/routines](https://claude.ai/code/routines)):
 
-- **Schedule:** `0 16,23,0-6 * 9-11 *` — noon ET, then hourly 7pm to 2am ET,
-  September through November. Nine fires a day, not twenty-four, because those
-  are the hours a game is on or ending; the long afternoon gap is deliberate,
-  since an afternoon check finds games in the third inning and nothing final.
-  Cron can only fire on a fixed clock, so this is the outer envelope; the
-  *schedule* decides what each run actually does:
+- **Schedule:** three Routines, together a clock grid:
+  - `15 16,23,0-6 * 9-11 *` — noon ET, then hourly 7pm to 2am
+  - `30 2,3,4,5 * 9-11 *` and `45 2,3,4,5 * 9-11 *` — 10pm to 2am only
+
+  Seventeen fires a day rather than twenty-four, concentrated where games end.
+  Two quirks of the scheduler shape this. A cron minute of `0` is **not**
+  honoured: minute-`0` schedules get spread across the hour (this one sat at
+  `:08` for weeks). Nor is a minute honoured when the hours are written as a
+  range — `30 2-5` fired at `:35`, while `30 2,3,4,5` fires at `:30`. So every
+  expression here uses a non-zero minute and an explicit hour list.
+
+  Cron cannot be conditional, so this is the outer envelope; the *instructions*
+  decide what each run actually does:
   - **The prompt makes the call.** Every run starts with one call to
     `/api/v1/schedule`, and unless a game has gone final since the last run, a
     game is in progress, or one starts within the hour, it writes the two
@@ -100,13 +107,22 @@ that isn't available, have the user create it at
   - **Months** are coarse because cron ANDs day-of-month with month, so a
     "Sept 15 → Nov 5" window can't be written as one expression. The early-exit
     above is what keeps the out-of-season hours cheap.
-  - **A run cannot schedule extra runs.** One-shot Routines would allow a
-    sub-hourly check, but `create_trigger` and its siblings are connector
-    (`mcp__*`) tools and a Routine-fired session does not get them — the
-    server says so when a trigger is created without connectors. So the cron
-    hours are the whole schedule, and the instructions tell each run to pick
-    its `nextAt` from that fixed list rather than promise a time that cannot
+  - **A run cannot schedule extra runs.** Verified, not assumed: a run was
+    told to call `create_trigger` with exact arguments, the run succeeded, and
+    no trigger was created. Routine-fired sessions are built without connector
+    (`mcp__*`) tools, and every scheduling tool is one. A Routine created from
+    the claude.ai Routines UI may be able to carry those connectors — untested.
+    Until then the grid above is the whole schedule, and each run picks its
+    `nextAt` from that fixed list rather than promising a time that cannot
     happen.
+  - **Quiet runs must be cheap.** The grid cannot know whether baseball is on,
+    so most runs have nothing to do. The instructions require a quiet run to
+    make one filtered schedule call, write the stamp, and stop — no standings,
+    no postseason endpoint, no second look.
+  - **Every run leaves a record** at `routine/lastrun`: what it fetched,
+    whether it filtered, how many turns it took, and anything that failed. A
+    run's final message goes nowhere anyone reads, so this is the only way a
+    fault surfaces.
   - **Keep each run small.** Cost is dominated by context re-read on every
     turn, not by the number of runs: the MLB payloads are ~53k tokens if they
     land raw. The instructions require filtering every response down to the
@@ -218,6 +234,19 @@ is mostly about how much text you let into your context:
   STANDINGS section below lists, and nothing else. Work in as few turns as
   you can: each turn re-reads everything already in context.
 
+- STOP EARLY AND STOP CHEAP. Most runs have nothing to do: the schedule is a
+  fixed grid of clock times, and it cannot know whether baseball is on. YOUR
+  JOB ON A QUIET RUN IS TO COST ALMOST NOTHING. One filtered call, four stamp
+  fields, done — no standings, no postseason endpoint, no second look. A
+  quiet run that takes fifteen turns and reads three endpoints has done more
+  damage than the stale minute it was trying to prevent.
+
+  So: make the ONE schedule call below, filtered, and read off it whether any
+  game today has gone final since `updatedAt`, is in progress, or starts
+  within the hour. IF NONE OF THOSE IS TRUE — and on a day with no games at
+  all it plainly is not — write the four stamp fields, write your `lastrun`
+  record, and END THE RUN. Do not go on to the numbered sections.
+
 - Fetch the day's schedule FIRST, before anything else:
   `/api/v1/schedule?sportId=1&date=<today>&hydrate=linescore` — the hydrate
   costs nothing and carries the score and inning of anything in progress, plus
@@ -316,24 +345,32 @@ WRITING — read this before any write:
     (`create_trigger` and friends) are not available inside a run, so do not
     try, and do not promise a time that is not one of the hours above.
 
-    THE MINUTE IS NOT :00. Work it out from the time THIS run started: a cron
-    run starts on its slot, so the next slot is the same minute past the next
-    hour in the list. Never assume a round hour, and never hard-code a minute
-    you were told once.
+    THE MINUTE IS NOT :00. Your slots, in full, Eastern:
 
-  - `nextAt` IS THE FIRST SLOT AT OR AFTER THE MOMENT THE PAGE WILL NEXT BE
-    WRONG. Work out that moment, then round forward to a slot:
-      - a game is in the 7th or later → it ends within the hour, so the next
-        slot is the one you want.
-      - else a game is under way → its first pitch plus about 3h05, the length
-        of an average game. With several under way, take the one ending
-        soonest.
-      - else games are scheduled today → the earliest first pitch plus 3h05.
-      - else → the next day that has games, its earliest first pitch plus
-        3h05, and if that lands before noon, noon.
-    Then take the first slot at or after it. A run takes three or four
-    minutes, so the stamp appears a little after the time you name; that is
-    expected and needs no allowance here.
+        12:15 PM
+        7:15, 8:15, 9:15 PM
+        10:15, 10:30, 10:45 PM
+        11:15, 11:30, 11:45 PM
+        12:15, 12:30, 12:45 AM
+        1:15, 1:30, 1:45 AM
+        2:15 AM
+
+    The extra :30 and :45 slots run from 10pm to 2am because that is when
+    games end. Outside those hours the grid is hourly.
+
+    Use those exact times. DO NOT derive the minute from when this run
+    started: a run fired by hand starts whenever it was fired, and reading
+    :20 off such a run makes the page promise 7:20 for a check that happens
+    at 7:08. The list above is the only source — it is kept in step with the
+    cron by whoever edits the schedule.
+
+  - `nextAt` IS SIMPLY THE NEXT SLOT. Every slot fires whether or not there is
+    anything to find, so the next one is when the page will next be updated,
+    and that is what the line must say. Do not reason about which slot would
+    be interesting and name that one — the page would then sit showing a
+    promise it had already broken, because a run will have happened before it.
+    A run takes three or four minutes, so the stamp appears a little after the
+    time you name; that is expected and needs no allowance here.
   - `nextFor` names what that check is for, by the same rules: "Astros @
     Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
     Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
@@ -501,6 +538,28 @@ EACH RUN, after the early-exit checks above:
 
 4. If nothing else changed, still write the four stamp fields before ending
    the run. They are the whole point of a quiet run.
+
+5. LEAVE A RECORD OF THIS RUN. Your final message goes nowhere anyone reads,
+   so anything worth knowing has to be written down. With "set", to collection
+   "routine", doc id "lastrun":
+
+   {
+     at:        "<ISO timestamp, now>",
+     slot:      "<the scheduled time you believe this run is for, or 'manual'>",
+     work:      "early-exit" | "standings" | "series" | "field" | "lock",
+     fetched:   [ "<each URL path you called, without the host>" ],
+     filtered:  true | false,   // did every response go through a filter
+                                // before reaching your context?
+     wrote:     [ "<each doc you wrote: seasons, standings, ...>" ],
+     turns:     <how many tool calls you made this run, your best count>,
+     trouble:   "<one line naming anything that failed, refused, or was
+                 missing -- a tool you could not load, an API error, a version
+                 conflict. Empty string when the run was clean.>"
+   }
+
+   Overwrite it every run; it is a mailbox, not a log. Be accurate about
+   `trouble` in particular -- a run that quietly worked around a problem and
+   reported nothing is how a fault stays hidden for a week.
 
 Keep each run terse — this is unattended maintenance, not a conversation. Speak
 up only for something worth knowing: the field changed, the real bracket locked
