@@ -192,6 +192,16 @@ function renderAll(){
 }
 
 /* ---------- tabs / season switching ---------- */
+
+/* The browser treats ANY keydown as a switch to keyboard navigation, so
+   holding shift lights a focus ring around whatever you last clicked. Only
+   the keys that actually move focus should raise it. */
+const NAV_KEYS = new Set(["Tab","ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Home","End"]);
+addEventListener("keydown", e => {
+  if(NAV_KEYS.has(e.key)) document.body.classList.add("kbd");
+}, true);
+addEventListener("pointerdown", () => document.body.classList.remove("kbd"), true);
+
 function switchTab(tab){
   document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
   document.querySelectorAll("section.view").forEach(v => v.classList.toggle("active", v.id === "view-" + tab));
