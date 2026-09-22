@@ -90,14 +90,17 @@ section.view.active{ display:block; }
 @media (min-width:780px){
   .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
 }
-.div-block{ min-width:0; }
+/* Built like a bracket card: a hairline box, the title row filled with the
+   card green, a divider beneath it, and the rows on the page ground. */
+.div-block{
+  min-width:0; border:1px solid var(--card-border); border-radius:6px; overflow:hidden;
+}
 /* A filled strip above the table, the way a bracket card carries its round
    name — the block reads as one object rather than a heading near a table. */
 .div-title{
   display:flex; align-items:baseline; justify-content:space-between; gap:10px;
   font-size:.74rem; text-transform:uppercase; letter-spacing:.1em;
-  background:color-mix(in srgb, var(--divider) 80%, var(--card));
-  border-radius:5px 5px 0 0; padding:7px 10px;
+  background:var(--card); border-bottom:1px solid var(--divider); padding:7px 10px;
 }
 .title-right{ display:flex; align-items:baseline; gap:11px; }
 .left-note{ color:var(--ink-dim); font-size:.62rem; letter-spacing:.06em; }
@@ -106,17 +109,19 @@ section.view.active{ display:block; }
 table.st{ width:100%; border-collapse:collapse; }
 table.st th{
   text-align:right; font-weight:400; font-size:.58rem; text-transform:uppercase; letter-spacing:.09em;
-  color:var(--ink-dim); padding:5px 0 4px 10px; border-bottom:1px solid var(--divider); white-space:nowrap;
+  color:var(--ink-dim); padding:7px 0 4px 10px; border-bottom:1px solid var(--divider); white-space:nowrap;
 }
 table.st th.left{ text-align:left; }
-table.st th:first-child{ padding-left:0; }
+table.st th:first-child{ padding-left:10px; }
 table.st th[title]{ cursor:help; }
 table.st td{
   padding:5px 0 5px 10px; font-size:.8rem; border-bottom:1px solid var(--divider);
   text-align:right; white-space:nowrap; color:var(--ink);
 }
-table.st td:first-child{ padding-left:0; }
+table.st td:first-child{ padding-left:10px; }
 table.st td.team{ text-align:left; }
+table.st th:last-child, table.st td:last-child{ padding-right:10px; }
+table.st tr:last-child td{ border-bottom:0; }
 /* One green per table: in the race reads full strength, out of it goes dim.
    The club's colors stay themselves, just turned down with the row. */
 table.st tr.alive td{ color:var(--ink); }
