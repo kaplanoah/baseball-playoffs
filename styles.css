@@ -58,7 +58,9 @@ nav.tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items
   font-size:.63rem; color:var(--ink-dim); letter-spacing:.03em;
   line-height:1.35; text-align:right;
 }
-.stamp b{ font-weight:400; color:color-mix(in srgb, var(--ink) 80%, transparent); }
+/* Two greens rather than green and cream: the emphasis is the page's own dim
+   green lifted toward its cream, so nothing new joins the palette. */
+.stamp b{ font-weight:400; color:color-mix(in srgb, var(--ink-dim) 55%, var(--ink)); }
 nav.tabs button{
   font:inherit; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em;
   background:none; border:1px solid var(--card-border); color:var(--ink-dim);
