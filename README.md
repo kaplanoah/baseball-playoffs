@@ -31,22 +31,22 @@ Work through these in order. Steps 3 and 4 need the artifact URL from step 1.
 
 ```
 files: {
-  "styles.css":      "styles.css",
-  "sortable.min.js": "sortable.min.js",
-  "teams.js":        "teams.js",
-  "bracket.js":      "bracket.js",
-  "bracket-view.js": "bracket-view.js",
-  "ranking.js":      "ranking.js",
-  "updates.js":      "updates.js",
-  "standings.js":    "standings.js",
-  "setup.js":        "setup.js",
-  "app.js":          "app.js"
+  "styles.css":         "styles.css",
+  "js/sortable.min.js": "js/sortable.min.js",
+  "js/teams.js":        "js/teams.js",
+  "js/bracket.js":      "js/bracket.js",
+  "js/bracket-view.js": "js/bracket-view.js",
+  "js/ranking.js":      "js/ranking.js",
+  "js/updates.js":      "js/updates.js",
+  "js/standings.js":    "js/standings.js",
+  "js/setup.js":        "js/setup.js",
+  "js/app.js":          "js/app.js"
 }
 ```
 
 The `db` capability is what gives the page a place to keep state, and the page
 reads its siblings by relative path, so every one of them has to go up with it.
-Load order matters: `app.js` boots the page and has to come last.
+Load order matters: `js/app.js` boots the page and has to come last.
 
 **2. Get the MLB API unblocked.** Scheduled runs inherit the cloud
 environment's network policy, and the default ("Trusted") rejects
@@ -213,10 +213,12 @@ WRITING — read this before any write:
     through November, so round to one of those hours; if the game you're
     waiting on falls outside them, use the first hour inside them after it.
   - `nextFor` names the game that check is for: "Rays @ Yankees, first pitch
-    7:08", "Guardians @ Tigers tomorrow, first pitch 1:08", "3 games on,
-    first Astros @ Mariners". LEAVE IT EMPTY when that check is the same game
-    `updatedFor` just named — the page shows the time alone rather than
-    saying it twice.
+    7:08", "Guardians @ Tigers, first pitch 1:08", "3 games on, first Astros
+    @ Mariners". LEAVE IT EMPTY when that check is the same game `updatedFor`
+    just named — the page shows the time alone rather than saying it twice.
+  - NEVER put a day in a reason. The page prints the day with the time when
+    it isn't today — "Next update tomorrow 2:00 PM" — so a reason that also
+    says "tomorrow" says it twice, and the two can disagree.
   - When the season is over, write `nextAt` and `nextFor` as null. There is no
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
@@ -389,22 +391,22 @@ is theirs to set on the Ranking tab.
 | --- | --- |
 | `index.html` | Page markup |
 | `styles.css` | All styling (single dark "night broadcast" theme) |
-| `teams.js` | The 30 clubs: league, last title, official colors |
-| `bracket.js` | Bracket rules as pure functions — seeding, advancement, elimination |
-| `bracket-view.js` | The bracket tab: cards, connector geometry, the highest-pick banner |
-| `ranking.js` | The Ranking tab's cards and drag, and the All Teams table |
-| `updates.js` | The change log — what moved since you last looked |
-| `standings.js` | Divisions, the wild card race, and the freshness stamp |
-| `setup.js` | The manual field-setting modal, for when the routine hasn't |
-| `app.js` | The season document, the artifact store, shared helpers, boot |
-| `sortable.min.js` | SortableJS 1.15.6, vendored, for drag-to-rank |
+| `js/teams.js` | The 30 clubs: league, last title, official colors |
+| `js/bracket.js` | Bracket rules as pure functions — seeding, advancement, elimination |
+| `js/bracket-view.js` | The bracket tab: cards, connector geometry, the highest-pick banner |
+| `js/ranking.js` | The Ranking tab's cards and drag, and the All Teams table |
+| `js/updates.js` | The change log — what moved since you last looked |
+| `js/standings.js` | Divisions, the wild card race, and the freshness stamp |
+| `js/setup.js` | The manual field-setting modal, for when the routine hasn't |
+| `js/app.js` | The season document, the artifact store, shared helpers, boot |
+| `js/sortable.min.js` | SortableJS 1.15.6, vendored, for drag-to-rank |
 
-`bracket.js` never touches the DOM or storage, so the postseason rules can be
+`js/bracket.js` never touches the DOM or storage, so the postseason rules can be
 read and changed in one place. The view files are plain scripts sharing one
-`state` global; `app.js` loads last because it is what boots the page.
+`state` global; `js/app.js` loads last because it is what boots the page.
 
 Card geometry is shared between `styles.css` and the `LAY` constants in
-`bracket-view.js`: a bracket card is 90px tall, with its top row centered 41px down, the
+`js/bracket-view.js`: a bracket card is 90px tall, with its top row centered 41px down, the
 divider between its two teams at 57px, and its bottom row at 73px. The connector
 lines are computed from those numbers, so changing a card's padding or font size
 means updating both. The body's `max-width` is set by the same numbers — seven
@@ -449,7 +451,7 @@ Fields, and who owns each:
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
 | `updatedAt` / `updatedFor` | routine | When the routine last ran and the newest baseball it knows of — a final, or the score and inning of a game in progress. Written on every run, including quiet ones, and never phrased as an absence |
-| `nextAt` / `nextFor` | routine | When the next check lands and which game it's for. `nextFor` is empty when that game is the one `updatedFor` just named, and both are null once the season is over, which drops the line from the page |
+| `nextAt` / `nextFor` | routine | When the next check lands and which game it's for. The page prints the day with the time when it isn't today, so `nextFor` never carries one. It's empty when that game is the one `updatedFor` just named, and both are null once the season is over, which drops the line from the page |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 
@@ -465,7 +467,7 @@ rather than in browser storage, so dismissing on a laptop also clears the log on
 a phone.
 
 Entries carry data, not sentences: `{ kind, team, from, to, over }` rather than
-"the Padres passed the Cubs." `updates.js` writes the wording, so the log reads the
+"the Padres passed the Cubs." `js/updates.js` writes the wording, so the log reads the
 same every time and can be restyled without touching the job that fills it. Each
 `kind` and its fields are specified in the routine prompt above.
 
@@ -495,8 +497,8 @@ can be out of the AL East and still hold a wild card spot.
 rather than the timestamp while a time is unset — converting a placeholder
 through local time can land on the wrong calendar day in western timezones.
 
-Last World Series wins stay current on their own: `lastTitle` in `app.js` takes
-the later of the seeded year in `teams.js` and the champion of any season this
+Last World Series wins stay current on their own: `lastTitle` in `js/app.js` takes
+the later of the seeded year in `js/teams.js` and the champion of any season this
 tool has tracked, so a title won while the tracker is running supersedes the
 static table without anyone editing it.
 

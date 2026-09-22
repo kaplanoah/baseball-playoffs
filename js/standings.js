@@ -123,8 +123,22 @@ function renderStandings(){
 function stampLine(label, iso, why){
   const t = iso ? Date.parse(iso) : NaN;
   if(isNaN(t)) return "";
-  const when = whenLabel(new Date(t).toISOString());
-  return `<span class="stamp-line">${label} <b>${when}</b>${why ? ` &mdash; ${why}` : ""}</span>`;
+  return `<span class="stamp-line">${label} <b>${stampWhen(new Date(t))}</b>${
+    why ? ` &mdash; ${why}` : ""}</span>`;
+}
+
+/* The stamp points both ways, so unlike the log -- where every entry is in the
+   past and the day alone is enough -- a time here keeps its clock and names
+   its day when that isn't today. Without this, a check at 2pm tomorrow read
+   as plain "2:00 PM" and the routine had to smuggle the day into its reason. */
+function stampWhen(d, now = new Date()){
+  const time = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  const days = dayDiff(d, now);          // positive in the past, negative ahead
+  if(days === 0) return time;
+  if(days === 1) return `yesterday ${time}`;
+  if(days === -1) return `tomorrow ${time}`;
+  if(Math.abs(days) < 7) return `${DAYS[d.getDay()]} ${time}`;
+  return `${d.toLocaleDateString([], {month:"short", day:"numeric"})} ${time}`;
 }
 function renderStamp(){
   const el = document.getElementById("stamp");
