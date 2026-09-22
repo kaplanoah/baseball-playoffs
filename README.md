@@ -31,15 +31,22 @@ Work through these in order. Steps 3 and 4 need the artifact URL from step 1.
 
 ```
 files: {
-  "styles.css": "styles.css",
-  "teams.js":   "teams.js",
-  "bracket.js": "bracket.js",
-  "app.js":     "app.js"
+  "styles.css":      "styles.css",
+  "sortable.min.js": "sortable.min.js",
+  "teams.js":        "teams.js",
+  "bracket.js":      "bracket.js",
+  "bracket-view.js": "bracket-view.js",
+  "ranking.js":      "ranking.js",
+  "updates.js":      "updates.js",
+  "standings.js":    "standings.js",
+  "setup.js":        "setup.js",
+  "app.js":          "app.js"
 }
 ```
 
 The `db` capability is what gives the page a place to keep state, and the page
-reads its siblings by relative path, so all four have to go up with it.
+reads its siblings by relative path, so every one of them has to go up with it.
+Load order matters: `app.js` boots the page and has to come last.
 
 **2. Get the MLB API unblocked.** Scheduled runs inherit the cloud
 environment's network policy, and the default ("Trusted") rejects
@@ -76,19 +83,21 @@ order — and `projected` to `true` unless the official bracket was already set.
 that isn't available, have the user create it at
 [claude.ai/code/routines](https://claude.ai/code/routines)):
 
-- **Schedule:** `0 0-5,23 * 9-10 *` — hourly from 7pm to 1am ET, September and
-  October. Check the season's real dates first with
-  `/api/v1/schedule/postseason?season=<YEAR>` and adjust the months if that
-  year's World Series runs into November. The window is deliberately narrow,
-  since each run costs tokens whether or not anything changed:
-  - **Hours** cover when games *finish*, which is the only thing being
-    recorded. A result landing up to an hour late costs nothing, and a missed
-    run self-corrects — each run syncs to MLB's current series record rather
-    than incrementing, so the next one catches up.
+- **Schedule:** `0 0-6,16-23 * 9-11 *` — hourly from noon to 2am ET, September
+  through November. Cron can only fire on a fixed clock, so the window is the
+  outer envelope of when a game could be on; the *schedule* decides what each
+  run actually does:
+  - **The prompt makes the call.** Every run starts with one call to
+    `/api/v1/schedule`, and unless a game has gone final since the last run, a
+    game is in progress, or one starts within the hour, it writes the two
+    timestamps and stops there. Quiet hours cost one request.
+  - **Hours** run from noon ET, an hour before the earliest first pitch, to
+    2am ET, past the end of a west coast night game. A missed run self-corrects
+    — each run syncs to MLB's current series record rather than incrementing,
+    so the next one catches up.
   - **Months** are coarse because cron ANDs day-of-month with month, so a
-    "Sept 15 → Oct 31" window can't be written as one expression. September
-    runs before the postseason are near-free: the prompt refreshes the
-    projected field once a day and exits immediately on every run after that.
+    "Sept 15 → Nov 5" window can't be written as one expression. The early-exit
+    above is what keeps the out-of-season hours cheap.
 - **Environment:** the one from step 2.
 - **Fresh session per run**, with push notifications on, so a decided series
   reaches the user's phone.
@@ -137,14 +146,23 @@ one thing: World Series home field goes to the pennant winner with the better
 regular-season record, and seeds don't compare across leagues. Always include
 them when you write `teams`, and never drop them.
 
-COST — this runs unattended several times a day, so bail out early rather than
-doing work that changes nothing:
+COST — this fires hourly across every hour a game could be on, so what a run
+does is decided by the schedule, not by the clock. Most runs should end in
+seconds:
 
-- If `projected` is true and `projectedAsOf` is already today's date, the field
-  has been refreshed today already. Write the four stamp fields (see WRITING)
-  and end the run, without calling the MLB API.
-- If `projected` is false and there are no MLB postseason games today, write
-  the stamp fields and end the run after that one schedule check.
+- Fetch the day's schedule FIRST, before anything else:
+  `/api/v1/schedule?sportId=1&date=<today>`, plus
+  `/api/v1/schedule/postseason?season=<YEAR>` once `projected` is false. Every
+  decision below reads from it, and it is the only call a quiet run makes.
+- Then END THE RUN, writing only the four stamp fields (see WRITING), unless
+  one of these is true:
+  - a game has gone Final since `updatedAt`,
+  - a game is in progress,
+  - a game starts within the next hour, or
+  - `projected` is true, `projectedAsOf` is not today's date, and at least one
+    game has gone final today — the once-a-day projected field refresh.
+- A skipped or missed hour costs nothing: every run syncs to MLB's current
+  series record rather than incrementing, so the next one catches up.
 
 WRITING — read this before any write:
 
@@ -175,12 +193,17 @@ WRITING — read this before any write:
     "no games finished since 11pm". Only when the run genuinely did nothing
     but re-read the standings — a September day with no finals yet — write
     something like "no finals yet; field unchanged".
-  - `nextAt` is when your schedule fires next: hourly on the hour, 7pm to 1am
-    Eastern, September and October. Work it out from the current time.
-  - `nextFor` names the game that run will be looking at, by club and first
-    pitch: "Rays at Yankees, 7:05", "Astros at Mariners (in progress), 9:40",
-    "4 games, first Rays at Yankees 7:05". If that hour has nothing running,
-    say "nothing scheduled" rather than inventing a reason.
+  - `nextAt` comes from the schedule, not from the clock: the next hour, on
+    the hour, at which there will be something to look at — the hour after a
+    game now in progress, the hour after the next first pitch, or, once
+    today's slate is done, the first such hour on the next day that has games.
+    Your schedule fires hourly on the hour, noon to 2am Eastern, September
+    through November, so round to one of those hours; if the game you're
+    waiting on falls outside them, use the first hour inside them after it.
+  - `nextFor` names that game, by club and first pitch: "Rays at Yankees,
+    7:05", "Astros at Mariners (in progress), 9:40", "4 games, first Rays at
+    Yankees 7:05". When the next thing is tomorrow, say so: "tomorrow, Rays at
+    Yankees 1:05". Say "nothing scheduled" only when the season is over.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
   log entries — a nested merge would otherwise leave stale entries behind.
@@ -213,7 +236,8 @@ LOGGING — the page shows the user what changed since they last looked, from
   { at, kind: "note", text: "<one short sentence>" }
       only for something the shapes above can't express.
 - Log only what you actually wrote, and write nothing you don't log. Refreshed
-  `next` times and refreshed `w`/`l` are not changes — never log those.
+  `next` times, refreshed `w`/`l` and the stamp fields are not changes — never
+  log those.
 
 STANDINGS — a second document, collection "standings", doc id "<YEAR>", holding
 all 30 clubs for the Standings tab. Everything but `next` comes from the
@@ -226,10 +250,10 @@ all 30 clubs for the Standings tab. Everything but `next` comes from the
   divisions: {
     "AL East": [ {                 // in divisionRank order, leader first
       id: "<TEAM_ID>",
+      w: 95, l: 60,                // wins and losses
       pct: ".613",                 // winningPercentage, as the API gives it
       gb: "-" | "6.0",             // divisionGamesBack
       wcgb: "-" | "+4.0" | "3.0",  // wildCardGamesBack
-      w: 95, l: 60,                // wins and losses
       elim: "-" | "E" | "4",       // eliminationNumber (division)
       wce: "-" | "E" | "3",        // wildCardEliminationNumber
       magic: "6" | null,           // magicNumber, null unless it has one
@@ -293,8 +317,8 @@ EACH RUN, after the early-exit checks above:
    names have replaced placeholder seed labels (e.g. "AL Wild Card #3") yet.
    - FIRST, before the branches below and whichever one you end up in: rebuild
      the `standings` document from that same response and write it if any value
-     moved. It needs no extra request, and a branch that ends in "stop" still
-     does this.
+     moved. It needs no extra request beyond the schedule call for `next`, and
+     a branch that ends in "stop" still does this.
    - If the official bracket is NOT set yet: compute the current projected field
      from standings — per league, the 3 division leaders (divisionRank 1) seeded
      1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Then compare
@@ -352,16 +376,25 @@ is theirs to set on the Ranking tab.
 | `styles.css` | All styling (single dark "night broadcast" theme) |
 | `teams.js` | The 30 clubs: league, last title, official colors |
 | `bracket.js` | Bracket rules as pure functions — seeding, advancement, elimination |
-| `app.js` | Rendering, the artifact store, drag-to-rank, manual setup fallback |
+| `bracket-view.js` | The bracket tab: cards, connector geometry, the highest-pick banner |
+| `ranking.js` | The Ranking tab's cards and drag, and the All Teams table |
+| `updates.js` | The change log — what moved since you last looked |
+| `standings.js` | Divisions, the wild card race, and the freshness stamp |
+| `setup.js` | The manual field-setting modal, for when the routine hasn't |
+| `app.js` | The season document, the artifact store, shared helpers, boot |
+| `sortable.min.js` | SortableJS 1.15.6, vendored, for drag-to-rank |
 
 `bracket.js` never touches the DOM or storage, so the postseason rules can be
-read and changed in one place.
+read and changed in one place. The view files are plain scripts sharing one
+`state` global; `app.js` loads last because it is what boots the page.
 
 Card geometry is shared between `styles.css` and the `LAY` constants in
-`app.js`: a bracket card is 90px tall, with its top row centered 41px down, the
+`bracket-view.js`: a bracket card is 90px tall, with its top row centered 41px down, the
 divider between its two teams at 57px, and its bottom row at 73px. The connector
 lines are computed from those numbers, so changing a card's padding or font size
-means updating both.
+means updating both. The body's `max-width` is set by the same numbers — seven
+columns plus their gaps — so widening a card means widening that too, or the
+last column clips.
 
 ## Data
 
@@ -417,7 +450,7 @@ rather than in browser storage, so dismissing on a laptop also clears the log on
 a phone.
 
 Entries carry data, not sentences: `{ kind, team, from, to, over }` rather than
-"the Padres passed the Cubs." `app.js` writes the wording, so the log reads the
+"the Padres passed the Cubs." `updates.js` writes the wording, so the log reads the
 same every time and can be restyled without touching the job that fills it. Each
 `kind` and its fields are specified in the routine prompt above.
 
