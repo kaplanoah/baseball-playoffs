@@ -1,6 +1,16 @@
 /* The Ranking tab -- your order of the field, dragged by the grip -- and the
    All Teams table, which is the same club information without the ordering. */
 
+/* The status chip is a small box, so the round it names comes in short. */
+const ROUND_SHORT = {"Wild Card":"WC", "Division Series":"DS",
+                     "Championship Series":"CS", "World Series":"WS"};
+function shortStatus(st){
+  // The dash is matched as "any one token", not a literal em dash, so a page
+  // served without a charset can't break this into "Out A-- Wild Card".
+  const m = st.label.match(/^Out\s+\S+\s+(.+)$/);
+  return m ? `Out &middot; ${ROUND_SHORT[m[1]] || m[1]}` : st.label;
+}
+
 /* ---------- ranking: drag a card by its grip to reorder ---------- */
 function renderRanking(){
   const list = document.getElementById("rankList");
@@ -34,6 +44,7 @@ function renderRanking(){
           <span class="col-won tabular">${won || "&mdash;"}</span>
           <span class="col-drought">${droughtLabel(id)}</span>
         </span>
+        <span class="status-chip ${st.cls}">${shortStatus(st)}</span>
       </span>
     </li>`;
   }).join("");
