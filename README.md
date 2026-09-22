@@ -165,16 +165,22 @@ WRITING — read this before any write:
   The page shows them as two lines — "Last updated 9:14 AM — 4 finals, incl.
   Yankees 4 Rays 2" and "Next update 11:00 PM — Astros at Mariners, 9:40" — so
   a quiet stretch explains itself.
-  - `updatedAt` is the current time; `updatedFor` is six or eight words on
-    what this run actually saw: the games that were final, the standings
-    refresh, or plainly "no games today".
-  - `nextAt` is when your schedule fires next (hourly, 7pm to 1am Eastern,
-    September and October — work out the next one from the current time), and
-    `nextFor` names the games that run will be looking at, from the schedule
-    you already fetched: "Astros at Mariners, 9:40", "4 games, first at 7:05",
-    or "no games scheduled".
-  - Name real clubs and real times. These two lines are the only evidence the
-    user has that the job is alive, so a vague phrase wastes them.
+  - NAME GAMES, not internals. The user reads these to know which baseball
+    caused the change and which game the job is waiting on. "Yankees 5 Rays 2
+    final" is the shape; "standings refresh" tells them nothing.
+  - `updatedAt` is the current time. `updatedFor` names what finished since
+    the last run: "Yankees 5 Rays 2 final" for one game, "Mets, Braves and 4
+    others final" for a slate, "Rays lead the AL Wild Card Series 2-0" when a
+    result moved the bracket. If nothing had finished, say so in those terms:
+    "no games finished since 11pm". Only when the run genuinely did nothing
+    but re-read the standings — a September day with no finals yet — write
+    something like "no finals yet; field unchanged".
+  - `nextAt` is when your schedule fires next: hourly on the hour, 7pm to 1am
+    Eastern, September and October. Work it out from the current time.
+  - `nextFor` names the game that run will be looking at, by club and first
+    pitch: "Rays at Yankees, 7:05", "Astros at Mariners (in progress), 9:40",
+    "4 games, first Rays at Yankees 7:05". If that hour has nothing running,
+    say "nothing scheduled" rather than inventing a reason.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
   log entries — a nested merge would otherwise leave stale entries behind.

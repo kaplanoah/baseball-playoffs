@@ -410,20 +410,30 @@ function renderRanking(){
     list.innerHTML = `<li class="rank-item"><span class="rank-info">Set this year's playoff field first, on the Bracket tab.</span></li>`;
     return;
   }
+  /* Rank in a gutter outside the card, the way the wild card race numbers its
+     rows; inside, the club and its league chip over the seed, then the two
+     title columns, which line up down the list. */
   list.innerHTML = state.ranking.map((id, i) => {
     const t = state.teams[id];
-    const info = TEAMS[id];
     const st = teamStatusLabel(state, id);
     const won = lastTitle(id);
-    const title = won ? `Last WS ${won} &bull; ${droughtLabel(id)}` : "Last WS never";
     return `<li class="rank-item ${st.cls === 'out' ? 'eliminated' : ''}" data-id="${id}">
-      <span class="grip">&#8942;&#8942;</span>
       <span class="rank-num tabular">${i+1}</span>
-      <span class="rank-info">
-        <span class="name-row">${teamDot(id)}<span class="team-name">${info.name}</span></span>
-        <span class="meta"><span class="lg ${t.league}">${t.league}</span> <span class="seed">${t.seed} seed</span> &bull; ${title}</span>
+      <span class="rank-card">
+        <span class="grip">&#8942;&#8942;</span>
+        ${teamDot(id)}
+        <span class="rank-id">
+          <span class="name-row">
+            <span class="team-name">${teamLabel(id)}</span>
+            <span class="league-tag ${t.league}">${t.league}</span>
+          </span>
+          <span class="rank-seed tabular">${t.seed} seed</span>
+        </span>
+        <span class="rank-cols">
+          <span class="col-won tabular">${won || "&mdash;"}</span>
+          <span class="col-drought">${droughtLabel(id)}</span>
+        </span>
       </span>
-      <span class="status-pill ${st.cls}">${st.label}</span>
     </li>`;
   }).join("");
   wireDrag(list);
@@ -438,6 +448,7 @@ function wireDrag(list){
   if(sortable || typeof Sortable === "undefined") return;
   sortable = Sortable.create(list, {
     animation: 140,
+    handle: ".grip",   // the six dots, not the whole card
     chosenClass: "dragging",
     ghostClass: "drag-ghost",
     onStart: () => { reordering = true; },

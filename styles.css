@@ -154,7 +154,7 @@ table.st tr.cut td{ border-bottom:0; }
 table.st tr.cutline td{
   padding:0; height:1px; border:0;
   background-image:repeating-linear-gradient(to right,
-    var(--copper) 0 3px, transparent 3px 8px);
+    color-mix(in srgb, var(--copper) 70%, transparent) 0 1px, transparent 1px 3px);
   background-repeat:no-repeat; background-size:100% 1px; background-position:left top;
 }
 table.st .rank-cell{ width:34px; }
@@ -289,27 +289,36 @@ button.ghost{
 .nscore.lead{ background:var(--gold); color:var(--gold-ink); }
 
 /* ---------- Ranking ---------- */
-.rank-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; user-select:none; -webkit-user-select:none; }
-.rank-item{
-  background:var(--card); border:1px solid var(--card-border); border-radius:8px; padding:8px 17px 8px 13px;
-  display:flex; align-items:center; gap:12px; touch-action:none; cursor:grab;
+.rank-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; user-select:none; -webkit-user-select:none; }
+.rank-item{ display:flex; align-items:stretch; gap:12px; }
+/* The rank lives outside the card, so the cards themselves stay identical and
+   the order reads as a column of numerals down the left. */
+.rank-num{
+  width:28px; flex:none; display:flex; align-items:center; justify-content:flex-end;
+  font-size:1.1rem; font-weight:700; color:var(--copper-ink);
 }
-.rank-item:active{ cursor:grabbing; }
-.rank-item.dragging{ box-shadow:0 8px 20px rgba(0,0,0,.4); }
+.rank-card{
+  flex:1; min-width:0; display:flex; align-items:center; gap:10px; height:52px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:6px; padding:0 12px;
+}
+.rank-item.dragging .rank-card{ box-shadow:0 8px 20px rgba(0,0,0,.4); }
 .rank-item.drag-ghost{ opacity:.35; }
-.rank-item.eliminated{ opacity:.55; }
-.grip{ flex:none; color:var(--ink-dim); font-size:1.05rem; letter-spacing:-2px; }
-.rank-num{ font-weight:700; color:var(--gold); width:24px; text-align:center; flex:none; font-size:.98rem; }
-.rank-info{ flex:1; min-width:0; }
-.rank-info .name-row{ display:flex; align-items:center; gap:8px; }
-.rank-info .name-row .team-name{ font-weight:700; font-size:.98rem; }
-.rank-info .meta{ font-size:.74rem; color:var(--ink-dim); margin-top:1px; }
-.rank-info .meta .lg{ font-weight:700; }
-.rank-info .meta .lg.AL{ color:var(--al); }
-.rank-info .meta .lg.NL{ color:var(--nl); }
-.rank-info .meta .seed{ font-variant-numeric:tabular-nums; }
-/* inline-flex + fixed height centers the uppercase text inside the pill,
-   which sat high on its baseline otherwise. */
+.rank-item.eliminated .rank-card{ background:transparent; }
+.rank-item.eliminated .team-name, .rank-item.eliminated .rank-cols{ color:var(--ink-dim); }
+.rank-item.eliminated .dot{ opacity:.55; }
+/* Only the dots drag, so a stray swipe on the card doesn't reorder the list. */
+.grip{ flex:none; color:var(--divider); font-size:1.05rem; letter-spacing:-2px; cursor:grab; padding:0 2px; }
+.grip:hover{ color:var(--ink-dim); }
+.grip:active{ cursor:grabbing; }
+.rank-id{ min-width:0; display:flex; flex-direction:column; justify-content:center; gap:2px; }
+.rank-id .name-row{ display:flex; align-items:center; gap:9px; }
+.rank-id .team-name{ font-weight:700; font-size:.95rem; }
+.rank-seed{ font-size:.7rem; color:var(--ink-dim); }
+/* Fixed widths so the years and droughts form two columns down the page. */
+.rank-cols{ margin-left:auto; flex:none; display:flex; align-items:center; font-size:.76rem; color:var(--ink-dim); }
+.rank-cols .col-won{ width:58px; text-align:right; }
+.rank-cols .col-drought{ width:92px; text-align:right; }
+
 .status-pill{ display:inline-flex; align-items:center; height:21px; font-size:.7rem; line-height:1; padding:0 10px; border-radius:999px; flex:none; white-space:nowrap; text-transform:uppercase; letter-spacing:.03em; }
 .status-pill.alive{ background:color-mix(in srgb, var(--ink) 15%, transparent); color:var(--ink); }
 .status-pill.out{ background:color-mix(in srgb, var(--out) 25%, transparent); color:var(--out); }
