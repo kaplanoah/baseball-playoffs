@@ -385,7 +385,9 @@ table.ref td .cell{ display:flex; align-items:center; gap:9px; }
 /* Rank sits in its own column so every dot and team name starts on the same
    line, ranked or not. Shrinks to the tag's width. */
 table.ref th:first-child, table.ref td.rank-col{ width:1%; white-space:nowrap; }
-table.ref td.tabular{ font-size:.85rem; color:var(--ink-dim); }
+/* The two title columns: a notch smaller than the club names, since they're
+   reference rather than the thing you're scanning for. */
+table.ref td.tabular{ font-size:.78rem; color:var(--ink-dim); }
 table.ref td.seed-col{ width:1%; white-space:nowrap; font-size:.82rem; color:var(--ink-dim); font-variant-numeric:tabular-nums; }
 /* Seed and league are single glyphs in a narrow column; centering them keeps
    each one over the middle of its own header. */
