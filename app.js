@@ -641,12 +641,12 @@ function divisionBlock(name, rows){
     </div>
     <table class="st">
       <thead><tr>
-        <th></th><th>Seed</th><th class="left">Team</th><th>W</th><th>L</th><th>PCT</th><th>GB</th>
+        <th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid">PCT</th><th>GB</th>
         <th title="${E_TITLE}">E#</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
-        `<td class="tabular">${t.w ?? ""}</td><td class="tabular">${t.l ?? ""}</td>` +
-        `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
+        `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
+        `<td class="tabular mid">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
         elimCell(t.elim) +
         (anyNext ? (t.elim === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { out: t.elim === "E" }
@@ -669,12 +669,12 @@ function wildCardBlock(lg, all){
     <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
     <table class="st">
       <thead><tr>
-        <th></th><th></th><th>Seed</th><th class="left">Team</th><th>W</th><th>L</th><th>PCT</th><th>WCGB</th>
+        <th></th><th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid">PCT</th><th>WCGB</th>
         <th title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
-        `<td class="tabular">${t.w ?? ""}</td><td class="tabular">${t.l ?? ""}</td>` +
-        `<td class="tabular">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
+        `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
+        `<td class="tabular mid">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
         elimCell(t.wce) +
         (anyNext ? (t.wce === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { cut: i === 2, cols, out: t.wce === "E", lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
