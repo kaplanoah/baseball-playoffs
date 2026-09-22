@@ -181,45 +181,49 @@ WRITING — read this before any write:
 - `seenAt` is the user's too. Never write it under any circumstance.
 - Write `updatedAt`, `updatedFor`, `nextAt` and `nextFor` on EVERY run,
   including runs that change nothing and runs that stop at an early exit above.
-  The page shows them as two lines — "Last updated 9:14 AM — 4 finals, incl.
-  Yankees 4 Rays 2" and "Next update 11:00 PM — Astros @ Mariners, 9:40" — so
-  a quiet stretch explains itself.
+  The page shows them as two lines — "Last updated 9:20 PM — Yankees 5 Rays 2
+  final at 9:14" and "Next update 10:00 PM — Astros @ Mariners first pitch at
+  9:40" — so a quiet stretch explains itself.
   - NAME GAMES, not internals. The user reads these to know which baseball
     caused the change and which game the job is waiting on. "Yankees 5 Rays 2
     final" is the shape; "standings refresh" tells them nothing.
   - A scheduled matchup is written AWAY @ HOME, with the "@", the way the
     standings table writes it. Never "at".
-  - A time inside a reason is always a FIRST PITCH, and only for a game that
-    hasn't started: "first pitch 7:08". A game already under way has no useful
-    clock left, so it is described by score and inning instead.
-  - EVERY SCORE CARRIES ITS STATE. A finished game ends with the word
-    "final"; a game in progress ends with its inning. "Orioles 4 Blue Jays 3
-    final" and "Orioles 4 Blue Jays 3, 7th" are different facts, and a bare
-    "Orioles 4 Blue Jays 3" could be either.
+  - EVERY GAME CARRIES ITS STATE, and the state carries its clock:
+      - finished: "Yankees 5 Rays 2 final at 9:14" — the time it ended.
+      - under way: "Rays @ Yankees 2-1 in the 5th" — the inning, and no clock,
+        because a game in progress has no useful one.
+      - still to come: "Astros @ Mariners first pitch at 9:40".
+    A bare "Yankees 5 Rays 2" could be any of the three. Every first pitch
+    takes the "at": "first pitch at 9:40", never "first pitch 9:40".
+  - ONE GAME, TWO GAMES, OR A SLATE:
+      - one: name it.
+      - two: name both, comma between. "Rays @ Yankees 2-1 in the 5th, Astros
+        @ Mariners 3-0 in the 7th".
+      - three or more: call it a slate and name its best game.
+        "Slate of 8 ended with Mets 3 Braves 2 at 10:28"
+        "Slate of 6 under way with Rays @ Yankees 2-1 in the 5th"
+        "Slate of 3 starts with Astros @ Mariners first pitch at 9:40"
+    The game to name is the one whose club sits highest in the user's
+    `ranking` — it is their game, and the doc tells you their order — falling
+    back to the earliest first pitch when no club in the field is playing.
   - `updatedAt` is the current time. `updatedFor` names the newest baseball
     there is, and NEVER an absence. In order:
-      - something finished since the last run: name it. "Yankees 5 Rays 2
-        final", "Mets, Braves and 4 others final", "Brewers 4 Cubs 1 final,
-        Brewers lead 2-0" when the result moved a series.
-      - nothing finished, but a game is on: name it and where it stands.
-        "Rays @ Yankees 2-1, 5th".
-      - nothing finished and nothing on: name the last final you know of,
-        marked as old. "nothing new since Yankees 5 Rays 2 final". This covers
+      - anything final since the last run: name it, by the rules above. When
+        the result moved a series, say so after a dash: "Brewers 4 Cubs 1
+        final at 11:41 — Brewers now lead 2-0".
+      - nothing final, but games are on: name them, by the rules above.
+      - nothing final and nothing on: name the last final there was. "No games
+        since Yankees 5 Rays 2 final at 9:14", or "No games since Orioles 4
+        Blue Jays 3 final last night" when it was a previous day. This covers
         the morning as well — before the day's first pitch the newest baseball
         is yesterday's, so name yesterday's game rather than writing "nothing
         final yet today", which is still an absence.
+      - September, when the projected field moved: that is the news. "11
+        finals; Padres pass the Cubs for the 5 seed".
     Never write what did NOT happen — "no games finished since 7pm" and
     "nothing final yet today" tell them nothing they can use. Every one of
     these reasons names an actual game.
-  - WHEN SEVERAL GAMES ARE INVOLVED, name one and count the rest. The one to
-    name is the game whose club sits highest in the user's `ranking` — it is
-    their game, and the doc tells you their order — falling back to the
-    earliest first pitch when no club in the field is playing. Then "+3 more"
-    for the others: "Rays @ Yankees 2-1, 5th, +3 more", "Yankees 5 Rays 2
-    final, +7 more", "Astros @ Mariners, first pitch 9:40, +2 more". A bare
-    count ("8 games on") names no baseball and is not enough; the exception
-    is a September slate, where "11 finals; Padres pass the Cubs for the 5
-    seed" says the thing that actually matters.
   - `nextAt` comes from the schedule, not from the clock: the next hour, on
     the hour, at which there will be something to look at. Your schedule fires
     hourly on the hour, noon to 2am Eastern, September through November, so it
@@ -233,14 +237,16 @@ WRITING — read this before any write:
         slate is over.
     If the hour you land on falls outside the window, use the first one inside
     it that follows.
-  - `nextFor` names the game that check is for, chosen the same way:
-    "Rays @ Yankees, first pitch 7:08", "Guardians @ Tigers, first pitch
-    1:08", "Astros @ Mariners, first pitch 9:40, +2 more". LEAVE IT EMPTY
-    when that check is the same game `updatedFor` just named — the page shows
-    the time alone rather than saying it twice.
-  - NEVER put a day in a reason. The page prints the day with the time when
-    it isn't today — "Next update tomorrow 2:00 PM" — so a reason that also
-    says "tomorrow" says it twice, and the two can disagree.
+  - `nextFor` names what that check is for, by the same rules: "Astros @
+    Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
+    Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
+    Mariners first pitch at 9:40". LEAVE IT EMPTY when the check is for the
+    game `updatedFor` just named — the page shows the time alone rather than
+    saying it twice.
+  - A DAY belongs to the game, never to the check. "final last night" is
+    right, because that is when the game was. "Guardians @ Tigers tomorrow"
+    is not: the page already prints the day with the check's own time — "Next
+    update tomorrow 2:00 PM" — so saying it twice invites the two to disagree.
   - When the season is over, write `nextAt` and `nextFor` as null. There is no
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
@@ -472,7 +478,7 @@ Fields, and who owns each:
 | `ranking` | you | Your preference order, best first |
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
-| `updatedAt` / `updatedFor` | routine | When the routine last ran and the newest baseball it knows of — a final, or the score and inning of a game in progress. Written on every run, including quiet ones, and never phrased as an absence |
+| `updatedAt` / `updatedFor` | routine | When the routine last ran and the newest baseball it knows of: a final with the time it ended, a game in progress with its inning, or — for three or more at once — the slate and its best game. Written on every run, including quiet ones, and never phrased as an absence |
 | `nextAt` / `nextFor` | routine | When the next check lands and which game it's for. The page prints the day with the time when it isn't today, so `nextFor` never carries one. It's empty when that game is the one `updatedFor` just named, and both are null once the season is over, which drops the line from the page |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
