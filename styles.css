@@ -36,7 +36,7 @@ header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
   border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:18px;
 }
-header.top h1{ font-size:1.35rem; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.04em; }
+header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.06em; }
 /* The stamp sits with the season picker, not in the tab bar: both are about
    which data you're looking at rather than which view. */
 .head-right{ display:flex; align-items:center; gap:20px; min-width:0; }
@@ -298,9 +298,13 @@ button.ghost{
   box-shadow: inset 0 2px 3px rgba(0,0,0,.46), 0 1px 0 rgba(241,234,212,.13);
 }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-/* A notch under the row's own size: the club name shares the line with a seed,
-   a rank chip and a score, and at .9rem it was the loudest thing on the card. */
-.matchup-row .team-name{ font-size:.84rem; }
+/* ONE CLUB NAME. The same word does the same job on a bracket card, a ranking
+   card, a standings row and the All Teams table; it used to be set four
+   different ways, bold in one of them. Keep these four selectors together. */
+.matchup-row .team-name,
+.rank-id .team-name,
+.st-team .name,
+table.ref td .cell{ font-size:.84rem; font-weight:400; }
 .tbd{ color:color-mix(in srgb, var(--ink-dim) 55%, var(--card)); font-style:italic; font-size:.88rem; }
 /* Recessed the way the team dots are: the shadow falls inside the top edge
    and a lit lip sits below, so a score reads as punched into the card. */
@@ -346,7 +350,7 @@ button.ghost{
    row, so the air belongs above it rather than split evenly. */
 .rank-id{ min-width:0; display:flex; flex-direction:column; justify-content:center; gap:5px;
   position:relative; top:1px; }
-.rank-id .team-name{ font-weight:700; font-size:.88rem; line-height:1.1; }
+.rank-id .team-name{ line-height:1.1; }
 /* League and seed share the second line, so the club name stands alone. */
 .rank-id .meta-row{ display:flex; align-items:center; gap:8px; }
 .rank-id .meta-row .league-tag{ height:17px; font-size:.62rem; padding:0 6px; }
@@ -395,7 +399,13 @@ table.ref{ max-width:800px; }
 
 /* ---------- Reference table ---------- */
 table.ref{ width:100%; border-collapse:collapse; font-size:.9rem; }
-table.ref th{ text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-dim); border-bottom:2px solid var(--card-border); padding:7px 10px; }
+/* The standings recipe, to the letter: this table had never set a weight, so
+   it was carrying the browser's bold for <th> against the other table's 400. */
+table.ref th{
+  text-align:left; font-weight:400; font-size:.58rem; text-transform:uppercase;
+  letter-spacing:.09em; color:var(--ink-dim);
+  border-bottom:1px solid var(--divider); padding:7px 0 4px 10px;
+}
 table.ref td{ padding:6px 10px; border-bottom:1px solid var(--divider); }
 table.ref tr.in-playoffs{ background:color-mix(in srgb, var(--copper) 10%, transparent); }
 table.ref td .cell{ display:flex; align-items:center; gap:9px; }
