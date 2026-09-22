@@ -103,6 +103,11 @@ section.view.active{ display:block; }
 .div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:30px 48px; }
 @media (min-width:780px){
   .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  /* One league per column: the source order is the six divisions AL-then-NL,
+     so filling down each column instead of across each row puts the AL on the
+     left and the NL on the right. The wild card is already one block per
+     league, so it keeps the default row flow. */
+  .div-grid{ grid-auto-flow:column; grid-template-rows:repeat(3, auto); }
 }
 /* Built like a bracket card: a hairline box, the title row filled with the
    card green, a divider beneath it, and the rows on the page ground. */
