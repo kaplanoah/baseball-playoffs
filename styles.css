@@ -86,7 +86,7 @@ section.view.active{ display:block; }
 }
 .banner > *{ display:flex; align-items:center; }
 .banner .banner-label{ font-size:.7rem; line-height:1; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
-.banner .banner-team{ gap:7px; font-size:1.1rem; line-height:1; font-weight:700; color:var(--ink); }
+.banner .banner-team{ gap:7px; font-size:1.1rem; line-height:1; font-weight:500; color:var(--ink); }
 .banner .banner-status{ font-size:.88rem; line-height:1; color:var(--ink-dim); }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
@@ -356,9 +356,11 @@ table.ref td .cell{ font-size:.84rem; font-weight:400; }
 .grip:active{ cursor:grabbing; }
 /* Nudged a pixel down inside the card: the name reads as sitting on the chip
    row, so the air belongs above it rather than split evenly. */
-.rank-id{ min-width:0; display:flex; flex-direction:column; justify-content:center; gap:5px;
+.rank-id{ min-width:0; display:flex; flex-direction:column; justify-content:center; gap:6px;
   position:relative; top:1px; }
-.rank-id .team-name{ line-height:1.1; }
+/* A whole number, not 1.1: .84rem x 1.1 is 14.784px, and that fraction was
+   carrying down into every chip's y. 15 + 6 + 19 = 40 fits 58 evenly. */
+.rank-id .team-name{ line-height:15px; }
 /* League and seed share the second line, so the club name stands alone. */
 .rank-id .meta-row{ display:flex; align-items:center; gap:8px; }
 .rank-seed{ font-size:.7rem; color:var(--ink-dim); }
