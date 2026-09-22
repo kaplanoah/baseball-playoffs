@@ -141,6 +141,24 @@ function stampWhen(d, now = new Date()){
   if(Math.abs(days) < 7) return `${DAYS[d.getDay()]} ${time}`;
   return `${d.toLocaleDateString([], {month:"short", day:"numeric"})} ${time}`;
 }
+/* The second line names a time that passes while the page sits open, so it has
+   three states rather than one: a promise, the few minutes the run should be
+   taking, and the point where it plainly is not coming. A run takes three or
+   four minutes, so ten is a generous grace. */
+const RUN_GRACE_MS = 10 * 60 * 1000;
+
+function nextLine(iso, why){
+  const t = iso ? Date.parse(iso) : NaN;
+  if(isNaN(t)) return "";
+  if(Date.now() < t) return stampLine("Next update", iso, why);
+  /* The routine wrote this reason in the future tense, for a check that has
+     now started. "starts with" is the only verb the wording rules produce
+     here; everything else ("first pitch at 9:40") reads the same either way. */
+  const past = why ? why.replace(" starts with ", " started with ") : why;
+  const label = Date.now() >= t + RUN_GRACE_MS ? "Update overdue" : "Updating now";
+  return `<span>${label}${past ? ` &mdash; ${past}` : ""}</span>`;
+}
+
 function renderStamp(){
   const el = document.getElementById("stamp");
   const lastAt = [state && state.updatedAt, standings && standings.updatedAt]
@@ -148,8 +166,12 @@ function renderStamp(){
   const last = lastAt.length ? new Date(Math.max(...lastAt)).toISOString() : null;
   const lines = [
     stampLine("Last updated", last, state && state.updatedFor),
-    stampLine("Next update", state && state.nextAt, state && state.nextFor)
+    nextLine(state && state.nextAt, state && state.nextFor)
   ].filter(Boolean).join("");
   el.hidden = !lines;
   el.innerHTML = lines;
 }
+
+/* The line above turns over on the clock, not on a write, so it needs a tick
+   of its own. No network -- it re-renders two lines from state already held. */
+setInterval(() => { try{ renderStamp(); }catch(e){} }, 30000);
