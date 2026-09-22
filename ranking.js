@@ -44,7 +44,7 @@ function renderRanking(){
           <span class="col-won tabular">${won || "&mdash;"}</span>
           <span class="col-drought">${droughtLabel(id)}</span>
         </span>
-        <span class="status-chip ${st.cls}">${shortStatus(st)}</span>
+        <span class="status-slot"><span class="status-chip ${st.cls}">${shortStatus(st)}</span></span>
       </span>
     </li>`;
   }).join("");

@@ -337,7 +337,7 @@ button.ghost{
 .rank-head[hidden]{ display:none; }
 .rank-head .rank-num{ visibility:hidden; }
 .rank-head-card{
-  flex:1; min-width:0; display:flex; align-items:center;
+  flex:1; min-width:0; display:flex; align-items:center; gap:10px;
   border:1px solid transparent; padding:0 12px;
 }
 .rank-head .rank-cols{
@@ -347,9 +347,15 @@ button.ghost{
 /* Built like the standings' CLINCHED tag -- 3px corner, small caps,
    letterspaced -- but filled, so the three states read at three colors. No
    pill: nothing else on the page is fully round. */
+/* The chip sits in a fixed slot, like the two columns beside it: the labels
+   are different lengths, so without one the years would shuffle from row to
+   row and the headings above the list would sit over nothing. */
+.status-slot{
+  flex:none; width:72px; margin-left:14px; display:flex; justify-content:flex-end;
+}
 .status-chip{
   display:inline-flex; align-items:center; flex:none; white-space:nowrap;
-  margin-left:14px; line-height:1; font-size:.63rem; padding:4px 7px;
+  line-height:1; font-size:.63rem; padding:4px 7px;
   border-radius:3px; text-transform:uppercase; letter-spacing:.07em;
 }
 .status-chip.alive{ background:color-mix(in srgb, var(--ink) 15%, transparent); color:var(--ink); }
