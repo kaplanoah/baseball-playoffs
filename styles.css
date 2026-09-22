@@ -303,7 +303,11 @@ button.ghost{
    and a lit lip sits below, so a score reads as punched into the card. */
 .nscore{
   min-width:1.5em; text-align:center; font-weight:700; font-size:1rem;
-  padding:2px 6px; border-radius:3px; background:var(--divider);
+  /* The two moves cancel for the numeral and not for the chip: a pixel more
+     padding above the digit than below drops it inside the box, and the
+     offset lifts the box, so the score stays put while its recess rises. */
+  padding:3px 6px 1px; border-radius:3px; background:var(--divider);
+  position:relative; top:-1px;
   box-shadow: inset 0 2px 3px rgba(0,0,0,.46), 0 1px 0 rgba(241,234,212,.13);
 }
 .nscore.lead{ background:var(--gold); color:var(--gold-ink); }
