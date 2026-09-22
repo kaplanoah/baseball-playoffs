@@ -192,6 +192,10 @@ WRITING — read this before any write:
   - A time inside a reason is always a FIRST PITCH, and only for a game that
     hasn't started: "first pitch 7:08". A game already under way has no useful
     clock left, so it is described by score and inning instead.
+  - EVERY SCORE CARRIES ITS STATE. A finished game ends with the word
+    "final"; a game in progress ends with its inning. "Orioles 4 Blue Jays 3
+    final" and "Orioles 4 Blue Jays 3, 7th" are different facts, and a bare
+    "Orioles 4 Blue Jays 3" could be either.
   - `updatedAt` is the current time. `updatedFor` names the newest baseball
     there is, and NEVER an absence. In order:
       - something finished since the last run: name it. "Yankees 5 Rays 2
@@ -200,9 +204,9 @@ WRITING — read this before any write:
       - nothing finished, but a game is on: name it and where it stands.
         "Rays @ Yankees 2-1, 5th".
       - nothing finished and nothing on: name the last final you know of,
-        marked as old. "nothing new since Yankees 5 Rays 2". This covers the
-        morning as well — before the day's first pitch the newest baseball is
-        yesterday's, so name yesterday's game rather than writing "nothing
+        marked as old. "nothing new since Yankees 5 Rays 2 final". This covers
+        the morning as well — before the day's first pitch the newest baseball
+        is yesterday's, so name yesterday's game rather than writing "nothing
         final yet today", which is still an absence.
     Never write what did NOT happen — "no games finished since 7pm" and
     "nothing final yet today" tell them nothing they can use. Every one of
