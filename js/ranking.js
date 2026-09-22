@@ -89,7 +89,7 @@ function renderReference(){
   const rows = Object.entries(TEAMS).sort((a,b) => a[1].name.localeCompare(b[1].name));
   body.innerHTML = rows.map(([id,t]) => {
     const won = lastTitle(id);
-    return `<tr class="${inField.has(id) ? 'in-playoffs' : ''}">
+    return `<tr>
       <td class="rank-col">${rankTag(id)}</td>
       <td class="seed-col">${(state.teams[id] && state.teams[id].seed) || ""}</td>
       <td><span class="cell">${teamDot(id)} ${t.name}</span></td>
