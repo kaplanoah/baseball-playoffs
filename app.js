@@ -213,7 +213,7 @@ function matchupRow(s, side){
    particular row, which is what lets those rows reorder by host without the
    lines crossing. */
 const LAY = {
-  colW:206, gap:20,
+  colW:208, gap:20,
   cardH:90, rowTopY:41, rowDivY:57, rowBotY:73,
   stageH:400, // room for a next-game note under the lowest cards
   yWc1:24, yDs1:40, yMid:160, yDs2:280, yWc2:264
@@ -406,13 +406,16 @@ function renderBanner(br){
 /* ---------- ranking: drag anywhere on a card to reorder ---------- */
 function renderRanking(){
   const list = document.getElementById("rankList");
+  const head = document.getElementById("rankHead");
   if(!state.ranking.length){
+    head.hidden = true;
     list.innerHTML = `<li class="rank-item"><span class="rank-info">Set this year's playoff field first, on the Bracket tab.</span></li>`;
     return;
   }
+  head.hidden = false;
   /* Rank in a gutter outside the card, the way the wild card race numbers its
-     rows; inside, the club and its league chip over the seed, then the two
-     title columns, which line up down the list. */
+     rows; inside, the club name over its league chip and seed, then the two
+     title columns, which line up under the headings above the list. */
   list.innerHTML = state.ranking.map((id, i) => {
     const t = state.teams[id];
     const st = teamStatusLabel(state, id);
@@ -423,11 +426,11 @@ function renderRanking(){
         <span class="grip">&#8942;&#8942;</span>
         ${teamDot(id)}
         <span class="rank-id">
-          <span class="name-row">
-            <span class="team-name">${teamLabel(id)}</span>
+          <span class="team-name">${teamLabel(id)}</span>
+          <span class="meta-row">
             <span class="league-tag ${t.league}">${t.league}</span>
+            <span class="rank-seed tabular">${t.seed} seed</span>
           </span>
-          <span class="rank-seed tabular">${t.seed} seed</span>
         </span>
         <span class="rank-cols">
           <span class="col-won tabular">${won || "&mdash;"}</span>
@@ -601,9 +604,9 @@ const E_TITLE = "Division elimination number: combined wins by the division lead
 const WC_TITLE = "Wild card elimination number: combined wins by the team holding the last spot and losses by this team that would end its wild card chances. A dash means clinched, E means out.";
 
 function elimCell(v){
-  if(v === "E") return `<td class="elim-num">E</td>`;
-  if(v == null || v === "-") return `<td class="elim-num clinched">&mdash;</td>`;
-  return `<td class="elim-num live tabular">${v}</td>`;
+  if(v === "E") return `<td class="elim-num mid">E</td>`;
+  if(v == null || v === "-") return `<td class="elim-num clinched mid">&mdash;</td>`;
+  return `<td class="elim-num live tabular mid">${v}</td>`;
 }
 
 /* "Today 8:05 vs HOU" — short enough for a column, and the opponent as an id
@@ -652,8 +655,8 @@ function divisionBlock(name, rows){
     </div>
     <table class="st">
       <thead><tr>
-        <th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid">PCT</th><th>GB</th>
-        <th title="${E_TITLE}">E#</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
+        <th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>GB</th>
+        <th class="mid" title="${E_TITLE}">E#</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
         `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
@@ -680,8 +683,8 @@ function wildCardBlock(lg, all){
     <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
     <table class="st">
       <thead><tr>
-        <th></th><th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid">PCT</th><th>WCGB</th>
-        <th title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
+        <th></th><th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>WCGB</th>
+        <th class="mid" title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
         `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
