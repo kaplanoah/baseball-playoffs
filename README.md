@@ -151,7 +151,8 @@ does is decided by the schedule, not by the clock. Most runs should end in
 seconds:
 
 - Fetch the day's schedule FIRST, before anything else:
-  `/api/v1/schedule?sportId=1&date=<today>`, plus
+  `/api/v1/schedule?sportId=1&date=<today>&hydrate=linescore` — the hydrate
+  costs nothing and carries the score and inning of anything in progress, plus
   `/api/v1/schedule/postseason?season=<YEAR>` once `projected` is false. Every
   decision below reads from it, and it is the only call a quiet run makes.
 - Then END THE RUN, writing only the four stamp fields (see WRITING), unless
@@ -188,13 +189,22 @@ WRITING — read this before any write:
     final" is the shape; "standings refresh" tells them nothing.
   - A scheduled matchup is written AWAY @ HOME, with the "@", the way the
     standings table writes it. Never "at".
-  - `updatedAt` is the current time. `updatedFor` names what finished since
-    the last run: "Yankees 5 Rays 2 final" for one game, "Mets, Braves and 4
-    others final" for a slate, "Rays lead the AL Wild Card Series 2-0" when a
-    result moved the bracket. If nothing had finished, say so in those terms:
-    "no games finished since 11pm". Only when the run genuinely did nothing
-    but re-read the standings — a September day with no finals yet — write
-    something like "no finals yet; field unchanged".
+  - A time inside a reason is always a FIRST PITCH, and only for a game that
+    hasn't started: "first pitch 7:08". A game already under way has no useful
+    clock left, so it is described by score and inning instead.
+  - `updatedAt` is the current time. `updatedFor` names the newest baseball
+    there is, and NEVER an absence. In order:
+      - something finished since the last run: name it. "Yankees 5 Rays 2
+        final", "Mets, Braves and 4 others final", "Brewers 4 Cubs 1 final,
+        Brewers lead 2-0" when the result moved a series.
+      - nothing finished, but a game is on: name it and where it stands.
+        "Rays @ Yankees 2-1, 5th", or "2 games on, Rays @ Yankees 2-1 in the
+        5th" when there are several.
+      - nothing finished and nothing on: name the last final you know of,
+        marked as old. "nothing new since Yankees 5 Rays 2".
+      - before the day's first pitch: "nothing final yet today".
+    Never write what did NOT happen — "no games finished since 7pm" tells
+    them nothing they can use.
   - `nextAt` comes from the schedule, not from the clock: the next hour, on
     the hour, at which there will be something to look at — the hour after a
     game now in progress, the hour after the next first pitch, or, once
@@ -202,10 +212,13 @@ WRITING — read this before any write:
     Your schedule fires hourly on the hour, noon to 2am Eastern, September
     through November, so round to one of those hours; if the game you're
     waiting on falls outside them, use the first hour inside them after it.
-  - `nextFor` names that game, by club and first pitch: "Rays @ Yankees,
-    7:05", "Astros @ Mariners (in progress), 9:40", "4 games, first Rays @
-    Yankees 7:05". When the next thing is tomorrow, say so: "tomorrow, Rays @
-    Yankees 1:05". Say "nothing scheduled" only when the season is over.
+  - `nextFor` names the game that check is for: "Rays @ Yankees, first pitch
+    7:08", "Guardians @ Tigers tomorrow, first pitch 1:08", "3 games on,
+    first Astros @ Mariners". LEAVE IT EMPTY when that check is the same game
+    `updatedFor` just named — the page shows the time alone rather than
+    saying it twice.
+  - When the season is over, write `nextAt` and `nextFor` as null. There is no
+    next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
   log entries — a nested merge would otherwise leave stale entries behind.
@@ -435,8 +448,8 @@ Fields, and who owns each:
 | `ranking` | you | Your preference order, best first |
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
-| `updatedAt` / `updatedFor` | routine | When the routine last ran and what it found, written on every run including quiet ones |
-| `nextAt` / `nextFor` | routine | When the next run fires and which games it will be looking at |
+| `updatedAt` / `updatedFor` | routine | When the routine last ran and the newest baseball it knows of — a final, or the score and inning of a game in progress. Written on every run, including quiet ones, and never phrased as an absence |
+| `nextAt` / `nextFor` | routine | When the next check lands and which game it's for. `nextFor` is empty when that game is the one `updatedFor` just named, and both are null once the season is over, which drops the line from the page |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 
