@@ -182,7 +182,7 @@ WRITING — read this before any write:
 - Write `updatedAt`, `updatedFor`, `nextAt` and `nextFor` on EVERY run,
   including runs that change nothing and runs that stop at an early exit above.
   The page shows them as two lines — "Last updated 9:20 PM — Yankees 5 Rays 2
-  final at 9:14" and "Next update 10:00 PM — Astros @ Mariners first pitch at
+  final at 9:14" and "Next update 10:09 PM — Astros @ Mariners first pitch at
   9:40" — so a quiet stretch explains itself.
   - NAME GAMES, not internals. The user reads these to know which baseball
     caused the change and which game the job is waiting on. "Yankees 5 Rays 2
@@ -238,19 +238,26 @@ WRITING — read this before any write:
     Never write what did NOT happen — "no games finished since 7pm" and
     "nothing final yet today" tell them nothing they can use. Every one of
     these reasons names an actual game.
-  - `nextAt` comes from the schedule, not from the clock: the next hour, on
-    the hour, at which there will be something to look at. Your schedule fires
-    hourly on the hour, noon to 2am Eastern, September through November, so it
-    is always one of those hours — the first one that is:
+  - `nextAt` comes from the schedule, not from the clock: the next run at which
+    there will be something to look at. YOUR SCHEDULE DOES NOT FIRE ON THE
+    HOUR. It fires hourly at NINE MINUTES PAST the hour — 12:09, 1:09, 2:09 and
+    so on, noon to 2am Eastern, September through November — because an hourly
+    Routine is anchored to the minute it was created, not to the top of the
+    hour. Write `nextAt` as one of those :09 times, never as a round hour: a
+    stamp promising "Next update 3:00 PM" is wrong by the time the run starts,
+    and the page has already sat a quarter of an hour looking stale. Of those
+    times, take the first that is:
       - AFTER the next first pitch, never before it and never the same minute.
         A check that lands before a game starts sees nothing: for a 1:05 game
-        that means 2:00, not 1:00.
-      - the next hour, when a game is already under way — the score and inning
+        that means 2:09, not 1:09.
+      - the next one, when a game is already under way — the score and inning
         will have moved.
-      - the first qualifying hour on the next day that has games, once today's
+      - the first qualifying one on the next day that has games, once today's
         slate is over.
-    If the hour you land on falls outside the window, use the first one inside
-    it that follows.
+    If the time you land on falls outside the window, use the first one inside
+    it that follows. A run itself takes three or four minutes, so the stamp it
+    writes appears a few minutes after the time you name; that is expected and
+    needs no allowance in `nextAt`.
   - `nextFor` names what that check is for, by the same rules: "Astros @
     Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
     Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
@@ -260,7 +267,7 @@ WRITING — read this before any write:
   - A DAY belongs to the game, never to the check. "final last night" is
     right, because that is when the game was. "Guardians @ Tigers tomorrow"
     is not: the page already prints the day with the check's own time — "Next
-    update tomorrow 2:00 PM" — so saying it twice invites the two to disagree.
+    update tomorrow 2:09 PM" — so saying it twice invites the two to disagree.
   - When the season is over, write `nextAt` and `nextFor` as null. There is no
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
