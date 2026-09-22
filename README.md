@@ -214,12 +214,18 @@ WRITING — read this before any write:
     is a September slate, where "11 finals; Padres pass the Cubs for the 5
     seed" says the thing that actually matters.
   - `nextAt` comes from the schedule, not from the clock: the next hour, on
-    the hour, at which there will be something to look at — the hour after a
-    game now in progress, the hour after the next first pitch, or, once
-    today's slate is done, the first such hour on the next day that has games.
-    Your schedule fires hourly on the hour, noon to 2am Eastern, September
-    through November, so round to one of those hours; if the game you're
-    waiting on falls outside them, use the first hour inside them after it.
+    the hour, at which there will be something to look at. Your schedule fires
+    hourly on the hour, noon to 2am Eastern, September through November, so it
+    is always one of those hours — the first one that is:
+      - AFTER the next first pitch, never before it and never the same minute.
+        A check that lands before a game starts sees nothing: for a 1:05 game
+        that means 2:00, not 1:00.
+      - the next hour, when a game is already under way — the score and inning
+        will have moved.
+      - the first qualifying hour on the next day that has games, once today's
+        slate is over.
+    If the hour you land on falls outside the window, use the first one inside
+    it that follows.
   - `nextFor` names the game that check is for, chosen the same way:
     "Rays @ Yankees, first pitch 7:08", "Guardians @ Tigers, first pitch
     1:08", "Astros @ Mariners, first pitch 9:40, +2 more". LEAVE IT EMPTY

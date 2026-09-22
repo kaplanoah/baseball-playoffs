@@ -311,7 +311,9 @@ button.ghost{
 }
 .rank-card{
   flex:1; min-width:0; display:flex; align-items:center; gap:10px; height:58px;
-  background:var(--card); border:1px solid var(--card-border); border-radius:6px; padding:0 12px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:6px;
+  /* A little more on the right, so the status chip isn't flush to the edge. */
+  padding:0 16px 0 12px;
 }
 .rank-item.dragging .rank-card{ box-shadow:0 8px 20px rgba(0,0,0,.4); }
 .rank-item.drag-ghost{ opacity:.35; }
