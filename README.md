@@ -181,11 +181,13 @@ WRITING — read this before any write:
 - Write `updatedAt`, `updatedFor`, `nextAt` and `nextFor` on EVERY run,
   including runs that change nothing and runs that stop at an early exit above.
   The page shows them as two lines — "Last updated 9:14 AM — 4 finals, incl.
-  Yankees 4 Rays 2" and "Next update 11:00 PM — Astros at Mariners, 9:40" — so
+  Yankees 4 Rays 2" and "Next update 11:00 PM — Astros @ Mariners, 9:40" — so
   a quiet stretch explains itself.
   - NAME GAMES, not internals. The user reads these to know which baseball
     caused the change and which game the job is waiting on. "Yankees 5 Rays 2
     final" is the shape; "standings refresh" tells them nothing.
+  - A scheduled matchup is written AWAY @ HOME, with the "@", the way the
+    standings table writes it. Never "at".
   - `updatedAt` is the current time. `updatedFor` names what finished since
     the last run: "Yankees 5 Rays 2 final" for one game, "Mets, Braves and 4
     others final" for a slate, "Rays lead the AL Wild Card Series 2-0" when a
@@ -200,9 +202,9 @@ WRITING — read this before any write:
     Your schedule fires hourly on the hour, noon to 2am Eastern, September
     through November, so round to one of those hours; if the game you're
     waiting on falls outside them, use the first hour inside them after it.
-  - `nextFor` names that game, by club and first pitch: "Rays at Yankees,
-    7:05", "Astros at Mariners (in progress), 9:40", "4 games, first Rays at
-    Yankees 7:05". When the next thing is tomorrow, say so: "tomorrow, Rays at
+  - `nextFor` names that game, by club and first pitch: "Rays @ Yankees,
+    7:05", "Astros @ Mariners (in progress), 9:40", "4 games, first Rays @
+    Yankees 7:05". When the next thing is tomorrow, say so: "tomorrow, Rays @
     Yankees 1:05". Say "nothing scheduled" only when the season is over.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
