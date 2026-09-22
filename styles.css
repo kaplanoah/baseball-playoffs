@@ -187,6 +187,12 @@ table.st .wc-num{ width:20px; }
   font-size:.66rem; font-weight:400; text-transform:uppercase; letter-spacing:.07em;
   white-space:nowrap;
 }
+/* AL and NL are always exactly two letters, so the chip takes a fixed width
+   rather than padding: 24px hugs them instead of leaving them adrift in a
+   27.5px box, and a whole number keeps the box on the pixel grid. The indent
+   offsets the letter-space CSS adds after the final letter, which would
+   otherwise pull the pair left of centre. */
+.league-tag{ width:24px; padding-left:0; padding-right:0; text-indent:.07em; }
 .clinch-tag{ color:var(--gold); border:1px solid color-mix(in srgb, var(--gold) 45%, transparent); }
 /* Magic is the one label that reads as running text rather than a state, so
    it drops the box entirely and sits as bare copper in the title bar. */
