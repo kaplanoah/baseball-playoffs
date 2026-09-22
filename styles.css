@@ -259,8 +259,7 @@ button.ghost{
    the chip and the dot, so it keeps the extra 4. */
 .team-id .rank-slot{ margin-right:0; }
 .banner-team .rank-slot{ margin-right:0; }
-/* The name keeps its own element so it can be aligned apart from the dot,
-   but it needs no offset: flex centring lands it where it should be. */
+
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;

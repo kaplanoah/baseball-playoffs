@@ -17,7 +17,7 @@ function renderRanking(){
   const head = document.getElementById("rankHead");
   if(!state.ranking.length){
     head.hidden = true;
-    list.innerHTML = `<li class="rank-item"><span class="rank-info">Set this year's playoff field first, on the Bracket tab.</span></li>`;
+    list.innerHTML = `<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`;
     return;
   }
   head.hidden = false;

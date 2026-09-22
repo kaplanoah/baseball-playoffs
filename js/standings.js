@@ -123,7 +123,8 @@ function renderStandings(){
 function stampLine(label, iso, why){
   const t = iso ? Date.parse(iso) : NaN;
   if(isNaN(t)) return "";
-  return `<span class="stamp-line">${label} <b>${stampWhen(new Date(t))}</b>${
+  /* .stamp is a flex column, so each line needs an element of its own. */
+  return `<span>${label} <b>${stampWhen(new Date(t))}</b>${
     why ? ` &mdash; ${why}` : ""}</span>`;
 }
 
