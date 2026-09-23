@@ -100,7 +100,7 @@ section.view.active{ display:block; }
    the numbers. minmax(0,1fr) lets a column be narrower than the table's
    natural width rather than overflow it. */
 #standingsWrap{ max-width:1400px; }
-.div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:30px 48px; }
+.div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:30px 36px; }
 @media (min-width:780px){
   .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
   /* One league per column: the source order is the six divisions AL-then-NL,
@@ -179,8 +179,6 @@ table.st tr.cutline td{
 table.st .rank-cell{ width:34px; }
 table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-nums; }
 table.st .wc-num{ width:20px; }
-.st-team{ display:flex; align-items:center; gap:7px; min-width:0; }
-.st-team .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .elim-num.clinched{ color:var(--gold); }
 .elim-num.live{ color:var(--copper-ink); }
 /* ONE CHIP. Four labels, one geometry -- the rank tag is the single exception
@@ -209,30 +207,40 @@ table.st .wc-num{ width:20px; }
    the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  padding:9px 13px 10px; margin:0 0 20px; max-width:900px;
+  padding:9px 17px 10px 13px; margin:0 0 20px; max-width:900px;
+}
+/* The header's 18px is for the tabs; news right under the rule sits closer. */
+header.top + .updates{ margin-top:-6px; }
+@media (min-width:780px){
+  /* As wide as its longest line, not a fixed band with a gap at the right. */
+  .updates{ width:fit-content; min-width:420px; }
 }
 .updates-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .updates-count{ font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); }
 .updates-x{
-  flex:none; width:22px; height:22px; margin:-3px -5px -3px 0;
+  flex:none; width:22px; height:22px; margin:-3px -11px -3px 0; padding:0;
   display:inline-flex; align-items:center; justify-content:center;
   background:transparent; border:0; border-radius:3px;
-  color:var(--ink-dim); font-family:inherit; font-size:1.05rem; line-height:1; cursor:pointer;
+  color:color-mix(in srgb, var(--ink-dim) 62%, transparent); cursor:pointer;
 }
-.updates-x:hover{ color:var(--ink); background:var(--divider); }
+/* A drawn hairline cross rather than the font's times sign, which came in
+   heavier than anything else in the box. The green is the grip's. */
+.updates-x svg{ width:10px; height:10px; display:block; }
+.updates-x:hover{ color:var(--ink-dim); background:var(--divider); }
 .updates-list{ list-style:none; margin:7px 0 0; padding:0; }
 .updates-list li{ display:flex; align-items:center; gap:10px; font-size:.82rem; padding:3px 0; }
 .updates-list li + li{ border-top:1px solid var(--divider); }
 .updates-list .when{
-  flex:none; width:72px; font-size:.68rem; color:var(--ink-dim);
+  flex:none; width:62px; font-size:.68rem; color:var(--ink-dim);
   font-variant-numeric:tabular-nums;
 }
 /* Not a flex row: the entries are sentences with team dots inside them, and
    flex would space every stray word like a separate item. */
-.updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; }
-.updates-list .what b{ font-weight:700; }
-.updates-list .what .dot{ margin:0 5px 0 1px; }
-.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:82px; }
+.updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; font-weight:300; }
+/* A step down each, light and medium over regular and bold: the log is
+   background news, and at full weight it outshouted the tabs below it. */
+.updates-list .what b{ font-weight:500; }
+.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
 
 .setup-card{
   background:var(--card); border:1px dashed var(--card-border); border-radius:10px; padding:22px;
@@ -318,13 +326,22 @@ button.ghost{
   box-shadow: inset 0 2px 3px rgba(0,0,0,.46), 0 1px 0 rgba(241,234,212,.13);
 }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* ONE TEAM: the dot and the club name, built by teamTag() in app.js for every
+   view. The name opts into baseline alignment and nothing else does, so the
+   piece takes its baseline from the name and sits in running text like a
+   word, while the dot centers on the name's line -- the same place a flex row
+   puts it. That is what the update log's hand-tuned vertical-align was
+   approximating. */
+.club{ display:inline-flex; align-items:center; gap:8px; min-width:0; max-width:100%; vertical-align:baseline; }
+.club > .team-name{ align-self:baseline; }
+.banner-team .club{ gap:10px; }
 /* ONE CLUB NAME. The same word does the same job on a bracket card, a ranking
    card, a standings row and the All Teams table; it used to be set four
    different ways, bold in one of them. Keep these four selectors together. */
 .matchup-row .team-name,
 .rank-id .team-name,
-.st-team .name,
-table.ref td .cell{ font-size:.84rem; font-weight:400; }
+table.st td.team .team-name,
+table.ref td .team-name{ font-size:.84rem; font-weight:400; }
 .tbd{ color:color-mix(in srgb, var(--ink-dim) 55%, var(--card)); font-style:italic; font-size:.88rem; }
 /* Recessed the way the team dots are: the shadow falls inside the top edge
    and a lit lip sits below, so a score reads as punched into the card. */
@@ -373,13 +390,19 @@ table.ref td .cell{ font-size:.84rem; font-weight:400; }
 /* A whole number, not 1.1: .84rem x 1.1 is 14.784px, and that fraction was
    carrying down into every chip's y. 15 + 6 + 19 = 40 fits 58 evenly. */
 .rank-id .team-name{ line-height:15px; }
-/* League and seed share the second line, so the club name stands alone. */
+/* League and seed share the second line, so the club stands alone. */
 .rank-id .meta-row{ display:flex; align-items:center; gap:8px; }
 .rank-seed{ font-size:.7rem; color:var(--ink-dim); }
-/* Last WS win, carried on the meta row so a phone can show it without taking
-   width from the club name. The .col-won column above covers it on desktop,
-   so there it stays off. */
-.rank-ws{ display:none; font-size:.7rem; color:var(--ink-dim); }
+/* Last WS win and the drought since, as a third line so a phone can show
+   them without taking width from the club name, and on a line of their own
+   so the year can't read as a second seed. The two columns cover them on
+   desktop, so there it stays off. */
+.rank-ws{ display:none; font-size:.7rem; line-height:15px; color:var(--ink-dim); }
+/* Each half holds together, so a narrow card breaks the line at the dot
+   rather than between "Last WS" and its year. The bullet is the one the
+   bracket cards' next-game notes use. */
+.rank-ws > span{ white-space:nowrap; }
+.rank-ws .sep{ margin:0 6px; }
 /* Fixed widths so the years and droughts form two columns down the page. */
 .rank-cols{ margin-left:auto; flex:none; display:flex; align-items:center; font-size:.76rem; color:var(--ink-dim); }
 .rank-cols .col-won{ width:74px; text-align:center; }
@@ -427,7 +450,6 @@ table.ref th{
   border-bottom:1px solid var(--divider); padding:7px 0 4px 10px;
 }
 table.ref td{ padding:6px 10px; border-bottom:1px solid var(--divider); }
-table.ref td .cell{ display:flex; align-items:center; gap:9px; }
 /* Rank sits in its own column so every dot and team name starts on the same
    line, ranked or not. Shrinks to the tag's width. */
 table.ref th:first-child, table.ref td.rank-col{ width:1%; white-space:nowrap; }
@@ -477,6 +499,10 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      under it scrolls. Same move the bracket already makes with .tree-scroll. */
   .st-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .st-scroll table.st{ min-width:max-content; }
+  /* One column of blocks: the space between them matches the 18px page
+     gutter at their sides rather than the desktop's 30. */
+  .div-grid, .wc-grid{ gap:18px; }
+  .stand-head{ margin-bottom:15px; }
 
   /* All Teams: scroll the table, not the page. The negative margin lets it run
      to both screen edges the way .tree-scroll does, so the columns get the
@@ -502,8 +528,27 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      All Teams; the chip is state you can't get anywhere else on this tab, so
      the columns go and the chip stays. */
   .rank-cols{ display:none; }
-  .status-slot{ margin-left:auto; }
-  .rank-ws{ display:inline; }
+  /* The chip's 72px slot exists to line the chips up into a column under a
+     heading; with .rank-cols gone there is no column left to hold, so it
+     shrinks to the chip and the third line gets the difference. */
+  .status-slot{ width:auto; margin-left:auto; padding-left:10px; }
+  /* Just wide enough for "12" at this size (about 21px), so the numerals keep
+     their right edge without the desktop's spare 7px of air to their left. */
+  .rank-num{ width:22px; }
+  /* The numerals run 8px into the page gutter, the way .tree-scroll lets the
+     bracket use it, so the column costs the cards less of the screen. */
+  .rank-list{ margin-left:-8px; }
+  /* The column headings sit over .rank-cols, which is gone here, so the row
+     they're in would only be an empty strip between the hint and the list. */
+  #rankHead{ display:none; }
+  .rank-hint{ margin-bottom:12px; }
+  /* Spaced by hand, not the column's gap: a little more air under the club,
+     a little less before the title line. */
+  .rank-id{ gap:0; }
+  .rank-id .meta-row{ margin-top:8px; }
+  .rank-ws{ display:block; margin-top:5px; }
+  /* Three lines don't fit the desktop's fixed 58px, so the card sizes to them. */
+  .rank-card{ height:auto; min-height:58px; padding-block:11px; }
 
   /* The header stacked as title / (stamp + picker), which left the stamp a
      narrow column wrapping into five ragged lines. display:contents promotes
@@ -514,7 +559,11 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
   .head-right{ display:contents; }
   header.top > div:first-child{ order:1; }
   .year-picker{ order:2; }
-  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; margin-top:8px; }
+  /* Row gap tighter than the header's 14: the stamp belongs to the title
+     above it. The lines get air of their own, since either can wrap and two
+     wrapped lines otherwise read as one paragraph. */
+  header.top{ row-gap:10px; }
+  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; gap:3px; }
 
   /* Four tabs onto one row. They share the width rather than sizing to their
      labels, so the row fills the screen and nothing wraps to a second line. */
@@ -527,15 +576,5 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      equally, so the tracking goes before the row does. */
   @media (max-width:359px){
     nav.tabs button{ font-size:.6rem; letter-spacing:0; padding:6px 1px; }
-    /* The status chip's 72px slot exists to line the chips up into a column
-       under a heading; with .rank-cols gone there is no column left to hold,
-       so on the narrowest screens it shrinks to the chip and gives the club
-       name and its meta row the difference. */
-    .status-slot{ width:auto; margin-left:10px; }
-    /* At 320 the meta row wants about 127px and has 74, so it wraps rather
-       than being clipped -- the card gives up its fixed 58px height instead
-       of losing the line. Nothing above 359px is affected. */
-    .rank-id .meta-row{ gap:6px; flex-wrap:wrap; row-gap:4px; }
-    .rank-card{ height:auto; min-height:58px; padding-block:9px; }
   }
 }

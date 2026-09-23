@@ -19,7 +19,7 @@ function renderPickGrid(){
   grid.innerHTML = Object.entries(TEAMS).sort((a,b) => a[1].name.localeCompare(b[1].name)).map(([id,t]) => `
     <label class="pick-team ${picked.has(id) ? 'selected' : ''}" data-id="${id}">
       <input type="checkbox" ${picked.has(id) ? 'checked' : ''}>
-      ${teamDot(id)} ${t.name} <span style="color:var(--ink-dim); font-size:.72rem;">(${t.league})</span>
+      ${teamTag(id)} <span style="color:var(--ink-dim); font-size:.72rem;">(${t.league})</span>
     </label>`).join("");
   grid.querySelectorAll(".pick-team").forEach(el => {
     el.addEventListener("click", (e) => {

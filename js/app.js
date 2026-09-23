@@ -171,6 +171,12 @@ function teamDot(id){
   return `<span class="dot" style="background:linear-gradient(90deg, ${t.color} ${split}%, ${t.color2} ${split}%)"></span>`;
 }
 function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
+/* ONE TEAM. The dot and the club name as a single piece, so every view spaces
+   and aligns them the same way -- see .club in styles.css. `tag` is the name's
+   element: "b" where the name is bold inside running text. */
+function teamTag(id, tag = "span"){
+  return `<span class="club">${teamDot(id)}<${tag} class="team-name">${teamLabel(id)}</${tag}></span>`;
+}
 // A bare digit, the way a lineup card carries a uniform number.
 function seedMark(seed){ return seed ? `<span class="seed-pre tabular">${seed}</span>` : ""; }
 /* `solid` fills the tag, marking the team you rank higher in a given matchup.
