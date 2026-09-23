@@ -294,6 +294,28 @@ WRITING — read this before any write:
   The page shows them as two lines — "Last updated 9:20 PM — Yankees 5 Rays 2
   final at 9:14" and "Next update 10:45 PM — Astros @ Mariners first pitch at
   9:40" — so a quiet stretch explains itself.
+  - THE TWO FIELDS ARE WRITTEN FROM DIFFERENT MOMENTS, and that is what
+    decides which shapes each one can use. Getting it wrong produces a line
+    describing a game the reader cannot match to anything on the page.
+
+    `updatedFor` is written from NOW, LOOKING BACK — what has happened. It
+    can NAME a game that is final or one that is under way, and it can COUNT
+    games in those states. It can NEVER NAME A GAME THAT HAS NOT STARTED:
+    "Slate of 16 starts with Nationals @ Tigers first pitch at 1:10 PM" is
+    not a thing that happened, so it is never an `updatedFor`, however true
+    it is. When nothing has started, the newest baseball is the last final
+    there was — say that instead.
+
+    `nextFor` is written from THE SLOT, LOOKING AT WHAT WILL BE TRUE THEN. A
+    game that has not started yet is a perfectly good subject, provided it
+    will have started by the slot: standing at 6:15, a 6:40 game is in the
+    future, but from the 7:15 check's point of view it is a game in progress,
+    and that is the tense `nextFor` speaks in. JUDGE EVERY GAME BY ITS STATE
+    AT THE SLOT, NOT ITS STATE NOW. A game that will still not have started
+    by then is the single case that needs the "routine check" opening.
+
+    Both of the mistakes this prevents are the same mistake: using a game's
+    state now where its state at the relevant moment is what counts.
   - NAME GAMES, not internals. The user reads these to know which baseball
     caused the change and which game the job is waiting on. "Yankees 5 Rays 2
     final" is the shape; "standings refresh" tells them nothing.
@@ -330,20 +352,27 @@ WRITING — read this before any write:
         whenever a final lands while other games are going.
 
         "UNDER WAY" MEANS IN PROGRESS, NOT "NOT FINAL". Count only the games
-        actually being played. An afternoon with 2 final, 1 in progress and
-        13 not yet started is NOT "14 of 16 still under way" — thirteen of
-        those have not thrown a pitch, and a reader told they are under way
-        will go looking for scores that do not exist. When games have still
-        to start, that is its own number and worth saying:
-          "Orioles 4 Blue Jays 2 final at 4:14 — 1 of 16 games under way, 13 to come"
-        Drop either half when it is zero:
-          "Orioles 4 Blue Jays 2 final at 4:14 — 13 of 16 games still to come"
+        actually being played. An afternoon with 2 over, 1 in progress and
+        13 not yet started is NOT "14 of 16 games still under way" — thirteen
+        of those have not thrown a pitch, and a reader told they are under
+        way will go looking for scores that do not exist.
+
+        COUNT WHAT IS OVER AND WHAT IS ON. Those are the two states that have
+        happened, and they are the two this field carries:
+          "Orioles 4 Blue Jays 2 final at 4:14 — 2 of 16 games over, 1 under way"
           "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 games still under way"
 
+        DO NOT ADD A COUNT OF GAMES THAT HAVE NOT STARTED. "13 to come" is
+        forward-looking, and forward-looking is `nextFor`'s job — a line
+        reading "2 of 16 games over, 1 under way, 13 to come" runs three
+        tenses through a field whose whole job is what has happened. The
+        denominator already carries it: "2 of 16 games over" tells the reader
+        the day is mostly ahead without asserting a third number, which is
+        also what stopped the old line from adding up.
+
         ALWAYS SAY "GAMES". A bare "8 of 14" makes the reader supply the noun
-        and can be read as a score or a series. The count is always "N of
-        <the day's total> games", and the total is the whole slate whichever
-        state you are counting.
+        and can be read as a score or a series record. The count is always
+        "N of <the day's total> games".
       - nothing final yet, games under way → "under way with".
       - nothing has started → "starts with".
     Never skip a group because the user's own club is in a later one: a game
