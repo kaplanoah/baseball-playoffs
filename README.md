@@ -465,7 +465,17 @@ WRITING — read this before any write:
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
-  log entries — a nested merge would otherwise leave stale entries behind.
+  log entries.
+- AN "update" MERGES OBJECTS KEY BY KEY, so leaving a key out of what you send
+  does NOT remove it. When a club leaves the field, its entry in `teams` must
+  be deleted explicitly, in the same write that adds its replacement:
+      teams: { ..., "HOU": { league: "AL", seed: 3, w: 78, l: 79 },
+               "TEX": { "__delete__": true } }
+  Leaving it out is how the Rangers stayed in `teams` beside the Astros, both
+  at AL seed 3, and the bracket kept drawing the Rangers. After ANY write to
+  `teams`, it must hold exactly 12 entries, six per league with seeds 1-6
+  once each. If a read ever shows otherwise, fix it in this run with the
+  delete marker; it will not correct itself.
 
 LOGGING — the page shows the user what changed since they last looked, from
 `log`, so every change you write gets an entry in the same write:
