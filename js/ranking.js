@@ -38,6 +38,7 @@ function renderRanking(){
           <span class="meta-row">
             <span class="league-tag ${t.league}">${t.league}</span>
             <span class="rank-seed tabular">${t.seed} seed</span>
+            <span class="rank-ws tabular">WS ${won || "&mdash;"}</span>
           </span>
         </span>
         <span class="rank-cols">
