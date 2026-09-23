@@ -332,69 +332,51 @@ WRITING — read this before any write:
       - one: name it.
       - two: name both, comma between. "Rays @ Yankees 2-1 in the 5th, Astros
         @ Mariners 3-0 in the 7th".
-      - three or more: call it a slate and name one game out of it.
-        "Slate of 8 ended with Mets 3 Braves 2 at 10:28"
-        "Slate of 6 under way with Rays @ Yankees 2-1 in the 5th"
-        "Slate of 3 starts with Astros @ Mariners first pitch at 9:40"
-    COUNT THE WHOLE DAY, NOT THE PART YOU ARE NAMING. "Slate of 14" means
-    fourteen games today. One of them going final does not make it one game:
-    if the day has three or more, it is a slate, and it stays a slate while
-    any of them is still being played.
+      - three or more: name ONE game, then say what the day is doing:
+          "Twins @ Giants 3-2 in the 7th, slate of 16 under way"
+          "Mets 3 Braves 2 final at 10:28, slate of 8 over"
+        The game leads because it is the news; the slate clause is context
+        for it. THE NUMBER IS THE WHOLE DAY — "slate of 16" means sixteen
+        games scheduled today, not sixteen still being played.
 
-    THE VERB DESCRIBES THE WHOLE SLATE, NOT THE ONE GAME YOU NAME. A slate
-    with games still in progress has NOT ended, however many finals it has
-    already produced — saying "ended with" there is simply false:
-      - every game finished → "ended with", naming the one that finished LAST.
-      - SOME FINISHED, SOME STILL BEING PLAYED → name the newest final, then
-        say how much is left, because both are news:
-          "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 games still under way"
-        This is the common shape on a full evening and the one to reach for
-        whenever a final lands while other games are going.
+    THE SLATE CLAUSE HAS TWO STATES AND NO MORE:
+      - "slate of N under way" — the day has begun and is not finished. This
+        covers the ordinary mixed evening AND an afternoon with one game on
+        and thirteen still to come. It describes the DAY, not a count of live
+        games, so it stays true across both.
+      - "slate of N over" — every game is final.
+    When nothing has started there is no slate clause at all: `updatedFor` is
+    written from now looking back, and a day that has not begun gives it
+    nothing to report. The ladder below sends you to the last final instead.
 
-        "UNDER WAY" MEANS IN PROGRESS, NOT "NOT FINAL". Count only the games
-        actually being played — and COUNT THEM FROM `status.abstractGameState`
-        ("Preview", "Live", "Final"), NEVER by matching `detailedState`
-        against the word "In Progress". A live game shows a whole family of
-        detailed states — "Manager challenge", "Delayed", "Umpire review",
-        "Warmup" — and one of them really was on the board at 5:34 PM on a
-        day this rule was being written. Matching the display string drops
-        those games; `abstractGameState` is "Live" for all of them. An afternoon with 2 over, 1 in progress and
-        13 not yet started is NOT "14 of 16 games still under way" — thirteen
-        of those have not thrown a pitch, and a reader told they are under
-        way will go looking for scores that do not exist.
+    DO NOT PUT A COUNT OF LIVE OR UNSTARTED GAMES IN THIS FIELD. Both were
+    tried and both went wrong. "8 of 14 games still under way" came out as
+    "14 of 16 still under way" on a day when thirteen had not thrown a pitch.
+    "2 of 16 games over, 13 to come" ran three tenses through a field whose
+    only job is what has happened, and never stated the finals, so the
+    numbers did not add up. "Slate of N under way" asserts nothing that can
+    be false and asks the reader for no arithmetic.
 
-        COUNT WHAT IS OVER AND WHAT IS ON. Those are the two states that have
-        happened, and they are the two this field carries:
-          "Orioles 4 Blue Jays 2 final at 4:14 — 2 of 16 games over, 1 under way"
-          "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 games still under way"
+    WHERE A COUNT IS UNAVOIDABLE, TAKE IT FROM `status.abstractGameState`
+    ("Preview", "Live", "Final") and NEVER by matching `detailedState`
+    against the words "In Progress". A live game shows a whole family of
+    detailed states — "Manager challenge", "Delayed", "Umpire review",
+    "Warmup" — and one of those really was on the board while this rule was
+    being written. Matching the display string drops those games;
+    `abstractGameState` reads "Live" for every one of them.
 
-        THE COUNT BELONGS TO THE FIELD, NOT TO ONE BRANCH ABOVE. Any day
-        with three or more games gets it, whichever rule chose the game to
-        name. This is the easy one to lose: when the newest baseball is a
-        game still being played, the ladder picks that game, and stopping
-        there gives
-          "Twins @ Giants 3-2 in the 7th"
-        on a sixteen-game day with two already over and thirteen not started.
-        The reader learns nothing about the day from it. Write
-          "Twins @ Giants 3-2 in the 7th — 2 of 16 games over"
-        DO NOT COUNT THE GAME YOU JUST NAMED a second time — "2 of 16 games
-        over, 1 under way" adds nothing when the one under way is the game
-        sitting in front of the dash. Add "N under way" only when games
-        besides the named one are being played.
+    THE CLAUSE DESCRIBES THE WHOLE DAY, NOT THE ONE GAME YOU NAMED. A day
+    with games still in progress is not over, however many finals it has
+    already produced, so "slate of 8 over" while three are being played is
+    simply false. Choose it from the day:
+      - every game final → "slate of N over".
+      - anything still being played → "slate of N under way", whether or not
+        the game you named is one of the ones still going.
 
-        DO NOT ADD A COUNT OF GAMES THAT HAVE NOT STARTED. "13 to come" is
-        forward-looking, and forward-looking is `nextFor`'s job — a line
-        reading "2 of 16 games over, 1 under way, 13 to come" runs three
-        tenses through a field whose whole job is what has happened. The
-        denominator already carries it: "2 of 16 games over" tells the reader
-        the day is mostly ahead without asserting a third number, which is
-        also what stopped the old line from adding up.
-
-        ALWAYS SAY "GAMES". A bare "8 of 14" makes the reader supply the noun
-        and can be read as a score or a series record. The count is always
-        "N of <the day's total> games".
-      - nothing final yet, games under way → "under way with".
-      - nothing has started → "starts with".
+    THE LEADING "starts with" FORM SURVIVES FOR `nextFor` ONLY, where the
+    whole point is baseball that has not happened yet: "routine check, slate
+    of 6 starts with Padres @ Giants first pitch at 4:05 PM". It is never an
+    `updatedFor`.
     Never skip a group because the user's own club is in a later one: a game
     under way makes the slate under way even when their club plays tonight.
 
