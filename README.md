@@ -394,6 +394,33 @@ WRITING — read this before any write:
     Mariners first pitch at 9:40". LEAVE IT EMPTY when the check is for the
     game `updatedFor` just named — the page shows the time alone rather than
     saying it twice.
+  - SAY WHEN THE NEXT SLOT IS ONLY THE CLOCK. The slots are a fixed grid and
+    cannot know whether baseball is on, so some of them land where there is
+    nothing to find: before the day's first pitch, after the day's last final,
+    or on a day with no games at all. Naming a game at such a slot implies the
+    check is FOR that game, and "Next update 12:15 PM — Slate of 16 starts
+    with Nationals @ Tigers first pitch at 1:10 PM" reads as though something
+    happens at 12:15 when the baseball is an hour off. Open those with
+    "routine check" and a comma, then the SAME full context you would have
+    written anyway:
+
+      routine check, slate of 16 starts with Nationals @ Tigers first pitch
+        at 1:10 PM
+      routine check, Astros @ Mariners first pitch at 9:40
+      routine check, nothing left tonight
+      routine check, no games today
+
+    LOWERCASE AFTER THE COMMA: it is one sentence now, so "slate of 16", not
+    "Slate of 16". Every other rule still holds — the count is the whole day,
+    a matchup is AWAY @ HOME, a first pitch takes its "at". DO NOT SHORTEN THE
+    CONTEXT because the qualifier sits in front of it. The reason a check is
+    routine is exactly that the baseball is somewhere else, so where and when
+    that baseball is, is the part worth reading. "routine check, slate at 1:10"
+    throws away the count and the matchup and is not an acceptable shortening.
+
+    A slot that WILL catch baseball is not a routine check and takes no
+    qualifier: one with a game under way at that time, or with a game that
+    will have gone final since this run. Those keep the plain wording above.
   - A DAY belongs to the game, never to the check. "final last night" is
     right, because that is when the game was. "Guardians @ Tigers tomorrow"
     is not: the page already prints the day with the check's own time — "Next
