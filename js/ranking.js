@@ -22,8 +22,9 @@ function renderRanking(){
   }
   head.hidden = false;
   /* Rank in a gutter outside the card, the way the wild card race numbers its
-     rows; inside, the club name over its league chip and seed, then the two
-     title columns, which line up under the headings above the list. */
+     rows; inside, the club over its league chip and seed, then the two title
+     columns, which line up under the headings above the list. A phone has no
+     room for the columns, so it gets them as a third line instead. */
   list.innerHTML = state.ranking.map((id, i) => {
     const t = state.teams[id];
     const st = teamStatusLabel(state, id);
@@ -32,14 +33,13 @@ function renderRanking(){
       <span class="rank-num tabular">${i+1}</span>
       <span class="rank-card">
         <span class="grip">&#8942;&#8942;</span>
-        ${teamDot(id)}
         <span class="rank-id">
-          <span class="team-name">${teamLabel(id)}</span>
+          ${teamTag(id)}
           <span class="meta-row">
             <span class="league-tag ${t.league}">${t.league}</span>
             <span class="rank-seed tabular">${t.seed} seed</span>
-            <span class="rank-ws tabular">WS ${won || "&mdash;"}</span>
           </span>
+          <span class="rank-ws tabular"><span>Last WS ${won || "&mdash;"}<span class="sep">&middot;</span></span><span>${droughtLabel(id)}</span></span>
         </span>
         <span class="rank-cols">
           <span class="col-won tabular">${won || "&mdash;"}</span>

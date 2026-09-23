@@ -236,8 +236,10 @@ header.top + .updates{ margin-top:-6px; }
 }
 /* Not a flex row: the entries are sentences with team dots inside them, and
    flex would space every stray word like a separate item. */
-.updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; }
-.updates-list .what b{ font-weight:700; }
+.updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; font-weight:300; }
+/* A step down each, light and medium over regular and bold: the log is
+   background news, and at full weight it outshouted the tabs below it. */
+.updates-list .what b{ font-weight:500; }
 .updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
 
 .setup-card{
@@ -388,13 +390,18 @@ table.ref td .team-name{ font-size:.84rem; font-weight:400; }
 /* A whole number, not 1.1: .84rem x 1.1 is 14.784px, and that fraction was
    carrying down into every chip's y. 15 + 6 + 19 = 40 fits 58 evenly. */
 .rank-id .team-name{ line-height:15px; }
-/* League and seed share the second line, so the club name stands alone. */
+/* League and seed share the second line, so the club stands alone. */
 .rank-id .meta-row{ display:flex; align-items:center; gap:8px; }
 .rank-seed{ font-size:.7rem; color:var(--ink-dim); }
-/* Last WS win, carried on the meta row so a phone can show it without taking
-   width from the club name. The .col-won column above covers it on desktop,
-   so there it stays off. */
-.rank-ws{ display:none; font-size:.7rem; color:var(--ink-dim); }
+/* Last WS win and the drought since, as a third line so a phone can show
+   them without taking width from the club name, and on a line of their own
+   so the year can't read as a second seed. The two columns cover them on
+   desktop, so there it stays off. */
+.rank-ws{ display:none; font-size:.7rem; line-height:15px; color:var(--ink-dim); }
+/* Each half holds together, so a narrow card breaks the line at the dot
+   rather than between "Last WS" and its year. */
+.rank-ws > span{ white-space:nowrap; }
+.rank-ws .sep{ margin:0 6px; }
 /* Fixed widths so the years and droughts form two columns down the page. */
 .rank-cols{ margin-left:auto; flex:none; display:flex; align-items:center; font-size:.76rem; color:var(--ink-dim); }
 .rank-cols .col-won{ width:74px; text-align:center; }
@@ -519,8 +526,13 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      All Teams; the chip is state you can't get anywhere else on this tab, so
      the columns go and the chip stays. */
   .rank-cols{ display:none; }
-  .status-slot{ margin-left:auto; }
-  .rank-ws{ display:inline; }
+  /* The chip's 72px slot exists to line the chips up into a column under a
+     heading; with .rank-cols gone there is no column left to hold, so it
+     shrinks to the chip and the third line gets the difference. */
+  .status-slot{ width:auto; margin-left:auto; padding-left:10px; }
+  .rank-ws{ display:block; }
+  /* Three lines don't fit the desktop's fixed 58px, so the card sizes to them. */
+  .rank-card{ height:auto; min-height:58px; padding-block:11px; }
 
   /* The header stacked as title / (stamp + picker), which left the stamp a
      narrow column wrapping into five ragged lines. display:contents promotes
@@ -548,15 +560,5 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      equally, so the tracking goes before the row does. */
   @media (max-width:359px){
     nav.tabs button{ font-size:.6rem; letter-spacing:0; padding:6px 1px; }
-    /* The status chip's 72px slot exists to line the chips up into a column
-       under a heading; with .rank-cols gone there is no column left to hold,
-       so on the narrowest screens it shrinks to the chip and gives the club
-       name and its meta row the difference. */
-    .status-slot{ width:auto; margin-left:10px; }
-    /* At 320 the meta row wants about 127px and has 74, so it wraps rather
-       than being clipped -- the card gives up its fixed 58px height instead
-       of losing the line. Nothing above 359px is affected. */
-    .rank-id .meta-row{ gap:6px; flex-wrap:wrap; row-gap:4px; }
-    .rank-card{ height:auto; min-height:58px; padding-block:9px; }
   }
 }
