@@ -230,8 +230,10 @@ is mostly about how much text you let into your context:
   need a field you did not extract, widen the filter and run it again — that
   is far cheaper than having had the whole body in context all along.
   From the day's schedule you need, per game: start time, status, the two
-  clubs, the score, and the inning. From standings, per club: the fields the
-  STANDINGS section below lists, and nothing else. Work in as few turns as
+  clubs, the score, the inning, and — for anything final — `gameInfo`'s
+  `firstPitch` and `gameDurationMinutes`, which give you the time it ended.
+  From standings, per club: the fields the STANDINGS section below lists,
+  and nothing else. Work in as few turns as
   you can: each turn re-reads everything already in context.
 
 - STOP EARLY AND STOP CHEAP. Most runs have nothing to do: the schedule is a
@@ -248,10 +250,21 @@ is mostly about how much text you let into your context:
   record, and END THE RUN. Do not go on to the numbered sections.
 
 - Fetch the day's schedule FIRST, before anything else:
-  `/api/v1/schedule?sportId=1&date=<today>&hydrate=linescore` — the hydrate
-  costs nothing and carries the score and inning of anything in progress, plus
+  `/api/v1/schedule?sportId=1&date=<today>&hydrate=linescore,gameInfo` — the
+  hydrates cost nothing in context and between them carry everything a stamp
+  needs: `linescore` the score and inning of anything in progress, `gameInfo`
+  the `firstPitch` and `gameDurationMinutes` of anything already final. Add
   `/api/v1/schedule/postseason?season=<YEAR>` once `projected` is false. Every
   decision below reads from it, and it is the only call a quiet run makes.
+
+  A FINAL GAME'S END TIME IS firstPitch + gameDurationMinutes. That is where
+  "final at 9:14" comes from, and the one call above has it for every game on
+  the slate at once. NEVER call `/api/v1.1/game/<pk>/feed/live` to find it.
+  That endpoint is per-game: a five-final evening becomes five fetches, five
+  tool results and five more turns re-reading everything already in context,
+  which doubles the cost of the run to learn what you had already been told.
+  The same goes for every other per-game endpoint. If you want a field for
+  several games, get it from the schedule call or do without it.
 - Then END THE RUN, writing only the four stamp fields (see WRITING), unless
   one of these is true:
   - a game has gone Final since `updatedAt`,
@@ -354,15 +367,13 @@ WRITING — read this before any write:
     THE MINUTE IS NOT :00. Your slots, in full, Eastern:
 
         12:15 PM
-        7:15, 8:15, 9:15 PM
-        10:15, 10:30, 10:45 PM
-        11:15, 11:30, 11:45 PM
-        12:15, 12:30, 12:45 AM
-        1:15, 1:30, 1:45 AM
-        2:15 AM
+        7:15, 8:15, 9:15, 10:15, 11:15 PM
+        12:15, 1:15, 2:15 AM
 
-    The extra :30 and :45 slots run from 10pm to 2am because that is when
-    games end. Outside those hours the grid is hourly.
+    That is the WHOLE list. Do not name a time that is not on it, however
+    reasonable the time sounds: a promise of 10:30 when nothing fires at 10:30
+    leaves the page reading "Update overdue" until the next real slot, which
+    is worse than a longer honest wait.
 
     Use those exact times. DO NOT derive the minute from when this run
     started: a run fired by hand starts whenever it was fired, and reading
@@ -460,7 +471,19 @@ all 30 clubs for the Standings tab. Everything but `next` comes from the
 
 - Write it with "set", not "update": it is entirely yours, the page never
   writes it, and a stale club would otherwise linger.
-- Only write when a value actually changed. Compare against what you read.
+- ONLY TOUCH THIS DOCUMENT WHEN A GAME HAS GONE FINAL since its own
+  `updatedAt`. Nothing in the table moves while games are being played — a
+  record, a games-back, a magic number and an elimination number all change
+  at the final out and at no other moment. So a run in the middle of a slate
+  has nothing to write here, and the way to spend nothing on it is not to
+  fetch: skip the standings request AND the five-day schedule request below,
+  and leave the document alone. Decide this BEFORE fetching rather than after
+  building the table — the cost is in those two requests and in composing
+  thirty clubs, so a write you talk yourself out of at the end has already
+  been paid for in full.
+- When a game HAS gone final since then, rebuild all thirty clubs and write
+  once. Still compare against what you read, and skip the write if every
+  value is identical anyway.
 - Once the regular season is over these stop moving. Leave the document alone
   rather than rewriting identical numbers — the page keeps showing the final
   table all postseason.
@@ -496,7 +519,16 @@ Division Series game whose away side is "<LG> 4/5 Winner" is LG_DS1 and
 
 EACH RUN, after the early-exit checks above:
 
-1. If `projected` is true or missing, or `teams` is empty: fetch
+1. STANDINGS AND THE PROJECTED FIELD ride on one fetch, and one question
+   decides both: HAS A GAME GONE FINAL since the `standings` document's
+   `updatedAt`? If none has, SKIP THIS WHOLE STEP — do not fetch standings,
+   do not fetch the five-day schedule. Nothing this step computes can have
+   moved, because standings, seeds and the projected field all turn on
+   completed games and a slate in the fifth inning has completed none. A
+   mid-slate run belongs in step 2 onward, and that is most of the runs in
+   an evening.
+
+   If one has, and `projected` is true or missing, or `teams` is empty: fetch
    `/api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason`
    and check `/api/v1/schedule/postseason?season=<YEAR>` for whether real team
    names have replaced placeholder seed labels (e.g. "AL Wild Card #3") yet.
