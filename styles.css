@@ -100,7 +100,7 @@ section.view.active{ display:block; }
    the numbers. minmax(0,1fr) lets a column be narrower than the table's
    natural width rather than overflow it. */
 #standingsWrap{ max-width:1400px; }
-.div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:30px 48px; }
+.div-grid, .wc-grid{ display:grid; grid-template-columns:1fr; gap:30px 36px; }
 @media (min-width:780px){
   .div-grid, .wc-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
   /* One league per column: the source order is the six divisions AL-then-NL,
@@ -207,7 +207,7 @@ table.st .wc-num{ width:20px; }
    the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  padding:9px 13px 10px; margin:0 0 20px; max-width:900px;
+  padding:9px 17px 10px 13px; margin:0 0 20px; max-width:900px;
 }
 /* The header's 18px is for the tabs; news right under the rule sits closer. */
 header.top + .updates{ margin-top:-6px; }
@@ -218,7 +218,7 @@ header.top + .updates{ margin-top:-6px; }
 .updates-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .updates-count{ font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); }
 .updates-x{
-  flex:none; width:22px; height:22px; margin:-3px -5px -3px 0; padding:0;
+  flex:none; width:22px; height:22px; margin:-3px -11px -3px 0; padding:0;
   display:inline-flex; align-items:center; justify-content:center;
   background:transparent; border:0; border-radius:3px;
   color:color-mix(in srgb, var(--ink-dim) 62%, transparent); cursor:pointer;
