@@ -56,7 +56,7 @@ function divisionBlock(name, rows){
     <div class="div-title">
       <span class="${lg}">${name}</span><span class="title-right">${tag}</span>
     </div>
-    <table class="st">
+    <div class="st-scroll"><table class="st">
       <thead><tr>
         <th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>GB</th>
         <th class="mid" title="${E_TITLE}">E#</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
@@ -68,7 +68,7 @@ function divisionBlock(name, rows){
         (anyNext ? (t.elim === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { out: t.elim === "E" }
       )).join("")}</tbody>
-    </table>
+    </table></div>
   </div>`;
 }
 
@@ -84,7 +84,7 @@ function wildCardBlock(lg, all){
   const cols = 9 + (anyNext ? 1 : 0);
   return `<div class="div-block">
     <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
-    <table class="st">
+    <div class="st-scroll"><table class="st">
       <thead><tr>
         <th></th><th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>WCGB</th>
         <th class="mid" title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
@@ -96,7 +96,7 @@ function wildCardBlock(lg, all){
         (anyNext ? (t.wce === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { cut: i === 2, cols, out: t.wce === "E", lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
       )).join("")}</tbody>
-    </table>
+    </table></div>
   </div>`;
 }
 

@@ -460,3 +460,38 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
 .modal-panel h2{ margin-bottom:6px; font-size:1.1rem; text-transform:uppercase; letter-spacing:.05em; }
 .modal-panel .sub{ color:var(--ink-dim); font-size:.88rem; margin-bottom:4px; }
 .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+
+/* ---------- phones ----------
+   Functional only: everything here is width-gated below the 780px breakpoint
+   the standings grid already uses, so the desktop layout is untouched. Three
+   things were broken rather than merely tight, all of them measured at 390px:
+   the standings tables were clipped by up to 198px with the Next column gone
+   entirely, every team name on Ranking collapsed to zero width, and All Teams
+   pushed the whole document sideways. */
+@media (max-width:779px){
+  /* The block keeps its rounded corners and its title bar; only the table
+     under it scrolls. Same move the bracket already makes with .tree-scroll. */
+  .st-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .st-scroll table.st{ min-width:max-content; }
+
+  /* All Teams: scroll the table, not the page. The negative margin lets it run
+     to both screen edges the way .tree-scroll does, so the columns get the
+     full width before scrolling starts. */
+  #view-reference{
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    margin-inline:-18px; padding-inline:18px;
+  }
+  /* width:auto lets the table size to its own content (about 412px) instead
+     of being squeezed into 354; min-width:100% keeps it filling the screen on
+     a wider phone. max-content is wrong here -- it sums every column's longest
+     run and demanded 5100px. */
+  #view-reference table.ref{ width:auto; min-width:100%; }
+
+  /* Ranking: .rank-cols (74 + 104) and .status-slot (72) are fixed, and at
+     308px of card they left the club name nothing at all -- all twelve
+     rendered at zero width. The two year columns are reference and repeat on
+     All Teams; the chip is state you can't get anywhere else on this tab, so
+     the columns go and the chip stays. */
+  .rank-cols{ display:none; }
+  .status-slot{ margin-left:auto; }
+}
