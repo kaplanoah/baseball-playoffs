@@ -354,52 +354,52 @@ WRITING — read this before any write:
     Never write what did NOT happen — "no games finished since 7pm" and
     "nothing final yet today" tell them nothing they can use. Every one of
     these reasons names an actual game.
-  - WHEN THE NEXT RUN HAPPENS. Your cron fires at these hours Eastern, and
-    nowhere else: 1pm, 2pm, 4pm, 6pm, then 7pm, 8pm, 9pm, 10pm, 11pm,
-    midnight, 1am, 2am. Twelve a day, placed where the games actually are.
-    Across September and October 32% of all first pitches fall between 1pm
-    and 4pm, and the schedule once ran from noon straight to 7pm without a
-    single check, so a sixteen-game Wednesday afternoon went by unwatched.
+  - WHEN THE NEXT RUN HAPPENS. Your cron, exactly as the Routine stores it:
 
-    THE FIRST SLOT IS 1:15pm, NOT NOON. The day's opening pitch is 12:10pm
-    at the very earliest, and on most days with afternoon baseball it is
-    1:05 or 1:10, so a noon check beat the first pitch of the day on 24 days
-    out of 27 and caught live baseball on none of them. 1:15 is the earliest
-    slot that can find a game under way rather than sit in front of one.
-    5pm is nearly empty and gets no slot either.
+        15 17,18,20,22,23,0-6 * 9-11 *
 
-    So the page may carry a "Last updated" from last night right through the
-    morning. That is correct, not stale — the last thing that happened
-    really was last night, and `updatedFor` says which game it was.
+    That is UTC, and it is the ONLY source. `nextAt` is the next instant
+    matching it: take the UTC time now, find the next hour on that list, set
+    the minute to 15. Write it as a UTC ISO timestamp and nothing else. DO
+    NOT CONVERT IT TO EASTERN and do not put a clock time in it anywhere.
+    The page formats it in the reader's own timezone (`toLocaleTimeString`
+    with no locale given), so a time converted by hand here is wrong for
+    anyone not sitting where you assumed, and wrong for everyone once
+    daylight saving ends.
+
+    QUOTING THE CRON IS THE POINT. A list of Eastern times written out here
+    has to be re-edited by hand every time the schedule moves, and twice it
+    was not: the page promised 10:30 PM after that Routine had been disabled,
+    and promised noon after the noon slot was replaced. Both times it read
+    "Update overdue" for hours. There is no list to drift now, because the
+    line above IS the cron. If the two ever disagree, the Routine is right
+    and this line is the thing to fix.
+
+    Twelve fires a day, placed where the games are: across September and
+    October 32% of all first pitches fall between 1pm and 4pm Eastern, and
+    the day's opening pitch is 12:10pm at the very earliest, so the first
+    slot sits just after the earliest baseball rather than in front of it.
+    The page may therefore carry a "Last updated" from last night right
+    through the morning. That is correct, not stale — the last thing that
+    happened really was last night, and `updatedFor` says which game it was.
 
     You cannot schedule extra runs. The tools that would do it
     (`create_trigger` and friends) are not available inside a run, so do not
-    try, and do not promise a time that is not one of the hours above.
+    try, and never promise an instant that is not on the cron above.
 
-    THE MINUTE IS NOT :00. Your slots, in full, Eastern:
+    DO NOT DERIVE THE MINUTE FROM WHEN THIS RUN STARTED. A run fired by hand
+    starts whenever it was fired, and reading :20 off such a run makes the
+    page promise :20 for a check that happens at :15. The minute is always
+    15, from the cron, whatever the clock said when you woke up.
 
-        1:15, 2:15, 4:15, 6:15 PM
-        7:15, 8:15, 9:15, 10:15, 11:15 PM
-        12:15, 1:15, 2:15 AM
-
-    That is the WHOLE list. Do not name a time that is not on it, however
-    reasonable the time sounds: a promise of 10:30 when nothing fires at 10:30
-    leaves the page reading "Update overdue" until the next real slot, which
-    is worse than a longer honest wait.
-
-    Use those exact times. DO NOT derive the minute from when this run
-    started: a run fired by hand starts whenever it was fired, and reading
-    :20 off such a run makes the page promise 7:20 for a check that happens
-    at 7:08. The list above is the only source — it is kept in step with the
-    cron by whoever edits the schedule.
-
-  - `nextAt` IS SIMPLY THE NEXT SLOT. Every slot fires whether or not there is
-    anything to find, so the next one is when the page will next be updated,
-    and that is what the line must say. Do not reason about which slot would
-    be interesting and name that one — the page would then sit showing a
-    promise it had already broken, because a run will have happened before it.
-    A run takes three or four minutes, so the stamp appears a little after the
-    time you name; that is expected and needs no allowance here.
+  - `nextAt` IS SIMPLY THE NEXT INSTANT ON THE CRON. Every one of them fires
+    whether or not there is anything to find, so the next is when the page
+    will next be updated, and that is what the line must say. Do not reason
+    about which one would be interesting and name that — the page would then
+    sit showing a promise it had already broken, because a run will have
+    happened before it. A run takes three or four minutes, so the stamp
+    appears a little after the time the reader sees; that is expected and
+    needs no allowance here.
   - `nextFor` names what that check is for, by the same rules: "Astros @
     Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
     Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
@@ -410,14 +410,14 @@ WRITING — read this before any write:
     cannot know whether baseball is on, so some of them land where there is
     nothing to find: before the day's first pitch, after the day's last final,
     or on a day with no games at all. Naming a game at such a slot implies the
-    check is FOR that game, and "Next update 12:15 PM — Slate of 16 starts
-    with Nationals @ Tigers first pitch at 1:10 PM" reads as though something
-    happens at 12:15 when the baseball is an hour off. Open those with
+    check is FOR that game, and "Next update 1:15 PM — Slate of 6 starts with
+    Padres @ Giants first pitch at 4:05 PM" reads as though something happens
+    at 1:15 when the baseball is three hours off. Open those with
     "routine check" and a comma, then the SAME full context you would have
     written anyway:
 
-      routine check, slate of 16 starts with Nationals @ Tigers first pitch
-        at 1:10 PM
+      routine check, slate of 6 starts with Padres @ Giants first pitch
+        at 4:05 PM
       routine check, Astros @ Mariners first pitch at 9:40
       routine check, nothing left tonight
       routine check, no games today
@@ -436,7 +436,7 @@ WRITING — read this before any write:
   - A DAY belongs to the game, never to the check. "final last night" is
     right, because that is when the game was. "Guardians @ Tigers tomorrow"
     is not: the page already prints the day with the check's own time — "Next
-    update tomorrow 12:00 PM" — so saying it twice invites the two to disagree.
+    update tomorrow 1:15 PM" — so saying it twice invites the two to disagree.
   - When the season is over, write `nextAt` and `nextFor` as null. There is no
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
