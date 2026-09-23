@@ -355,10 +355,13 @@ WRITING — read this before any write:
     "nothing final yet today" tell them nothing they can use. Every one of
     these reasons names an actual game.
   - WHEN THE NEXT RUN HAPPENS. Your cron fires at these hours Eastern, and
-    nowhere else: NOON, then 7pm, 8pm, 9pm, 10pm, 11pm, midnight, 1am, 2am.
-    Nine a day, chosen because that is when baseball is on; the long afternoon
-    gap is deliberate, since an afternoon check on a normal slate finds games
-    in the third inning and nothing final.
+    nowhere else: NOON, 2pm, 4pm, 6pm, then 7pm, 8pm, 9pm, 10pm, 11pm,
+    midnight, 1am, 2am. Twelve a day, placed where the games actually are.
+    Across a late-season month 32% of all first pitches fall between 1pm and
+    4pm, and the schedule used to run from noon straight to 7pm without a
+    single check, so a sixteen-game Wednesday afternoon went by unwatched.
+    Nothing starts before 12:10pm, so noon stays the earliest slot; 5pm is
+    nearly empty and gets none.
 
     You cannot schedule extra runs. The tools that would do it
     (`create_trigger` and friends) are not available inside a run, so do not
@@ -366,7 +369,7 @@ WRITING — read this before any write:
 
     THE MINUTE IS NOT :00. Your slots, in full, Eastern:
 
-        12:15 PM
+        12:15, 2:15, 4:15, 6:15 PM
         7:15, 8:15, 9:15, 10:15, 11:15 PM
         12:15, 1:15, 2:15 AM
 
