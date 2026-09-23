@@ -325,9 +325,25 @@ WRITING — read this before any write:
       - every game finished → "ended with", naming the one that finished LAST.
       - SOME FINISHED, SOME STILL BEING PLAYED → name the newest final, then
         say how much is left, because both are news:
-          "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 still under way"
+          "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 games still under way"
         This is the common shape on a full evening and the one to reach for
         whenever a final lands while other games are going.
+
+        "UNDER WAY" MEANS IN PROGRESS, NOT "NOT FINAL". Count only the games
+        actually being played. An afternoon with 2 final, 1 in progress and
+        13 not yet started is NOT "14 of 16 still under way" — thirteen of
+        those have not thrown a pitch, and a reader told they are under way
+        will go looking for scores that do not exist. When games have still
+        to start, that is its own number and worth saying:
+          "Orioles 4 Blue Jays 2 final at 4:14 — 1 of 16 games under way, 13 to come"
+        Drop either half when it is zero:
+          "Orioles 4 Blue Jays 2 final at 4:14 — 13 of 16 games still to come"
+          "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 games still under way"
+
+        ALWAYS SAY "GAMES". A bare "8 of 14" makes the reader supply the noun
+        and can be read as a score or a series. The count is always "N of
+        <the day's total> games", and the total is the whole slate whichever
+        state you are counting.
       - nothing final yet, games under way → "under way with".
       - nothing has started → "starts with".
     Never skip a group because the user's own club is in a later one: a game
@@ -457,6 +473,18 @@ WRITING — read this before any write:
     A slot that WILL catch baseball is not a routine check and takes no
     qualifier: one with a game under way at that time, or with a game that
     will have gone final since this run. Those keep the plain wording above.
+
+    NEVER NAME A FIRST PITCH LATER THAN THE SLOT ITSELF unless you are using
+    the routine check form. "Next update 6:15 PM — Blue Jays @ Orioles first
+    pitch at 6:35" says the 6:15 check is for a game that will not have
+    started when it runs. It cannot be. Ask what the slate will look like AT
+    the slot, not what the next thing on the schedule is:
+      - games in progress at that time → name those.
+      - games that will have gone final since this run → name the newest.
+      - neither → routine check, and THEN naming the coming first pitch is
+        exactly right, because the qualifier says the baseball is still ahead.
+    A 6:15 check on an afternoon whose last game started at 3:45 is for that
+    game finishing. The 6:35 game belongs to the 7:15 check.
   - A DAY belongs to the game, never to the check. "final last night" is
     right, because that is when the game was. "Guardians @ Tigers tomorrow"
     is not: the page already prints the day with the check's own time — "Next
@@ -485,13 +513,30 @@ LOGGING — the page shows the user what changed since they last looked, from
   the front when a write would exceed that.
 - Entries are data, not prose — the page writes the sentence. Use these shapes
   and no others:
-  { at, kind: "field", in: "<TEAM_ID>", out: "<TEAM_ID>" }
+  { at, kind: "field", in: "<TEAM_ID>", out: "<TEAM_ID>", via: [...] }
       a team entered the projected field and the one it displaced. Omit either
       side only if the field genuinely gained or lost a team on its own.
-  { at, kind: "seed", team: "<TEAM_ID>", from: n, to: n, over: "<TEAM_ID>" }
+  { at, kind: "seed", team: "<TEAM_ID>", from: n, to: n, over: "<TEAM_ID>",
+    via: [...] }
       log ONLY teams that moved UP: every move up implies someone moved down,
       and logging both sides says the same thing twice. `over` names the team
       passed when exactly two teams swapped; omit it otherwise.
+
+      `via` ON EITHER OF THOSE SAYS WHY IT HAPPENED, which is the reader's
+      first question: did mine win, did theirs lose, or did the two play each
+      other? It lists the games behind the move, at most one per club:
+
+          via: [ { team: "<TEAM_ID>", won: true|false, opp: "<TEAM_ID>",
+                   score: [<that team's runs>, <the opponent's runs>] }, ... ]
+
+      THAT TEAM'S OWN RUNS ALWAYS COME FIRST, win or lose — the page turns
+      the pair round itself when it writes a loss, so "lost to the Dodgers
+      4-1" comes from score [1, 4]. Include the club that moved, the club it
+      passed, or both, whichever actually played. When the two met each other,
+      ONE entry naming the other as `opp` is enough and the page writes "beat
+      them 6-2". Omit `via` entirely if you cannot identify the games rather
+      than guessing at them. The scores are in the day's schedule you already
+      fetched, so this costs no extra request.
   { at, kind: "game", series: "<SERIES_ID>", won: "<TEAM_ID>", game: n,
     score: [<winner's wins>, <loser's wins>] }
       one completed game. `score` is the series record after it, from the

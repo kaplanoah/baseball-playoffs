@@ -207,7 +207,7 @@ table.st .wc-num{ width:20px; }
    the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  padding:9px 17px 10px 13px; margin:0 0 20px; max-width:900px;
+  padding:9px 22px 10px 13px; margin:0 0 20px; max-width:900px;
 }
 /* The header's 18px is for the tabs; news right under the rule sits closer. */
 header.top + .updates{ margin-top:-6px; }
