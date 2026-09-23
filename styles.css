@@ -399,7 +399,8 @@ table.ref td .team-name{ font-size:.84rem; font-weight:400; }
    desktop, so there it stays off. */
 .rank-ws{ display:none; font-size:.7rem; line-height:15px; color:var(--ink-dim); }
 /* Each half holds together, so a narrow card breaks the line at the dot
-   rather than between "Last WS" and its year. */
+   rather than between "Last WS" and its year. The bullet is the one the
+   bracket cards' next-game notes use. */
 .rank-ws > span{ white-space:nowrap; }
 .rank-ws .sep{ margin:0 6px; }
 /* Fixed widths so the years and droughts form two columns down the page. */
@@ -501,6 +502,7 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
   /* One column of blocks: the space between them matches the 18px page
      gutter at their sides rather than the desktop's 30. */
   .div-grid, .wc-grid{ gap:18px; }
+  .stand-head{ margin-bottom:15px; }
 
   /* All Teams: scroll the table, not the page. The negative margin lets it run
      to both screen edges the way .tree-scroll does, so the columns get the
@@ -533,7 +535,18 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
   /* Just wide enough for "12" at this size (about 21px), so the numerals keep
      their right edge without the desktop's spare 7px of air to their left. */
   .rank-num{ width:22px; }
-  .rank-ws{ display:block; }
+  /* The numerals run 8px into the page gutter, the way .tree-scroll lets the
+     bracket use it, so the column costs the cards less of the screen. */
+  .rank-list{ margin-left:-8px; }
+  /* The column headings sit over .rank-cols, which is gone here, so the row
+     they're in would only be an empty strip between the hint and the list. */
+  #rankHead{ display:none; }
+  .rank-hint{ margin-bottom:12px; }
+  /* Spaced by hand, not the column's gap: a little more air under the club,
+     a little less before the title line. */
+  .rank-id{ gap:0; }
+  .rank-id .meta-row{ margin-top:8px; }
+  .rank-ws{ display:block; margin-top:5px; }
   /* Three lines don't fit the desktop's fixed 58px, so the card sizes to them. */
   .rank-card{ height:auto; min-height:58px; padding-block:11px; }
 
@@ -549,8 +562,8 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
   /* Row gap tighter than the header's 14: the stamp belongs to the title
      above it. The lines get air of their own, since either can wrap and two
      wrapped lines otherwise read as one paragraph. */
-  header.top{ row-gap:6px; }
-  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; gap:5px; }
+  header.top{ row-gap:10px; }
+  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; gap:3px; }
 
   /* Four tabs onto one row. They share the width rather than sizing to their
      labels, so the row fills the screen and nothing wraps to a second line. */

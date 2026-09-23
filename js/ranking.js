@@ -39,7 +39,9 @@ function renderRanking(){
             <span class="league-tag ${t.league}">${t.league}</span>
             <span class="rank-seed tabular">${t.seed} seed</span>
           </span>
-          <span class="rank-ws tabular"><span>Last WS ${won || "&mdash;"}<span class="sep">&middot;</span></span><span>${droughtLabel(id)}</span></span>
+          <span class="rank-ws tabular">${won
+            ? `<span>Last WS ${won}<span class="sep">&bull;</span></span><span>${droughtLabel(id)}</span>`
+            : "Never won WS"}</span>
         </span>
         <span class="rank-cols">
           <span class="col-won tabular">${won || "&mdash;"}</span>
