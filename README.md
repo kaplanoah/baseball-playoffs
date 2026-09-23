@@ -301,20 +301,26 @@ WRITING — read this before any write:
         "Slate of 8 ended with Mets 3 Braves 2 at 10:28"
         "Slate of 6 under way with Rays @ Yankees 2-1 in the 5th"
         "Slate of 3 starts with Astros @ Mariners first pitch at 9:40"
-    THE VERB DESCRIBES THE WHOLE SLATE, NOT THE ONE GAME YOU NAME. Take the
-    first of these three that has any game in it, and never skip a group
-    because the user's own club is in a later one — a game under way makes the
-    slate under way even when their club does not play until tonight:
-      - anything final since the last run → "ended with"
-      - else anything under way → "under way with"
-      - else nothing has started → "starts with"
-    Then name a game FROM THAT SAME GROUP. "Ended" and "starts" are claims
-    about the clock, so the clock picks:
-      - "ended with" → the one that finished LAST.
-      - "starts with" → the one with the EARLIEST first pitch.
-      - "under way with" claims nothing about the clock, so take the club that
-        sits highest in the user's `ranking` — it is their game, and the doc
-        tells you their order.
+    COUNT THE WHOLE DAY, NOT THE PART YOU ARE NAMING. "Slate of 14" means
+    fourteen games today. One of them going final does not make it one game:
+    if the day has three or more, it is a slate, and it stays a slate while
+    any of them is still being played.
+
+    THE VERB DESCRIBES THE WHOLE SLATE, NOT THE ONE GAME YOU NAME. A slate
+    with games still in progress has NOT ended, however many finals it has
+    already produced — saying "ended with" there is simply false:
+      - every game finished → "ended with", naming the one that finished LAST.
+      - SOME FINISHED, SOME STILL BEING PLAYED → name the newest final, then
+        say how much is left, because both are news:
+          "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 still under way"
+        This is the common shape on a full evening and the one to reach for
+        whenever a final lands while other games are going.
+      - nothing final yet, games under way → "under way with", naming the club
+        that sits highest in the user's `ranking` — it is their game, and the
+        doc tells you their order.
+      - nothing has started → "starts with", naming the EARLIEST first pitch.
+    Never skip a group because the user's own club is in a later one: a game
+    under way makes the slate under way even when their club plays tonight.
     Where that leaves a tie — two finals at the same minute, two games sharing
     a first pitch — `ranking` breaks it, and the earlier team in the doc's
     order wins. A slate that starts at 1:05 is never described by a 7:40 game.
