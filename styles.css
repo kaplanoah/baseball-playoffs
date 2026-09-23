@@ -530,6 +530,9 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      heading; with .rank-cols gone there is no column left to hold, so it
      shrinks to the chip and the third line gets the difference. */
   .status-slot{ width:auto; margin-left:auto; padding-left:10px; }
+  /* Just wide enough for "12" at this size (about 21px), so the numerals keep
+     their right edge without the desktop's spare 7px of air to their left. */
+  .rank-num{ width:22px; }
   .rank-ws{ display:block; }
   /* Three lines don't fit the desktop's fixed 58px, so the card sizes to them. */
   .rank-card{ height:auto; min-height:58px; padding-block:11px; }
