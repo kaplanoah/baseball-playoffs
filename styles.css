@@ -494,4 +494,39 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      the columns go and the chip stays. */
   .rank-cols{ display:none; }
   .status-slot{ margin-left:auto; }
+
+  /* The header stacked as title / (stamp + picker), which left the stamp a
+     narrow column wrapping into five ragged lines. display:contents promotes
+     .head-right's two children to header.top's own flex row, so the picker
+     can sit up beside the title and the stamp take the whole width below.
+     Left-aligned there: right-aligned ragged text over a full line is a
+     harder read than the block it becomes. */
+  .head-right{ display:contents; }
+  header.top > div:first-child{ order:1; }
+  .year-picker{ order:2; }
+  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; margin-top:8px; }
+
+  /* Four tabs onto one row. They share the width rather than sizing to their
+     labels, so the row fills the screen and nothing wraps to a second line. */
+  nav.tabs{ flex-wrap:nowrap; gap:6px; }
+  nav.tabs button{
+    flex:1 1 0; min-width:0; padding:6px 2px;
+    font-size:.68rem; letter-spacing:.03em; white-space:nowrap;
+  }
+  /* Below about 360 the two nine-letter labels stop fitting even shared
+     equally, so the tracking goes before the row does. */
+  @media (max-width:359px){
+    nav.tabs button{ font-size:.6rem; letter-spacing:0; padding:6px 1px; }
+  }
+
+  /* News belongs above the tabs on a phone: at the bottom of a scrolling
+     column it sits below whichever view is open and is never seen. body goes
+     flex only here, so desktop keeps plain block flow and its own order. */
+  body{ display:flex; flex-direction:column; }
+  header.top{ order:1; }
+  #updates{ order:2; margin:0 0 18px; }
+  nav.tabs{ order:3; }
+  #banner{ order:4; }
+  section.view{ order:5; }
+  #setupModalBg{ order:6; }
 }
