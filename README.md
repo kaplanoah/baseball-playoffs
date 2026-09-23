@@ -352,7 +352,13 @@ WRITING — read this before any write:
         whenever a final lands while other games are going.
 
         "UNDER WAY" MEANS IN PROGRESS, NOT "NOT FINAL". Count only the games
-        actually being played. An afternoon with 2 over, 1 in progress and
+        actually being played — and COUNT THEM FROM `status.abstractGameState`
+        ("Preview", "Live", "Final"), NEVER by matching `detailedState`
+        against the word "In Progress". A live game shows a whole family of
+        detailed states — "Manager challenge", "Delayed", "Umpire review",
+        "Warmup" — and one of them really was on the board at 5:34 PM on a
+        day this rule was being written. Matching the display string drops
+        those games; `abstractGameState` is "Live" for all of them. An afternoon with 2 over, 1 in progress and
         13 not yet started is NOT "14 of 16 games still under way" — thirteen
         of those have not thrown a pitch, and a reader told they are under
         way will go looking for scores that do not exist.
@@ -361,6 +367,20 @@ WRITING — read this before any write:
         happened, and they are the two this field carries:
           "Orioles 4 Blue Jays 2 final at 4:14 — 2 of 16 games over, 1 under way"
           "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 games still under way"
+
+        THE COUNT BELONGS TO THE FIELD, NOT TO ONE BRANCH ABOVE. Any day
+        with three or more games gets it, whichever rule chose the game to
+        name. This is the easy one to lose: when the newest baseball is a
+        game still being played, the ladder picks that game, and stopping
+        there gives
+          "Twins @ Giants 3-2 in the 7th"
+        on a sixteen-game day with two already over and thirteen not started.
+        The reader learns nothing about the day from it. Write
+          "Twins @ Giants 3-2 in the 7th — 2 of 16 games over"
+        DO NOT COUNT THE GAME YOU JUST NAMED a second time — "2 of 16 games
+        over, 1 under way" adds nothing when the one under way is the game
+        sitting in front of the dash. Add "N under way" only when games
+        besides the named one are being played.
 
         DO NOT ADD A COUNT OF GAMES THAT HAVE NOT STARTED. "13 to come" is
         forward-looking, and forward-looking is `nextFor`'s job — a line
