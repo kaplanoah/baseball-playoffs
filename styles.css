@@ -80,14 +80,28 @@ section.view.active{ display:block; }
 /* Every part centers on one axis: the rule, the label, the team name and the
    status. Each child is itself a centered flex row, so nothing depends on
    baselines, which is what threw the label and tag low before. */
+/* Your top-ranked club still alive. It used to own a full-width row under the
+   tabs, which spent about 45px of height on three words and ran most of the
+   way empty on a wide screen. It now rides the right end of the tab row --
+   the emptiest strip on the page -- separated from the buttons by a hairline
+   in the same colour the buttons are drawn with, because it is the one thing
+   in that row you cannot click. */
 .banner{
-  border-left:3px solid var(--copper); padding:9px 0 9px 14px; margin:6px 0 26px;
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  margin-left:auto; display:flex; align-items:center; gap:9px;
+  border-left:1px solid var(--card-border); padding-left:17px;
+  font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
 }
+.banner[hidden]{ display:none; }
 .banner > *{ display:flex; align-items:center; }
-.banner .banner-label{ font-size:.7rem; line-height:1; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); }
-.banner .banner-team{ gap:10px; font-size:1.1rem; line-height:1; font-weight:500; color:var(--ink); }
-.banner .banner-status{ font-size:.88rem; line-height:1; color:var(--ink-dim); }
+/* The label takes the rank chip's own copper rather than the lighter --copper-ink
+   the other bare-text labels use, so the two read as one object instead of a
+   caption beside a tag. The extra 3px on top of the row's 9px gap holds the
+   label off the chip without loosening the chip, dot and name from each other. */
+.banner .banner-label{
+  font-size:.6rem; text-transform:uppercase; letter-spacing:.09em;
+  color:var(--copper); font-weight:400; margin-right:3px;
+}
+.banner .banner-team{ gap:9px; }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
 .stand-head{
@@ -577,6 +591,11 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
     flex:1 1 0; min-width:0; padding:6px 2px;
     font-size:.68rem; letter-spacing:.03em; white-space:nowrap;
   }
+  /* Four tabs already fill the row here, so the pick takes its own line under
+     them. The hairline would be pointing at nothing once it does, so it goes
+     and the copper label does the separating on its own. */
+  nav.tabs{ flex-wrap:wrap; }
+  .banner{ margin-left:0; flex-basis:100%; border-left:0; padding-left:0; margin-top:11px; }
   /* Below about 360 the two nine-letter labels stop fitting even shared
      equally, so the tracking goes before the row does. */
   @media (max-width:359px){
