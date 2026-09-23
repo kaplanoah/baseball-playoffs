@@ -21,7 +21,7 @@ body{
   font-family:'Chivo Mono', 'JetBrains Mono', monospace;
   font-size:16px;
   padding-inline:18px;
-  padding-block:22px 48px;
+  padding-block:13px 48px;
   /* The bracket sets this: 7 columns of LAY.colW plus 6 gaps (1583), plus the
      18px .tree-scroll keeps on each side so the cards aren't flush with the
      edge. Keep it in step with colW in bracket-view.js or the last column
