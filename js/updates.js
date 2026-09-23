@@ -21,8 +21,15 @@ function score(s){ return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${
 function entryText(e){
   const lg = id => (TEAMS[id] ? TEAMS[id].league : "");
   switch(e.kind){
+    /* "in, out" read as elimination. Nothing in the line said what they were
+       in and out OF, and a club can leave the projected field while sitting in
+       first place -- the Rangers did, at 78-79 and tied for the AL West lead.
+       Naming the spot makes it a position changing hands, which is all that
+       happened. The one-sided cases below always said "the projected field";
+       the swap was the only branch that dropped it. */
     case "field":
-      if(e.in && e.out) return `${logChip(e.in)} in, ${logChip(e.out)} out`;
+      if(e.in && e.out)
+        return `${logChip(e.in)} take the last ${lg(e.in)} spot from the ${logChip(e.out)}`;
       if(e.in) return `${logChip(e.in)} into the projected field`;
       if(e.out) return `${logChip(e.out)} out of the projected field`;
       return "";
