@@ -18,6 +18,41 @@ function logChip(id){
 }
 function score(s){ return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${s[1]}` : ""; }
 
+/* Why a team moved, from the games behind it. `via` entries are
+   { team, won, opp, score:[own, opp] } -- own score first however it ends, so
+   a loss just reads its pair backwards ("lost to the Dodgers 4-1" is the
+   Dodgers' 4 before the Padres' 1). Four shapes, because the reader's first
+   question is which of the two clubs actually played:
+     beat the Mets 6-2
+     Padres lost to the Dodgers 4-1
+     beat the Mets 6-2 and Padres lost to the Dodgers 4-1
+     beat them 6-2                        (the two met)
+   The mover is the subject of the sentence this tails, so its verb needs no
+   subject; the other club is always named. */
+function pair(n){ return Array.isArray(n) && n.length === 2 ? `${n[0]}-${n[1]}` : ""; }
+function viaText(e, mover, other){
+  const v = Array.isArray(e.via) ? e.via : [];
+  const mine = v.find(x => x && x.team === mover);
+  const theirs = v.find(x => x && x.team === other);
+  if(mine && mine.won && mine.opp === other) return `beat them ${pair(mine.score)}`;
+  const parts = [];
+  if(mine && TEAMS[mine.opp]){
+    parts.push(mine.won
+      ? `beat the ${teamLabel(mine.opp)} ${pair(mine.score)}`
+      : `lost to the ${teamLabel(mine.opp)} ${pair([mine.score[1], mine.score[0]])}`);
+  }
+  if(theirs && TEAMS[theirs.opp] && TEAMS[other]){
+    parts.push(`${teamLabel(other)} ${theirs.won
+      ? `beat the ${teamLabel(theirs.opp)} ${pair(theirs.score)}`
+      : `lost to the ${teamLabel(theirs.opp)} ${pair([theirs.score[1], theirs.score[0]])}`}`);
+  }
+  return parts.join(" and ");
+}
+function withVia(sentence, e, mover, other){
+  const why = viaText(e, mover, other);
+  return why ? `${sentence} &mdash; ${why}` : sentence;
+}
+
 function entryText(e){
   const lg = id => (TEAMS[id] ? TEAMS[id].league : "");
   switch(e.kind){
@@ -29,15 +64,15 @@ function entryText(e){
        the swap was the only branch that dropped it. */
     case "field":
       if(e.in && e.out)
-        return `${logChip(e.in)} take the last ${lg(e.in)} spot from the ${logChip(e.out)}`;
+        return withVia(`${logChip(e.in)} take the last ${lg(e.in)} spot from the ${logChip(e.out)}`, e, e.in, e.out);
       if(e.in) return `${logChip(e.in)} into the projected field`;
       if(e.out) return `${logChip(e.out)} out of the projected field`;
       return "";
     case "seed": {
       const where = `the ${lg(e.team)} ${e.to} seed`;
       return e.over
-        ? `${logChip(e.team)} passed the ${logChip(e.over)} for ${where}`
-        : `${logChip(e.team)} up to ${where}, from ${e.from}`;
+        ? withVia(`${logChip(e.team)} passed the ${logChip(e.over)} for ${where}`, e, e.team, e.over)
+        : withVia(`${logChip(e.team)} up to ${where}, from ${e.from}`, e, e.team, null);
     }
     case "game": {
       const g = e.game ? `Game ${e.game}` : "a game";
