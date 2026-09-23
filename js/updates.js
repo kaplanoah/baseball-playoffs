@@ -14,7 +14,7 @@ function seriesLabel(id){
   return `${lg} Wild Card Series`;
 }
 function logChip(id){
-  return TEAMS[id] ? `${teamDot(id)}<b>${teamLabel(id)}</b>` : "";
+  return TEAMS[id] ? teamTag(id, "b") : "";
 }
 function score(s){ return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${s[1]}` : ""; }
 

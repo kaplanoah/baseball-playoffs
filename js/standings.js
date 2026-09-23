@@ -36,7 +36,7 @@ function standRow(t, cells, opts = {}){
   const row = `<tr class="${cls} ${opts.cut ? "cut" : ""}">
     ${opts.lead || ""}<td class="rank-cell">${rankTag(t.id)}</td>
     <td class="seed-cell">${seed || ""}</td>
-    <td class="team"><span class="st-team">${teamDot(t.id)}<span class="name">${teamLabel(t.id)}</span></span></td>
+    <td class="team">${teamTag(t.id)}</td>
     ${cells}
   </tr>`;
   // One cell spanning the table, so the dashes run at a single even pitch.

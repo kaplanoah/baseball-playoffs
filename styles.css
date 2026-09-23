@@ -179,8 +179,6 @@ table.st tr.cutline td{
 table.st .rank-cell{ width:34px; }
 table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-nums; }
 table.st .wc-num{ width:20px; }
-.st-team{ display:flex; align-items:center; gap:7px; min-width:0; }
-.st-team .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .elim-num.clinched{ color:var(--gold); }
 .elim-num.live{ color:var(--copper-ink); }
 /* ONE CHIP. Four labels, one geometry -- the rank tag is the single exception
@@ -240,10 +238,6 @@ header.top + .updates{ margin-top:-6px; }
    flex would space every stray word like a separate item. */
 .updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; }
 .updates-list .what b{ font-weight:700; }
-/* Placed by number, not vertical-align:middle: middle centers the dot on half
-   the x-height, a pixel below the middle of the capitals beside it. -2.5px
-   centers it on the caps, the way the flex rows elsewhere land it. */
-.updates-list .what .dot{ margin:0 5px 0 1px; vertical-align:-2.5px; }
 .updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
 
 .setup-card{
@@ -330,13 +324,22 @@ button.ghost{
   box-shadow: inset 0 2px 3px rgba(0,0,0,.46), 0 1px 0 rgba(241,234,212,.13);
 }
 .team-name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* ONE TEAM: the dot and the club name, built by teamTag() in app.js for every
+   view. The name opts into baseline alignment and nothing else does, so the
+   piece takes its baseline from the name and sits in running text like a
+   word, while the dot centers on the name's line -- the same place a flex row
+   puts it. That is what the update log's hand-tuned vertical-align was
+   approximating. */
+.club{ display:inline-flex; align-items:center; gap:8px; min-width:0; max-width:100%; vertical-align:baseline; }
+.club > .team-name{ align-self:baseline; }
+.banner-team .club{ gap:10px; }
 /* ONE CLUB NAME. The same word does the same job on a bracket card, a ranking
    card, a standings row and the All Teams table; it used to be set four
    different ways, bold in one of them. Keep these four selectors together. */
 .matchup-row .team-name,
 .rank-id .team-name,
-.st-team .name,
-table.ref td .cell{ font-size:.84rem; font-weight:400; }
+table.st td.team .team-name,
+table.ref td .team-name{ font-size:.84rem; font-weight:400; }
 .tbd{ color:color-mix(in srgb, var(--ink-dim) 55%, var(--card)); font-style:italic; font-size:.88rem; }
 /* Recessed the way the team dots are: the shadow falls inside the top edge
    and a lit lip sits below, so a score reads as punched into the card. */
@@ -439,7 +442,6 @@ table.ref th{
   border-bottom:1px solid var(--divider); padding:7px 0 4px 10px;
 }
 table.ref td{ padding:6px 10px; border-bottom:1px solid var(--divider); }
-table.ref td .cell{ display:flex; align-items:center; gap:9px; }
 /* Rank sits in its own column so every dot and team name starts on the same
    line, ranked or not. Shrinks to the tag's width. */
 table.ref th:first-child, table.ref td.rank-col{ width:1%; white-space:nowrap; }

@@ -25,7 +25,7 @@ function matchupRow(s, side){
   const isPreferred = preferredSide(s) === side;
   const seed = state.teams[id] && state.teams[id].seed;
   return `<div class="matchup-row ${isWinner?'winner':''} ${isLoser?'eliminated':''}">
-    <div class="team-id">${rankTag(id, isPreferred)}${seedMark(seed)}${teamDot(id)}<span class="team-name">${TEAMS[id].name}</span></div>
+    <div class="team-id">${rankTag(id, isPreferred)}${seedMark(seed)}${teamTag(id)}</div>
     <span class="nscore tabular ${isWinner?'lead':''}">${wins}</span>
   </div>`;
 }
@@ -215,7 +215,7 @@ function renderBanner(br){
   const champ = br.ws && br.ws.winner;
   if(champ){
     banner.innerHTML = `<span class="banner-label">Final</span>
-      <span class="banner-team">${teamDot(champ)}${teamLabel(champ)}</span>
+      <span class="banner-team">${teamTag(champ)}</span>
       <span class="banner-status">win the World Series</span>`;
     return;
   }
@@ -228,5 +228,5 @@ function renderBanner(br){
   // No status label — "remaining" already says they're alive.
   const top = aliveRanked[0];
   banner.innerHTML = `<span class="banner-label">Highest remaining pick</span>
-    <span class="banner-team">${rankTag(top)}${teamDot(top)}${teamLabel(top)}</span>`;
+    <span class="banner-team">${rankTag(top)}${teamTag(top)}</span>`;
 }
