@@ -7,7 +7,7 @@
    still arrive, the answer can't change once they do, so say so now. Unranked
    teams sort last, which is what an empty ranking slot means. */
 function preferredSide(s){
-  const rank = id => { const i = state.ranking.indexOf(id); return i === -1 ? Infinity : i; };
+  const rank = id => { const i = rankedOrder().indexOf(id); return i === -1 ? Infinity : i; };
   const a = (s.teamA ? [s.teamA] : slotCandidates(state, s.id, "A")).map(rank);
   const b = (s.teamB ? [s.teamB] : slotCandidates(state, s.id, "B")).map(rank);
   if(!a.length || !b.length) return null;
@@ -209,7 +209,7 @@ function renderBracket(){
 
 function renderBanner(br){
   const banner = document.getElementById("banner");
-  if(!br || !state.ranking.length){ banner.hidden = true; return; }
+  if(!br || !rankedOrder().length){ banner.hidden = true; return; }
   banner.hidden = false;
 
   const champ = br.ws && br.ws.winner;
@@ -219,7 +219,7 @@ function renderBanner(br){
     return;
   }
 
-  const aliveRanked = state.ranking.filter(id => !teamEliminated(state, id));
+  const aliveRanked = rankedOrder().filter(id => !teamEliminated(state, id));
   if(aliveRanked.length === 0){
     banner.innerHTML = `<span class="banner-label">All eliminated</span>`;
     return;

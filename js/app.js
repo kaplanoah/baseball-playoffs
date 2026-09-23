@@ -177,13 +177,30 @@ function teamLabel(id){ return TEAMS[id] ? TEAMS[id].name : "?"; }
 function teamTag(id, tag = "span"){
   return `<span class="club">${teamDot(id)}<${tag} class="team-name">${teamLabel(id)}</${tag}></span>`;
 }
+/* EVERY CLUB IN THE FIELD HAS TO APPEAR IN THE RANKING. One that is missing is
+   invisible on the Ranking tab -- you cannot drag what is not drawn -- and can
+   never be the highest still in. The routine appends new clubs at the bottom
+   when the field changes, but the page writes `ranking` straight from the
+   browser with no version pin, so a drag that lands across a field change
+   saves back a list that predates the swap: the club that left is still in it,
+   the club that arrived never made it. This puts the order right at render
+   time whatever the document holds, unranked clubs last, exactly where the
+   routine would have put them. The next drag saves the correction back, so it
+   heals rather than papering over. */
+function rankedOrder(){
+  if(!state || !state.teams) return [];
+  const ranked = (state.ranking || []).filter(id => state.teams[id]);
+  const missing = Object.keys(state.teams).filter(id => !ranked.includes(id));
+  return ranked.concat(missing);
+}
+
 // A bare digit, the way a lineup card carries a uniform number.
 function seedMark(seed){ return seed ? `<span class="seed-pre tabular">${seed}</span>` : ""; }
 /* `solid` fills the tag, marking the team you rank higher in a given matchup.
    The slot is a fixed width so a two-digit rank doesn't push the dot and name
    further right than a one-digit one; the tag itself still hugs its text. */
 function rankTag(id, solid){
-  const idx = state.ranking.indexOf(id);
+  const idx = rankedOrder().indexOf(id);
   if(idx === -1) return "";
   return `<span class="rank-slot"><span class="rank-tag ${solid ? "solid" : ""}">#${idx+1}</span></span>`;
 }

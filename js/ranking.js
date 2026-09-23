@@ -15,7 +15,7 @@ function shortStatus(st){
 function renderRanking(){
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
-  if(!state.ranking.length){
+  if(!rankedOrder().length){
     head.hidden = true;
     list.innerHTML = `<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`;
     return;
@@ -25,7 +25,7 @@ function renderRanking(){
      rows; inside, the club over its league chip and seed, then the two title
      columns, which line up under the headings above the list. A phone has no
      room for the columns, so it gets them as a third line instead. */
-  list.innerHTML = state.ranking.map((id, i) => {
+  list.innerHTML = rankedOrder().map((id, i) => {
     const t = state.teams[id];
     const st = teamStatusLabel(state, id);
     const won = lastTitle(id);
@@ -71,7 +71,7 @@ function wireDrag(list){
       reordering = false;
       const rows = [...list.querySelectorAll(".rank-item")];
       const order = rows.map(el => el.dataset.id);
-      if(order.join() === state.ranking.join()) return;
+      if(order.join() === rankedOrder().join()) return;
 
       // Sortable already placed the row; just renumber in place rather than
       // re-rendering the list out from under it.

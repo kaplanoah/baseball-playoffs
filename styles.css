@@ -90,6 +90,10 @@ section.view.active{ display:block; }
   margin-left:auto; display:flex; align-items:center; gap:9px;
   border-left:1px solid var(--card-border); padding-left:17px;
   font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
+  /* Off the right edge, and lifted a couple of pixels: the tab buttons carry
+     6px of padding above their caps, so centring on the row leaves this
+     sitting visually low against them. */
+  margin-right:10px; position:relative; top:-2px;
 }
 .banner[hidden]{ display:none; }
 .banner > *{ display:flex; align-items:center; }
@@ -595,7 +599,7 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      them. The hairline would be pointing at nothing once it does, so it goes
      and the copper label does the separating on its own. */
   nav.tabs{ flex-wrap:wrap; }
-  .banner{ margin-left:0; flex-basis:100%; border-left:0; padding-left:0; margin-top:11px; }
+  .banner{ margin-left:0; margin-right:0; top:0; flex-basis:100%; border-left:0; padding-left:0; margin-top:11px; }
   /* Below about 360 the two nine-letter labels stop fitting even shared
      equally, so the tracking goes before the row does. */
   @media (max-width:359px){
