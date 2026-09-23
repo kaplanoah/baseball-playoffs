@@ -328,15 +328,39 @@ WRITING — read this before any write:
           "Nationals 3 Tigers 1 final at 9:19 — 8 of 14 still under way"
         This is the common shape on a full evening and the one to reach for
         whenever a final lands while other games are going.
-      - nothing final yet, games under way → "under way with", naming the club
-        that sits highest in the user's `ranking` — it is their game, and the
-        doc tells you their order.
-      - nothing has started → "starts with", naming the EARLIEST first pitch.
+      - nothing final yet, games under way → "under way with".
+      - nothing has started → "starts with".
     Never skip a group because the user's own club is in a later one: a game
     under way makes the slate under way even when their club plays tonight.
-    Where that leaves a tie — two finals at the same minute, two games sharing
-    a first pitch — `ranking` breaks it, and the earlier team in the doc's
-    order wins. A slate that starts at 1:05 is never described by a 7:40 game.
+
+    WHICH GAME TO NAME. Each shape has its own order of tests. Apply the
+    first; only when it leaves a tie does the next one decide, and so on
+    down the list:
+      - ENDED, or a final while others are still being played:
+          1. the LATEST final out
+          2. the user's highest-ranked club
+          3. a club that still has a chance
+      - UNDER WAY:
+          1. the user's highest-ranked club
+          2. a club that still has a chance
+          3. the MOST RECENT first pitch
+      - STARTS WITH:
+          1. the EARLIEST first pitch
+          2. the user's highest-ranked club
+          3. a club that still has a chance
+    "Highest-ranked" is `ranking` in the season doc: a game counts as the
+    better of its two clubs' positions there, and a game with neither club
+    in `ranking` loses to any game with one. "Still has a chance" means
+    at least one of its two clubs is not yet out: in September, a club is
+    out only when the standings doc shows "E" for BOTH `elim` and `wce`
+    (read it with a "get" on collection "standings" — it is already
+    written, so this costs no MLB call); in the postseason, a club is out
+    once it has lost a series. A game whose clubs are both out loses to any
+    game with a club still alive. So with Nationals @ Tigers and Blue Jays @
+    Orioles both under way, neither in `ranking`, and the Nationals and
+    Tigers both "E" in both columns, the slate is "under way with Blue Jays
+    @ Orioles". A slate that starts at 1:05 is never described by a 7:40
+    game.
   - `updatedAt` is the current time. `updatedFor` names the newest baseball
     there is, and NEVER an absence. In order:
       - anything final since the last run: name it, by the rules above. When
