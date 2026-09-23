@@ -103,7 +103,7 @@ function renderUpdates(){
   el.innerHTML = `
     <div class="updates-head">
       <span class="updates-count">${head}</span>
-      <button class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss">&times;</button>
+      <button class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
     </div>
     <ul class="updates-list">
       ${shown.map(e => {

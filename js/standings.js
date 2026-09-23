@@ -155,7 +155,8 @@ function nextLine(iso, why){
      now started. "starts with" is the only verb the wording rules produce
      here; everything else ("first pitch at 9:40") reads the same either way. */
   const past = why ? why.replace(" starts with ", " started with ") : why;
-  const label = Date.now() >= t + RUN_GRACE_MS ? "Update overdue" : "Updating now";
+  /* "now" stands where a time would, so it takes the times' color. */
+  const label = Date.now() >= t + RUN_GRACE_MS ? "Update overdue" : "Updating <b>now</b>";
   return `<span>${label}${past ? ` &mdash; ${past}` : ""}</span>`;
 }
 

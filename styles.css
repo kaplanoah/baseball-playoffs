@@ -211,28 +211,40 @@ table.st .wc-num{ width:20px; }
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
   padding:9px 13px 10px; margin:0 0 20px; max-width:900px;
 }
+/* The header's 18px is for the tabs; news right under the rule sits closer. */
+header.top + .updates{ margin-top:-6px; }
+@media (min-width:780px){
+  /* As wide as its longest line, not a fixed band with a gap at the right. */
+  .updates{ width:fit-content; min-width:420px; }
+}
 .updates-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .updates-count{ font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); }
 .updates-x{
-  flex:none; width:22px; height:22px; margin:-3px -5px -3px 0;
+  flex:none; width:22px; height:22px; margin:-3px -5px -3px 0; padding:0;
   display:inline-flex; align-items:center; justify-content:center;
   background:transparent; border:0; border-radius:3px;
-  color:var(--ink-dim); font-family:inherit; font-size:1.05rem; line-height:1; cursor:pointer;
+  color:color-mix(in srgb, var(--ink-dim) 62%, transparent); cursor:pointer;
 }
-.updates-x:hover{ color:var(--ink); background:var(--divider); }
+/* A drawn hairline cross rather than the font's times sign, which came in
+   heavier than anything else in the box. The green is the grip's. */
+.updates-x svg{ width:10px; height:10px; display:block; }
+.updates-x:hover{ color:var(--ink-dim); background:var(--divider); }
 .updates-list{ list-style:none; margin:7px 0 0; padding:0; }
 .updates-list li{ display:flex; align-items:center; gap:10px; font-size:.82rem; padding:3px 0; }
 .updates-list li + li{ border-top:1px solid var(--divider); }
 .updates-list .when{
-  flex:none; width:72px; font-size:.68rem; color:var(--ink-dim);
+  flex:none; width:62px; font-size:.68rem; color:var(--ink-dim);
   font-variant-numeric:tabular-nums;
 }
 /* Not a flex row: the entries are sentences with team dots inside them, and
    flex would space every stray word like a separate item. */
 .updates-list .what{ color:var(--ink); min-width:0; line-height:1.45; }
 .updates-list .what b{ font-weight:700; }
-.updates-list .what .dot{ margin:0 5px 0 1px; }
-.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:82px; }
+/* Placed by number, not vertical-align:middle: middle centers the dot on half
+   the x-height, a pixel below the middle of the capitals beside it. -2.5px
+   centers it on the caps, the way the flex rows elsewhere land it. */
+.updates-list .what .dot{ margin:0 5px 0 1px; vertical-align:-2.5px; }
+.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
 
 .setup-card{
   background:var(--card); border:1px dashed var(--card-border); border-radius:10px; padding:22px;
@@ -477,6 +489,9 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      under it scrolls. Same move the bracket already makes with .tree-scroll. */
   .st-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   .st-scroll table.st{ min-width:max-content; }
+  /* One column of blocks: the space between them matches the 18px page
+     gutter at their sides rather than the desktop's 30. */
+  .div-grid, .wc-grid{ gap:18px; }
 
   /* All Teams: scroll the table, not the page. The negative margin lets it run
      to both screen edges the way .tree-scroll does, so the columns get the
@@ -514,7 +529,11 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
   .head-right{ display:contents; }
   header.top > div:first-child{ order:1; }
   .year-picker{ order:2; }
-  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; margin-top:8px; }
+  /* Row gap tighter than the header's 14: the stamp belongs to the title
+     above it. The lines get air of their own, since either can wrap and two
+     wrapped lines otherwise read as one paragraph. */
+  header.top{ row-gap:6px; }
+  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; gap:5px; }
 
   /* Four tabs onto one row. They share the width rather than sizing to their
      labels, so the row fills the screen and nothing wraps to a second line. */
