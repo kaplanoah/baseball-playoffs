@@ -77,7 +77,18 @@ function divisionBlock(name, rows){
 function wildCardBlock(lg, all){
   const pool = DIV_ORDER.filter(d => d.startsWith(lg))
     .flatMap(d => (all[d] || []).filter(t => !t.lead))
-    .sort((a,b) => Number(a.wcrank || 99) - Number(b.wcrank || 99))
+    /* Alive first, then by rank. This is a RACE table -- cut line, games
+       back, elimination number -- not a standings table, so a club that
+       cannot win the race does not outrank one that can. MLB's own
+       wildCardRank put Toronto above Baltimore at identical 77-81 records on
+       a deep tiebreaker, while Baltimore held the tiebreaker that actually
+       mattered (4-2 over Chicago, the club both were chasing) and Toronto
+       did not (1-5). So the table showed an eliminated club above a live
+       one and offered no way to tell why. */
+    .sort((a,b) => {
+      const ae = a.wce === "E" ? 1 : 0, be = b.wce === "E" ? 1 : 0;
+      return ae !== be ? ae - be : Number(a.wcrank || 99) - Number(b.wcrank || 99);
+    })
     .slice(0, 7);
   if(!pool.length) return "";
   const anyNext = pool.some(t => t.next && t.next.at);
@@ -89,13 +100,16 @@ function wildCardBlock(lg, all){
         <th></th><th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>WCGB</th>
         <th class="mid" title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
       </tr></thead>
-      <tbody>${pool.map((t, i) => standRow(t,
+      <tbody>${(() => { let place = 0; return pool.map((t, i) => standRow(t,
         `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
         `<td class="tabular mid">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
         elimCell(t.wce) +
         (anyNext ? (t.wce === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
-        { cut: i === 2, cols, out: t.wce === "E", lead: `<td class="wc-num tabular">${t.wcrank || ""}</td>` }
-      )).join("")}</tbody>
+        { cut: i === 2, cols, out: t.wce === "E",
+          /* Numbered among the living only: a club that is out holds no
+             position in a race it cannot finish. */
+          lead: `<td class="wc-num tabular">${t.wce === "E" ? "" : ++place}</td>` }
+      )).join(""); })()}</tbody>
     </table></div>
   </div>`;
 }

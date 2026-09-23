@@ -240,6 +240,11 @@ header.top + .updates{ margin-top:-6px; }
 /* A step down each, light and medium over regular and bold: the log is
    background news, and at full weight it outshouted the tabs below it. */
 .updates-list .what b{ font-weight:500; }
+/* The one word that recedes on an elimination entry. --out is the same grey
+   the standings and ranking already use for a club that is done, and only
+   the word takes it: a strikethrough on six club names in an evening reads
+   like a funeral. */
+.updates-list .what .gone{ color:var(--out); }
 .updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
 
 .setup-card{

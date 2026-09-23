@@ -574,6 +574,38 @@ LOGGING — the page shows the user what changed since they last looked, from
     over: "<TEAM_ID>", score: [<winner's wins>, <loser's wins>] }
       the series is decided. Log this INSTEAD of a `game` entry for the
       clinching game, never both.
+  { at, kind: "elim", team: "<TEAM_ID>", via: [...] }
+      a club is out of it, for the season. THIS IS ITS OWN NEWS and the log
+      had no way to say it: "out" belonged to the projected field, so a club
+      that had merely lost a projected spot and a club whose season was over
+      read exactly the same. Six AL clubs were eliminated on one September
+      night and the log said nothing at all.
+      WHEN: in the regular season, the first run where the `standings`
+      document shows "E" for BOTH `elim` and `wce` for that club — you are
+      already comparing the table you just built against the one you read, so
+      the clubs that crossed over this run are the clubs to log. REGULAR
+      SEASON ONLY: in the postseason a `clinch` entry already names the club
+      that went out ("Brewers win the NLDS, 3-1, over the Cubs"), so an
+      `elim` beside it says the same thing twice. LOG IT ONCE, on the run
+      where it crosses over, and never again; a club that was already "E"
+      last run is not news.
+      `via` names the game that did it, by the same rules as above — usually
+      the club's own loss, sometimes the win by the club it was chasing.
+  { at, kind: "berth", team: "<TEAM_ID>", what: "division" | "wildcard" |
+    "bye", div: "<AL East etc, only when what is division>", via: [...] }
+      a club has SECURED something. This is the mirror of `elim`, and it was
+      missing for the same reason: the log could say a club moved up a seed
+      but not that it had actually clinched anything, and a club can clinch
+      without its seed moving at all — so nothing fired, and the Rays took
+      the AL East with the log silent.
+      WHEN: the first run where the `standings` document you just built shows
+      `clinched` true for a club and the one you read did not ("division"),
+      or where a club not leading its division can no longer be caught for a
+      wild card spot ("wildcard"), or where it has locked one of the two
+      first-round byes ("bye"). Same rule as elimination: compare against the
+      table you read, log only the clubs that crossed on this run, once each.
+      A club that clinches its division and later locks a bye gets one entry
+      for each — they are different news.
   { at, kind: "lock" }
       the official bracket replaced your projection. Once per season.
   { at, kind: "note", text: "<one short sentence>" }

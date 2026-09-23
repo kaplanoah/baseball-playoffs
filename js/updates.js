@@ -87,6 +87,24 @@ function entryText(e){
       const sc = score(e.score) ? `, ${score(e.score)}` : "";
       return `${logChip(e.team)} win the ${seriesLabel(e.series)}${sc}${over}`;
     }
+    /* Elimination had no entry kind at all, which is why "out" got borrowed
+       for a club that had merely lost a projected spot. It is its own news:
+       six AL clubs went out on one September night and the log said nothing.
+       Only the word recedes -- the club keeps its normal weight, because a
+       strikethrough on six names in an evening reads like a funeral. */
+    case "elim":
+      return withVia(`${logChip(e.team)} <span class="gone">eliminated</span>`, e, e.team, null);
+    /* The mirror of elim, and it was missing for the same reason: the log
+       could say a club moved up a seed but not that it had actually secured
+       anything. A club can clinch without its seed changing, so nothing
+       fired -- the Rays clinched the AL East and the log stayed silent. */
+    case "berth": {
+      const what = e.what === "division" ? `the ${e.div || (lg(e.team) + " division")}`
+                 : e.what === "bye"      ? "a first-round bye"
+                 : e.what === "wildcard" ? "a wild card spot"
+                 :                         "a playoff spot";
+      return withVia(`${logChip(e.team)} clinch ${what}`, e, e.team, null);
+    }
     case "lock": return "The official bracket is set";
     default: return e.text || "";
   }
