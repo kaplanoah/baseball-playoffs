@@ -34,7 +34,10 @@ h1,h2,h3{ font-weight:700; margin:0; letter-spacing:.01em; }
 
 header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
-  border-bottom:1px solid var(--card-border); padding-bottom:14px; margin-bottom:14px;
+  /* Two pixels, dimmed toward the page: the full-strength 2px rule was heavy,
+     and 1px was too faint to hold the header together. */
+  border-bottom:2px solid color-mix(in srgb, var(--card-border) 60%, var(--bg));
+  padding-bottom:14px; margin-bottom:13px;
 }
 header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.06em; }
 /* The stamp sits with the season picker, not in the tab bar: both are about
