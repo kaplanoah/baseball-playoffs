@@ -498,31 +498,35 @@ LOGGING — the page shows the user what changed since they last looked, from
   - Read the standings document with ArtifactData "get" and `out_dir`, so the
     table you read lands in a file without passing through your context;
     likewise read the season document to a file and pull out its `teams`.
-  - Write the table you build, and the `teams` you will write, to files too
-    (build them in Python, which you need anyway for the filtering).
+  - Write the table you build, the `teams` you will write, and the `games`
+    list you are writing to `slate.today` to files too (build them in Python,
+    which you need anyway for the filtering).
   - Save the script below as changes.py and run
-        python3 changes.py <read standings> <built standings> <read teams> <new teams>
+        python3 changes.py <read standings> <built standings> <read teams> <new teams> <games>
     passing the same teams file twice when the field did not change.
-  - It prints a JSON list of entries without `at` or `via`. Add `at` (now)
-    to each, add `via` where you can name the games (the schedule you already
-    fetched has them), and append them in order in the same write. An empty
-    list means there is nothing to log for the standings.
+  - It prints a JSON list of entries without `at`, each with its `via` (the
+    finals behind it) already worked out. Add `at` (now) to each and append
+    them in order, exactly as printed, in the same write. Do not add, change
+    or drop a `via` of your own. An empty list means there is nothing to log
+    for the standings.
 
   ```python
 """What changed between two standings tables, as update-log entries.
 
 The routine runs this instead of comparing the tables by eye: that is how the
-Orioles' elimination went unlogged. It reads four JSON files and prints a
-JSON list of log entries WITHOUT `at` or `via`; the routine adds those (the
-games behind a change are in the schedule it already fetched) and appends
+Orioles' elimination went unlogged. It reads five JSON files and prints a
+JSON list of log entries WITHOUT `at`; the routine adds that and appends
 every entry, in order, in the same write as the change itself.
 
-  python3 changes.py OLD_STANDINGS NEW_STANDINGS OLD_TEAMS NEW_TEAMS
+  python3 changes.py OLD_STANDINGS NEW_STANDINGS OLD_TEAMS NEW_TEAMS GAMES
 
 OLD_STANDINGS / NEW_STANDINGS: the standings document as read and as built
 ({divisions: {...}}). OLD_TEAMS / NEW_TEAMS: the season document's `teams`
 as read and as it will be written. Pass the same file twice for the teams
-when the field did not change.
+when the field did not change. GAMES: the `games` list the routine writes
+to `slate.today` (away, home, state, score), from which each entry gets its
+`via` -- the finals behind it -- so the log says WHY: "Orioles eliminated —
+White Sox beat the Royals 9-1".
 """
 import json
 import sys
@@ -559,9 +563,33 @@ def best_back(r):
     return f"{min(routes):.1f}" if routes else None
 
 
-def main(old_st, new_st, old_teams, new_teams):
+def result(games, club):
+    """A club's final today as a `via` item, own runs first, or None."""
+    for g in games:
+        if g.get("state") != "final" or club not in (g["away"], g["home"]):
+            continue
+        a, h = g["score"]
+        own, opp_runs, opp = (a, h, g["home"]) if g["away"] == club else (h, a, g["away"])
+        return {"team": club, "won": own > opp_runs, "opp": opp, "score": [own, opp_runs]}
+    return None
+
+
+def via(*items):
+    return [v for v in items if v]
+
+
+def last_wild_card(after, league_of, lg):
+    """The club holding the league's last wild card spot."""
+    holders = [r for i, r in after.items()
+               if league_of(i) == lg and r.get("wcrank") and not r.get("lead")]
+    holders.sort(key=lambda r: int(r["wcrank"]))
+    return holders[2]["id"] if len(holders) >= 3 else None
+
+
+def main(old_st, new_st, old_teams, new_teams, games):
     before, after = rows(old_st), rows(new_st)
     entries = []
+    league_of = lambda i: after[i]["div"][:2] if i in after else ""
 
     # The field: who came in, who went out, per league, paired in seed order.
     for lg in ("AL", "NL"):
@@ -571,6 +599,9 @@ def main(old_st, new_st, old_teams, new_teams):
                       key=lambda i: old_teams[i]["seed"])
         for i, o in zip(ins, outs):
             e = {"kind": "field", "in": i, "out": o}
+            v = via(result(games, i), result(games, o))
+            if v:
+                e["via"] = v
             if new_teams[i]["seed"] <= 3:
                 e.update(spot="division", div=after.get(i, {}).get("div", ""))
             else:
@@ -590,18 +621,36 @@ def main(old_st, new_st, old_teams, new_teams):
     # Division titles clinched on this run.
     for i, r in after.items():
         if r.get("clinched") and not before.get(i, {}).get("clinched"):
-            entries.append({"kind": "berth", "team": i, "what": "division", "div": r["div"]})
+            e = {"kind": "berth", "team": i, "what": "division", "div": r["div"]}
+            own = result(games, i)
+            if own and own["won"]:
+                e["via"] = [own]
+            entries.append(e)
 
     # Clubs whose season ended on this run: out of the division AND the wild card.
+    # Why: its own loss, and the win by the club it was chasing on the route
+    # that closed this run -- the division leader, or the last wild card.
     for i, r in after.items():
         if out_of_it(r) and not out_of_it(before.get(i, {})):
-            entries.append({"kind": "elim", "team": i})
+            e = {"kind": "elim", "team": i}
+            old = before.get(i, {})
+            chasing = None
+            if old.get("wce") != "E":
+                chasing = last_wild_card(after, league_of, league_of(i))
+            elif old.get("elim") != "E":
+                chasing = next((x for x, rr in after.items() if rr["div"] == r["div"] and rr.get("lead")), None)
+            own = result(games, i)
+            them = result(games, chasing) if chasing else None
+            v = via(own if own and not own["won"] else None, them if them and them["won"] else None)
+            if v:
+                e["via"] = v
+            entries.append(e)
 
     return entries
 
 
 if __name__ == "__main__":
-    docs = [json.load(open(p)) for p in sys.argv[1:5]]
+    docs = [json.load(open(p)) for p in sys.argv[1:6]]
     print(json.dumps(main(*docs), indent=1))
   ```
 - Log only what you actually wrote, and write nothing you don't log. Refreshed

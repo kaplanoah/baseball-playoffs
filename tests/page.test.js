@@ -76,4 +76,11 @@ test("update log: a field change names the spot and how far back the club that d
 test("update log: an elimination is plain words", () => {
   page.run("0", { logChip: id => page.run(`TEAMS["${id}"].name`) });
   assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL" } }), "Orioles eliminated");
+  // Why: the club it was chasing won, it lost, or both.
+  assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL",
+    via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }] } }),
+    "Orioles eliminated &mdash; White Sox beat the Royals 9-1");
+  assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL",
+    via: [{ team: "BAL", won: false, opp: "NYY", score: [2, 4] }, { team: "CWS", won: true, opp: "KC", score: [9, 1] }] } }),
+    "Orioles eliminated &mdash; lost to the Yankees 4-2 and White Sox beat the Royals 9-1");
 });

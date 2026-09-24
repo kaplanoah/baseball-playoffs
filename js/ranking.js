@@ -15,22 +15,26 @@ function shortStatus(st){
 function renderRanking(){
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
+  const gutter = document.getElementById("rankGutter");
   if(!rankedOrder().length){
     head.hidden = true;
+    gutter.innerHTML = "";
     list.innerHTML = `<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`;
     return;
   }
   head.hidden = false;
-  /* Rank in a gutter outside the card, the way the wild card race numbers its
-     rows; inside, the club over its league chip and seed, then the two title
-     columns, which line up under the headings above the list. A phone has no
-     room for the columns, so it gets them as a third line instead. */
+  /* The ranks are a column of their own beside the list, not part of the
+     cards: a slot's number stays put while cards are dragged past it, so 1
+     is always the top. Inside each card, the club over its league chip and
+     seed, then the two title columns, which line up under the headings above
+     the list. A phone has no room for the columns, so it gets them as a third
+     line instead. */
+  gutter.innerHTML = rankedOrder().map((_, i) => `<li class="rank-num tabular">${i + 1}</li>`).join("");
   list.innerHTML = rankedOrder().map((id, i) => {
     const t = state.teams[id];
     const st = teamStatusLabel(state, id);
     const won = lastTitle(id);
     return `<li class="rank-item ${st.cls === 'out' ? 'eliminated' : ''}" data-id="${id}">
-      <span class="rank-num tabular">${i+1}</span>
       <span class="rank-card">
         <span class="grip">&#8942;&#8942;</span>
         <span class="rank-id">
@@ -73,13 +77,9 @@ function wireDrag(list){
       const order = rows.map(el => el.dataset.id);
       if(order.join() === rankedOrder().join()) return;
 
-      // Sortable already placed the row; just renumber in place rather than
-      // re-rendering the list out from under it.
+      // Sortable already placed the row, and the numbers never moved, so
+      // there is nothing to redraw here.
       state.ranking = order;
-      rows.forEach((row, i) => {
-        const n = row.querySelector(".rank-num");
-        if(n) n.textContent = i + 1;
-      });
       renderBracket();
       saveRanking(order);
     }

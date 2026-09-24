@@ -6,6 +6,13 @@ const DIV_ORDER = ["AL East","AL Central","AL West","NL East","NL Central","NL W
 const E_TITLE = "Division elimination number: combined wins by the division leader and losses by this team that would end its division chances. A dash means clinched, E means out.";
 const WC_TITLE = "Wild card elimination number: combined wins by the team holding the last spot and losses by this team that would end its wild card chances. A dash means clinched, E means out.";
 
+/* Games back: MLB writes a leader's as a hyphen; the table uses the same
+   em dash as the elimination columns beside it. */
+function gbCell(v){
+  if(v == null || v === "") return `<td class="tabular"></td>`;
+  return `<td class="tabular">${v === "-" ? "&mdash;" : v}</td>`;
+}
+
 function elimCell(v){
   if(v === "E") return `<td class="elim-num mid">E</td>`;
   if(v == null || v === "-") return `<td class="elim-num clinched mid">&mdash;</td>`;
@@ -73,7 +80,7 @@ function divisionBlock(name, rows){
       </tr></thead>
       <tbody>${rows.map(t => standRow(t,
         `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
-        `<td class="tabular mid">${t.pct ?? ""}</td><td class="tabular">${t.gb ?? ""}</td>` +
+        `<td class="tabular mid">${t.pct ?? ""}</td>${gbCell(t.gb)}` +
         elimCell(t.elim) +
         (anyNext ? (t.elim === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { out: t.elim === "E" }
@@ -113,7 +120,7 @@ function wildCardBlock(lg, all){
       </tr></thead>
       <tbody>${pool.map((t, i) => standRow(t,
         `<td class="tabular mid">${t.w ?? ""}</td><td class="tabular mid">${t.l ?? ""}</td>` +
-        `<td class="tabular mid">${t.pct ?? ""}</td><td class="tabular">${t.wcgb ?? ""}</td>` +
+        `<td class="tabular mid">${t.pct ?? ""}</td>${gbCell(t.wcgb)}` +
         elimCell(t.wce) +
         (anyNext ? (t.wce === "E" ? `<td class="next-cell"></td>` : nextCell(t)) : ""),
         { cut: i === 2, cols, out: t.wce === "E" }

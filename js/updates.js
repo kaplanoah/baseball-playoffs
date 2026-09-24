@@ -134,7 +134,10 @@ function entryText(e){
        six AL clubs went out on one September night and the log said nothing.
        Plain text, in the line's own color: no strikethrough, no dimming. */
     case "elim":
-      return withVia(`${logChip(e.team)} eliminated`, e, e.team, null);
+      /* Why: its own loss, the win by the club it was chasing, or both --
+         "Orioles eliminated — White Sox beat the Royals 9-1". */
+      return withVia(`${logChip(e.team)} eliminated`, e, e.team,
+        ((e.via || []).find(v => v && v.team !== e.team) || {}).team || null);
     /* The mirror of elim, and it was missing for the same reason: the log
        could say a club moved up a seed but not that it had actually secured
        anything. A club can clinch without its seed changing, so nothing
