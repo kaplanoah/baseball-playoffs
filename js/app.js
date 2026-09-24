@@ -273,6 +273,7 @@ async function boot(){
   renderAll();
   watchSeason(activeYear);
   watchStandings(activeYear);
+  initRefresh();
 }
 
 if(window.claude?.hot){

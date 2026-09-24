@@ -27,7 +27,8 @@ behalf. The whole thing takes a couple of minutes.
 Work through these in order. Steps 3 and 4 need the artifact URL from step 1.
 
 **1. Publish the page.** Using the Artifact tool, publish `index.html` with
-`icon: "baseball"`, `capabilities: {"db": {}}`, and the supporting files:
+`icon: "baseball"`, `capabilities: {"db": {}, "mcp": {"servers": [{"server":
+"Claude Code Remote", "tools": ["fire_trigger"]}]}}`, and the supporting files:
 
 ```
 files: {
@@ -38,6 +39,7 @@ files: {
   "js/bracket-view.js": "js/bracket-view.js",
   "js/ranking.js":      "js/ranking.js",
   "js/updates.js":      "js/updates.js",
+  "js/stamp.js":        "js/stamp.js",
   "js/standings.js":    "js/standings.js",
   "js/setup.js":        "js/setup.js",
   "js/app.js":          "js/app.js"
@@ -671,6 +673,7 @@ is theirs to set on the Ranking tab.
 | `js/updates.js` | The change log — what moved since you last looked |
 | `js/standings.js` | Divisions, the wild card race, and the freshness stamp |
 | `js/stamp.js` | The stamp's two sentences, built from the day's games — pure functions |
+| Update now | The ↻ at the end of the stamp's second line fires the routine on demand through the viewer's Claude Code Remote connector (`fire_trigger`, trigger id in `js/standings.js`). Published with `capabilities: {"db": {}, "mcp": {"servers": [{"server": "Claude Code Remote", "tools": ["fire_trigger"]}]}}`; the first tap asks to allow it |
 | `tests/` | `npm test`: the stamp's sentences and a few page helpers, in plain `node` with no dependencies |
 | `js/setup.js` | The manual field-setting modal, for when the routine hasn't |
 | `js/app.js` | The season document, the artifact store, shared helpers, boot |

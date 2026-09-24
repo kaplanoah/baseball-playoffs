@@ -64,6 +64,20 @@ nav.tabs{ display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; align-items
 /* Two greens rather than green and cream: the emphasis is the page's own dim
    green lifted toward its cream, so nothing new joins the palette. */
 .stamp b{ font-weight:400; color:color-mix(in srgb, var(--ink-dim) 55%, var(--ink)); }
+/* Update now: an icon in the second line's own green, a size up on hover.
+   It turns while the run it started is under way. */
+.stamp-refresh{
+  display:inline-flex; align-items:center; justify-content:center; vertical-align:-3px;
+  width:18px; height:18px; margin-left:6px; padding:0; border:0; border-radius:4px;
+  background:none; color:var(--ink-dim); cursor:pointer;
+}
+.stamp-refresh svg{ width:11px; height:11px; display:block; }
+.stamp-refresh:hover{ color:var(--ink); background:var(--divider); }
+.stamp-refresh:disabled{ cursor:default; background:none; color:var(--ink-dim); }
+.stamp-refresh.busy svg{ animation:stamp-spin 1.1s linear infinite; }
+@keyframes stamp-spin{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){ .stamp-refresh.busy svg{ animation:none; } }
+.stamp-err{ color:var(--copper-ink); }
 nav.tabs button{
   font:inherit; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em;
   background:none; border:1px solid var(--card-border); color:var(--ink-dim);
@@ -167,17 +181,14 @@ table.st{ width:100%; border-collapse:collapse; }
 /* Fixed layout on the two-column desktop grid: every table has the same
    width there, so the same widths put W through Next on one vertical line
    across the division and wild card tables. The team column is a fixed width
-   so a name never clips (the wild card's is 20px narrower, giving that room
-   to its place number), the numbers are percentages so they keep their
+   so a name never clips, the numbers are percentages so they keep their
    proportions as the window narrows, and Next takes what's left. On a phone
    each table scrolls on its own and keeps its natural sizing. */
 @media (min-width:780px){
   table.st{ table-layout:fixed; }
-  table.st col.c-num{ width:20px; }
   table.st col.c-rank{ width:44px; }
   table.st col.c-seed{ width:38px; }
   table.st col.c-team{ width:150px; }
-  table.st col.c-team-wc{ width:130px; }
   table.st col.c-w, table.st col.c-l{ width:5%; }
   table.st col.c-pct, table.st col.c-gb{ width:8%; }
   table.st col.c-e{ width:5%; }
@@ -237,7 +248,6 @@ table.st tr.cutline td{
 }
 table.st .rank-cell{ width:34px; }
 table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-nums; }
-table.st .wc-num{ width:20px; }
 .elim-num.clinched{ color:var(--gold); }
 .elim-num.live{ color:var(--copper-ink); }
 /* ONE CHIP. Four labels, one geometry -- the rank tag is the single exception
