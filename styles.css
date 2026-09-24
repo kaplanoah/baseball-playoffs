@@ -119,14 +119,14 @@ section.view.active{ display:block; }
   font-size:.6rem; text-transform:uppercase; letter-spacing:.09em;
   color:var(--copper-ink); font-weight:400;
 }
-.banner .banner-team{ gap:8px; position:relative; top:-.5px; }
+.banner .banner-team{ gap:9px; position:relative; top:-.5px; }
 /* That half pixel is for the chip. Centred in the 30px tab row, the 19px chip
    started on a half pixel, and the number inside it, which snaps to whole
    pixels, rendered high against its border. On the whole-pixel grid it draws
    like every other chip on the page. */
-/* Optical, not geometric: the boxes are centered, but the bold mixed-case name
-   reads low beside the small capitals, so the dot and name ride half a pixel up. */
-.banner .banner-team .club{ position:relative; top:-.5px; }
+/* Optical, not geometric: the dot rides half a pixel above the chip's center
+   so it reads level beside it; the name stays where centering puts it. */
+.banner .banner-team .dot{ position:relative; top:-.5px; }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
 .stand-head{
