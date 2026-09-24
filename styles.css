@@ -114,7 +114,7 @@ section.view.active{ display:block; }
   font-size:.6rem; text-transform:uppercase; letter-spacing:.09em;
   color:var(--copper-ink); font-weight:400; margin-right:3px;
 }
-.banner .banner-team{ gap:9px; }
+.banner .banner-team{ gap:7px; }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
 .stand-head{
@@ -300,7 +300,10 @@ button.ghost{
 /* The row's own 8px gap already spaces these; the banner has no seed between
    the chip and the dot, so it keeps the extra 4. */
 .team-id .rank-slot{ margin-right:0; }
-.banner-team .rank-slot{ margin-right:0; }
+/* The banner has one chip and no column to line up with, so its slot shrinks
+   to the chip: the fixed width's empty left side read as extra space after
+   the label. */
+.banner-team .rank-slot{ margin-right:0; width:auto; }
 
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
