@@ -50,7 +50,7 @@ header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--in
   background-repeat:no-repeat; background-position:right 8px center; background-size:9px 5px;
 }
 
-nav.tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+nav.tabs{ display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; align-items:center; }
 /* When the routine last changed anything. One green: it's background
    information, not something to look at. */
 .stamp{
@@ -82,18 +82,18 @@ section.view.active{ display:block; }
    baselines, which is what threw the label and tag low before. */
 /* Your top-ranked club still alive. It used to own a full-width row under the
    tabs, which spent about 45px of height on three words and ran most of the
-   way empty on a wide screen. It now rides the right end of the tab row --
-   the emptiest strip on the page -- separated from the buttons by a hairline
+   way empty on a wide screen. It now rides the tab row, right after the
+   buttons, separated from them by a hairline
    in the same colour the buttons are drawn with, because it is the one thing
    in that row you cannot click. */
 .banner{
-  margin-left:auto; display:flex; align-items:center; gap:9px;
+  margin-left:10px; display:flex; align-items:center; gap:9px;
   border-left:1px solid var(--card-border); padding-left:17px;
   font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
-  /* Off the right edge, and lifted a couple of pixels: the tab buttons carry
-     6px of padding above their caps, so centring on the row leaves this
-     sitting visually low against them. */
-  margin-right:10px; position:relative; top:-5px;
+  /* Lifted a couple of pixels: the tab buttons carry 6px of padding above
+     their caps, so centring on the row leaves this sitting visually low
+     against them. */
+  position:relative; top:-5px;
 }
 .banner[hidden]{ display:none; }
 .banner > *{ display:flex; align-items:center; }
@@ -223,15 +223,17 @@ table.st .wc-num{ width:20px; }
 .magic-tag{ color:var(--copper-ink); border:0; padding:0; height:auto; }
 .stand-empty{ color:var(--ink-dim); font-size:.78rem; line-height:1.6; max-width:60ch; }
 
-/* What's changed since you last looked. Sits below the views, since news
-   belongs to the season rather than to whichever tab is open. No accent rule:
+/* What's changed since you last looked. Sits under the tabs, above every
+   view, since news belongs to the season rather than to whichever tab is
+   open. No accent rule:
    the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  padding:9px 22px 10px 13px; margin:0 0 20px; max-width:900px;
+  padding:9px 22px 10px 13px; margin:0 0 28px; max-width:900px;
 }
-/* The header's 18px is for the tabs; news right under the rule sits closer. */
-header.top + .updates{ margin-top:-6px; }
+/* The tabs' 28px is breathing room before a page; the news is still part of
+   the header block, so it sits closer to them (the margins collapse to 16). */
+nav.tabs + .updates{ margin-top:-12px; }
 @media (min-width:780px){
   /* As wide as its longest line, not a fixed band with a gap at the right. */
   .updates{ width:fit-content; min-width:420px; }
