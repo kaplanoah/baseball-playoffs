@@ -34,7 +34,7 @@ h1,h2,h3{ font-weight:700; margin:0; letter-spacing:.01em; }
 
 header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
-  border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:13px;
+  border-bottom:1px solid var(--card-border); padding-bottom:14px; margin-bottom:14px;
 }
 header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.06em; }
 /* The stamp sits with the season picker, not in the tab bar: both are about
@@ -88,7 +88,7 @@ section.view.active{ display:block; }
    in that row you cannot click. */
 .banner{
   margin-left:10px; display:flex; align-items:center; gap:9px;
-  border-left:1px solid var(--card-border); padding-left:17px;
+  position:relative; padding-left:17px;
   font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
   /* Plain flex centring on the row: the old 5px lift, from when this sat at
      the far right, left it riding above the buttons' middle once it moved
@@ -96,6 +96,12 @@ section.view.active{ display:block; }
   align-self:stretch;
 }
 .banner[hidden]{ display:none; }
+/* The hairline, drawn rather than a border so it can stop 1px short of the
+   buttons' top and bottom edges instead of matching them exactly. */
+.banner::before{
+  content:""; position:absolute; left:0; top:1px; bottom:1px;
+  border-left:1px solid var(--card-border);
+}
 .banner > *{ display:flex; align-items:center; }
 /* Bare text, so it takes --copper-ink like every other label on the page, and
    the house rule holds: --copper for strokes, fills and boxed text, --copper-ink
