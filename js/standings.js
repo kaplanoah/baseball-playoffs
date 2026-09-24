@@ -171,16 +171,16 @@ const RUN_GRACE_MS = 10 * 60 * 1000;
 
 function nextLine(iso, why){
   const t = iso ? Date.parse(iso) : NaN;
-  if(refreshPending()) return `<span>Updating <b>now</b>${refreshButton()}</span>`;
+  if(refreshPending()) return `<span>Updating <b>now</b></span>`;
   if(isNaN(t)) return "";
-  if(Date.now() < t) return stampLine("Next update", iso, why).replace(/<\/span>$/, refreshButton() + "</span>");
+  if(Date.now() < t) return stampLine("Next update", iso, why);
   /* The routine wrote this reason in the future tense, for a check that has
      now started. "starts with" is the only verb the wording rules produce
      here; everything else ("first pitch at 9:40") reads the same either way. */
   const past = why ? why.replace(" starts with ", " started with ") : why;
   /* "now" stands where a time would, so it takes the times' color. */
   const label = Date.now() >= t + RUN_GRACE_MS ? "Update overdue" : "Updating <b>now</b>";
-  return `<span>${label}${past ? ` &mdash; ${past}` : ""}${refreshButton()}</span>`;
+  return `<span>${label}${past ? ` &mdash; ${past}` : ""}</span>`;
 }
 
 /* ---------- update now ----------
@@ -202,11 +202,17 @@ function refreshPending(){
   const wrote = state && state.updatedAt ? Date.parse(state.updatedAt) : 0;
   return wrote < manualAt;
 }
-function refreshButton(){
-  if(!remote) return "";
+/* The button sits beside both lines rather than in one, so the lines keep
+   their shared right edge. It turns while the run it started is under way. */
+function renderRefreshButton(){
+  const btn = document.getElementById("refreshBtn");
+  if(!btn) return;
+  btn.hidden = !remote;
   const busy = refreshPending();
-  return `<button class="stamp-refresh${busy ? " busy" : ""}" data-refresh ${busy ? "disabled" : ""}
-    aria-label="${busy ? "Updating" : "Update now"}" title="${busy ? "Updating" : "Update now"}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  btn.disabled = busy;
+  btn.classList.toggle("busy", busy);
+  btn.title = busy ? "Updating" : "Update now";
+  btn.setAttribute("aria-label", btn.title);
 }
 async function requestRefresh(){
   if(!remote || refreshPending()) return;
@@ -239,9 +245,7 @@ async function requestRefresh(){
 async function initRefresh(){
   try{ remote = await window.claude?.use?.("mcp"); }catch(e){ remote = null; }
   if(!remote) return;
-  document.getElementById("stamp").addEventListener("click", e => {
-    if(e.target.closest("[data-refresh]")) requestRefresh();
-  });
+  document.getElementById("refreshBtn").addEventListener("click", requestRefresh);
   renderStamp();
 }
 
@@ -298,6 +302,7 @@ function renderStamp(){
   ].filter(Boolean).join("") + (refreshError ? `<span class="stamp-err">${refreshError}</span>` : "");
   el.hidden = !lines;
   el.innerHTML = lines;
+  renderRefreshButton();
 }
 
 /* The line above turns over on the clock, not on a write, so it needs a tick

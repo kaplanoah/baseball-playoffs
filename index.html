@@ -10,7 +10,10 @@
     <h1>MLB Postseason</h1>
   </div>
   <div class="head-right">
-    <span class="stamp" id="stamp" hidden></span>
+    <div class="stamp-wrap">
+      <span class="stamp" id="stamp" hidden></span>
+      <button class="stamp-refresh" id="refreshBtn" hidden aria-label="Update now" title="Update now"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
     <div class="year-picker">
       <select id="yearSel" aria-label="Season"></select>
     </div>
