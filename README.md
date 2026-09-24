@@ -416,9 +416,14 @@ LOGGING — the page shows the user what changed since they last looked, from
   the front when a write would exceed that.
 - Entries are data, not prose — the page writes the sentence. Use these shapes
   and no others:
-  { at, kind: "field", in: "<TEAM_ID>", out: "<TEAM_ID>", via: [...] }
-      a team entered the projected field and the one it displaced. Omit either
-      side only if the field genuinely gained or lost a team on its own.
+  { at, kind: "field", in: "<TEAM_ID>", out: "<TEAM_ID>",
+    spot: "division" | "wildcard", div: "<AL West etc, division only>",
+    outBack: "0.5", outAlive: true|false, via: [...] }
+      a team entered the projected field and the one it displaced. `spot`,
+      `div`, `outBack` (games back on the displaced club's best remaining
+      route) and `outAlive` come from changes.py below -- copy them as it
+      prints them, so the page can say "Rangers take the AL West lead from
+      the Astros — Astros ½ game back" instead of a vague "last spot".
   { at, kind: "seed", team: "<TEAM_ID>", from: n, to: n, over: "<TEAM_ID>",
     via: [...] }
       log ONLY teams that moved UP: every move up implies someone moved down,
@@ -455,9 +460,8 @@ LOGGING — the page shows the user what changed since they last looked, from
       read exactly the same. Six AL clubs were eliminated on one September
       night and the log said nothing at all.
       WHEN: in the regular season, the first run where the `standings`
-      document shows "E" for BOTH `elim` and `wce` for that club — you are
-      already comparing the table you just built against the one you read, so
-      the clubs that crossed over this run are the clubs to log. REGULAR
+      document shows "E" for BOTH `elim` and `wce` for that club. changes.py
+      below finds these; do not look for them by eye. REGULAR
       SEASON ONLY: in the postseason a `clinch` entry already names the club
       that went out ("Brewers win the NLDS, 3-1, over the Cubs"), so an
       `elim` beside it says the same thing twice. LOG IT ONCE, on the run
@@ -473,7 +477,8 @@ LOGGING — the page shows the user what changed since they last looked, from
       without its seed moving at all — so nothing fired, and the Rays took
       the AL East with the log silent.
       WHEN: the first run where the `standings` document you just built shows
-      `clinched` true for a club and the one you read did not ("division"),
+      `clinched` true for a club and the one you read did not ("division" --
+      changes.py finds these),
       or where a club not leading its division can no longer be caught for a
       wild card spot ("wildcard"), or where it has locked one of the two
       first-round byes ("bye"). Same rule as elimination: compare against the
@@ -484,6 +489,121 @@ LOGGING — the page shows the user what changed since they last looked, from
       the official bracket replaced your projection. Once per season.
   { at, kind: "note", text: "<one short sentence>" }
       only for something the shapes above can't express.
+- FINDING WHAT CHANGED IS A SCRIPT'S JOB, NOT YOURS. Comparing two tables of
+  thirty clubs by eye is how the Orioles' elimination went unlogged. On every
+  run that rebuilds the standings (step 1), run this, and append EVERY entry
+  it prints -- in any branch of step 1, including "same 12 ids", because a
+  club can be eliminated or clinch without the field moving at all:
+
+  - Read the standings document with ArtifactData "get" and `out_dir`, so the
+    table you read lands in a file without passing through your context;
+    likewise read the season document to a file and pull out its `teams`.
+  - Write the table you build, and the `teams` you will write, to files too
+    (build them in Python, which you need anyway for the filtering).
+  - Save the script below as changes.py and run
+        python3 changes.py <read standings> <built standings> <read teams> <new teams>
+    passing the same teams file twice when the field did not change.
+  - It prints a JSON list of entries without `at` or `via`. Add `at` (now)
+    to each, add `via` where you can name the games (the schedule you already
+    fetched has them), and append them in order in the same write. An empty
+    list means there is nothing to log for the standings.
+
+  ```python
+"""What changed between two standings tables, as update-log entries.
+
+The routine runs this instead of comparing the tables by eye: that is how the
+Orioles' elimination went unlogged. It reads four JSON files and prints a
+JSON list of log entries WITHOUT `at` or `via`; the routine adds those (the
+games behind a change are in the schedule it already fetched) and appends
+every entry, in order, in the same write as the change itself.
+
+  python3 changes.py OLD_STANDINGS NEW_STANDINGS OLD_TEAMS NEW_TEAMS
+
+OLD_STANDINGS / NEW_STANDINGS: the standings document as read and as built
+({divisions: {...}}). OLD_TEAMS / NEW_TEAMS: the season document's `teams`
+as read and as it will be written. Pass the same file twice for the teams
+when the field did not change.
+"""
+import json
+import sys
+
+
+def rows(doc):
+    """Every club's standings row, by id, with its division."""
+    out = {}
+    for div, clubs in (doc.get("divisions") or {}).items():
+        for r in clubs:
+            out[r["id"]] = dict(r, div=div)
+    return out
+
+
+def out_of_it(r):
+    return r.get("elim") == "E" and r.get("wce") == "E"
+
+
+def games(v):
+    try:
+        return float(str(v).lstrip("+"))
+    except ValueError:
+        return 0.0  # "-": leading, or level with the spot
+
+
+def best_back(r):
+    """Games back on the club's best remaining route: its division, or the
+    wild card, whichever it is still alive for and closer in."""
+    routes = []
+    if r.get("elim") != "E":
+        routes.append(games(r.get("gb")))
+    if r.get("wce") != "E":
+        routes.append(games(r.get("wcgb")))
+    return f"{min(routes):.1f}" if routes else None
+
+
+def main(old_st, new_st, old_teams, new_teams):
+    before, after = rows(old_st), rows(new_st)
+    entries = []
+
+    # The field: who came in, who went out, per league, paired in seed order.
+    for lg in ("AL", "NL"):
+        ins = sorted((i for i, t in new_teams.items() if t["league"] == lg and i not in old_teams),
+                     key=lambda i: new_teams[i]["seed"])
+        outs = sorted((i for i, t in old_teams.items() if t["league"] == lg and i not in new_teams),
+                      key=lambda i: old_teams[i]["seed"])
+        for i, o in zip(ins, outs):
+            e = {"kind": "field", "in": i, "out": o}
+            if new_teams[i]["seed"] <= 3:
+                e.update(spot="division", div=after.get(i, {}).get("div", ""))
+            else:
+                e["spot"] = "wildcard"
+            r = after.get(o)
+            if r:
+                e["outAlive"] = not out_of_it(r)
+                back = best_back(r)
+                if back is not None:
+                    e["outBack"] = back
+            entries.append(e)
+        for i in ins[len(outs):]:
+            entries.append({"kind": "field", "in": i})
+        for o in outs[len(ins):]:
+            entries.append({"kind": "field", "out": o})
+
+    # Division titles clinched on this run.
+    for i, r in after.items():
+        if r.get("clinched") and not before.get(i, {}).get("clinched"):
+            entries.append({"kind": "berth", "team": i, "what": "division", "div": r["div"]})
+
+    # Clubs whose season ended on this run: out of the division AND the wild card.
+    for i, r in after.items():
+        if out_of_it(r) and not out_of_it(before.get(i, {})):
+            entries.append({"kind": "elim", "team": i})
+
+    return entries
+
+
+if __name__ == "__main__":
+    docs = [json.load(open(p)) for p in sys.argv[1:5]]
+    print(json.dumps(main(*docs), indent=1))
+  ```
 - Log only what you actually wrote, and write nothing you don't log. Refreshed
   `next` times, refreshed `w`/`l` and the stamp fields are not changes — never
   log those.
@@ -594,14 +714,15 @@ EACH RUN, after the early-exit checks above:
      1-3 by win%, and the top 3 by wildCardRank seeded 4-6 by win%. Then compare
      it against the doc's current `teams`:
      - Same 12 ids, same seeds: refresh `w`/`l` if they moved, write
-       `projectedAsOf` (today), and stop. Nothing to log.
+       `projectedAsOf` (today), log whatever changes.py printed (eliminations
+       and clinches happen without the field moving), and stop.
      - Same 12 ids, seeds moved: write `teams` with the new seeds and current
        `w`/`l`, log a `seed` entry for each team that moved UP, set
        `projectedAsOf` to today. Leave `series` and `ranking` alone.
      - The set of ids changed: write `teams`, reset each series' win counts to
        0, adjust `ranking` under the rules above, keep `projected: true`, set
-       `projectedAsOf` to today, and log a `field` entry per team that entered,
-       paired with one that left. Log the seed moves of teams that stayed only
+       `projectedAsOf` to today, and log the `field` entries changes.py
+       prints, which pair each team that entered with one that left. Log the seed moves of teams that stayed only
        if a team's seed changed for a reason other than the swap.
    - If the official bracket IS now set: write the 12 real teams with their
      seeds and final `w`/`l`, reset win counts only if `teams` is actually
@@ -674,6 +795,7 @@ is theirs to set on the Ranking tab.
 | `js/standings.js` | Divisions, the wild card race, and the freshness stamp |
 | `js/stamp.js` | The stamp's two sentences, built from the day's games — pure functions |
 | Update now | The ↻ at the end of the stamp's second line fires the routine on demand through the viewer's Claude Code Remote connector (`fire_trigger`, trigger id in `js/standings.js`). Published with `capabilities: {"db": {}, "mcp": {"servers": [{"server": "Claude Code Remote", "tools": ["fire_trigger"]}]}}`; the first tap asks to allow it |
+| `routine/changes.py` | What changed between two standings tables, as log entries: eliminations, division clinches, field swaps with the spot and how far back the displaced club is. Embedded in the routine's instructions, which run it every time the standings are rebuilt |
 | `tests/` | `npm test`: the stamp's sentences and a few page helpers, in plain `node` with no dependencies |
 | `js/setup.js` | The manual field-setting modal, for when the routine hasn't |
 | `js/app.js` | The season document, the artifact store, shared helpers, boot |

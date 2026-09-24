@@ -51,3 +51,29 @@ test("series names", () => {
   assert.equal(run("seriesLabel('AL_WC1')"), "AL Wild Card Series");
   assert.equal(run("seriesLabel('WS')"), "World Series");
 });
+
+test("update log: a field change names the spot and how far back the club that dropped out is", () => {
+  const name = id => page.run(`TEAMS["${id}"].name`);
+  page.run("0", { logChip: name, teamLabel: name, state: { teams: { TEX: { seed: 3 }, BAL: { seed: 5 } } },
+    standings: { divisions: { "AL West": [{ id: "TEX" }, { id: "HOU" }], "AL East": [{ id: "BAL" }] } } });
+  const say = e => run("entryText(E)", { E: { kind: "field", ...e } });
+  assert.equal(say({ in: "TEX", out: "HOU", spot: "division", div: "AL West", outBack: "0.5", outAlive: true }),
+    "Rangers take the AL West lead from the Astros &mdash; Astros ½ game back");
+  assert.equal(say({ in: "DET", out: "BAL", spot: "wildcard", outBack: "2.0", outAlive: true,
+    via: [{ team: "DET", won: true, opp: "KC", score: [5, 3] }] }),
+    "Tigers take an AL wild card spot from the Orioles &mdash; beat the Royals 5-3; Orioles 2 games back");
+  // Out altogether: its own "eliminated" entry says so.
+  assert.equal(say({ in: "TEX", out: "HOU", spot: "division", div: "AL West", outBack: "0.5", outAlive: false }),
+    "Rangers take the AL West lead from the Astros");
+  // Level on record, behind on the tiebreaker.
+  assert.equal(say({ in: "TEX", out: "HOU", spot: "division", div: "AL West", outBack: "0.0", outAlive: true }),
+    "Rangers take the AL West lead from the Astros &mdash; Astros even, behind on the tiebreaker");
+  // An entry from before the routine recorded the spot: worked out from the seed.
+  assert.equal(say({ in: "TEX", out: "HOU" }), "Rangers take the AL West lead from the Astros");
+  assert.equal(say({ in: "BAL", out: "TOR" }), "Orioles take an AL wild card spot from the Blue Jays");
+});
+
+test("update log: an elimination is plain words", () => {
+  page.run("0", { logChip: id => page.run(`TEAMS["${id}"].name`) });
+  assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL" } }), "Orioles eliminated");
+});

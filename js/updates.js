@@ -50,9 +50,45 @@ function viaText(e, mover, other){
   }
   return parts.join(" and ");
 }
-function withVia(sentence, e, mover, other){
-  const why = viaText(e, mover, other);
-  return why ? `${sentence} &mdash; ${why}` : sentence;
+function withVia(sentence, e, mover, other, also){
+  const tail = [viaText(e, mover, other), also].filter(Boolean).join("; ");
+  return tail ? `${sentence} &mdash; ${tail}` : sentence;
+}
+
+/* Which spot a field change was about. The routine records it (`spot`, and
+   `div` for a division); an entry from before it did falls back to the
+   incoming club's seed, which is 1-3 for a division leader. */
+function divisionOf(id){
+  const divs = typeof standings !== "undefined" && standings && standings.divisions;
+  if(!divs) return "";
+  return Object.keys(divs).find(d => divs[d].some(r => r.id === id)) || "";
+}
+function spotLabel(e){
+  const lg = TEAMS[e.in] ? TEAMS[e.in].league : "";
+  let spot = e.spot, div = e.div;
+  if(!spot){
+    const seed = typeof state !== "undefined" && state && state.teams && state.teams[e.in] && state.teams[e.in].seed;
+    if(!seed) return `the last ${lg} spot`;
+    spot = seed <= 3 ? "division" : "wildcard";
+    div = div || divisionOf(e.in);
+  }
+  // "an AL", "an NL": both are said letter by letter.
+  if(spot === "division") return div ? `the ${div} lead` : `an ${lg} division lead`;
+  return `an ${lg} wild card spot`;
+}
+/* How far back the club that dropped out is, on its best remaining route
+   (the routine records `outBack` and `outAlive` at the time). A club that is
+   out altogether gets its own "eliminated" entry, so it adds nothing here. */
+function gamesBack(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n <= 0) return "even, behind on the tiebreaker";
+  const whole = Math.floor(n), half = n - whole >= 0.5;
+  const num = (whole ? String(whole) : "") + (half ? "½" : "");
+  return `${num} game${n > 1 ? "s" : ""} back`;
+}
+function outBack(e){
+  if(e.outAlive === false || e.outBack == null) return "";
+  return `${teamLabel(e.out)} ${gamesBack(e.outBack)}`;
 }
 
 function entryText(e){
@@ -64,9 +100,13 @@ function entryText(e){
        Naming the spot makes it a position changing hands, which is all that
        happened. The one-sided cases below always said "the projected field";
        the swap was the only branch that dropped it. */
+    /* And naming "the last spot" still wasn't enough: the Rangers passing the
+       Astros for the AL West lead read like a wild card changing hands, and
+       said nothing of whether the Astros were done. So the line names the
+       actual spot, and says how far back the club that dropped out is. */
     case "field":
       if(e.in && e.out)
-        return withVia(`${logChip(e.in)} take the last ${lg(e.in)} spot from the ${logChip(e.out)}`, e, e.in, e.out);
+        return withVia(`${logChip(e.in)} take ${spotLabel(e)} from the ${logChip(e.out)}`, e, e.in, e.out, outBack(e));
       if(e.in) return `${logChip(e.in)} into the projected field`;
       if(e.out) return `${logChip(e.out)} out of the projected field`;
       return "";
@@ -92,10 +132,9 @@ function entryText(e){
     /* Elimination had no entry kind at all, which is why "out" got borrowed
        for a club that had merely lost a projected spot. It is its own news:
        six AL clubs went out on one September night and the log said nothing.
-       Only the word recedes -- the club keeps its normal weight, because a
-       strikethrough on six names in an evening reads like a funeral. */
+       Plain text, in the line's own color: no strikethrough, no dimming. */
     case "elim":
-      return withVia(`${logChip(e.team)} <span class="gone">eliminated</span>`, e, e.team, null);
+      return withVia(`${logChip(e.team)} eliminated`, e, e.team, null);
     /* The mirror of elim, and it was missing for the same reason: the log
        could say a club moved up a seed but not that it had actually secured
        anything. A club can clinch without its seed changing, so nothing
