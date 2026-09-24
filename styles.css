@@ -74,7 +74,9 @@ nav.tabs button.active{ background:var(--gold); color:var(--gold-ink); border-co
 button:focus, select:focus{ outline:none; }
 body.kbd button:focus, body.kbd select:focus{ outline:2px solid var(--copper-ink); outline-offset:2px; }
 
-section.view{ display:none; }
+/* One pixel in from the tabs and the header rule, so a page's cards don't sit
+   flush on the same edge as the controls above them. */
+section.view{ display:none; padding-left:1px; }
 section.view.active{ display:block; }
 
 /* Every part centers on one axis: the rule, the label, the team name and the

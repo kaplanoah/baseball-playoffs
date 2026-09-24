@@ -179,9 +179,16 @@ function renderStamp(){
   const lastAt = [state && state.updatedAt, standings && standings.updatedAt]
     .map(t => t ? Date.parse(t) : NaN).filter(n => !isNaN(n));
   const last = lastAt.length ? new Date(Math.max(...lastAt)).toISOString() : null;
+  /* Both reasons often close on the same ", slate of 16 under way". Said
+     twice it is noise, so it stays on the second line only, which is where
+     the day is still going. When the two clauses differ, both keep theirs. */
+  let lastFor = state && state.updatedFor, nextFor = state && state.nextFor;
+  const SLATE = /, (slate of .+)$/;
+  const a = lastFor && lastFor.match(SLATE), b = nextFor && nextFor.match(SLATE);
+  if(a && b && a[1] === b[1]) lastFor = lastFor.replace(SLATE, "");
   const lines = [
-    stampLine("Last updated", last, state && state.updatedFor),
-    nextLine(state && state.nextAt, state && state.nextFor)
+    stampLine("Last updated", last, lastFor),
+    nextLine(state && state.nextAt, nextFor)
   ].filter(Boolean).join("");
   el.hidden = !lines;
   el.innerHTML = lines;
