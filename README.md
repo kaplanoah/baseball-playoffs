@@ -345,6 +345,15 @@ WRITING — read this before any write:
       - still to come: "Astros @ Mariners first pitch at 9:40".
     A bare "Yankees 5 Rays 2" could be any of the three. Every first pitch
     takes the "at": "first pitch at 9:40", never "first pitch 9:40".
+    NEVER A BARE MATCHUP. "White Sox @ Royals" alone says nothing about the
+    game, and "slate of 12 under way with White Sox @ Royals" is not a shape
+    at all: the game leads with its state, and the slate clause follows it.
+    In `nextFor`, a game that will be under way at the slot has no inning
+    yet, since the inning isn't known ahead of time, so it carries its first
+    pitch instead:
+        White Sox @ Royals first pitch at 2:10, slate of 12 under way
+      not:
+        slate of 12 under way with White Sox @ Royals
   - ONE GAME, TWO GAMES, OR A SLATE:
       - one: name it.
       - two: name both, comma between. "Rays @ Yankees 2-1 in the 5th, Astros
@@ -422,9 +431,9 @@ WRITING — read this before any write:
     once it has lost a series. A game whose clubs are both out loses to any
     game with a club still alive. So with Nationals @ Tigers and Blue Jays @
     Orioles both under way, neither in `ranking`, and the Nationals and
-    Tigers both "E" in both columns, the slate is "under way with Blue Jays
-    @ Orioles". A slate that starts at 1:05 is never described by a 7:40
-    game.
+    Tigers both "E" in both columns, the game to name is Blue Jays @
+    Orioles: "Blue Jays @ Orioles 2-1 in the 4th, slate of 16 under way". A
+    slate that starts at 1:05 is never described by a 7:40 game.
   - `updatedAt` is the current time. `updatedFor` names the newest baseball
     there is, and NEVER an absence. In order:
       - anything final since the last run: name it, by the rules above. When
