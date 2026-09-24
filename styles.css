@@ -34,7 +34,7 @@ h1,h2,h3{ font-weight:700; margin:0; letter-spacing:.01em; }
 
 header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
-  border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:18px;
+  border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:13px;
 }
 header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.06em; }
 /* The stamp sits with the season picker, not in the tab bar: both are about
@@ -90,10 +90,10 @@ section.view.active{ display:block; }
   margin-left:10px; display:flex; align-items:center; gap:9px;
   border-left:1px solid var(--card-border); padding-left:17px;
   font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
-  /* Lifted a couple of pixels: the tab buttons carry 6px of padding above
-     their caps, so centring on the row leaves this sitting visually low
-     against them. */
-  position:relative; top:-5px;
+  /* Plain flex centring on the row: the old 5px lift, from when this sat at
+     the far right, left it riding above the buttons' middle once it moved
+     up against them. */
+  align-self:stretch;
 }
 .banner[hidden]{ display:none; }
 .banner > *{ display:flex; align-items:center; }
