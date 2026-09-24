@@ -618,7 +618,8 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      them. The hairline would be pointing at nothing once it does, so it goes
      and the copper label does the separating on its own. */
   nav.tabs{ flex-wrap:wrap; }
-  .banner{ margin-left:0; margin-right:0; top:0; flex-basis:100%; border-left:0; padding-left:0; margin-top:11px; }
+  .banner{ margin-left:0; margin-right:0; top:0; flex-basis:100%; padding-left:0; margin-top:11px; }
+  .banner::before{ display:none; }
   /* Below about 360 the two nine-letter labels stop fitting even shared
      equally, so the tracking goes before the row does. */
   @media (max-width:359px){
