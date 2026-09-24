@@ -92,7 +92,7 @@ section.view.active{ display:block; }
    in the same colour the buttons are drawn with, because it is the one thing
    in that row you cannot click. */
 .banner{
-  margin-left:10px; display:flex; align-items:center; gap:9px;
+  margin-left:10px; display:flex; align-items:center; gap:10px;
   position:relative; padding-left:17px;
   font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
   /* Plain flex centring on the row: the old 5px lift, from when this sat at
@@ -113,13 +113,16 @@ section.view.active{ display:block; }
    for text standing on its own. The two coppers used to read as two different
    colours where the label meets the chip; that was fixed by darkening
    --copper-ink toward --copper rather than by making an exception here.
-   The extra 3px on top of the row's 9px gap holds the label off the chip
-   without loosening the chip, dot and name from each other. */
+   The row's 10px gap holds the label off the chip; the chip, dot and name
+   keep their own tighter spacing inside .banner-team. */
 .banner .banner-label{
   font-size:.6rem; text-transform:uppercase; letter-spacing:.09em;
-  color:var(--copper-ink); font-weight:400; margin-right:3px;
+  color:var(--copper-ink); font-weight:400;
 }
-.banner .banner-team{ gap:7px; }
+.banner .banner-team{ gap:8px; }
+/* Optical, not geometric: the boxes are centered, but the bold mixed-case name
+   reads low beside the small capitals, so the dot and name ride half a pixel up. */
+.banner .banner-team .club{ position:relative; top:-.5px; }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
 .stand-head{
