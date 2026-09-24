@@ -314,6 +314,23 @@ WRITING — read this before any write:
     AT THE SLOT, NOT ITS STATE NOW. A game that will still not have started
     by then is the single case that needs the "routine check" opening.
 
+    ONE EXCEPTION, FOR THE READER: WHEN NOTHING HAS STARTED YET AS YOU WRITE,
+    `nextFor` NEVER SAYS "under way". The line is read from the moment it is
+    written until the slot, often for hours, and "slate of 12 under way with
+    Cardinals @ Pirates" read at 2 AM says baseball is being played at 2 AM.
+    Write what is true the whole time instead: the day's first pitch, in the
+    "starts with" form, even when that game will be live by the slot.
+      Written 2:21 AM for the 1:15 PM slot, first pitch 12:35 PM:
+        slate of 12 starts with Cardinals @ Pirates first pitch at 12:35 PM
+      not:
+        slate of 12 under way with Cardinals @ Pirates
+    With one or two games on the day there is no slate to start: name them,
+    "Cardinals @ Pirates first pitch at 12:35 PM". The game is chosen by the
+    STARTS WITH order below. When the slot comes BEFORE that first pitch, the
+    "routine check" opening still goes in front, exactly as below. The page
+    turns "starts with" into "started with" once the slot has passed, so the
+    line stays true after the fact too.
+
     Both of the mistakes this prevents are the same mistake: using a game's
     state now where its state at the relevant moment is what counts.
   - NAME GAMES, not internals. The user reads these to know which baseball
@@ -510,7 +527,8 @@ WRITING — read this before any write:
     pitch at 6:35" says the 6:15 check is for a game that will not have
     started when it runs. It cannot be. Ask what the slate will look like AT
     the slot, not what the next thing on the schedule is:
-      - games in progress at that time → name those.
+      - games in progress at that time → name those (unless nothing has
+        started as you write: then the "starts with" exception above).
       - games that will have gone final since this run → name the newest.
       - neither → routine check, and THEN naming the coming first pitch is
         exactly right, because the qualifier says the baseball is still ahead.
