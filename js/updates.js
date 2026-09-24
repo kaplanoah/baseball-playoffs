@@ -13,8 +13,10 @@ function seriesLabel(id){
   if(key.startsWith("DS")) return `${lg}DS`;
   return `${lg} Wild Card Series`;
 }
+/* Your rank chip, then the club, the way the bracket and tables show it. A
+   club outside the field has no rank, so it gets the name alone. */
 function logChip(id){
-  return TEAMS[id] ? teamTag(id, "b") : "";
+  return TEAMS[id] ? rankTag(id) + teamTag(id, "b") : "";
 }
 function score(s){ return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${s[1]}` : ""; }
 

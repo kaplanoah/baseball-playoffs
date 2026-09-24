@@ -211,14 +211,15 @@ table.st tr.alive td{ color:var(--ink); }
 table.st tr.eliminated td{ color:var(--ink-dim); }
 table.st tr.eliminated .dot{ opacity:.55; }
 /* Extra air on the left so the column reads as its own thing rather than a
-   continuation of the elimination number, and the page's cream turned down
-   rather than the dim green, which would read as a different kind of value. */
+   continuation of the elimination number. The color is the stamp's time
+   color, the dim green lifted toward the cream: quieter than the numbers,
+   but not as far down as the labels. */
 table.st td.next-cell, table.st th.next-cell{ padding-left:24px; }
 /* Named with the row class so it outranks the row's own color rule, which is
    otherwise more specific and was repainting this cell at full strength. */
 table.st tr.alive td.next-cell, table.st tr.eliminated td.next-cell{
   text-align:left; font-size:.70rem;
-  color:color-mix(in srgb, var(--ink) 78%, transparent);
+  color:color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
 }
 /* The cut line replaces that row's own divider, so it lands exactly where the
    green line would have been. It has to be ONE element spanning the table: a
@@ -300,6 +301,12 @@ nav.tabs + .updates{ margin-top:-12px; }
 /* A step down each, light and medium over regular and bold: the log is
    background news, and at full weight it outshouted the tabs below it. */
 .updates-list .what b{ font-weight:500; }
+/* Rank chips in running text: a smaller chip than the tables' 19px, its slot
+   shrunk to the chip since there's no column to line up, 6px to the dot and
+   7px from the dot to the name. */
+.updates .rank-slot{ width:auto; margin:0 6px 0 0; vertical-align:1px; }
+.updates .rank-tag{ height:16px; min-width:0; padding:0 4px; font-size:.62rem; line-height:12px; }
+.updates .club{ gap:7px; }
 /* The one word that recedes on an elimination entry. --out is the same grey
    the standings and ranking already use for a club that is done, and only
    the word takes it: a strikethrough on six club names in an evening reads
