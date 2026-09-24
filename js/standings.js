@@ -45,6 +45,16 @@ function standRow(t, cells, opts = {}){
     : row;
 }
 
+/* The same column widths in every table, division and wild card alike, so
+   W through Next line up down the whole page. The wild card's place number
+   comes out of its team column, which keeps every column to the right in
+   step, and Next takes whatever is left. Widths live in styles.css. */
+function stCols(wild, next){
+  return `<colgroup>${wild ? '<col class="c-num">' : ""}<col class="c-rank"><col class="c-seed"><col class="${wild ? "c-team-wc" : "c-team"}">` +
+    `<col class="c-w"><col class="c-l"><col class="c-pct"><col class="c-gb"><col class="c-e">` +
+    `${next ? "<col>" : ""}</colgroup>`;
+}
+
 function divisionBlock(name, rows){
   const lg = name.slice(0, 2);
   const leader = rows[0] || {};
@@ -57,6 +67,7 @@ function divisionBlock(name, rows){
       <span class="${lg}">${name}</span><span class="title-right">${tag}</span>
     </div>
     <div class="st-scroll"><table class="st">
+      ${stCols(false, anyNext)}
       <thead><tr>
         <th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>GB</th>
         <th class="mid" title="${E_TITLE}">E#</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}
@@ -96,6 +107,7 @@ function wildCardBlock(lg, all){
   return `<div class="div-block">
     <div class="div-title"><span class="${lg}">${lg} Wild Card</span></div>
     <div class="st-scroll"><table class="st">
+      ${stCols(true, anyNext)}
       <thead><tr>
         <th></th><th></th><th>Seed</th><th class="left">Team</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>WCGB</th>
         <th class="mid" title="${WC_TITLE}">WCE</th>${anyNext ? '<th class="left next-cell">Next</th>' : ""}

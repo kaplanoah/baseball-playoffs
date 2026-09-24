@@ -164,6 +164,25 @@ section.view.active{ display:block; }
 .div-title .AL{ color:var(--al); }
 .div-title .NL{ color:var(--nl); }
 table.st{ width:100%; border-collapse:collapse; }
+/* Fixed layout on the two-column desktop grid: every table has the same
+   width there, so the same widths put W through Next on one vertical line
+   across the division and wild card tables. The team column is a fixed width
+   so a name never clips (the wild card's is 20px narrower, giving that room
+   to its place number), the numbers are percentages so they keep their
+   proportions as the window narrows, and Next takes what's left. On a phone
+   each table scrolls on its own and keeps its natural sizing. */
+@media (min-width:780px){
+  table.st{ table-layout:fixed; }
+  table.st col.c-num{ width:20px; }
+  table.st col.c-rank{ width:44px; }
+  table.st col.c-seed{ width:38px; }
+  table.st col.c-team{ width:150px; }
+  table.st col.c-team-wc{ width:130px; }
+  table.st col.c-w, table.st col.c-l{ width:5%; }
+  table.st col.c-pct, table.st col.c-gb{ width:8%; }
+  table.st col.c-e{ width:5%; }
+  table.st td.next-cell{ overflow:hidden; text-overflow:ellipsis; }
+}
 table.st th{
   text-align:right; font-weight:400; font-size:.58rem; text-transform:uppercase; letter-spacing:.09em;
   color:var(--ink-dim); padding:7px 0 4px 10px; border-bottom:1px solid var(--divider); white-space:nowrap;
