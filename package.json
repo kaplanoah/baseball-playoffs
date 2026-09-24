@@ -1,0 +1,8 @@
+{
+  "name": "baseball-playoffs",
+  "private": true,
+  "description": "Tests for the page's pure functions. No dependencies: plain node.",
+  "scripts": {
+    "test": "TZ=America/New_York node --test tests/*.test.js"
+  }
+}

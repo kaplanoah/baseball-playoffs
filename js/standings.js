@@ -186,18 +186,53 @@ function nextLine(iso, why){
   return `<span>${label}${past ? ` &mdash; ${past}` : ""}</span>`;
 }
 
+/* What stamp.js needs to choose which game to name: the user's ranking, and
+   whether a club is still alive. In September a club is out only when it is
+   eliminated from both its division and the wild card; in October, once it
+   has lost a series (or never made the field). In October a final also says
+   what it did to its series. */
+function stampContext(){
+  const projected = !state || state.projected !== false;
+  const rows = standings && standings.divisions ? Object.values(standings.divisions).flat() : [];
+  const alive = id => {
+    if(!projected) return !!(state.teams && state.teams[id]) && !teamEliminated(state, id);
+    const r = rows.find(x => x.id === id);
+    return !r || !(r.elim === "E" && r.wce === "E");
+  };
+  const seriesNote = g => {
+    if(projected) return "";
+    const br = fullBracket(state);
+    const all = [br.al, br.nl].filter(Boolean).flatMap(b => [...b.wc, ...b.ds, ...b.cs]).concat(br.ws ? [br.ws] : []);
+    const s = all.find(x => x.teamA && x.teamB &&
+      [x.teamA, x.teamB].sort().join() === [g.away, g.home].sort().join());
+    if(!s) return "";
+    const hi = Math.max(s.winsA, s.winsB), lo = Math.min(s.winsA, s.winsB);
+    const lead = s.winsA > s.winsB ? s.teamA : s.teamB;
+    if(s.winner) return ` — ${stampName(s.winner)} win the ${seriesLabel(s.id)} ${hi}-${lo}`;
+    if(hi === lo) return ` — series even ${hi}-${lo}`;
+    return ` — ${stampName(lead)} now lead ${hi}-${lo}`;
+  };
+  return { ranking: (state && state.ranking) || [], alive, seriesNote, now: new Date() };
+}
+
 function renderStamp(){
   const el = document.getElementById("stamp");
   const lastAt = [state && state.updatedAt, standings && standings.updatedAt]
     .map(t => t ? Date.parse(t) : NaN).filter(n => !isNaN(n));
   const last = lastAt.length ? new Date(Math.max(...lastAt)).toISOString() : null;
-  /* Both reasons often close on the same ", slate of 16 under way". Said
-     twice it is noise, so it stays on the second line only, which is where
-     the day is still going. When the two clauses differ, both keep theirs. */
-  let lastFor = state && state.updatedFor, nextFor = state && state.nextFor;
-  const SLATE = /, (slate of .+)$/;
-  const a = lastFor && lastFor.match(SLATE), b = nextFor && nextFor.match(SLATE);
-  if(a && b && a[1] === b[1]) lastFor = lastFor.replace(SLATE, "");
+  /* The routine records the day's games in `slate` and the sentences are
+     built in stamp.js. `updatedFor` and `nextFor` are the older freehand
+     lines, still read for a document written before `slate` existed. */
+  let lastFor, nextFor;
+  if(state && state.slate){
+    const ctx = stampContext();
+    lastFor = lastStampText(state.slate, ctx);
+    nextFor = nextStampText(state.slate, state.nextAt, ctx);
+  } else {
+    lastFor = state && state.updatedFor;
+    nextFor = state && state.nextFor;
+  }
+  lastFor = dedupeSlate(lastFor, nextFor);
   const lines = [
     stampLine("Last updated", last, lastFor),
     nextLine(state && state.nextAt, nextFor)

@@ -193,9 +193,8 @@ The doc shape:
                                    // append-only change log, oldest first
   seenAt: "<ISO timestamp>",       // the user's dismiss marker — never write it
   updatedAt: "<ISO timestamp>",    // when this routine last ran — see below
-  updatedFor: "<short phrase>",    // what that run found
   nextAt: "<ISO timestamp>",       // when the next run fires
-  nextFor: "<short phrase>",       // what it will be looking at
+  slate: { ... },                  // the day's games -- see WRITING
   projected: true|false,           // true = teams/seeds are your projection
                                    // from standings, not the official bracket
   projectedAsOf: "YYYY-MM-DD"
@@ -238,15 +237,15 @@ is mostly about how much text you let into your context:
 
 - STOP EARLY AND STOP CHEAP. Most runs have nothing to do: the schedule is a
   fixed grid of clock times, and it cannot know whether baseball is on. YOUR
-  JOB ON A QUIET RUN IS TO COST ALMOST NOTHING. One filtered call, four stamp
-  fields, done — no standings, no postseason endpoint, no second look. A
+  JOB ON A QUIET RUN IS TO COST ALMOST NOTHING. One filtered call, the stamp,
+  done — no standings, no postseason endpoint, no second look. A
   quiet run that takes fifteen turns and reads three endpoints has done more
   damage than the stale minute it was trying to prevent.
 
   So: make the ONE schedule call below, filtered, and read off it whether any
   game today has gone final since `updatedAt`, is in progress, or starts
   within the hour. IF NONE OF THOSE IS TRUE — and on a day with no games at
-  all it plainly is not — write the four stamp fields, write your `lastrun`
+  all it plainly is not — write the stamp, write your `lastrun`
   record, and END THE RUN. Do not go on to the numbered sections.
 
 - Fetch the day's schedule FIRST, before anything else:
@@ -265,7 +264,7 @@ is mostly about how much text you let into your context:
   which doubles the cost of the run to learn what you had already been told.
   The same goes for every other per-game endpoint. If you want a field for
   several games, get it from the schedule call or do without it.
-- Then END THE RUN, writing only the four stamp fields (see WRITING), unless
+- Then END THE RUN, writing only the stamp (see WRITING), unless
   one of these is true:
   - a game has gone Final since `updatedAt`,
   - a game is in progress,
@@ -289,168 +288,62 @@ WRITING — read this before any write:
   ids new to the field at the end. Never reorder, never regenerate it, never
   sort it by seed.
 - `seenAt` is the user's too. Never write it under any circumstance.
-- Write `updatedAt`, `updatedFor`, `nextAt` and `nextFor` on EVERY run,
-  including runs that change nothing and runs that stop at an early exit above.
-  The page shows them as two lines — "Last updated 9:20 PM — Yankees 5 Rays 2
-  final at 9:14" and "Next update 10:45 PM — Astros @ Mariners first pitch at
-  9:40" — so a quiet stretch explains itself.
-  - THE TWO FIELDS ARE WRITTEN FROM DIFFERENT MOMENTS, and that is what
-    decides which shapes each one can use. Getting it wrong produces a line
-    describing a game the reader cannot match to anything on the page.
+- Write the STAMP on EVERY run, including runs that change nothing and runs
+  that stop at an early exit above: `updatedAt`, `nextAt` and `slate`. The
+  page shows two lines from them -- "Last updated 9:20 PM — Yankees 5 Rays 2
+  final at 9:14 PM" and "Next update 10:15 PM — Astros @ Mariners first pitch
+  at 9:40 PM" -- so a quiet stretch explains itself.
 
-    `updatedFor` is written from NOW, LOOKING BACK — what has happened. It
-    can NAME a game that is final or one that is under way, and it can COUNT
-    games in those states. It can NEVER NAME A GAME THAT HAS NOT STARTED:
-    "Slate of 16 starts with Nationals @ Tigers first pitch at 1:10 PM" is
-    not a thing that happened, so it is never an `updatedFor`, however true
-    it is. When nothing has started, the newest baseball is the last final
-    there was — say that instead.
+  ALL OF THE WORDING IS BUILT BY THE PAGE, in code, with tests: which game to
+  name, "in the 3rd", "final at 9:14", the slate count, "routine check", the
+  series score. YOUR JOB IS THE FACTS, exactly as the schedule call gives
+  them. Do not write `updatedFor` or `nextFor`: they are retired, and the
+  page ignores them once `slate` is present. Do not add any sentence, label
+  or note of your own anywhere in `slate`.
+  - `updatedAt` is the current time, as a UTC ISO timestamp.
+  - `slate` is this object, written whole every run -- ALL FOUR KEYS, every
+    time, with null where the rules below say null. An "update" merges
+    objects key by key, so a key you leave out keeps its old value: a missing
+    `nextDay` would leave last night's in place.
 
-    `nextFor` is written from THE SLOT, LOOKING AT WHAT WILL BE TRUE THEN. A
-    game that has not started yet is a perfectly good subject, provided it
-    will have started by the slot: standing at 6:15, a 6:40 game is in the
-    future, but from the 7:15 check's point of view it is a game in progress,
-    and that is the tense `nextFor` speaks in. JUDGE EVERY GAME BY ITS STATE
-    AT THE SLOT, NOT ITS STATE NOW. A game that will still not have started
-    by then is the single case that needs the "routine check" opening.
+        {
+          since:     "<the updatedAt you read at the start of this run>",
+          today:     { date: "YYYY-MM-DD", games: [ <GAME>, ... ] },
+          nextDay:   { date: "YYYY-MM-DD", games: [ <GAME>, ... ] } | null,
+          lastFinal: <GAME> | null
+        }
 
-    ONE EXCEPTION, FOR THE READER: WHEN NOTHING HAS STARTED YET AS YOU WRITE,
-    `nextFor` NEVER SAYS "under way". The line is read from the moment it is
-    written until the slot, often for hours, and "slate of 12 under way with
-    Cardinals @ Pirates" read at 2 AM says baseball is being played at 2 AM.
-    Write what is true the whole time instead: the day's first pitch, in the
-    "starts with" form, even when that game will be live by the slot.
-      Written 2:21 AM for the 1:15 PM slot, first pitch 12:35 PM:
-        slate of 12 starts with Cardinals @ Pirates first pitch at 12:35 PM
-      not:
-        slate of 12 under way with Cardinals @ Pirates
-    With one or two games on the day there is no slate to start: name them,
-    "Cardinals @ Pirates first pitch at 12:35 PM". The game is chosen by the
-    STARTS WITH order below. When the slot comes BEFORE that first pitch, the
-    "routine check" opening still goes in front, exactly as below. The page
-    turns "starts with" into "started with" once the slot has passed, so the
-    line stays true after the fact too.
+    and each <GAME> is
 
-    Both of the mistakes this prevents are the same mistake: using a game's
-    state now where its state at the relevant moment is what counts.
-  - NAME GAMES, not internals. The user reads these to know which baseball
-    caused the change and which game the job is waiting on. "Yankees 5 Rays 2
-    final" is the shape; "standings refresh" tells them nothing.
-  - A scheduled matchup is written AWAY @ HOME, with the "@", the way the
-    standings table writes it. Never "at".
-  - EVERY GAME CARRIES ITS STATE, and the state carries its clock:
-      - finished: "Yankees 5 Rays 2 final at 9:14" — the time it ended.
-      - under way: "Rays @ Yankees 2-1 in the 5th" — the inning, and no clock,
-        because a game in progress has no useful one.
-      - still to come: "Astros @ Mariners first pitch at 9:40".
-    A bare "Yankees 5 Rays 2" could be any of the three. Every first pitch
-    takes the "at": "first pitch at 9:40", never "first pitch 9:40".
-    NEVER A BARE MATCHUP. "White Sox @ Royals" alone says nothing about the
-    game, and "slate of 12 under way with White Sox @ Royals" is not a shape
-    at all: the game leads with its state, and the slate clause follows it.
-    In `nextFor`, a game that will be under way at the slot has no inning
-    yet, since the inning isn't known ahead of time, so it carries its first
-    pitch instead:
-        White Sox @ Royals first pitch at 2:10, slate of 12 under way
-      not:
-        slate of 12 under way with White Sox @ Royals
-  - ONE GAME, TWO GAMES, OR A SLATE:
-      - one: name it.
-      - two: name both, comma between. "Rays @ Yankees 2-1 in the 5th, Astros
-        @ Mariners 3-0 in the 7th".
-      - three or more: name ONE game, then say what the day is doing:
-          "Twins @ Giants 3-2 in the 7th, slate of 16 under way"
-          "Mets 3 Braves 2 final at 10:28, slate of 8 over"
-        The game leads because it is the news; the slate clause is context
-        for it. THE NUMBER IS THE WHOLE DAY — "slate of 16" means sixteen
-        games scheduled today, not sixteen still being played.
+        {
+          away:   "<TEAM_ID>",                 // from the list below
+          home:   "<TEAM_ID>",
+          start:  "<gameDate, UTC ISO>",
+          state:  "pre" | "live" | "final",    // status.abstractGameState:
+                                               // Preview, Live, Final
+          score:  [<away runs>, <home runs>],  // live and final only
+          inning: <currentInning, a number>,   // live only
+          end:    "<UTC ISO>"                  // final only: gameInfo
+                                               // firstPitch + gameDurationMinutes
+        }
 
-    THE SLATE CLAUSE HAS TWO STATES AND NO MORE:
-      - "slate of N under way" — the day has begun and is not finished. This
-        covers the ordinary mixed evening AND an afternoon with one game on
-        and thirteen still to come. It describes the DAY, not a count of live
-        games, so it stays true across both.
-      - "slate of N over" — every game is final.
-    When nothing has started there is no slate clause at all: `updatedFor` is
-    written from now looking back, and a day that has not begun gives it
-    nothing to report. The ladder below sends you to the last final instead.
-
-    DO NOT PUT A COUNT OF LIVE OR UNSTARTED GAMES IN THIS FIELD. Both were
-    tried and both went wrong. "8 of 14 games still under way" came out as
-    "14 of 16 still under way" on a day when thirteen had not thrown a pitch.
-    "2 of 16 games over, 13 to come" ran three tenses through a field whose
-    only job is what has happened, and never stated the finals, so the
-    numbers did not add up. "Slate of N under way" asserts nothing that can
-    be false and asks the reader for no arithmetic.
-
-    WHERE A COUNT IS UNAVOIDABLE, TAKE IT FROM `status.abstractGameState`
-    ("Preview", "Live", "Final") and NEVER by matching `detailedState`
-    against the words "In Progress". A live game shows a whole family of
-    detailed states — "Manager challenge", "Delayed", "Umpire review",
-    "Warmup" — and one of those really was on the board while this rule was
-    being written. Matching the display string drops those games;
-    `abstractGameState` reads "Live" for every one of them.
-
-    THE CLAUSE DESCRIBES THE WHOLE DAY, NOT THE ONE GAME YOU NAMED. A day
-    with games still in progress is not over, however many finals it has
-    already produced, so "slate of 8 over" while three are being played is
-    simply false. Choose it from the day:
-      - every game final → "slate of N over".
-      - anything still being played → "slate of N under way", whether or not
-        the game you named is one of the ones still going.
-
-    THE LEADING "starts with" FORM SURVIVES FOR `nextFor` ONLY, where the
-    whole point is baseball that has not happened yet: "routine check, slate
-    of 6 starts with Padres @ Giants first pitch at 4:05 PM". It is never an
-    `updatedFor`.
-    Never skip a group because the user's own club is in a later one: a game
-    under way makes the slate under way even when their club plays tonight.
-
-    WHICH GAME TO NAME. Each shape has its own order of tests. Apply the
-    first; only when it leaves a tie does the next one decide, and so on
-    down the list:
-      - ENDED, or a final while others are still being played:
-          1. the LATEST final out
-          2. the user's highest-ranked club
-          3. a club that still has a chance
-      - UNDER WAY:
-          1. the user's highest-ranked club
-          2. a club that still has a chance
-          3. the MOST RECENT first pitch
-      - STARTS WITH:
-          1. the EARLIEST first pitch
-          2. the user's highest-ranked club
-          3. a club that still has a chance
-    "Highest-ranked" is `ranking` in the season doc: a game counts as the
-    better of its two clubs' positions there, and a game with neither club
-    in `ranking` loses to any game with one. "Still has a chance" means
-    at least one of its two clubs is not yet out: in September, a club is
-    out only when the standings doc shows "E" for BOTH `elim` and `wce`
-    (read it with a "get" on collection "standings" — it is already
-    written, so this costs no MLB call); in the postseason, a club is out
-    once it has lost a series. A game whose clubs are both out loses to any
-    game with a club still alive. So with Nationals @ Tigers and Blue Jays @
-    Orioles both under way, neither in `ranking`, and the Nationals and
-    Tigers both "E" in both columns, the game to name is Blue Jays @
-    Orioles: "Blue Jays @ Orioles 2-1 in the 4th, slate of 16 under way". A
-    slate that starts at 1:05 is never described by a 7:40 game.
-  - `updatedAt` is the current time. `updatedFor` names the newest baseball
-    there is, and NEVER an absence. In order:
-      - anything final since the last run: name it, by the rules above. When
-        the result moved a series, say so after a dash: "Brewers 4 Cubs 1
-        final at 11:41 — Brewers now lead 2-0".
-      - nothing final, but games are on: name them, by the rules above.
-      - nothing final and nothing on: name the last final there was. "No games
-        since Yankees 5 Rays 2 final at 9:14", or "No games since Orioles 4
-        Blue Jays 3 final last night" when it was a previous day. This covers
-        the morning as well — before the day's first pitch the newest baseball
-        is yesterday's, so name yesterday's game rather than writing "nothing
-        final yet today", which is still an absence.
-      - September, when the projected field moved: that is the news. "11
-        finals; Padres pass the Cubs for the 5 seed".
-    Never write what did NOT happen — "no games finished since 7pm" and
-    "nothing final yet today" tell them nothing they can use. Every one of
-    these reasons names an actual game.
+  - `today` is the day you fetched: EVERY game on it, in whatever state, from
+    the one schedule call you already make. A game that runs past midnight
+    belongs to the night it started, so the date is the one you passed to that
+    call. Leave out a game that is postponed, suspended or cancelled
+    (`detailedState` says so); it will not be played that day.
+  - `nextDay` is null UNLESS `nextAt` falls on a later baseball day than
+    `today` -- which happens on the night's last run, after the slate is over.
+    Then fetch that day's schedule too, filtered to the same fields, and list
+    its games (all "pre"). That is the only run that makes this second call.
+  - `lastFinal` is the newest final game from BEFORE `today`'s date. When the
+    `slate` you read has a different `today.date` from the one you are
+    writing, carry it forward: the newest final in the old `slate.today`, or,
+    if it had none, the old `slate.lastFinal`. Otherwise copy it unchanged. On
+    the first run with no `slate` to read, use null.
+  - The page decides everything else from these facts: the user's ranking,
+    who is still alive and what a final did to its series come from the rest
+    of the season document. Nothing about the wording is yours to judge.
   - WHEN THE NEXT RUN HAPPENS. Your cron, exactly as the Routine stores it:
 
         15 17,18,20,22,23,0-6 * 9-11 *
@@ -478,7 +371,7 @@ WRITING — read this before any write:
     slot sits just after the earliest baseball rather than in front of it.
     The page may therefore carry a "Last updated" from last night right
     through the morning. That is correct, not stale — the last thing that
-    happened really was last night, and `updatedFor` says which game it was.
+    happened really was last night, and the page names which game it was.
 
     You cannot schedule extra runs. The tools that would do it
     (`create_trigger` and friends) are not available inside a run, so do not
@@ -497,57 +390,7 @@ WRITING — read this before any write:
     happened before it. A run takes three or four minutes, so the stamp
     appears a little after the time the reader sees; that is expected and
     needs no allowance here.
-  - `nextFor` names what that check is for, by the same rules: "Astros @
-    Mariners first pitch at 9:40", "Rays @ Yankees first pitch at 1:05,
-    Guardians @ Tigers first pitch at 1:08", "Slate of 3 starts with Astros @
-    Mariners first pitch at 9:40". LEAVE IT EMPTY when the check is for the
-    game `updatedFor` just named — the page shows the time alone rather than
-    saying it twice.
-  - SAY WHEN THE NEXT SLOT IS ONLY THE CLOCK. The slots are a fixed grid and
-    cannot know whether baseball is on, so some of them land where there is
-    nothing to find: before the day's first pitch, after the day's last final,
-    or on a day with no games at all. Naming a game at such a slot implies the
-    check is FOR that game, and "Next update 1:15 PM — Slate of 6 starts with
-    Padres @ Giants first pitch at 4:05 PM" reads as though something happens
-    at 1:15 when the baseball is three hours off. Open those with
-    "routine check" and a comma, then the SAME full context you would have
-    written anyway:
-
-      routine check, slate of 6 starts with Padres @ Giants first pitch
-        at 4:05 PM
-      routine check, Astros @ Mariners first pitch at 9:40
-      routine check, nothing left tonight
-      routine check, no games today
-
-    LOWERCASE AFTER THE COMMA: it is one sentence now, so "slate of 16", not
-    "Slate of 16". Every other rule still holds — the count is the whole day,
-    a matchup is AWAY @ HOME, a first pitch takes its "at". DO NOT SHORTEN THE
-    CONTEXT because the qualifier sits in front of it. The reason a check is
-    routine is exactly that the baseball is somewhere else, so where and when
-    that baseball is, is the part worth reading. "routine check, slate at 1:10"
-    throws away the count and the matchup and is not an acceptable shortening.
-
-    A slot that WILL catch baseball is not a routine check and takes no
-    qualifier: one with a game under way at that time, or with a game that
-    will have gone final since this run. Those keep the plain wording above.
-
-    NEVER NAME A FIRST PITCH LATER THAN THE SLOT ITSELF unless you are using
-    the routine check form. "Next update 6:15 PM — Blue Jays @ Orioles first
-    pitch at 6:35" says the 6:15 check is for a game that will not have
-    started when it runs. It cannot be. Ask what the slate will look like AT
-    the slot, not what the next thing on the schedule is:
-      - games in progress at that time → name those (unless nothing has
-        started as you write: then the "starts with" exception above).
-      - games that will have gone final since this run → name the newest.
-      - neither → routine check, and THEN naming the coming first pitch is
-        exactly right, because the qualifier says the baseball is still ahead.
-    A 6:15 check on an afternoon whose last game started at 3:45 is for that
-    game finishing. The 6:35 game belongs to the 7:15 check.
-  - A DAY belongs to the game, never to the check. "final last night" is
-    right, because that is when the game was. "Guardians @ Tigers tomorrow"
-    is not: the page already prints the day with the check's own time — "Next
-    update tomorrow 1:15 PM" — so saying it twice invites the two to disagree.
-  - When the season is over, write `nextAt` and `nextFor` as null. There is no
+  - When the season is over, write `nextAt` as null. There is no
     next check to promise, and the page drops the line entirely.
 - When you write `teams`, `series` or `log`, send that whole object or array
   with every entry you know about, preserving existing win counts, records and
@@ -782,7 +625,7 @@ EACH RUN, after the early-exit checks above:
    log one entry per finished game you can identify from the schedule, oldest
    first.
 
-4. If nothing else changed, still write the four stamp fields before ending
+4. If nothing else changed, still write the stamp before ending
    the run. They are the whole point of a quiet run.
 
 5. LEAVE A RECORD OF THIS RUN. Your final message goes nowhere anyone reads,
@@ -827,12 +670,15 @@ is theirs to set on the Ranking tab.
 | `js/ranking.js` | The Ranking tab's cards and drag, and the All Teams table |
 | `js/updates.js` | The change log — what moved since you last looked |
 | `js/standings.js` | Divisions, the wild card race, and the freshness stamp |
+| `js/stamp.js` | The stamp's two sentences, built from the day's games — pure functions |
+| `tests/` | `npm test`: the stamp's sentences and a few page helpers, in plain `node` with no dependencies |
 | `js/setup.js` | The manual field-setting modal, for when the routine hasn't |
 | `js/app.js` | The season document, the artifact store, shared helpers, boot |
 | `js/sortable.min.js` | SortableJS 1.15.6, vendored, for drag-to-rank |
 
-`js/bracket.js` never touches the DOM or storage, so the postseason rules can be
-read and changed in one place. The view files are plain scripts sharing one
+`js/bracket.js` and `js/stamp.js` never touch the DOM or storage, so the
+postseason rules and the stamp's wording can each be read, changed and tested
+in one place. Run `npm test` after changing either. The view files are plain scripts sharing one
 `state` global; `js/app.js` loads last because it is what boots the page.
 
 Card geometry is shared between `styles.css` and the `LAY` constants in
@@ -880,8 +726,10 @@ Fields, and who owns each:
 | `ranking` | you | Your preference order, best first |
 | `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
-| `updatedAt` / `updatedFor` | routine | When the routine last ran and the newest baseball it knows of: a final with the time it ended, a game in progress with its inning, or — for three or more at once — the slate and its best game. Written on every run, including quiet ones, and never phrased as an absence |
-| `nextAt` / `nextFor` | routine | When the next check lands and which game it's for. The page prints the day with the time when it isn't today, so `nextFor` never carries one. It's empty when that game is the one `updatedFor` just named, and both are null once the season is over, which drops the line from the page |
+| `updatedAt` | routine | When the routine last ran. Written on every run, including quiet ones |
+| `slate` | routine | The facts the stamp is built from: `since` (the run before), `today` (every game of the day with its state, score, inning, first pitch and end), `nextDay` (the next day's games, only when the next check falls on it), `lastFinal` (the newest final before today). The routine writes no wording; `js/stamp.js` turns these into both lines, and `tests/stamp.test.js` pins each shape |
+| `nextAt` | routine | When the next check lands, straight from the cron. Null once the season is over, which drops the line from the page |
+| `updatedFor` / `nextFor` | retired | The freehand lines the routine used to write. The page reads them only when a document has no `slate` |
 | `projected` | routine | `true` while the field is a projection from standings |
 | `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
 
