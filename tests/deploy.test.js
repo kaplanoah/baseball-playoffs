@@ -66,6 +66,16 @@ test("a refusal names the step and Cloudflare's reason; no account ID is caught 
   await assert.rejects(deploy({ fetchImpl: cf.fetchImpl, env: {}, script: "", log: () => {} }), /CLOUDFLARE_ACCOUNT_ID/);
 });
 
+test("a refusal that isn't Cloudflare's shows its status, server, and raw body", async () => {
+  const { deploy } = await load();
+  const proxy = async () => new Response("Forbidden by policy\n", { status: 403, headers: { server: "envoy" } });
+  await assert.rejects(deploy({ fetchImpl: proxy, env: ENV, script: "", log: () => {} }),
+    /^Error: upload failed: HTTP 403 \(server: envoy\): Forbidden by policy$/);
+  const empty = async () => new Response("", { status: 502 });
+  await assert.rejects(deploy({ fetchImpl: empty, env: ENV, script: "", log: () => {} }),
+    /^Error: upload failed: HTTP 502$/);
+});
+
 test("a request that carried no token says why, unless the script sent one itself", async () => {
   const { deploy } = await load();
   const bare = async () => new Response(JSON.stringify({ success: false,
