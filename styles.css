@@ -268,7 +268,7 @@ table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
   /* Flush with the header and tabs above it, not inset like the pages: it
      belongs to the header block. */
-  padding:9px 22px 10px 13px; margin:0 0 28px; max-width:900px;
+  padding:10px 22px 10px 13px; margin:0 0 28px; max-width:900px;
 }
 /* The tabs' 28px is breathing room before a page; the news is still part of
    the header block, so it sits closer to them (the margins collapse to 16). */
@@ -282,7 +282,7 @@ nav.tabs + .updates{ margin-top:-12px; }
 .updates-x{
   /* Pulled right so the cross sits as far from the box's right edge as from
      its top: 12px each, measured on the drawn lines. */
-  flex:none; width:22px; height:22px; margin:-3px -16px -3px 0; padding:0;
+  flex:none; width:22px; height:22px; margin:-4px -16px -2px 0; padding:0;
   display:inline-flex; align-items:center; justify-content:center;
   background:transparent; border:0; border-radius:3px;
   color:color-mix(in srgb, var(--ink-dim) 62%, transparent); cursor:pointer;
@@ -291,9 +291,12 @@ nav.tabs + .updates{ margin-top:-12px; }
    heavier than anything else in the box. The green is the grip's. */
 .updates-x svg{ width:10px; height:10px; display:block; }
 .updates-x:hover{ color:var(--ink-dim); background:var(--divider); }
-.updates-list{ list-style:none; margin:7px 0 0; padding:0; }
-.updates-list li{ display:flex; align-items:center; gap:10px; font-size:.82rem; padding:3px 0; }
-.updates-list li + li{ border-top:1px solid var(--divider); }
+/* Rows are spaced, not ruled: 10px between entries, and the first and last
+   drop their share so the box's own 10px is the whole gap above and below. */
+.updates-list{ list-style:none; margin:10px 0 0; padding:0; }
+.updates-list li{ display:flex; align-items:center; gap:4px; font-size:.82rem; padding:5px 0; }
+.updates-list li:first-child{ padding-top:0; }
+.updates-list li:last-child{ padding-bottom:0; }
 .updates-list .when{
   flex:none; width:62px; font-size:.68rem; color:var(--ink-dim);
   font-variant-numeric:tabular-nums;
@@ -310,7 +313,8 @@ nav.tabs + .updates{ margin-top:-12px; }
 .updates .rank-slot{ width:auto; margin:0 6px 0 0; vertical-align:1px; }
 .updates .rank-tag{ height:16px; min-width:0; padding:0 4px; font-size:.62rem; line-height:12px; }
 .updates .club{ gap:7px; }
-.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
+/* Lined up under the entries' text: the time column's 62px plus the 4px gap. */
+.updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:66px; }
 
 .setup-card{
   background:var(--card); border:1px dashed var(--card-border); border-radius:10px; padding:22px;
