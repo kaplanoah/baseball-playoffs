@@ -1,7 +1,5 @@
 name: MLB check
 
-# Catches a change to MLB's Stats API, or a connector that stopped answering,
-# before a game night does.
 on:
   schedule:
     - cron: "47 13 * * *"
@@ -14,10 +12,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
       - run: npm run check:mlb
         env:
           CONNECTOR_URL: ${{ vars.CONNECTOR_URL }}
