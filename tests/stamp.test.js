@@ -1,10 +1,9 @@
 // Expected times are Eastern because npm test sets TZ. `since` is ten minutes
 // before the snapshot: only a final newer than that leads the line.
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { loadPage, plain } = require("./load");
-
-const page = loadPage(["teams.js", "updates.js", "stamp.js"]);
+import test from "node:test";
+import assert from "node:assert/strict";
+import { lastStampText, upNextText, stampWhen, stampWhenHtml, stampDay } from "../page/js/stamp.js";
+import { normalizeSpaces } from "./text.js";
 
 // September and early October are EDT, UTC-4.
 const et = (date, hm) => {
@@ -81,10 +80,8 @@ function ctx(opts = {}) {
     now: new Date(opts.now || et(DAY, "12:00")),
   };
 }
-const last = (slate, c = ctx()) => plain(page.run("lastStampText(S, C)", { S: slate, C: c }));
-// Objects from the sandbox's realm only deepEqual after a JSON round trip.
-const upNext = (slate, c = ctx()) =>
-  JSON.parse(JSON.stringify(page.run("upNextText(S, C)", { S: slate, C: c })));
+const last = (slate, c = ctx()) => normalizeSpaces(lastStampText(slate, c));
+const upNext = (slate, c = ctx()) => upNextText(slate, c);
 
 test("the night's last final, with the day's clause", () => {
   const slate = {
@@ -286,8 +283,8 @@ test("in October a final says what it did to the series", () => {
 
 test("the day words beside a time", () => {
   const now = new Date(et(DAY, "12:00"));
-  const when = (iso) => plain(page.run("stampWhen(new Date(I), N)", { I: iso, N: now }));
-  const day = (iso) => page.run("stampDay(new Date(I), N)", { I: iso, N: now });
+  const when = (iso) => normalizeSpaces(stampWhen(new Date(iso), now));
+  const day = (iso) => stampDay(new Date(iso), now);
   assert.equal(when(et(DAY, "13:15")), "1:15 PM");
   assert.equal(when(et(PREV, "13:15")), "yesterday 1:15 PM");
   assert.equal(when(et("2026-09-25", "13:15")), "tomorrow 1:15 PM");
@@ -313,7 +310,7 @@ test("no sentence is ever a bare matchup or 'under way with'", () => {
 
 test("the time as markup sets its AM/PM apart and leaves the rest alone", () => {
   const now = new Date(et(DAY, "12:00"));
-  const html = (iso) => plain(page.run("stampWhenHtml(new Date(I), N)", { I: iso, N: now }));
+  const html = (iso) => normalizeSpaces(stampWhenHtml(new Date(iso), now));
   assert.equal(html(et(DAY, "22:19")), '10:19<span class="ap">PM</span>');
   assert.equal(html(et("2026-09-25", "13:08")), 'tomorrow 1:08<span class="ap">PM</span>');
 });

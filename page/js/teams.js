@@ -1,6 +1,5 @@
-/* A script, not JSON: a published artifact can't fetch() its own data.
-   lastWS (null = never) is overridden by any tracked season's result; see lastTitle in app.js. */
-const TEAMS = {
+// lastWS (null = never) is overridden by any tracked season's result; see lastTitle in clubs.js.
+export const TEAMS = {
   ARI: { name: "Diamondbacks", league: "NL", lastWS: 2001, color: "#A71930", color2: "#E3D4AD" },
   ATL: { name: "Braves", league: "NL", lastWS: 2021, color: "#CE1141", color2: "#13274F" },
   BAL: { name: "Orioles", league: "AL", lastWS: 1983, color: "#DF4601", color2: "#000000" },

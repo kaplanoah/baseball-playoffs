@@ -1,11 +1,10 @@
-import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test as base, expect } from "@playwright/test";
+import * as MLBSnapshot from "../../page/js/snapshot.js";
 
-const require = createRequire(import.meta.url);
-const MLBSnapshot = require("../../page/js/snapshot.js");
-
-const loadFixture = (name) => require(`../fixtures/${name}.json`);
+const loadFixture = (name) =>
+  JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
 export const EVENING = loadFixture("2026-09-24-evening");
 const FINAL_2025 = loadFixture("2025-final");
 const FIXTURES = { [EVENING.season]: EVENING, [FINAL_2025.season]: FINAL_2025 };
@@ -61,7 +60,9 @@ export async function openApp(
   await page.clock.install({ time: new Date(EVENING.now) });
   await page.addInitScript((config) => (window.__runtimeConfig = config), {
     store,
-    fixtures: FIXTURES,
+    snapshots: Object.fromEntries(
+      Object.entries(FIXTURES).map(([season, fixture]) => [season, buildFixtureSnapshot(fixture)]),
+    ),
     connectorAdded,
   });
   await page.addInitScript({ path: RUNTIME });

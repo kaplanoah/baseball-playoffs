@@ -1,10 +1,14 @@
+import { ROUND_LABEL, fullBracket, slotCandidates, teamEliminated } from "./bracket.js";
+import { rankedOrder, rankTag, seedMark, teamLabel, teamTag } from "./clubs.js";
+import { session } from "./session.js";
+
 function preferredSide(s) {
   const rank = (id) => {
     const i = rankedOrder().indexOf(id);
     return i === -1 ? Infinity : i;
   };
-  const a = (s.teamA ? [s.teamA] : slotCandidates(state, s.id, "A")).map(rank);
-  const b = (s.teamB ? [s.teamB] : slotCandidates(state, s.id, "B")).map(rank);
+  const a = (s.teamA ? [s.teamA] : slotCandidates(session.state, s.id, "A")).map(rank);
+  const b = (s.teamB ? [s.teamB] : slotCandidates(session.state, s.id, "B")).map(rank);
   if (!a.length || !b.length) return null;
   if (Math.max(...a) < Math.min(...b)) return "A";
   if (Math.max(...b) < Math.min(...a)) return "B";
@@ -18,7 +22,7 @@ function matchupRow(s, side) {
   const isWinner = s.winner === id;
   const isLoser = s.winner && s.winner !== id;
   const isPreferred = preferredSide(s) === side;
-  const seed = state.teams[id] && state.teams[id].seed;
+  const seed = session.state.teams[id] && session.state.teams[id].seed;
   return `<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
     <div class="team-id">${rankTag(id, isPreferred)}${seedMark(seed)}${teamTag(id)}</div>
     <span class="nscore tabular ${isWinner ? "lead" : ""}">${wins}</span>
@@ -53,7 +57,7 @@ function connector(x1, y1, x2, y2) {
 // Until the time is set MLB's `at` is a placeholder, so the day comes from `date`:
 // converting the placeholder to local time can land on the wrong day out west.
 function nextGameNote(s) {
-  const next = (state.series[s.id] || {}).next;
+  const next = (session.state.series[s.id] || {}).next;
   if (s.winner || !next) return "";
   const timeKnown = next.tbd === false && next.at;
 
@@ -90,8 +94,8 @@ function nextGameNote(s) {
 // The higher seed hosts within a league; the World Series goes to the better record.
 function homeSide(s) {
   if (!s.teamA || !s.teamB) return null;
-  const a = state.teams[s.teamA],
-    b = state.teams[s.teamB];
+  const a = session.state.teams[s.teamA],
+    b = session.state.teams[s.teamB];
   if (!a || !b) return null;
 
   if (s.round === "WS") {
@@ -126,10 +130,10 @@ function box(s, top, col, opts = {}) {
   </div>`;
 }
 
-function renderBracket() {
+export function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
   const setupPrompt = document.getElementById("setupPrompt");
-  const hasField = Object.keys(state.teams).length >= 12;
+  const hasField = Object.keys(session.state.teams).length >= 12;
   setupPrompt.hidden = hasField;
   if (!hasField) {
     wrap.innerHTML = "";
@@ -137,7 +141,7 @@ function renderBracket() {
     return;
   }
 
-  const br = fullBracket(state);
+  const br = fullBracket(session.state);
   const alChampLine = br.al.champion ? `${teamLabel(br.al.champion)} advance` : "";
   const nlChampLine = br.nl.champion ? `${teamLabel(br.nl.champion)} advance` : "";
   const wsChampLine = br.ws.winner ? `${teamLabel(br.ws.winner)} win the World Series` : "";
@@ -223,7 +227,7 @@ function renderBanner(br) {
     return;
   }
 
-  const aliveRanked = rankedOrder().filter((id) => !teamEliminated(state, id));
+  const aliveRanked = rankedOrder().filter((id) => !teamEliminated(session.state, id));
   if (aliveRanked.length === 0) {
     banner.innerHTML = `<span class="banner-label">All eliminated</span>`;
     return;

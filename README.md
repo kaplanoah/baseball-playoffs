@@ -1,6 +1,6 @@
 # MLB Postseason
 
-[![CI](https://github.com/kaplanoah/baseball-playoffs/actions/workflows/ci.yml/badge.svg)](https://github.com/kaplanoah/baseball-playoffs/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/kaplanoah/baseball-playoffs/ci.yml?branch=main&label=CI&logo=github&logoColor=white)](https://github.com/kaplanoah/baseball-playoffs/actions/workflows/ci.yml)
 
 A private page on claude.ai that tracks the MLB postseason. It shows the
 bracket, your ranking of who you want to win the World Series, the standings,
@@ -35,8 +35,8 @@ until they say it's done, then go on. Don't ask them to make choices you can
 make for them. Never ask for the Cloudflare token in the chat.
 
 **1. Publish the page.** Use the Artifact tool to publish `page/index.html` from
-`main` with every file it references, `icon: "baseball"`, and these
-capabilities:
+`main`, with `page/styles.css` and every file in `page/js/` at their paths
+relative to `page/`, `icon: "baseball"`, and these capabilities:
 
 ```
 { "db": {}, "mcp": { "servers": [ { "server": "MLB Live", "tools": ["get_snapshot"] } ] } }

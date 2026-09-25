@@ -13,8 +13,8 @@
 
 ## Repo
 
-- Page: `page/`. Its scripts share one global scope and run in the order `page/index.html` loads them.
-- Connector: `worker/`, built with `page/js/snapshot.js` into `worker/dist/`.
+- Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
+- Connector: `worker/`, bundled with `page/js/snapshot.js` into `worker/dist/` by `npm run build`.
 - Tests: `tests/`.
 - Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. `npm run build` after changing `page/js/snapshot.js` or `worker/src/`.
 - The artifact store returns documents frozen, with sorted keys. `update()` merges, so to remove a key, set it to `null`.

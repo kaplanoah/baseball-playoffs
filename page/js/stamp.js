@@ -1,7 +1,10 @@
+import { DAYS, countDaysBetween } from "./dates.js";
+import { TEAMS } from "./teams.js";
+
 function stampClock(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
-function stampName(id) {
+export function stampName(id) {
   return TEAMS[id] ? TEAMS[id].name : id;
 }
 function ordinal(n) {
@@ -66,13 +69,13 @@ const PICK_ENDED = ["latestEnd", "rank", "alive"];
 const PICK_UNDER_WAY = ["rank", "alive", "latestStart"];
 const PICK_STARTS = ["earliest", "rank", "alive"];
 
-function lastStampText(slate, ctx) {
+export function lastStampText(slate, ctx) {
   const games = (slate.today && slate.today.games) || [];
   const started = games.filter((g) => g.state !== "pre");
   if (!started.length) {
     const lf = slate.lastFinal;
     if (!lf || !lf.end) return "";
-    const days = dayDiff(new Date(lf.end), ctx.now);
+    const days = countDaysBetween(new Date(lf.end), ctx.now);
     const when = days <= 1 ? "last night" : DAYS[new Date(lf.start || lf.end).getDay()];
     return `No games since ${finalPhrase(lf, when)}`;
   }
@@ -96,7 +99,7 @@ function lastStampText(slate, ctx) {
   return withClause(gamePhrase(g) + note(g), slateClause(games));
 }
 
-function upNextText(slate, ctx) {
+export function upNextText(slate, ctx) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
   if (days.some((d) => (d.games || []).some((g) => g.state === "live"))) return null;
   for (const day of days) {
@@ -115,16 +118,16 @@ function upNextText(slate, ctx) {
   return null;
 }
 
-function stampWhen(d, now = new Date()) {
+export function stampWhen(d, now = new Date()) {
   const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const day = stampDay(d, now);
   return day === "today" ? time : `${day} ${time}`;
 }
-function stampWhenHtml(d, now = new Date()) {
+export function stampWhenHtml(d, now = new Date()) {
   return stampWhen(d, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
 }
-function stampDay(d, now = new Date()) {
-  const days = dayDiff(d, now);
+export function stampDay(d, now = new Date()) {
+  const days = countDaysBetween(d, now);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days === -1) return "tomorrow";

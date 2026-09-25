@@ -1,4 +1,4 @@
-const ROUND_LABEL = {
+export const ROUND_LABEL = {
   WC: "Wild Card",
   DS: "Division Series",
   CS: "Championship Series",
@@ -48,7 +48,7 @@ function buildLeagueBracket(state, lg) {
   return { wc: [wc1, wc2], ds: [ds1, ds2], cs: [cs], champion: cs.winner };
 }
 
-function fullBracket(state) {
+export function fullBracket(state) {
   const al = buildLeagueBracket(state, "AL");
   const nl = buildLeagueBracket(state, "NL");
   const ws = al && nl ? seriesState(state, "WS", al.champion, nl.champion, "WS") : null;
@@ -64,7 +64,7 @@ function feederFor(seriesId, side) {
   return null;
 }
 
-function slotCandidates(state, seriesId, side) {
+export function slotCandidates(state, seriesId, side) {
   const br = fullBracket(state);
   const all = {};
   ["al", "nl"].forEach((k) => {
@@ -84,7 +84,7 @@ function slotCandidates(state, seriesId, side) {
   return walk(seriesId, side);
 }
 
-function teamEliminated(state, id) {
+export function teamEliminated(state, id) {
   const t = state.teams[id];
   if (!t) return false;
   const br = fullBracket(state);
@@ -94,7 +94,7 @@ function teamEliminated(state, id) {
   return all.some((s) => s.winner && (s.teamA === id || s.teamB === id) && s.winner !== id);
 }
 
-function teamStatusLabel(state, id) {
+export function teamStatusLabel(state, id) {
   const br = fullBracket(state);
   if (br.ws && br.ws.winner === id) return { label: "Champs", cls: "champ" };
   if (!teamEliminated(state, id)) return { label: "Alive", cls: "alive" };
