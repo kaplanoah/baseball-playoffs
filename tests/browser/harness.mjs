@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test as base, expect } from "@playwright/test";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
+import { wrapPage } from "../../worker/src/page.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import { createDurableObjectContext } from "../durable-object-context.js";
 
@@ -136,10 +137,7 @@ export async function openSelfHostedApp(page, { store = {}, now = EVENING_FIXTUR
     (route) =>
       route.fulfill({
         contentType: "text/html",
-        body: PAGE_HTML.replace(
-          '<meta charset="utf-8" />',
-          '<meta charset="utf-8" />\n  <meta name="store" content="worker" />',
-        ),
+        body: wrapPage(PAGE_HTML),
       }),
   );
   await page.route(

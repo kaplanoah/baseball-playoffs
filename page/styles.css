@@ -22,8 +22,9 @@ body {
   color: var(--ink);
   font-family: "Chivo Mono", "JetBrains Mono", monospace;
   font-size: 16px;
-  padding-inline: 18px;
-  padding-block: 17px 48px;
+  /* Insets are zero except in the home-screen app, which draws under the status bar and notch. */
+  padding-inline: max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-right));
+  padding-block: calc(17px + env(safe-area-inset-top)) max(48px, env(safe-area-inset-bottom));
   /* 7 x LAYOUT.columnWidth + 6 x LAYOUT.columnGap in bracket-view.js, plus .tree-scroll's 18px each side. */
   max-width: 1619px;
   margin: 0 auto;
