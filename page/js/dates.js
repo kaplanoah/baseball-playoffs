@@ -7,5 +7,3 @@ export function countDaysBetween(earlier, later) {
   const end = new Date(later.getFullYear(), later.getMonth(), later.getDate());
   return Math.round((end.getTime() - start.getTime()) / MS_PER_DAY);
 }
-
-const unusedToProveCheckFails = 1;
