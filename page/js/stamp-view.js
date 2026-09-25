@@ -1,5 +1,5 @@
 import { findSeriesBetween, isEliminated, seriesLabel } from "./bracket.js";
-import { escapeHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 import { stampName, lastStampText, upNextText, stampWhenHtml, stampDay } from "./stamp.js";
 
@@ -36,7 +36,7 @@ function buildStampContext() {
 }
 
 function renderStampLine(label, when, why) {
-  return `<span>${label} <b>${when}</b>${why ? ` &mdash; ${why}` : ""}</span>`;
+  return html`<span>${label} <b>${when}</b>${why && html` &mdash; ${why}`}</span>`;
 }
 
 function renderLiveLines() {
@@ -44,7 +44,9 @@ function renderLiveLines() {
   const context = buildStampContext();
   const latest = lastStampText(session.state.slate, context);
   const lines = latest
-    ? [`<span><b class="lead">${stampWhenHtml(new Date(session.live.asOf))}</b>${latest}</span>`]
+    ? [
+        html`<span><b class="lead">${stampWhenHtml(new Date(session.live.asOf))}</b>${latest}</span>`,
+      ]
     : [];
   const next = upNextText(session.state.slate, context);
   if (next) {
@@ -73,10 +75,10 @@ export function renderStamp() {
   const problems = [session.liveProblem, session.saveProblem].filter(Boolean);
   const lines = [
     ...renderStampLines(),
-    ...problems.map((problem) => `<span class="stamp-err">${escapeHtml(problem)}</span>`),
+    ...problems.map((problem) => html`<span class="stamp-err">${problem}</span>`),
   ];
   stamp.hidden = !lines.length;
-  stamp.innerHTML = lines.join("");
+  setHtml(stamp, html`${lines}`);
 }
 
 // The failure is already on the stamp, so a rejected save needs nothing more here.

@@ -1,4 +1,5 @@
 import { rankedOrder } from "./clubs.js";
+import { html, setHtml } from "./html.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
 import { REORDER_EVENT } from "./ranking.js";
@@ -110,12 +111,11 @@ async function listYears() {
 }
 
 function fillYearPicker(years) {
-  findYearPicker().innerHTML = years
-    .map(
-      (year) =>
-        `<option value="${year}" ${Number(year) === session.activeYear ? "selected" : ""}>${year}</option>`,
-    )
-    .join("");
+  const options = years.map(
+    (year) =>
+      html`<option value="${year}" ${Number(year) === session.activeYear ? "selected" : ""}>${year}</option>`,
+  );
+  setHtml(findYearPicker(), html`${options}`);
 }
 
 // Before April the new season starts on the day MLB says spring training does.

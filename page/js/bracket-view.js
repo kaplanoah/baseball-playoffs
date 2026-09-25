@@ -1,6 +1,6 @@
 import { ROUND_LABEL, fullBracket, isEliminated, listSlotCandidates } from "./bracket.js";
 import { rankedOrder, rankTag, seedMark, teamLabel, teamTag } from "./clubs.js";
-import { escapeHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const rankOf = (id) => {
@@ -26,14 +26,14 @@ function findPreferredSide(series) {
 function renderMatchupRow(series, side) {
   const id = side === "A" ? series.teamA : series.teamB;
   const wins = side === "A" ? series.winsA : series.winsB;
-  if (!id) return `<div class="matchup-row"><span class="tbd">TBD</span></div>`;
+  if (!id) return html`<div class="matchup-row"><span class="tbd">TBD</span></div>`;
   const isWinner = series.winner === id;
   const isLoser = series.winner && series.winner !== id;
   const isPreferred = findPreferredSide(series) === side;
   const seed = session.state.teams[id] && session.state.teams[id].seed;
-  return `<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
+  return html`<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
     <div class="team-id">${rankTag(id, isPreferred)}${seedMark(seed)}${teamTag(id)}</div>
-    <span class="nscore tabular ${isWinner ? "lead" : ""}">${escapeHtml(wins)}</span>
+    <span class="nscore tabular ${isWinner ? "lead" : ""}">${wins}</span>
   </div>`;
 }
 
@@ -97,7 +97,7 @@ function describeNextGame(series) {
       ? { month: "short", day: "numeric" }
       : { weekday: "short", month: "short", day: "numeric" },
   );
-  return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} &bull; ${days} days`;
+  return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} \u2022 ${days} days`;
 }
 
 const readWinningPercentage = (team) =>
@@ -127,14 +127,14 @@ function orderRows(series) {
 }
 
 function renderCardNote(series, champLine) {
-  if (champLine) return `<div class="card-note champ">${champLine}</div>`;
+  if (champLine) return html`<div class="card-note champ">${champLine}</div>`;
   const note = describeNextGame(series);
-  return note ? `<div class="card-note">${note}</div>` : "";
+  return note ? html`<div class="card-note">${note}</div>` : html``;
 }
 
 function renderSeriesCard(series, top, column, champLine = "") {
   const [first, second] = orderRows(series);
-  return `<div class="box" style="left:${columnLeft(column)}px; top:${top}px; width:${LAYOUT.columnWidth}px;">
+  return html`<div class="box" style="left:${columnLeft(column)}px; top:${top}px; width:${LAYOUT.columnWidth}px;">
     <div class="series">
       <div class="bestof"><span>${ROUND_LABEL[series.round]}</span><span>BO${series.bestOf}</span></div>
       ${renderMatchupRow(series, first)}${renderMatchupRow(series, second)}
@@ -156,8 +156,8 @@ const COLUMN_LABELS = [
 function renderColumnLabels() {
   return COLUMN_LABELS.map(
     ([text, className], index) =>
-      `<div class="lg-label ${className}" style="left:${columnLeft(index)}px; width:${LAYOUT.columnWidth}px;">${text}</div>`,
-  ).join("");
+      html`<div class="lg-label ${className}" style="left:${columnLeft(index)}px; width:${LAYOUT.columnWidth}px;">${text}</div>`,
+  );
 }
 
 function drawConnectors() {
@@ -180,9 +180,7 @@ function drawConnectors() {
     drawConnector(columnLeft(5), division1Out, columnRight(4), middleOut),
     drawConnector(columnLeft(5), division2Out, columnRight(4), middleOut),
     drawConnector(columnLeft(4), middleOut, columnRight(3), middleOut),
-  ]
-    .map((path) => `<path d="${path}"/>`)
-    .join("");
+  ].map((path) => html`<path d="${path}"/>`);
 }
 
 const describeAdvance = (champion) => (champion ? `${teamLabel(champion)} advance` : "");
@@ -203,7 +201,7 @@ function renderSeriesCards(bracket) {
     renderSeriesCard(nl.ds[1], LAYOUT.division2Y, 5),
     renderSeriesCard(nl.wc[1], LAYOUT.wildCard1Y, 6),
     renderSeriesCard(nl.wc[0], LAYOUT.wildCard2Y, 6),
-  ].join("");
+  ];
 }
 
 export function renderBracket() {
@@ -212,14 +210,16 @@ export function renderBracket() {
   const hasField = Object.keys(session.state.teams).length >= 12;
   setupPrompt.hidden = hasField;
   if (!hasField) {
-    wrap.innerHTML = "";
+    setHtml(wrap, html``);
     renderBanner(null);
     return;
   }
 
   const bracket = fullBracket(session.state);
   const width = columnRight(6);
-  wrap.innerHTML = `
+  setHtml(
+    wrap,
+    html`
     <div class="tree-scroll"><div class="bracket-inner" style="width:${width}px;">
       <div class="lg-labels-row">${renderColumnLabels()}</div>
       <div class="bracket-stage" style="height:${LAYOUT.stageHeight}px;">
@@ -227,12 +227,13 @@ export function renderBracket() {
         ${renderSeriesCards(bracket)}
       </div>
     </div></div>
-  `;
+  `,
+  );
   renderBanner(bracket);
 }
 
 function renderBannerTeam(label, id) {
-  return `<span class="banner-label">${label}</span>
+  return html`<span class="banner-label">${label}</span>
     <span class="banner-team">${rankTag(id)}${teamTag(id)}</span>`;
 }
 
@@ -246,11 +247,14 @@ function renderBanner(bracket) {
 
   const champion = bracket.ws && bracket.ws.winner;
   if (champion) {
-    banner.innerHTML = renderBannerTeam("World Series champions", champion);
+    setHtml(banner, renderBannerTeam("World Series champions", champion));
     return;
   }
   const aliveRanked = rankedOrder().filter((id) => !isEliminated(session.state, id));
-  banner.innerHTML = aliveRanked.length
-    ? renderBannerTeam("Highest still in", aliveRanked[0])
-    : `<span class="banner-label">All eliminated</span>`;
+  setHtml(
+    banner,
+    aliveRanked.length
+      ? renderBannerTeam("Highest still in", aliveRanked[0])
+      : html`<span class="banner-label">All eliminated</span>`,
+  );
 }

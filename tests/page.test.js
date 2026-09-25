@@ -4,6 +4,7 @@ import { session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
 import { droughtLabel } from "../page/js/clubs.js";
+import { html } from "../page/js/html.js";
 import { stampName } from "../page/js/stamp.js";
 import { entryText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
@@ -18,7 +19,7 @@ function checkAt(isoTime, check) {
 }
 
 const RANK_CHIP = /<span class="rank-slot">.*?<\/span><\/span>/g;
-const describeEntry = (entry) => stripTags(entryText(entry).replace(RANK_CHIP, ""));
+const describeEntry = (entry) => stripTags(String(entryText(entry)).replace(RANK_CHIP, ""));
 
 beforeEach(() => {
   session.state = { teams: {} };
@@ -178,7 +179,7 @@ test("Next column: a game that has started gives way to the one after it", () =>
 
 test("division header: a magic number only when there is a number", () => {
   const renderHead = (leader) =>
-    renderDivisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]);
+    String(renderDivisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]));
   assert.match(renderHead({ magic: "3" }), /magic 3/);
   assert.doesNotMatch(renderHead({ magic: "-" }), /magic/);
   assert.doesNotMatch(renderHead({ magic: null }), /magic/);
@@ -194,9 +195,20 @@ test("text from the shared store or MLB is shown as text, never as markup", () =
     entryText({ kind: "unknown", text: markup }),
     renderNextCell({ next: { at: "2026-09-25T23:05:00Z", home: true, opp: markup } }),
     renderDivisionBlock("AL East", [{ id: "NYY", w: markup, l: 1, pct: markup, gb: markup }]),
-    stampName(markup),
+    html`<span>${stampName(markup)}</span>`,
   ];
-  for (const html of shown) assert.doesNotMatch(html, /<img/);
+  for (const rendered of shown) assert.doesNotMatch(String(rendered), /<img/);
+});
+
+test("html escapes every value except markup it built", () => {
+  const club = html`<b>${"Red Sox & Co."}</b>`;
+  assert.equal(String(club), "<b>Red Sox &amp; Co.</b>");
+  assert.equal(
+    String(html`<li>${club} ${'"quoted" <tag>'}</li>`),
+    "<li><b>Red Sox &amp; Co.</b> &quot;quoted&quot; &lt;tag&gt;</li>",
+  );
+  assert.equal(String(html`<ul>${["<a>", html`<i>b</i>`]}</ul>`), "<ul>&lt;a&gt;<i>b</i></ul>");
+  assert.equal(String(html`[${false}${null}${undefined}${0}]`), "[0]");
 });
 
 test("a club that has never won counts its drought from its first season", () => {

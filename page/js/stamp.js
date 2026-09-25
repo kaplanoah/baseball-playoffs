@@ -1,12 +1,12 @@
 import { DAYS, countDaysBetween } from "./dates.js";
-import { escapeHtml } from "./html.js";
+import { html } from "./html.js";
 import { TEAMS } from "./teams.js";
 
 function formatClock(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 export function stampName(id) {
-  return TEAMS[id] ? TEAMS[id].name : escapeHtml(id);
+  return TEAMS[id] ? TEAMS[id].name : String(id ?? "");
 }
 function formatOrdinal(number) {
   const suffixes = ["th", "st", "nd", "rd"];
@@ -132,8 +132,11 @@ export function stampWhen(date, now = new Date()) {
   const day = stampDay(date, now);
   return day === "today" ? time : `${day} ${time}`;
 }
+// Sets AM/PM apart so it can be styled smaller.
 export function stampWhenHtml(date, now = new Date()) {
-  return stampWhen(date, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
+  const when = stampWhen(date, now);
+  const parts = /^(.*\d)\s*(\D+)$/.exec(when);
+  return parts ? html`${parts[1]}<span class="ap">${parts[2]}</span>` : html`${when}`;
 }
 export function stampDay(date, now = new Date()) {
   const days = countDaysBetween(date, now);

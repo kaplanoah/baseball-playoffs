@@ -14,6 +14,7 @@
 ## Repo
 
 - Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
+- Build page markup with the `html` template from `page/js/html.js` and write it with `setHtml`. Both escape stored and fetched text, and lint rejects any other `innerHTML` write.
 - Connector: `worker/`, bundled with `page/js/snapshot.js` into `worker/dist/` by `npm run build`.
 - Tests: `tests/`.
 - Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript. `npm run build` after changing `page/js/snapshot.js` or `worker/src/`.
