@@ -1,7 +1,8 @@
 {
   "name": "baseball-playoffs",
   "private": true,
-  "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies: plain node for tests and the build, ESLint and Prettier for checks, and Playwright for browser tests.",
+  "type": "module",
+  "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies; dev tools only.",
   "engines": {
     "node": ">=22.21"
   },
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
+    "esbuild": "0.28.2",
     "eslint": "10.11.0",
     "globals": "17.12.0",
     "prettier": "3.9.9"

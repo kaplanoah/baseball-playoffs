@@ -1,4 +1,4 @@
-// A plain script, not a module, so tests load it like the page's scripts; the build adds the export.
+import * as MLBSnapshot from "../../page/js/snapshot.js";
 
 const SERVER_INFO = { name: "mlb-live", title: "MLB Live", version: "1.0.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -41,7 +41,7 @@ const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
 const SNAPSHOT_REUSE_MS = 10000;
 const MAX_BODY_BYTES = 64 * 1024;
 
-function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now() } = {}) {
+export function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now() } = {}) {
   const recent = new Map();
 
   async function getJson(path) {

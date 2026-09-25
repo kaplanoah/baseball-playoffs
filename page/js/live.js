@@ -1,10 +1,16 @@
+import * as MLBSnapshot from "./snapshot.js";
+import * as LogChanges from "./changes.js";
+import { sameJson } from "./compare.js";
+import { renderAll } from "./render.js";
+import { session, composeState } from "./session.js";
+import { renderStamp } from "./stamp-view.js";
+import { renderUpdates } from "./updates.js";
+
 const LIVE_SERVER = "MLB Live";
 const LIVE_TOOL = "get_snapshot";
 const LIVE_CACHE_MS = 15 * 1000;
-const FRESH_FINAL_MS = 10 * 60 * 1000;
 const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 
-let live = null;
 let liveError = null;
 let liveWarning = null;
 let liveTimer = 0;
@@ -142,7 +148,7 @@ async function refreshLive() {
     liveDueAt = Math.min(liveDueAt, Date.now());
     return;
   }
-  const season = activeYear,
+  const season = session.activeYear,
     seq = ++liveSeq;
   try {
     const { snap, source } = await fetchLive(season);
@@ -151,6 +157,7 @@ async function refreshLive() {
     liveFailures = 0;
     const missing = snap.missing || [];
     liveWarning = describeMissingFields(missing);
+    updateLiveProblem();
     applyLive(snap);
     report({
       source,
@@ -161,10 +168,11 @@ async function refreshLive() {
   } catch (e) {
     if (seq !== liveSeq) return;
     liveError = describeLiveError(e);
-    if (liveError.retract && live) {
-      live = null;
+    updateLiveProblem();
+    if (liveError.retract && session.live) {
+      session.live = null;
       composeState();
-      if (!reordering) renderAll();
+      if (!session.isReordering) renderAll();
     } else {
       renderStamp();
     }
@@ -188,151 +196,42 @@ function describeMissingFields(missing) {
   return `MLB stopped sending ${missing.join(", ")}, so some details may be blank.`;
 }
 
-function startLive() {
-  live = null;
+function updateLiveProblem() {
+  session.liveProblem = liveError ? liveError.message : liveWarning;
+}
+
+export function startLive() {
+  session.live = null;
   liveError = null;
   liveWarning = null;
+  updateLiveProblem();
   liveFailures = 0;
   refreshLive();
 }
 
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && Date.now() >= liveDueAt) refreshLive();
-});
-addEventListener("online", () => {
-  if (liveDueAt !== Infinity) refreshLive();
-});
-
-function withLive(doc) {
-  if (!live || live.season !== activeYear) return doc;
-  const slate = live.slate && {
-    ...live.slate,
-    since: new Date(Date.parse(live.asOf) - FRESH_FINAL_MS).toISOString(),
-  };
-  return {
-    ...doc,
-    teams: live.teams,
-    series: live.series,
-    projected: live.projected,
-    slate,
-    log: LogChanges.merge(doc.log, live.log),
-  };
+export function watchPageVisibility() {
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() >= liveDueAt) refreshLive();
+  });
+  addEventListener("online", () => {
+    if (liveDueAt !== Infinity) refreshLive();
+  });
 }
-
-function composeState() {
-  state = withLive(seasonDoc);
-  standings = (live && live.season === activeYear && live.standings) || storedStandings;
-}
-
-// The store hands documents back with their keys sorted, so key order must not count as a change.
-function canonical(x) {
-  if (Array.isArray(x)) return `[${x.map(canonical).join(",")}]`;
-  if (x && typeof x === "object") {
-    return `{${Object.keys(x)
-      .sort()
-      .filter((k) => x[k] !== undefined)
-      .map((k) => `${JSON.stringify(k)}:${canonical(x[k])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(x === undefined ? null : x);
-}
-const sameJson = (a, b) => canonical(a) === canonical(b);
 
 function applyLive(snap) {
-  if (snap.season !== activeYear) return;
-  const was = live;
-  live = snap;
+  if (snap.season !== session.activeYear) return;
+  const was = session.live;
+  session.live = snap;
   const { asOf: _a, ...now } = snap,
     { asOf: _b, ...before } = was || {};
   composeState();
   if (was && sameJson(now, before)) renderStamp();
-  else if (!reordering) renderAll();
+  else if (!session.isReordering) renderAll();
   saveLive(snap);
 }
 
-function stampContext() {
-  const projected = !state || state.projected !== false;
-  const rows = standings && standings.divisions ? Object.values(standings.divisions).flat() : [];
-  const alive = (id) => {
-    if (!projected) return !!(state.teams && state.teams[id]) && !teamEliminated(state, id);
-    const r = rows.find((x) => x.id === id);
-    return !r || !(r.elim === "E" && r.wce === "E");
-  };
-  const seriesNote = (g) => {
-    if (projected) return "";
-    const br = fullBracket(state);
-    const all = [br.al, br.nl]
-      .filter(Boolean)
-      .flatMap((b) => [...b.wc, ...b.ds, ...b.cs])
-      .concat(br.ws ? [br.ws] : []);
-    const s = all.find(
-      (x) =>
-        x.teamA && x.teamB && [x.teamA, x.teamB].sort().join() === [g.away, g.home].sort().join(),
-    );
-    if (!s) return "";
-    const hi = Math.max(s.winsA, s.winsB),
-      lo = Math.min(s.winsA, s.winsB);
-    const lead = s.winsA > s.winsB ? s.teamA : s.teamB;
-    if (s.winner) return ` \u2014 ${stampName(s.winner)} win the ${seriesLabel(s.id)} ${hi}-${lo}`;
-    if (hi === lo) return ` \u2014 series even ${hi}-${lo}`;
-    return ` \u2014 ${stampName(lead)} now lead ${hi}-${lo}`;
-  };
-  return { ranking: (state && state.ranking) || [], alive, seriesNote, now: new Date() };
-}
-
-function stampLine(label, when, why) {
-  return `<span>${label} <b>${when}</b>${why ? ` &mdash; ${why}` : ""}</span>`;
-}
-
-function stampLines() {
-  const ctx = stampContext();
-  if (live && live.season === activeYear) {
-    if (!state.slate) return [];
-    const latest = lastStampText(state.slate, ctx);
-    const lines = latest
-      ? [`<span><b class="lead">${stampWhenHtml(new Date(live.asOf))}</b>${latest}</span>`]
-      : [];
-    const next = upNextText(state.slate, ctx);
-    if (next) {
-      const at = new Date(next.at);
-      lines.push(
-        stampLine("Next first pitch", next.tbd ? stampDay(at) : stampWhenHtml(at), next.text),
-      );
-    }
-    return lines;
-  }
-  const saved = [state && state.updatedAt, standings && standings.updatedAt]
-    .map((t) => Date.parse(t))
-    .filter((n) => !isNaN(n));
-  if (!saved.length) return [];
-  return [
-    stampLine(
-      "Saved",
-      stampWhenHtml(new Date(Math.max(...saved))),
-      state.slate ? lastStampText(state.slate, ctx) : "",
-    ),
-  ];
-}
-
-function renderStamp() {
-  const el = document.getElementById("stamp");
-  const lines = state ? stampLines() : [];
-  const problem = liveError ? liveError.message : liveWarning;
-  if (problem) lines.push(`<span class="stamp-err">${problem}</span>`);
-  el.hidden = !lines.length;
-  el.innerHTML = lines.join("");
-}
-
-setInterval(() => {
-  try {
-    renderStamp();
-  } catch {
-    /* try again next minute */
-  }
-}, 60 * 1000);
-
 function saveLive(snap) {
-  if (!db || writesBlocked) return;
+  if (!session.db || writesBlocked) return;
   writing = writing
     .then(() => writeLive(snap))
     .then(
@@ -373,14 +272,14 @@ function losesKeys(was, now) {
   return Object.keys(was).some((k) => !(k in now) || losesKeys(was[k], now[k]));
 }
 
-// Season before standings: if the standings write fails, the old baseline finds the same changes
+// Season before standings: if the session.standings write fails, the old baseline finds the same changes
 // again next time, and the log's keys keep them single.
 async function writeLive(snap) {
-  if (snap.season !== activeYear) return;
+  if (snap.season !== session.activeYear) return;
   const year = snap.season;
-  const doc = seasonDoc;
+  const doc = session.seasonDoc;
   const news = LogChanges.between(
-    { teams: doc.teams, projected: doc.projected, standings: storedStandings },
+    { teams: doc.teams, projected: doc.projected, standings: session.storedStandings },
     snap,
   );
   const log = LogChanges.merge(doc.log, [...snap.log, ...news]);
@@ -392,7 +291,7 @@ async function writeLive(snap) {
   if (!sameJson(doc.log, log)) fields.log = log;
 
   if (Object.keys(fields).length) {
-    const ref = db.doc(`seasons/${year}`);
+    const ref = session.db.doc(`seasons/${year}`);
     const exists = (await step("season read", () => ref.get())).exists;
     if (!exists) {
       await step("season create", () => ref.set({ year, ranking: [], ...fields }));
@@ -405,7 +304,7 @@ async function writeLive(snap) {
       await step("season", () => ref.update(fields));
     }
     // Applied before the store echoes it back; the echo then redraws nothing, so the log is redrawn here.
-    Object.assign(seasonDoc, fields);
+    Object.assign(session.seasonDoc, fields);
     if (fields.log) {
       composeState();
       renderUpdates();
@@ -414,11 +313,14 @@ async function writeLive(snap) {
 
   if (
     snap.standings &&
-    !sameJson(storedStandings && storedStandings.divisions, snap.standings.divisions)
+    !sameJson(
+      session.storedStandings && session.storedStandings.divisions,
+      snap.standings.divisions,
+    )
   ) {
     const table = { ...snap.standings, updatedAt: snap.asOf };
-    await step("standings", () => db.doc(`standings/${year}`).set(table));
-    storedStandings = table;
+    await step("standings", () => session.db.doc(`standings/${year}`).set(table));
+    session.storedStandings = table;
   }
 }
 
@@ -426,8 +328,8 @@ async function writeLive(snap) {
 function report(change) {
   Object.assign(liveStatus, change);
   const key = [liveStatus.source, liveStatus.error, liveStatus.write].join("|");
-  if (!db || key === reported) return;
+  if (!session.db || key === reported) return;
   reported = key;
   const doc = { ...liveStatus, at: new Date().toISOString() };
-  writing = writing.then(() => db.doc("live/status").set(doc)).catch(() => {});
+  writing = writing.then(() => session.db.doc("live/status").set(doc)).catch(() => {});
 }

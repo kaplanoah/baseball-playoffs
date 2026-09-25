@@ -1,6 +1,6 @@
 // A stand-in for the claude.ai artifact runtime, installed before the page's scripts run.
 (() => {
-  const { store: initialStore, fixtures, connectorAdded } = window.__runtimeConfig;
+  const { store: initialStore, snapshots, connectorAdded } = window.__runtimeConfig;
   const SERVER = "MLB Live";
   const TOOL = "get_snapshot";
 
@@ -88,13 +88,9 @@
       toolCalls.push({ server, tool, input: copy(input) });
       // A connector that was never added fails with a vague code, as the real one does.
       if (!connectorAdded) throw createError("upstream_error", "consent could not be asked");
-      const recorded = fixtures[input.season];
-      if (server !== SERVER || tool !== TOOL || !recorded)
+      const snapshot = copy(snapshots[input.season]);
+      if (server !== SERVER || tool !== TOOL || !snapshot)
         throw createError("tool_error", "no answer");
-      const snapshot = MLBSnapshot.buildSnapshot(recorded.responses, {
-        season: input.season,
-        now: Date.parse(recorded.now),
-      });
       return {
         payload: runtime.transformSnapshot ? runtime.transformSnapshot(snapshot) : snapshot,
       };

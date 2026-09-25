@@ -1,33 +1,32 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const { loadPage, plain } = require("./load");
+import { beforeEach, mock, test } from "node:test";
+import assert from "node:assert/strict";
+import { session } from "../page/js/session.js";
+import { divisionBlock, nextCell } from "../page/js/standings.js";
+import { entryText, seriesLabel } from "../page/js/updates.js";
+import { normalizeSpaces, stripTags } from "./text.js";
 
-const page = loadPage(["teams.js", "bracket.js", "updates.js", "stamp.js", "standings.js"]);
-const run = (code, vars) => plain(page.run(code, vars));
-
-const withNow = (iso, fn) => {
-  const RealDate = Date;
-  const fixed = new RealDate(iso).getTime();
-  class FakeDate extends RealDate {
-    constructor(...a) {
-      super(...(a.length ? a : [fixed]));
-    }
-    static now() {
-      return fixed;
-    }
-  }
-  page.run("0", { Date: FakeDate });
+function withNow(iso, check) {
+  mock.timers.enable({ apis: ["Date"], now: Date.parse(iso) });
   try {
-    return fn();
+    return check();
   } finally {
-    page.run("0", { Date: RealDate });
+    mock.timers.reset();
   }
-};
+}
+
+const RANK_CHIP = /<span class="rank-slot">.*?<\/span><\/span>/g;
+const describeEntry = (entry) => stripTags(entryText(entry).replace(RANK_CHIP, ""));
+
+beforeEach(() => {
+  session.state = { teams: {} };
+  session.standings = null;
+});
+
 const NOON = "2026-09-24T16:00:00Z"; // Thursday, 12:00 PM ET
 
 test("Next column: today, another day, home and away", () =>
   withNow(NOON, () => {
-    const cell = (next) => run("nextCell(T)", { T: { next } });
+    const cell = (next) => normalizeSpaces(nextCell({ next }));
     assert.equal(
       cell({ at: "2026-09-25T01:40:00Z", home: false, opp: "ATH" }),
       '<td class="next-cell">Today 9:40 @ ATH</td>',
@@ -40,18 +39,13 @@ test("Next column: today, another day, home and away", () =>
   }));
 
 test("update log: a seed pass, with the game behind it", () => {
-  // The real logChip and teamLabel need the full page.
-  const name = (id) => page.run(`TEAMS["${id}"].name`);
-  page.run("0", { logChip: name, teamLabel: name });
-  const text = run("entryText(E)", {
-    E: {
-      kind: "seed",
-      team: "SD",
-      over: "PHI",
-      to: 5,
-      from: 6,
-      via: [{ team: "PHI", won: false, opp: "MIL", score: [1, 4] }],
-    },
+  const text = describeEntry({
+    kind: "seed",
+    team: "SD",
+    over: "PHI",
+    to: 5,
+    from: 6,
+    via: [{ team: "PHI", won: false, opp: "MIL", score: [1, 4] }],
   });
   assert.equal(
     text,
@@ -60,22 +54,17 @@ test("update log: a seed pass, with the game behind it", () => {
 });
 
 test("series names", () => {
-  assert.equal(run("seriesLabel('NL_DS2')"), "NLDS");
-  assert.equal(run("seriesLabel('AL_WC1')"), "AL Wild Card Series");
-  assert.equal(run("seriesLabel('WS')"), "World Series");
+  assert.equal(seriesLabel("NL_DS2"), "NLDS");
+  assert.equal(seriesLabel("AL_WC1"), "AL Wild Card Series");
+  assert.equal(seriesLabel("WS"), "World Series");
 });
 
 test("update log: a field change names the spot and how far back the club that dropped out is", () => {
-  const name = (id) => page.run(`TEAMS["${id}"].name`);
-  page.run("0", {
-    logChip: name,
-    teamLabel: name,
-    state: { teams: { TEX: { seed: 3 }, BAL: { seed: 5 } } },
-    standings: {
-      divisions: { "AL West": [{ id: "TEX" }, { id: "HOU" }], "AL East": [{ id: "BAL" }] },
-    },
-  });
-  const say = (e) => run("entryText(E)", { E: { kind: "field", ...e } });
+  session.state = { teams: { TEX: { seed: 3 }, BAL: { seed: 5 } } };
+  session.standings = {
+    divisions: { "AL West": [{ id: "TEX" }, { id: "HOU" }], "AL East": [{ id: "BAL" }] },
+  };
+  const say = (entry) => describeEntry({ kind: "field", ...entry });
   assert.equal(
     say({
       in: "TEX",
@@ -129,32 +118,30 @@ test("update log: a field change names the spot and how far back the club that d
 });
 
 test("update log: an elimination is plain words", () => {
-  page.run("0", { logChip: (id) => page.run(`TEAMS["${id}"].name`) });
-  assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL" } }), "Orioles eliminated");
+  assert.equal(describeEntry({ kind: "elim", team: "BAL" }), "Orioles eliminated");
   assert.equal(
-    run("entryText(E)", {
-      E: { kind: "elim", team: "BAL", via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }] },
+    describeEntry({
+      kind: "elim",
+      team: "BAL",
+      via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }],
     }),
     "Orioles eliminated &mdash; White Sox beat the Royals 9-1",
   );
   assert.equal(
-    run("entryText(E)", {
-      E: {
-        kind: "elim",
-        team: "BAL",
-        via: [
-          { team: "BAL", won: false, opp: "NYY", score: [2, 4] },
-          { team: "CWS", won: true, opp: "KC", score: [9, 1] },
-        ],
-      },
+    describeEntry({
+      kind: "elim",
+      team: "BAL",
+      via: [
+        { team: "BAL", won: false, opp: "NYY", score: [2, 4] },
+        { team: "CWS", won: true, opp: "KC", score: [9, 1] },
+      ],
     }),
     "Orioles eliminated &mdash; lost to the Yankees 4-2 and White Sox beat the Royals 9-1",
   );
 });
 
 test("update log: clinches", () => {
-  page.run("0", { logChip: (id) => page.run(`TEAMS["${id}"].name`) });
-  const say = (e) => run("entryText(E)", { E: { kind: "berth", ...e } });
+  const say = (entry) => describeEntry({ kind: "berth", ...entry });
   assert.equal(
     say({
       team: "CWS",
@@ -170,7 +157,7 @@ test("update log: clinches", () => {
 
 test("Next column: a game that has started gives way to the one after it", () =>
   withNow(NOON, () => {
-    const cell = (t) => run("nextCell(T)", { T: t });
+    const cell = (row) => normalizeSpaces(nextCell(row));
     const today = { at: "2026-09-24T14:05:00Z", home: true, opp: "MIL" }; // 10:05 AM ET
     const fri = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
     assert.equal(cell({ next: today, then: fri }), '<td class="next-cell">Fri 1:05 @ BOS</td>');
@@ -178,9 +165,7 @@ test("Next column: a game that has started gives way to the one after it", () =>
   }));
 
 test("division header: a magic number only when there is a number", () => {
-  page.run("0", { rankTag: () => "", teamTag: (id) => id, state: { teams: {} } });
-  const head = (leader) =>
-    run("divisionBlock('AL Central', R)", { R: [{ id: "CLE", lead: true, ...leader }] });
+  const head = (leader) => divisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]);
   assert.match(head({ magic: "3" }), /magic 3/);
   assert.doesNotMatch(head({ magic: "-" }), /magic/);
   assert.doesNotMatch(head({ magic: null }), /magic/);

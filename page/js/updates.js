@@ -1,4 +1,10 @@
-function seriesLabel(id) {
+import { rankTag, teamLabel, teamTag } from "./clubs.js";
+import { DAYS, countDaysBetween } from "./dates.js";
+import { saveSeenAt } from "./season-store.js";
+import { session, seasonYear } from "./session.js";
+import { TEAMS } from "./teams.js";
+
+export function seriesLabel(id) {
   if (id === "WS") return "World Series";
   const [lg, key] = String(id).split("_");
   if (!key) return id;
@@ -47,7 +53,7 @@ function withVia(sentence, e, mover, other, also) {
 }
 
 function divisionOf(id) {
-  const divs = typeof standings !== "undefined" && standings && standings.divisions;
+  const divs = session.standings && session.standings.divisions;
   if (!divs) return "";
   return Object.keys(divs).find((d) => divs[d].some((r) => r.id === id)) || "";
 }
@@ -56,12 +62,7 @@ function spotLabel(e) {
   let spot = e.spot,
     div = e.div;
   if (!spot) {
-    const seed =
-      typeof state !== "undefined" &&
-      state &&
-      state.teams &&
-      state.teams[e.in] &&
-      state.teams[e.in].seed;
+    const seed = session.state?.teams?.[e.in]?.seed;
     if (!seed) return `the last ${lg} spot`;
     spot = seed <= 3 ? "division" : "wildcard";
     div = div || divisionOf(e.in);
@@ -83,7 +84,7 @@ function outBack(e) {
   return `${teamLabel(e.out)} ${gamesBack(e.outBack)}`;
 }
 
-function entryText(e) {
+export function entryText(e) {
   const lg = (id) => (TEAMS[id] ? TEAMS[id].league : "");
   switch (e.kind) {
     case "field":
@@ -155,16 +156,10 @@ function entryText(e) {
   }
 }
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-function dayDiff(then, now) {
-  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
-  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((b - a) / 86400000);
-}
 function whenLabel(iso, now = new Date()) {
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  const days = dayDiff(d, now);
+  const days = countDaysBetween(d, now);
   if (days <= 0) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   if (days === 1) return "Yesterday";
   if (days < 7) return DAYS[d.getDay()];
@@ -173,7 +168,7 @@ function whenLabel(iso, now = new Date()) {
 function sinceLabel(iso, now = new Date()) {
   const d = new Date(iso);
   if (isNaN(d)) return "";
-  const days = dayDiff(d, now);
+  const days = countDaysBetween(d, now);
   if (days <= 0) return "since earlier today";
   if (days === 1) return "since yesterday";
   if (days < 7) return `since ${DAYS[d.getDay()]}`;
@@ -181,15 +176,15 @@ function sinceLabel(iso, now = new Date()) {
 }
 
 const MAX_SHOWN = 12;
-function renderUpdates() {
+export function renderUpdates() {
   const el = document.getElementById("updates");
-  if (activeYear !== seasonYear()) {
+  if (session.activeYear !== seasonYear()) {
     el.hidden = true;
     el.innerHTML = "";
     return;
   }
-  const seen = state.seenAt ? Date.parse(state.seenAt) : 0;
-  const fresh = (state.log || [])
+  const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
+  const fresh = (session.state.log || [])
     .filter((e) => e && (!seen || Date.parse(e.at) > seen))
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
@@ -204,7 +199,7 @@ function renderUpdates() {
   const extra = fresh.length - shown.length;
   const head =
     `${fresh.length} update${fresh.length === 1 ? "" : "s"}` +
-    (state.seenAt ? ` ${sinceLabel(state.seenAt)}` : "");
+    (session.state.seenAt ? ` ${sinceLabel(session.state.seenAt)}` : "");
 
   el.innerHTML = `
     <div class="updates-head">
@@ -223,4 +218,10 @@ function renderUpdates() {
       ${extra > 0 ? `<li class="more">and ${extra} more</li>` : ""}
     </ul>`;
   document.getElementById("dismissUpdates").addEventListener("click", dismissUpdates);
+}
+
+function dismissUpdates() {
+  const saving = saveSeenAt(new Date().toISOString());
+  renderUpdates();
+  return saving;
 }

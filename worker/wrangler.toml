@@ -1,7 +1,7 @@
 name = "mlb-live"
 main = "dist/worker.mjs"
 compatibility_date = "2026-09-01"
-# dist/worker.mjs is already one self-contained module.
+# worker/build.mjs bundles dist/worker.mjs with esbuild.
 no_bundle = true
 
 [observability]

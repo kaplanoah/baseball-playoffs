@@ -1,5 +1,6 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const load = () => import("../worker/deploy.mjs");
 const ENV = { CLOUDFLARE_ACCOUNT_ID: "acct123" };
@@ -188,13 +189,15 @@ test("anything else is refused, with the reason", async () => {
 });
 
 test("deploy:api runs the tests before it deploys, and sends its calls through any proxy", () => {
-  const scripts = require("../package.json").scripts;
+  const scripts = JSON.parse(
+    readFileSync(`${import.meta.dirname}/../package.json`, "utf8"),
+  ).scripts;
   assert.equal(scripts["deploy:api"], "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs");
 });
 
 test("project settings allow only the checked deploy, and deny the unchecked ones", () => {
   const { permissions } = JSON.parse(
-    require("fs").readFileSync(`${__dirname}/../.claude/settings.json`, "utf8"),
+    readFileSync(`${import.meta.dirname}/../.claude/settings.json`, "utf8"),
   );
   assert.deepEqual(permissions.allow, ["Bash(npm run deploy:api)"]);
   for (const rule of [

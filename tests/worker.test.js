@@ -1,34 +1,12 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("fs");
-const path = require("path");
-const vm = require("vm");
-
-// One shared scope, as the build concatenates these files.
-const ctx = vm.createContext({
-  AbortSignal,
-  Date,
-  Intl,
-  JSON,
-  Map,
-  Math,
-  Promise,
-  Request,
-  Response,
-  Set,
-  URL,
-  console,
-});
-for (const file of ["page/js/snapshot.js", "worker/src/mcp.js"]) {
-  vm.runInContext(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), ctx, {
-    filename: file,
-  });
-}
-const createWorker = vm.runInContext("createWorker", ctx);
-const MLBSnapshot = vm.runInContext("MLBSnapshot", ctx);
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import * as MLBSnapshot from "../page/js/snapshot.js";
+import { createWorker } from "../worker/src/mcp.js";
 
 const EVENING = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "fixtures/2026-09-24-evening.json"), "utf8"),
+  readFileSync(path.join(import.meta.dirname, "fixtures/2026-09-24-evening.json"), "utf8"),
 );
 const NOW = Date.parse(EVENING.now);
 
@@ -122,11 +100,8 @@ test("one tool, marked read-only so the page may watch it", async () => {
 test("get_snapshot answers with the snapshot, structured and as text", async () => {
   const { w, mlb } = worker();
   const { result } = await (await rpc(w, call(3, "get_snapshot", { season: 2026 }))).json();
-  // Objects from the sandbox's realm only deepEqual after a JSON round trip.
-  const expected = JSON.parse(
-    JSON.stringify(MLBSnapshot.buildSnapshot(EVENING.responses, { season: 2026, now: NOW })),
-  );
-  assert.deepEqual(JSON.parse(JSON.stringify(result.structuredContent)), expected);
+  const expected = MLBSnapshot.buildSnapshot(EVENING.responses, { season: 2026, now: NOW });
+  assert.deepEqual(result.structuredContent, expected);
   assert.deepEqual(JSON.parse(result.content[0].text), expected);
   assert.equal(mlb.calls.length, 3);
   assert.equal(mlb.calls[0].init.cf.cacheTtl, 15);
@@ -236,5 +211,5 @@ test("with CONNECTOR_KEY set, only the keyed paths answer", async () => {
 
 test("the deployable file is built from the current sources", async () => {
   const { buildWorker, OUTPUT } = await import("../worker/build.mjs");
-  assert.equal(fs.readFileSync(OUTPUT, "utf8"), buildWorker(), "run: npm run build");
+  assert.equal(readFileSync(OUTPUT, "utf8"), await buildWorker(), "run: npm run build");
 });

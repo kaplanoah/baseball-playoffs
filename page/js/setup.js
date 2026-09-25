@@ -1,14 +1,20 @@
+import { teamTag } from "./clubs.js";
+import { renderAll } from "./render.js";
+import { saveTeams } from "./season-store.js";
+import { session } from "./session.js";
+import { TEAMS } from "./teams.js";
+
 let picked = new Set();
 let seeds = { AL: {}, NL: {} };
 
-function openSetup() {
-  picked = new Set(Object.keys(state.teams));
+export function openSetup() {
+  picked = new Set(Object.keys(session.state.teams));
   seeds = { AL: {}, NL: {} };
-  Object.entries(state.teams).forEach(([id, t]) => (seeds[t.league][t.seed] = id));
+  Object.entries(session.state.teams).forEach(([id, t]) => (seeds[t.league][t.seed] = id));
   renderPickGrid();
   document.getElementById("setupModalBg").style.display = "flex";
 }
-function closeSetup() {
+export function closeSetup() {
   document.getElementById("setupModalBg").style.display = "none";
 }
 
@@ -71,7 +77,7 @@ function renderSeedArea() {
   });
 }
 
-async function saveSetup() {
+export async function saveSetup() {
   const teamsMap = {};
   ["AL", "NL"].forEach((lg) => {
     [1, 2, 3, 4, 5, 6].forEach((seed) => {

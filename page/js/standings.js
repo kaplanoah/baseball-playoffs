@@ -1,3 +1,7 @@
+import { rankTag, teamTag } from "./clubs.js";
+import { DAYS, countDaysBetween } from "./dates.js";
+import { session } from "./session.js";
+
 const DIV_ORDER = ["AL East", "AL Central", "AL West", "NL East", "NL Central", "NL West"];
 const E_TITLE =
   "Division elimination number: combined wins by the division leader and losses by this team that would end its division chances. A dash means clinched, E means out.";
@@ -15,15 +19,15 @@ function elimCell(v) {
   return `<td class="elim-num live tabular mid">${v}</td>`;
 }
 
-function nextCell(t, now = Date.now()) {
-  // A game that has started isn't next, even before the standings refresh.
+export function nextCell(t, now = Date.now()) {
+  // A game that has started isn't next, even before the session.standings refresh.
   let n = t.next;
   const started = (g) => g && g.at && !g.tbd && Date.parse(g.at) <= now;
   if (started(n)) n = started(t.then) ? null : t.then;
   if (!n || !n.at) return `<td class="next-cell"></td>`;
   const d = new Date(n.at);
   if (isNaN(d)) return `<td class="next-cell"></td>`;
-  const days = dayDiff(d, new Date());
+  const days = countDaysBetween(d, new Date());
   const day = days === 0 ? "Today" : DAYS[d.getDay()].slice(0, 3);
   const time = n.tbd
     ? ""
@@ -33,7 +37,7 @@ function nextCell(t, now = Date.now()) {
 }
 
 function standRow(t, cells, opts = {}) {
-  const seed = state.teams[t.id] && state.teams[t.id].seed;
+  const seed = session.state.teams[t.id] && session.state.teams[t.id].seed;
   const cls = opts.out ? "eliminated" : "alive";
   const row = `<tr class="${cls} ${opts.cut ? "cut" : ""}">
     <td class="rank-cell">${rankTag(t.id)}</td>
@@ -54,7 +58,7 @@ function stCols(next) {
   );
 }
 
-function divisionBlock(name, rows) {
+export function divisionBlock(name, rows) {
   const lg = name.slice(0, 2);
   const leader = rows[0] || {};
   const tag = leader.clinched
@@ -127,11 +131,11 @@ function wildCardBlock(lg, all) {
   </div>`;
 }
 
-function renderStandings() {
+export function renderStandings() {
   const wrap = document.getElementById("standingsWrap");
-  const divs = standings && standings.divisions;
+  const divs = session.standings && session.standings.divisions;
   if (!divs || !Object.keys(divs).length) {
-    wrap.innerHTML = `<p class="stand-empty">No standings for this season yet. They
+    wrap.innerHTML = `<p class="stand-empty">No session.standings for this season yet. They
       appear here as soon as the page can reach MLB.</p>`;
     return;
   }

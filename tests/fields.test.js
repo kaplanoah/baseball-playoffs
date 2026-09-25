@@ -1,11 +1,11 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("fs");
-const path = require("path");
-const MLBSnapshot = require("../page/js/snapshot.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import * as MLBSnapshot from "../page/js/snapshot.js";
 
 const readFixture = (name) =>
-  JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures", `${name}.json`), "utf8"));
+  JSON.parse(readFileSync(path.join(import.meta.dirname, "fixtures", `${name}.json`), "utf8"));
 const EVENING = readFixture("2026-09-24-evening");
 const SEASON_2025 = readFixture("2025-final");
 const copy = (value) => JSON.parse(JSON.stringify(value));

@@ -1,3 +1,10 @@
+import { teamStatusLabel } from "./bracket.js";
+import { renderBracket } from "./bracket-view.js";
+import { droughtLabel, lastTitle, rankedOrder, rankTag, teamTag } from "./clubs.js";
+import { saveRanking } from "./season-store.js";
+import { session } from "./session.js";
+import { TEAMS } from "./teams.js";
+
 const ROUND_SHORT = {
   "Wild Card": "WC",
   "Division Series": "DS",
@@ -10,7 +17,7 @@ function shortStatus(st) {
   return m ? `Out &middot; ${ROUND_SHORT[m[1]] || m[1]}` : st.label;
 }
 
-function renderRanking() {
+export function renderRanking() {
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
   const gutter = document.getElementById("rankGutter");
@@ -27,8 +34,8 @@ function renderRanking() {
     .join("");
   list.innerHTML = rankedOrder()
     .map((id) => {
-      const t = state.teams[id];
-      const st = teamStatusLabel(state, id);
+      const t = session.state.teams[id];
+      const st = teamStatusLabel(session.state, id);
       const won = lastTitle(id);
       return `<li class="rank-item ${st.cls === "out" ? "eliminated" : ""}" data-id="${id}">
       <span class="rank-card">
@@ -68,23 +75,23 @@ function wireDrag(list) {
     chosenClass: "dragging",
     ghostClass: "drag-ghost",
     onStart: () => {
-      reordering = true;
+      session.isReordering = true;
     },
     onEnd: () => {
-      reordering = false;
+      session.isReordering = false;
       const rows = [...list.querySelectorAll(".rank-item")];
       const order = rows.map((el) => el.dataset.id);
       if (order.join() === rankedOrder().join()) return;
 
       // Sortable has already moved the row, so the list needs no re-render.
-      state.ranking = order;
+      session.state.ranking = order;
       renderBracket();
       saveRanking(order);
     },
   });
 }
 
-function renderReference() {
+export function renderReference() {
   const body = document.getElementById("refBody");
   const rows = Object.entries(TEAMS).sort((a, b) => a[1].name.localeCompare(b[1].name));
   body.innerHTML = rows
@@ -92,7 +99,7 @@ function renderReference() {
       const won = lastTitle(id);
       return `<tr>
       <td class="rank-col">${rankTag(id)}</td>
-      <td class="seed-col">${(state.teams[id] && state.teams[id].seed) || ""}</td>
+      <td class="seed-col">${(session.state.teams[id] && session.state.teams[id].seed) || ""}</td>
       <td>${teamTag(id)}</td>
       <td class="lg-col"><span class="league-tag ${t.league}">${t.league}</span></td>
       <td class="tabular won-col">${won || "&mdash;"}</td>

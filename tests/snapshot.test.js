@@ -1,13 +1,14 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
-const S = require("../page/js/snapshot.js");
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import * as MLBSnapshot from "../page/js/snapshot.js";
 
 const fixture = (name) =>
-  JSON.parse(require("fs").readFileSync(`${__dirname}/fixtures/${name}.json`, "utf8"));
+  JSON.parse(readFileSync(`${import.meta.dirname}/fixtures/${name}.json`, "utf8"));
 const SEASON_2025 = fixture("2025-final");
 const EVENING = fixture("2026-09-24-evening");
 const build = (f, now = Date.parse(f.now)) =>
-  S.buildSnapshot(f.responses, { season: f.season, now });
+  MLBSnapshot.buildSnapshot(f.responses, { season: f.season, now });
 
 // Games from `cutoff` on become unplayed, with undecided clubs under MLB's placeholder names.
 const PLACEHOLDER = {
@@ -250,46 +251,55 @@ test("a rainout is neither a final nor on the slate", () => {
 
 test("when to ask again: closely during games, otherwise sleep until the next", () => {
   const at = (games, now = "2026-09-24T22:00:00Z") =>
-    S.pollDelay({ slate: { today: { games }, nextDay: null } }, Date.parse(now));
+    MLBSnapshot.pollDelay({ slate: { today: { games }, nextDay: null } }, Date.parse(now));
   const MIN = 60 * 1000;
   assert.equal(
     at([{ state: "live" }, { state: "pre", start: "2026-09-25T02:10:00Z" }]),
-    S.POLL_LIVE_MS,
+    MLBSnapshot.POLL_LIVE_MS,
   );
-  assert.equal(at([{ state: "pre", start: "2026-09-24T22:10:00Z" }]), S.POLL_LIVE_MS);
+  assert.equal(at([{ state: "pre", start: "2026-09-24T22:10:00Z" }]), MLBSnapshot.POLL_LIVE_MS);
   // Past its start and still "pre" means a delay.
-  assert.equal(at([{ state: "pre", start: "2026-09-24T21:05:00Z" }]), S.POLL_LIVE_MS);
+  assert.equal(at([{ state: "pre", start: "2026-09-24T21:05:00Z" }]), MLBSnapshot.POLL_LIVE_MS);
   // 6:00 PM ET now, 6:40 first pitch: wake fifteen minutes early, at 6:25.
   assert.equal(at([{ state: "final" }, { state: "pre", start: "2026-09-24T22:40:00Z" }]), 25 * MIN);
   assert.equal(
     at([{ state: "final" }, { state: "pre", start: "2026-09-25T17:05:00Z" }]),
-    S.POLL_CHECK_MS,
+    MLBSnapshot.POLL_CHECK_MS,
   );
-  assert.equal(at([]), S.POLL_CHECK_MS);
-  assert.equal(at([{ state: "pre", start: "2026-09-24T22:05:00Z", tbd: true }]), S.POLL_CHECK_MS);
-  assert.equal(S.pollDelay({ slate: null }), null);
+  assert.equal(at([]), MLBSnapshot.POLL_CHECK_MS);
+  assert.equal(
+    at([{ state: "pre", start: "2026-09-24T22:05:00Z", tbd: true }]),
+    MLBSnapshot.POLL_CHECK_MS,
+  );
+  assert.equal(MLBSnapshot.pollDelay({ slate: null }), null);
 });
 
 test("an off day with the page open: one look an hour, not a poll", () => {
-  const snap = S.buildSnapshot(EVENING.responses, {
+  const snap = MLBSnapshot.buildSnapshot(EVENING.responses, {
     season: 2026,
     now: Date.parse("2026-09-25T11:00:00Z"),
   });
-  assert.equal(S.pollDelay(snap, Date.parse("2026-09-25T11:00:00Z")), S.POLL_CHECK_MS);
+  assert.equal(
+    MLBSnapshot.pollDelay(snap, Date.parse("2026-09-25T11:00:00Z")),
+    MLBSnapshot.POLL_CHECK_MS,
+  );
 });
 
 test("what to fetch: a past season skips the schedule", () => {
   const now = Date.parse("2026-09-24T22:00:00Z");
-  assert.equal(S.mlbRequests(2025, now).schedule, null);
-  assert.match(S.mlbRequests(2026, now).schedule, /startDate=2026-09-20&endDate=2026-09-28/);
+  assert.equal(MLBSnapshot.mlbRequests(2025, now).schedule, null);
+  assert.match(
+    MLBSnapshot.mlbRequests(2026, now).schedule,
+    /startDate=2026-09-20&endDate=2026-09-28/,
+  );
 });
 
 test("fetchSnapshot asks for exactly the requests it builds", async () => {
   const f = EVENING;
   const asked = [];
-  const req = S.mlbRequests(2026, Date.parse(f.now));
+  const req = MLBSnapshot.mlbRequests(2026, Date.parse(f.now));
   const byPath = Object.fromEntries(Object.entries(req).map(([k, p]) => [p, f.responses[k]]));
-  const snap = await S.fetchSnapshot(
+  const snap = await MLBSnapshot.fetchSnapshot(
     async (p) => {
       asked.push(p);
       return byPath[p];
