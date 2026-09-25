@@ -125,3 +125,21 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   await page.clock.fastForward("02:00:00");
   expect(await app.countToolCalls()).toBe(calls);
 });
+
+test("warns under the title when MLB stops sending a field", async ({ page }) => {
+  const app = await openApp(page);
+  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+
+  await page.evaluate(() => {
+    window.__runtime.transformSnapshot = (snapshot) => ({ ...snapshot, missing: ["wildCardRank"] });
+  });
+  await page.clock.fastForward("00:30");
+
+  await expect(page.locator("#stamp")).toContainText(
+    "MLB stopped sending wildCardRank, so some details may be blank.",
+  );
+  await expect(page.locator("#bracketWrap")).toContainText("Dodgers");
+  await expect
+    .poll(() => app.read("live/status"))
+    .toMatchObject({ error: "mlb_fields_missing", detail: "wildCardRank" });
+});

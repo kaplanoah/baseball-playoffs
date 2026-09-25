@@ -94,6 +94,127 @@ const MLBSnapshot = (() => {
     "clinchIndicator",
   ].join(",");
 
+  // The requests filter with `fields=`, so a field MLB renames or drops comes back as nothing.
+  const isNumber = (value) => typeof value === "number" && Number.isFinite(value);
+  const isText = (value) => typeof value === "string" && value !== "";
+  const isBoolean = (value) => typeof value === "boolean";
+  const isNumericText = (value) => isText(value) && Number.isFinite(Number(value));
+  const isDay = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const isTime = (value) => isText(value) && !Number.isNaN(Date.parse(value));
+  const isPresent = (value) => value !== undefined && value !== null && value !== "";
+  const hasPlayed = (record) => record.wins + record.losses > 0;
+  const isFinal = (game) => gameState(game.status || {}) === "final";
+  const hasStarted = (game) => ["live", "final"].includes(gameState(game.status || {}));
+
+  // With `onSome`, a field is only missing when no item it applies to has it.
+  const requireField = (path, isValid, appliesTo = () => true, onSome = false) => ({
+    path,
+    isValid,
+    appliesTo,
+    onSome,
+  });
+  const FIELD_RULES = {
+    division: [requireField("division.id", isNumber), requireField("teamRecords", Array.isArray)],
+    club: [
+      requireField("team.id", isNumber),
+      requireField("wins", isNumber),
+      requireField("losses", isNumber),
+      requireField("winningPercentage", isNumericText, hasPlayed),
+      requireField("divisionRank", isNumericText, hasPlayed),
+      requireField("leagueRank", isNumericText, hasPlayed),
+      requireField("divisionGamesBack", isPresent, hasPlayed),
+      requireField("wildCardGamesBack", isPresent, hasPlayed),
+      requireField("eliminationNumber", isPresent, hasPlayed),
+      requireField("wildCardEliminationNumber", isPresent, hasPlayed),
+      requireField("divisionChamp", isBoolean, hasPlayed),
+      requireField("divisionLeader", isBoolean, hasPlayed),
+      requireField(
+        "wildCardRank",
+        isNumericText,
+        (record) => hasPlayed(record) && record.divisionLeader === false,
+      ),
+      requireField("clinchIndicator", isText, (record) => record.divisionChamp === true),
+    ],
+    date: [requireField("date", isDay), requireField("games", Array.isArray)],
+    game: [
+      requireField("gamePk", isNumber),
+      requireField("gameType", isText),
+      requireField("gameDate", isTime),
+      requireField("officialDate", isDay),
+      requireField("status.abstractGameState", isText),
+      requireField("status.detailedState", isText),
+      requireField("status.codedGameState", isText),
+      requireField("status.startTimeTBD", isBoolean),
+      requireField("teams.away.team.id", isNumber),
+      requireField("teams.away.team.name", isText),
+      requireField("teams.home.team.id", isNumber),
+      requireField("teams.home.team.name", isText),
+      requireField("teams.away.score", isNumber, isFinal),
+      requireField("teams.home.score", isNumber, isFinal),
+      requireField("gameInfo.firstPitch", isTime, isFinal, true),
+      requireField("gameInfo.gameDurationMinutes", isNumber, isFinal, true),
+    ],
+    scheduleGame: [requireField("linescore.currentInning", isNumber, hasStarted, true)],
+    postseasonGame: [
+      requireField("seriesGameNumber", isNumber),
+      // The series' league comes from this name.
+      requireField(
+        "seriesDescription",
+        (value) => /^(AL|NL)\b/.test(value),
+        (game) => game.gameType !== "W",
+      ),
+    ],
+  };
+  const CHECKED_FIELDS = [
+    ...new Set(
+      Object.values(FIELD_RULES).flatMap((rules) => rules.flatMap((rule) => rule.path.split("."))),
+    ),
+    "records",
+    "dates",
+  ];
+
+  const readPath = (object, path) =>
+    path.split(".").reduce((value, key) => (value == null ? undefined : value[key]), object);
+
+  function findInvalidFields(items, rules) {
+    return rules
+      .filter(({ path, isValid, appliesTo, onSome }) => {
+        const applicable = items.filter(appliesTo);
+        const invalid = applicable.filter((item) => !isValid(readPath(item, path)));
+        return invalid.length > 0 && (!onSome || invalid.length === applicable.length);
+      })
+      .map((rule) => rule.path);
+  }
+
+  function findMissingStandingsFields(standings) {
+    if (!Array.isArray(standings?.records)) return ["records"];
+    const clubs = standings.records.flatMap((division) => division.teamRecords || []);
+    return [
+      ...findInvalidFields(standings.records, FIELD_RULES.division),
+      ...findInvalidFields(clubs, FIELD_RULES.club),
+    ];
+  }
+
+  function findMissingGameFields(schedule, extraRules) {
+    if (!Array.isArray(schedule?.dates)) return ["dates"];
+    const games = schedule.dates.flatMap((date) => date.games || []);
+    return [
+      ...findInvalidFields(schedule.dates, FIELD_RULES.date),
+      ...findInvalidFields(games, [...FIELD_RULES.game, ...extraRules]),
+    ];
+  }
+
+  function findMissingFields(responses) {
+    const missing = [
+      ...findMissingStandingsFields(responses.standings),
+      ...findMissingGameFields(responses.postseason, FIELD_RULES.postseasonGame),
+      ...(responses.schedule
+        ? findMissingGameFields(responses.schedule, FIELD_RULES.scheduleGame)
+        : []),
+    ];
+    return [...new Set(missing)];
+  }
+
   const WINS_TO_TAKE = { WC: 2, DS: 3, CS: 4, WS: 4 };
   const GAME_TYPES = new Set(["R", "F", "D", "L", "W"]);
 
@@ -512,6 +633,7 @@ const MLBSnapshot = (() => {
       log,
       standings: buildStandings(raw.standings, season, games),
       slate: raw.schedule ? buildSlate(games, now) : null,
+      missing: findMissingFields(raw),
     };
   }
 
@@ -530,7 +652,9 @@ const MLBSnapshot = (() => {
   return {
     MLB_API,
     MLB_TEAM,
+    CHECKED_FIELDS,
     mlbRequests,
+    findMissingFields,
     fetchSnapshot,
     buildSnapshot,
     pollDelay,
