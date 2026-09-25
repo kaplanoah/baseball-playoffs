@@ -49,8 +49,9 @@ and
 returns `"success":true`, go to step 3. Otherwise start with something like:
 "I'll walk you through adding a few things to this cloud environment so I can
 deploy the connector for you. If you'd rather deploy it yourself from a
-terminal, just let me know." Then go through the steps below. If they want to
-deploy it themselves, see "If they deploy it themselves" below.
+terminal or Cloudflare's dashboard, just let me know." Then go through the
+steps below. If they want to deploy it themselves, see "If they deploy it
+themselves" below.
 
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
@@ -107,12 +108,17 @@ environment credential. The connector keeps running without it.
 
 ### If they deploy it themselves
 
-Assume they're comfortable in a terminal. In their own clone of `main` they
-run `npx wrangler login` and then `npm run deploy`. It prints the Worker's
-address, and the connector URL is that address plus `/mcp`. Then go on from
-step 4. They redeploy the same way when the connector's code changes.
+Either way, the connector URL is the Worker's address plus `/mcp`. Then go on
+from step 4. They redeploy the same way when the connector's code changes.
 Cloudflare's tools change over time, so if something doesn't match, point them
 to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
+
+- **From a terminal.** Assume they're comfortable in one. In their own clone
+  of `main` they run `npx wrangler login` and then `npm run deploy`, which
+  prints the Worker's address.
+- **From the dashboard.** They create a Worker named `mlb-live`, replace its
+  code with `worker/dist/worker.mjs` from `main` on GitHub, and deploy it.
+  The dashboard shows the Worker's address.
 
 ## Making changes
 
