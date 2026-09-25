@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies; dev tools only.",
+  "license": "MIT",
   "engines": {
     "node": ">=22.21"
   },

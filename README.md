@@ -135,3 +135,7 @@ After merging, republish the page from `main` to its existing link. Redeploy
 the connector if anything in `worker/` or `page/js/snapshot.js` changed. Don't
 publish from a branch that hasn't been merged, because the next publish from
 `main` will overwrite it.
+
+## License
+
+[MIT](LICENSE)
