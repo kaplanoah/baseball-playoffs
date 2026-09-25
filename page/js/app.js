@@ -20,6 +20,7 @@ import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
+const SPRING_CHECK_MS = 60 * 60 * 1000;
 
 // Browsers treat any keydown as keyboard navigation, so Shift alone would ring the last-clicked element.
 const NAV_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
@@ -118,7 +119,7 @@ function fillYearPicker(years) {
 }
 
 // Before April the new season starts on the day MLB says spring training does.
-async function followSpringTraining() {
+async function checkSpringTraining() {
   const year = easternDay(Date.now()).year;
   if (session.currentSeason === year) return;
   let springStart;
@@ -127,11 +128,30 @@ async function followSpringTraining() {
   } catch {
     return;
   }
-  if (!hasSpringStarted(springStart)) return;
+  if (!hasSpringStarted(springStart) || session.currentSeason === year) return;
   const wasShowingLatest = session.activeYear === session.currentSeason;
   session.currentSeason = year;
   if (wasShowingLatest) await switchYear(year);
   fillYearPicker(await listYears());
+}
+
+let springCheck = null;
+
+function followSpringTraining() {
+  springCheck ??= checkSpringTraining().finally(() => {
+    springCheck = null;
+  });
+  return springCheck;
+}
+
+// A page left open across the first day of spring training still turns over.
+function watchSpringTraining() {
+  setInterval(() => {
+    if (!document.hidden) followSpringTraining();
+  }, SPRING_CHECK_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) followSpringTraining();
+  });
 }
 
 // Sortable has already moved the dragged card, so redrawing the list keeps it where it was dropped.
@@ -179,6 +199,7 @@ async function boot() {
   refreshStampEveryMinute();
   watchPageVisibility();
   startLive();
+  watchSpringTraining();
   await followSpringTraining();
 }
 

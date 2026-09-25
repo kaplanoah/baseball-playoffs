@@ -283,6 +283,19 @@ test("the new season starts on the day spring training does", async ({ page }) =
   await expect(page.getByRole("button", { name: "Set the field" })).toBeVisible();
 });
 
+test("a page left open turns over when spring training starts", async ({ page }) => {
+  await openApp(page, {
+    now: "2027-02-19T04:30:00Z",
+    extraSnapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
+  });
+  await expect(page.locator("#yearSel")).toHaveValue("2026");
+
+  // 11:30 PM Eastern the night before; the hourly check runs after midnight.
+  await page.clock.fastForward("01:00:00");
+
+  await expect(page.locator("#yearSel")).toHaveValue("2027");
+});
+
 test("until spring training starts, the latest season is last year's", async ({ page }) => {
   const app = await openApp(page, {
     now: "2027-02-18T15:00:00Z",

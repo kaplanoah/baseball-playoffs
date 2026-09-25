@@ -44,7 +44,11 @@ const LIVE_ERRORS = {
     retry: false,
     retract: false,
   },
-  bad_request: { message: TRY_AGAIN, retry: false, retract: false },
+  bad_request: {
+    message: `${LIVE_SERVER} didn't accept this page's request. Is it up to date?`,
+    retry: false,
+    retract: false,
+  },
 };
 
 export function describeLiveError(error) {
