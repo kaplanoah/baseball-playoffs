@@ -66,6 +66,20 @@ test("a refusal names the step and Cloudflare's reason; no account ID is caught 
   await assert.rejects(deploy({ fetchImpl: cf.fetchImpl, env: {}, script: "", log: () => {} }), /CLOUDFLARE_ACCOUNT_ID/);
 });
 
+test("a request that carried no token says why, unless the script sent one itself", async () => {
+  const { deploy } = await load();
+  const bare = async () => new Response(JSON.stringify({ success: false,
+    errors: [{ code: 9106, message: "Missing X-Auth-Key, X-Auth-Email or Authorization headers" }] }), { status: 400 });
+  await assert.rejects(deploy({ fetchImpl: bare, env: ENV, script: "", log: () => {} }),
+    e => /upload failed: 9106/.test(e.message) && /No token reached Cloudflare/.test(e.message) && /NODE_USE_ENV_PROXY=1/.test(e.message));
+  await assert.rejects(deploy({ fetchImpl: bare, env: { ...ENV, CLOUDFLARE_API_TOKEN: "t0k" }, script: "", log: () => {} }),
+    e => /upload failed: 9106/.test(e.message) && !/No token reached/.test(e.message));
+  // Any other refusal (a bad or expired token, say) gets no proxy hint.
+  const cf = fakeCloudflare({ refuse: "/scripts/mlb-live" });
+  await assert.rejects(deploy({ fetchImpl: cf.fetchImpl, env: ENV, script: "", log: () => {} }),
+    e => /Authentication error/.test(e.message) && !/No token reached/.test(e.message));
+});
+
 /* A stand-in git: answers the questions checkRelease asks. */
 function fakeGit({ branch = "main", dirty = "", head = "a".repeat(40), origin = "a".repeat(40) } = {}){
   const asked = [];
@@ -80,24 +94,27 @@ function fakeGit({ branch = "main", dirty = "", head = "a".repeat(40), origin = 
   return { git, asked };
 }
 
-test("a release is main, clean, and exactly what GitHub has", async () => {
+test("a release is clean and exactly what GitHub has as main, on any branch", async () => {
   const { checkRelease } = await load();
   const ok = fakeGit();
   assert.equal(checkRelease(ok.git), "a".repeat(40));
   assert.ok(ok.asked.includes("fetch --quiet origin main"), "compares against a fresh fetch");
+  // A cloud session's own branch, or a detached checkout, at main's commit.
+  assert.equal(checkRelease(fakeGit({ branch: "claude/some-branch" }).git), "a".repeat(40));
+  assert.equal(checkRelease(fakeGit({ branch: "HEAD" }).git), "a".repeat(40));
 });
 
 test("anything else is refused, with the reason", async () => {
   const { checkRelease } = await load();
-  assert.throws(() => checkRelease(fakeGit({ branch: "claude/some-branch" }).git), /from main only; this checkout is on claude\/some-branch/);
-  assert.throws(() => checkRelease(fakeGit({ branch: "HEAD" }).git), /on HEAD/);
   assert.throws(() => checkRelease(fakeGit({ dirty: " M js/snapshot.js" }).git), /uncommitted changes/);
   assert.throws(() => checkRelease(fakeGit({ head: "b".repeat(40) }).git), /isn't main as GitHub has it/);
+  assert.throws(() => checkRelease(fakeGit({ branch: "claude/some-branch", head: "b".repeat(40) }).git),
+    /claude\/some-branch at bbbbbbb\) isn't main as GitHub has it \(aaaaaaa\)/);
 });
 
-test("deploy:api runs the tests before it deploys", () => {
+test("deploy:api runs the tests before it deploys, and sends its calls through any proxy", () => {
   const scripts = require("../package.json").scripts;
-  assert.equal(scripts["deploy:api"], "npm test && node worker/deploy.mjs");
+  assert.equal(scripts["deploy:api"], "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs");
 });
 
 test("project settings allow only the checked deploy, and deny the unchecked ones", () => {
