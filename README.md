@@ -47,33 +47,31 @@ and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
 returns `"success":true`, this session can already deploy it: go to step 3.
 
-Otherwise, have the user sign in at
-[dash.cloudflare.com](https://dash.cloudflare.com) (a free account is fine)
-and open **Workers & Pages**. If it asks for a workers.dev subdomain, have them
-choose one and tell you what it is. Then offer two ways to deploy:
+Otherwise, offer the user two ways:
 
 - **You deploy it** (the default). They give this session's environment a
   Cloudflare token, and you deploy from a new session. Later updates are one
   command. Steps below.
-- **They deploy it themselves**, with no token. In **Workers & Pages** they
-  create a Worker named `mlb-live` from the Hello World template and deploy
-  it. Then they open **Edit code**, replace all of its code with
-  `worker/dist/worker.mjs` from `main` on GitHub (that file's **Copy raw file**
-  button copies it), and deploy again. The connector URL is
-  `https://mlb-live.<subdomain>.workers.dev/mcp`; go to step 4. They'll need to
-  paste the file again whenever it changes. If they have Node and a copy of
-  the repo on their own computer, `npx wrangler login` and then
-  `npm run deploy` there does the same.
+- **They deploy it themselves** with Cloudflare's command-line tool,
+  wrangler. Assume they're comfortable in a terminal: in their own clone of
+  `main`, `npx wrangler login` and then `npm run deploy`. It prints
+  the Worker's address; the connector URL is that address plus `/mcp`. Go to
+  step 4. They redeploy the same way whenever the connector's code changes.
+  Cloudflare's tools change over time, so if something doesn't match, point
+  them to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
 
 If you're deploying it:
 
-1. Have them create a token: **Manage Account → API Tokens → Create Token**,
+1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
+   (a free account is fine) and open **Workers & Pages**. If it asks for a
+   workers.dev subdomain, have them choose one and tell you what it is.
+2. Have them create a token: **Manage Account → API Tokens → Create Token**,
    template **Edit Cloudflare Workers**, scoped to their account. No IP
    filtering (cloud sessions have no fixed address); an expiry of a week is
    plenty. They copy the token but keep it to themselves.
-2. Have them find the **Account ID**: Workers & Pages overview, right-hand
+3. Have them find the **Account ID**: Workers & Pages overview, right-hand
    column.
-3. In Claude Code, they open this session's cloud environment (the
+4. In Claude Code, they open this session's cloud environment (the
    environment menu in the title bar → **Edit**) and set:
    - **API credentials → Add credential**: type Bearer, allowed website
      `api.cloudflare.com`, header `Authorization`, prefix `Bearer`, and the
@@ -83,7 +81,7 @@ If you're deploying it:
      with the default package managers still included.
 
    Then **Save changes**.
-4. Environment settings reach new sessions only. Start one in the same
+5. Environment settings reach new sessions only. Start one in the same
    environment on this repo's `main` (with the `create_session` tool if you
    have it; otherwise have the user start it) with this prompt:
    `Continue setting up the MLB postseason tracker: README "Setup (instructions for Claude)", step 3. The page is at <artifact URL>.`
