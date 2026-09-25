@@ -1168,6 +1168,11 @@ table.ref th.won-col {
   font-size: 0.88rem;
   margin-bottom: 4px;
 }
+.setup-error {
+  color: var(--copper-ink);
+  font-size: 0.88rem;
+  margin-top: 12px;
+}
 .modal-actions {
   display: flex;
   gap: 10px;

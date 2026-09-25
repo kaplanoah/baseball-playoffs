@@ -143,3 +143,15 @@ test("warns under the title when MLB stops sending a field", async ({ page }) =>
     .poll(() => app.read("live/status"))
     .toMatchObject({ error: "mlb_fields_missing", detail: "wildCardRank" });
 });
+
+test("setting the field by hand says what's missing instead of saving", async ({ page }) => {
+  await openApp(page, { connectorAdded: false });
+
+  await page.getByRole("button", { name: "Set the field" }).click();
+  await page.getByRole("button", { name: "Save field" }).click();
+
+  await expect(page.getByRole("alert")).toHaveText(
+    "Assign all 6 seeds in both the AL and the NL before saving.",
+  );
+  await expect(page.locator("#setupModalBg")).toBeVisible();
+});

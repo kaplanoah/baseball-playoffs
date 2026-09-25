@@ -7,7 +7,16 @@ import { TEAMS } from "./teams.js";
 let picked = new Set();
 let seeds = { AL: {}, NL: {} };
 
+const SEEDS_INCOMPLETE = "Assign all 6 seeds in both the AL and the NL before saving.";
+
+function showSetupError(message) {
+  const error = document.getElementById("setupError");
+  error.textContent = message;
+  error.hidden = !message;
+}
+
 export function openSetup() {
+  showSetupError("");
   picked = new Set(Object.keys(session.state.teams));
   seeds = { AL: {}, NL: {} };
   Object.entries(session.state.teams).forEach(([id, t]) => (seeds[t.league][t.seed] = id));
@@ -88,7 +97,7 @@ export async function saveSetup() {
   const alCount = Object.values(teamsMap).filter((t) => t.league === "AL").length;
   const nlCount = Object.values(teamsMap).filter((t) => t.league === "NL").length;
   if (alCount !== 6 || nlCount !== 6) {
-    alert("Assign all 6 seeds in both AL and NL before saving.");
+    showSetupError(SEEDS_INCOMPLETE);
     return;
   }
   await saveTeams(teamsMap);
