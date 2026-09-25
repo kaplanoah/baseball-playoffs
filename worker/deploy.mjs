@@ -43,6 +43,7 @@ export async function deploy({
   env = process.env,
   script = readRepoFile("worker/dist/worker.mjs"),
   log = console.log,
+  pause = waitFor,
 } = {}) {
   const account = env.CLOUDFLARE_ACCOUNT_ID;
   if (!account)
@@ -55,11 +56,15 @@ export async function deploy({
     : {};
   const base = `${API}/accounts/${account}/workers`;
 
-  async function callCloudflare(what, url, init) {
+  async function callCloudflare(what, url, init, { isMissingAllowed = false } = {}) {
     const response = await fetchImpl(url, {
       ...init,
       headers: { ...auth, ...(init.headers || {}) },
     });
+    if (isMissingAllowed && response.status === 404) {
+      log(`${what}: none`);
+      return null;
+    }
     const text = await response.text();
     let body = {};
     try {
@@ -86,37 +91,131 @@ export async function deploy({
     return body.result;
   }
 
-  const form = new FormData();
-  form.append(
-    "metadata",
-    new Blob(
-      [
-        JSON.stringify({
-          main_module: "worker.mjs",
-          compatibility_date: compatibilityDate,
-          observability: { enabled: true },
-        }),
-      ],
-      { type: "application/json" },
-    ),
-  );
-  form.append(
-    "worker.mjs",
-    new Blob([script], { type: "application/javascript+module" }),
-    "worker.mjs",
-  );
-  await callCloudflare("upload", `${base}/scripts/${name}`, { method: "PUT", body: form });
+  async function findLiveVersions() {
+    const result = await callCloudflare(
+      "live version",
+      `${base}/scripts/${name}/deployments`,
+      { method: "GET" },
+      { isMissingAllowed: true },
+    );
+    const deployments = result?.deployments || [];
+    if (!deployments.length) return null;
+    const newest = deployments.reduce((latest, deployment) =>
+      deployment.created_on > latest.created_on ? deployment : latest,
+    );
+    return newest.versions.map(({ version_id, percentage }) => ({ version_id, percentage }));
+  }
 
-  await callCloudflare("workers.dev route", `${base}/scripts/${name}/subdomain`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ enabled: true, previews_enabled: false }),
-  });
+  async function uploadWorker() {
+    const form = new FormData();
+    form.append(
+      "metadata",
+      new Blob(
+        [
+          JSON.stringify({
+            main_module: "worker.mjs",
+            compatibility_date: compatibilityDate,
+            observability: { enabled: true },
+          }),
+        ],
+        { type: "application/json" },
+      ),
+    );
+    form.append(
+      "worker.mjs",
+      new Blob([script], { type: "application/javascript+module" }),
+      "worker.mjs",
+    );
+    await callCloudflare("upload", `${base}/scripts/${name}`, { method: "PUT", body: form });
+  }
 
-  const { subdomain } = await callCloudflare("subdomain", `${base}/subdomain`, { method: "GET" });
-  const url = `https://${name}.${subdomain}.workers.dev/mcp`;
+  async function enableWorkersDevRoute() {
+    await callCloudflare("workers.dev route", `${base}/scripts/${name}/subdomain`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: true, previews_enabled: false }),
+    });
+  }
+
+  async function readConnectorUrl() {
+    const { subdomain } = await callCloudflare("subdomain", `${base}/subdomain`, {
+      method: "GET",
+    });
+    return `https://${name}.${subdomain}.workers.dev/mcp`;
+  }
+
+  async function rollBack(versions) {
+    await callCloudflare("rollback", `${base}/scripts/${name}/deployments`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ strategy: "percentage", versions }),
+    });
+  }
+
+  async function confirmConnectorAnswers(url, previousVersions) {
+    const keyedUrl = env.CONNECTOR_KEY ? `${url}/${env.CONNECTOR_KEY}` : url;
+    if (await isConnectorAnswering(keyedUrl, { fetchImpl, pause })) {
+      log("connector check: ok");
+      return;
+    }
+    if (!previousVersions)
+      throw new Error(`The connector at ${url} didn't answer, and no earlier version exists.`);
+    await rollBack(previousVersions).catch((error) => {
+      throw new Error(
+        `The connector at ${url} didn't answer, and the new version is still live: ${error.message}`,
+      );
+    });
+    throw new Error(`The connector at ${url} didn't answer, so the earlier version is live again.`);
+  }
+
+  const previousVersions = await findLiveVersions();
+  await uploadWorker();
+  await enableWorkersDevRoute();
+  const url = await readConnectorUrl();
+  await confirmConnectorAnswers(url, previousVersions);
   log(`Connector URL: ${url}`);
   return url;
+}
+
+const CHECK_ATTEMPTS = 6;
+const CHECK_INTERVAL_MS = 5000;
+const CHECK_TIMEOUT_MS = 10000;
+const INITIALIZE_REQUEST = JSON.stringify({
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "deploy-check", version: "1.0.0" },
+  },
+});
+
+const waitFor = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function isInitializeAnswered(url, fetchImpl) {
+  try {
+    const response = await fetchImpl(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: INITIALIZE_REQUEST,
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+    const body = await response.json();
+    return !!body?.result?.serverInfo;
+  } catch {
+    return false;
+  }
+}
+
+async function isConnectorAnswering(url, { fetchImpl = fetch, pause = waitFor } = {}) {
+  for (let attempt = 0; attempt < CHECK_ATTEMPTS; attempt += 1) {
+    // A new version takes a few seconds to reach every Cloudflare location.
+    await pause(CHECK_INTERVAL_MS);
+    if (await isInitializeAnswered(url, fetchImpl)) return true;
+  }
+  return false;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

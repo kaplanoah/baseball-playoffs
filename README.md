@@ -139,10 +139,26 @@ and in a browser, on every pull request, so merge once those pass. To run the sa
 checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
-After merging, republish the page from `main` to its existing link. Redeploy
-the connector if anything in `worker/` or `page/js/snapshot.js` changed. Don't
+After merging, republish the page from `main` to its existing link. Don't
 publish from a branch that hasn't been merged, because the next publish from
 `main` will overwrite it.
+
+Every deploy checks that the connector answers afterward. If it doesn't, the
+deploy puts the previous version back and fails.
+
+### Deploying on merge
+
+GitHub can deploy the connector after each merge, once the checks pass. In the
+repo's **Settings > Environments**, create an environment named `production`,
+limit its deployment branches to `main`, and add:
+
+- a secret `CLOUDFLARE_API_TOKEN`: a Cloudflare token made from the **Edit
+  Cloudflare Workers** template, with no IP filtering and a long expiry;
+- a variable `CLOUDFLARE_ACCOUNT_ID`;
+- a secret `CONNECTOR_KEY`, only if the Worker has one.
+
+Without the token, merges deploy nothing. Redeploy by hand with
+`npm run deploy:api` if anything in `worker/` or `page/js/snapshot.js` changed.
 
 ## License
 
