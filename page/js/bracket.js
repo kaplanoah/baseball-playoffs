@@ -102,13 +102,13 @@ export function teamStatusLabel(state, id) {
   const t = state.teams[id];
   const lgBr = t.league === "AL" ? br.al : br.nl;
   const rounds = [
-    ["WC", lgBr.wc],
-    ["DS", lgBr.ds],
-    ["CS", lgBr.cs],
-    ["WS", br.ws ? [br.ws] : []],
+    { round: "WC", series: lgBr.wc },
+    { round: "DS", series: lgBr.ds },
+    { round: "CS", series: lgBr.cs },
+    { round: "WS", series: br.ws ? [br.ws] : [] },
   ];
-  for (const [round, arr] of rounds) {
-    for (const s of arr) {
+  for (const { round, series } of rounds) {
+    for (const s of series) {
       if (s && s.winner && (s.teamA === id || s.teamB === id) && s.winner !== id) {
         return { label: `Out \u2014 ${ROUND_LABEL[round]}`, cls: "out" };
       }

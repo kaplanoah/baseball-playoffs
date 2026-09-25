@@ -29,8 +29,11 @@ function trackKeyboardFocus() {
   addEventListener("pointerdown", () => document.body.classList.remove("kbd"), true);
 }
 
+const findTabButtons = () =>
+  /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll("nav.tabs button"));
+
 function switchTab(tab) {
-  for (const button of document.querySelectorAll("nav.tabs button")) {
+  for (const button of findTabButtons()) {
     button.classList.toggle("active", button.dataset.tab === tab);
   }
   for (const view of document.querySelectorAll("section.view")) {
@@ -75,7 +78,7 @@ async function listYears() {
 }
 
 function fillYearPicker(years) {
-  const picker = document.getElementById("yearSel");
+  const picker = /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
   picker.innerHTML = years
     .map(
       (year) =>
@@ -100,7 +103,7 @@ async function loadActiveSeason() {
 }
 
 function wireControls() {
-  for (const button of document.querySelectorAll("nav.tabs button")) {
+  for (const button of findTabButtons()) {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
   }
   document.getElementById("openSetupBtn").addEventListener("click", openSetup);

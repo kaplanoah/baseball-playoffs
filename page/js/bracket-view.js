@@ -67,13 +67,13 @@ function nextGameNote(s) {
     day = new Date(y, m - 1, d);
   } else if (next.at) {
     const at = new Date(next.at);
-    if (isNaN(at)) return "";
+    if (Number.isNaN(at.getTime())) return "";
     day = new Date(at.getFullYear(), at.getMonth(), at.getDate());
   } else return "";
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const days = Math.round((day - today) / 86400000);
+  const days = Math.round((day.getTime() - today.getTime()) / 86400000);
 
   const time = timeKnown
     ? ", " + new Date(next.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })

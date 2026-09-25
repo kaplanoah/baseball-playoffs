@@ -41,7 +41,12 @@ const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
 const SNAPSHOT_REUSE_MS = 10000;
 const MAX_BODY_BYTES = 64 * 1024;
 
-export function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now() } = {}) {
+const describeError = (error) => (error instanceof Error ? error.message : String(error));
+
+export function createWorker({
+  fetchImpl = (input, init) => fetch(input, init),
+  now = () => Date.now(),
+} = {}) {
   const recent = new Map();
 
   async function getJson(path) {
@@ -124,10 +129,10 @@ export function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Da
             content: [{ type: "text", text: JSON.stringify(snapshot) }],
             structuredContent: snapshot,
           });
-        } catch (e) {
+        } catch (error) {
           return reply(id, {
             isError: true,
-            content: [{ type: "text", text: `Couldn't read MLB: ${(e && e.message) || e}` }],
+            content: [{ type: "text", text: `Couldn't read MLB: ${describeError(error)}` }],
           });
         }
       }
@@ -189,8 +194,8 @@ export function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Da
         return json({ error: "season must be a whole year between 1995 and 2100" }, 400);
       try {
         return json(await snapshotFor(season));
-      } catch (e) {
-        return json({ error: `Couldn't read MLB: ${(e && e.message) || e}` }, 502);
+      } catch (error) {
+        return json({ error: `Couldn't read MLB: ${describeError(error)}` }, 502);
       }
     }
     if (url.pathname === "/" && !key) return text("MLB Live connector. MCP endpoint: /mcp\n", 200);

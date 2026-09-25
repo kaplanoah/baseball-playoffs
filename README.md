@@ -126,8 +126,8 @@ to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
 ## Making changes
 
 `main` is what's published. Work on a branch and open a pull request into
-`main`. GitHub lints, checks formatting, and runs the tests, in Node and in a
-browser, on every pull request, so merge once those pass. To run the same
+`main`. GitHub lints, checks formatting and types, and runs the tests, in Node
+and in a browser, on every pull request, so merge once those pass. To run the same
 checks yourself, run `npm install` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 

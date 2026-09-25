@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const load = () => import("../worker/deploy.mjs");
 const ENV = { CLOUDFLARE_ACCOUNT_ID: "acct123" };
 
+/** @param {{ refuse?: string }} [options] */
 function fakeCloudflare({ refuse } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -123,10 +124,10 @@ test("a request that carried no token says why, unless the script sent one itsel
     );
   await assert.rejects(
     deploy({ fetchImpl: bare, env: ENV, script: "", log: () => {} }),
-    (e) =>
-      /upload failed: 9106/.test(e.message) &&
-      /No token reached Cloudflare/.test(e.message) &&
-      /NODE_USE_ENV_PROXY=1/.test(e.message),
+    (/** @type {Error} */ error) =>
+      /upload failed: 9106/.test(error.message) &&
+      /No token reached Cloudflare/.test(error.message) &&
+      /NODE_USE_ENV_PROXY=1/.test(error.message),
   );
   await assert.rejects(
     deploy({
@@ -135,12 +136,14 @@ test("a request that carried no token says why, unless the script sent one itsel
       script: "",
       log: () => {},
     }),
-    (e) => /upload failed: 9106/.test(e.message) && !/No token reached/.test(e.message),
+    (/** @type {Error} */ error) =>
+      /upload failed: 9106/.test(error.message) && !/No token reached/.test(error.message),
   );
   const cf = fakeCloudflare({ refuse: "/scripts/mlb-live" });
   await assert.rejects(
     deploy({ fetchImpl: cf.fetchImpl, env: ENV, script: "", log: () => {} }),
-    (e) => /Authentication error/.test(e.message) && !/No token reached/.test(e.message),
+    (/** @type {Error} */ error) =>
+      /Authentication error/.test(error.message) && !/No token reached/.test(error.message),
   );
 });
 
