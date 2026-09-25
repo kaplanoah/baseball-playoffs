@@ -5,11 +5,14 @@ import * as MLBSnapshot from "../../page/js/snapshot.js";
 
 const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
-export const EVENING = loadFixture("2026-09-24-evening");
-const FINAL_2025 = loadFixture("2025-final");
-const FIXTURES = { [EVENING.season]: EVENING, [FINAL_2025.season]: FINAL_2025 };
+export const EVENING_FIXTURE = loadFixture("2026-09-24-evening");
+const FINAL_2025_FIXTURE = loadFixture("2025-final");
+const FIXTURES_BY_SEASON = {
+  [EVENING_FIXTURE.season]: EVENING_FIXTURE,
+  [FINAL_2025_FIXTURE.season]: FINAL_2025_FIXTURE,
+};
 
-const RUNTIME = fileURLToPath(new URL("runtime.js", import.meta.url));
+const RUNTIME_SCRIPT_PATH = fileURLToPath(new URL("runtime.js", import.meta.url));
 
 export const buildFixtureSnapshot = (fixture) =>
   MLBSnapshot.buildSnapshot(fixture.responses, {
@@ -18,7 +21,7 @@ export const buildFixtureSnapshot = (fixture) =>
   });
 
 /** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
-const failOnPageErrors = {
+const pageErrorsFixture = {
   pageErrors: [
     async ({ page }, use) => {
       const errors = [];
@@ -30,22 +33,22 @@ const failOnPageErrors = {
   ],
 };
 
-export const test = base.extend(failOnPageErrors);
+export const test = base.extend(pageErrorsFixture);
 export { expect };
 
 const SEASON_PATH = /^\/api\/v1\/seasons\/(\d{4})$/;
 
 function findRecordedResponse(url) {
-  const seasonPath = SEASON_PATH.exec(url.pathname);
-  if (seasonPath) return FIXTURES[seasonPath[1]].responses.season;
+  const seasonPathMatch = SEASON_PATH.exec(url.pathname);
+  if (seasonPathMatch) return FIXTURES_BY_SEASON[seasonPathMatch[1]].responses.season;
   const season = url.searchParams.get("season") || url.searchParams.get("startDate").slice(0, 4);
-  const { responses } = FIXTURES[season];
-  const name = {
+  const { responses } = FIXTURES_BY_SEASON[season];
+  const responseName = {
     "/api/v1/standings": "standings",
     "/api/v1/schedule/postseason": "postseason",
     "/api/v1/schedule": "schedule",
   }[url.pathname];
-  return responses[name];
+  return responses[responseName];
 }
 
 // Refused hosts reach the page as a TypeError from fetch, as in the artifact sandbox.
@@ -56,17 +59,17 @@ export async function openApp(
     connectorAdded = true,
     directAllowed = false,
     dbAvailable = true,
-    now = EVENING.now,
+    now = EVENING_FIXTURE.now,
     extraSnapshots = {},
   } = {},
 ) {
-  let mlbRequests = 0;
+  let mlbRequestCount = 0;
   await page.route(
     (url) => url.hostname !== "127.0.0.1",
     (route) => {
       const url = new URL(route.request().url());
       if (url.hostname !== "statsapi.mlb.com") return route.abort();
-      mlbRequests++;
+      mlbRequestCount++;
       if (!directAllowed) return route.abort();
       return route.fulfill({ json: findRecordedResponse(url) });
     },
@@ -76,7 +79,7 @@ export async function openApp(
     store,
     snapshots: {
       ...Object.fromEntries(
-        Object.entries(FIXTURES).map(([season, fixture]) => [
+        Object.entries(FIXTURES_BY_SEASON).map(([season, fixture]) => [
           season,
           buildFixtureSnapshot(fixture),
         ]),
@@ -86,12 +89,13 @@ export async function openApp(
     connectorAdded,
     dbAvailable,
   });
-  await page.addInitScript({ path: RUNTIME });
+  await page.addInitScript({ path: RUNTIME_SCRIPT_PATH });
   await page.goto("/");
 
   return {
-    read: (path) => page.evaluate((documentPath) => window.__runtime.read(documentPath), path),
+    readDocument: (path) =>
+      page.evaluate((documentPath) => window.__runtime.read(documentPath), path),
     countToolCalls: () => page.evaluate(() => window.__runtime.toolCalls.length),
-    countMlbRequests: () => mlbRequests,
+    countMlbRequests: () => mlbRequestCount,
   };
 }
