@@ -1,7 +1,7 @@
 // The module remembers when the sandbox refused a direct request, so these run in order.
 import { mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { fetchLive, isDirectBlocked } from "../page/js/live-fetch.js";
+import { fetchLive, findLiveSource } from "../page/js/live-fetch.js";
 
 const SNAPSHOT = { version: 1, season: 2026 };
 
@@ -13,6 +13,11 @@ const mcp = {
   listTools: async (server) => ({ servers: [{ server, tools: [{ name: "get_snapshot" }] }] }),
 };
 globalThis.window = /** @type {any} */ ({ claude: { use: async () => mcp } });
+let isServedByWorker = false;
+globalThis.document = /** @type {any} */ ({
+  querySelector: (selector) => (isServedByWorker && selector.includes("store") ? {} : null),
+});
+globalThis.location = /** @type {any} */ ({ href: "https://mlb-live.example/k3y/" });
 
 const flushMicrotasks = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -20,7 +25,7 @@ test("a bug while building the snapshot is not mistaken for the sandbox refusing
   const broken = { records: [{ division: { id: 200 }, teamRecords: [null] }] };
   globalThis.fetch = async () => new Response(JSON.stringify(broken));
   await assert.rejects(fetchLive(2026), TypeError);
-  assert.equal(isDirectBlocked(), false);
+  assert.equal(findLiveSource(), "direct");
 });
 
 test("a refused direct request switches to the connector", async () => {
@@ -28,7 +33,7 @@ test("a refused direct request switches to the connector", async () => {
     throw new TypeError("Failed to fetch");
   };
   assert.deepEqual(await fetchLive(2026), { snapshot: SNAPSHOT, source: "connector" });
-  assert.equal(isDirectBlocked(), true);
+  assert.equal(findLiveSource(), "connector");
 });
 
 test("a connector call that never answers times out", async () => {
@@ -41,5 +46,27 @@ test("a connector call that never answers times out", async () => {
     await assert.rejects(fetching, { code: "timeout" });
   } finally {
     mock.timers.reset();
+  }
+});
+
+test("a page the Worker serves reads the Worker's snapshot, and nothing else", async () => {
+  isServedByWorker = true;
+  try {
+    const requested = [];
+    globalThis.fetch = async (url) => {
+      requested.push(String(url));
+      return new Response(JSON.stringify(SNAPSHOT));
+    };
+    assert.deepEqual(await fetchLive(2026), { snapshot: SNAPSHOT, source: "worker" });
+    assert.deepEqual(requested, ["https://mlb-live.example/k3y/snapshot?season=2026"]);
+    assert.equal(findLiveSource(), "worker");
+
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ error: "MLB is down" }), { status: 502 });
+    await assert.rejects(fetchLive(2026), { code: "upstream_error", message: "MLB is down" });
+    globalThis.fetch = async () => new Response(JSON.stringify({ version: 1, season: 2025 }));
+    await assert.rejects(fetchLive(2026), { code: "bad_payload" });
+  } finally {
+    isServedByWorker = false;
   }
 });

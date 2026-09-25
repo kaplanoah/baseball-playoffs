@@ -131,7 +131,14 @@ export async function openSelfHostedApp(page, { store = {}, now = EVENING_FIXTUR
   for (const [path, data] of Object.entries(store)) context.stored.set(path, data);
   const seasonStore = new SeasonStore(context.ctx, {});
 
-  await routeMlbToFixtures(page, { directAllowed: true });
+  await routeMlbToFixtures(page, { directAllowed: false });
+  await page.route(
+    (url) => url.pathname === "/snapshot",
+    (route) => {
+      const season = new URL(route.request().url()).searchParams.get("season");
+      return route.fulfill({ json: buildFixtureSnapshot(FIXTURES_BY_SEASON[season]) });
+    },
+  );
   await page.route(
     (url) => url.pathname === "/",
     (route) =>

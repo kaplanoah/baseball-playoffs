@@ -1,4 +1,5 @@
 import * as MLBSnapshot from "./snapshot.js";
+import { isSelfHosted } from "./worker-store.js";
 
 export const LIVE_SERVER = "MLB Live";
 const LIVE_TOOL = "get_snapshot";
@@ -16,7 +17,10 @@ export class LiveError extends Error {
   }
 }
 
-export const isDirectBlocked = () => directBlocked;
+export function findLiveSource() {
+  if (isSelfHosted()) return "worker";
+  return directBlocked ? "connector" : "direct";
+}
 
 // A TypeError from fetch while online means the sandbox refused the request.
 async function fetchMlbJson(path) {
@@ -95,8 +99,23 @@ async function fetchViaConnector(season) {
   return snapshot;
 }
 
-// Once the sandbox has refused a direct request, the connector is used from then on.
+async function fetchFromWorker(season) {
+  const response = await fetch(new URL(`snapshot?season=${season}`, location.href), {
+    cache: "no-store",
+    signal: AbortSignal.timeout(DIRECT_TIMEOUT_MS),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new LiveError("upstream_error", body?.error || `The Worker answered ${response.status}`);
+  if (!body || body.version !== 1 || body.season !== season)
+    throw new LiveError("bad_payload", "unexpected answer");
+  return body;
+}
+
+// The Worker that serves a self-hosted page also reads MLB for it. On claude.ai, once the
+// sandbox has refused a direct request, the connector is used from then on.
 export async function fetchLive(season) {
+  if (isSelfHosted()) return { snapshot: await fetchFromWorker(season), source: "worker" };
   if (!directBlocked) {
     try {
       return { snapshot: await fetchDirect(season), source: "direct" };
