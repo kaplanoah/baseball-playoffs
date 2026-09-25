@@ -57,7 +57,7 @@ function changes(oldRows, newRows, oldTeams, newTeams, games = [], projected = t
     standings: table(newRows),
     slate: { today: { games } },
   };
-  return LogChanges.between(before, after, NOW).map(({ at, ...e }) => e);
+  return LogChanges.findChanges(before, after, NOW).map(({ at, ...e }) => e);
 }
 
 test("nothing moved, nothing logged", () => {
@@ -66,14 +66,14 @@ test("nothing moved, nothing logged", () => {
 
 test("an empty baseline is the starting point, not news", () => {
   assert.deepEqual(
-    LogChanges.between(
+    LogChanges.findChanges(
       { teams: {}, projected: true },
       { teams: TEAMS, standings: table(BEFORE) },
       NOW,
     ),
     [],
   );
-  assert.deepEqual(LogChanges.between(null, { teams: TEAMS }, NOW), []);
+  assert.deepEqual(LogChanges.findChanges(null, { teams: TEAMS }, NOW), []);
 });
 
 test("one White Sox win: the Orioles are out and the White Sox are in", () => {
@@ -217,7 +217,7 @@ test("the official bracket: one lock entry, and no seed moves beside it", () => 
 test("an entry is logged when it was noticed", () => {
   const after = set(BEFORE, "BAL", { wce: "E" });
   const games = [{ ...final("CWS", "KC", [9, 1]), end: "2026-09-24T20:45:00Z" }];
-  const [e] = LogChanges.between(
+  const [e] = LogChanges.findChanges(
     { teams: TEAMS, projected: true, standings: table(BEFORE) },
     { teams: TEAMS, projected: true, standings: table(after), slate: { today: { games } } },
     NOW,
@@ -233,11 +233,11 @@ test("the real snapshot of 24 September against itself, and against the night be
   );
   const snap = MLBSnapshot.buildSnapshot(f.responses, { season: 2026, now: Date.parse(f.now) });
   const stored = { teams: snap.teams, projected: true, standings: snap.standings };
-  assert.deepEqual(LogChanges.between(stored, snap, NOW), []);
+  assert.deepEqual(LogChanges.findChanges(stored, snap, NOW), []);
   // The night before, Baltimore still had a wild card route.
   const earlier = JSON.parse(JSON.stringify(stored));
   earlier.standings.divisions["AL East"].find((r) => r.id === "BAL").wce = "1";
-  const [e, ...rest] = LogChanges.between(earlier, snap, NOW);
+  const [e, ...rest] = LogChanges.findChanges(earlier, snap, NOW);
   assert.equal(rest.length, 0);
   assert.deepEqual(
     { kind: e.kind, team: e.team, via: e.via },
@@ -248,7 +248,7 @@ test("the real snapshot of 24 September against itself, and against the night be
 test("the log keeps each piece of news once, oldest first, the newest fifty", () => {
   const routineWrote = { at: "2026-09-24T23:20:00Z", kind: "elim", team: "BAL" };
   const pageFound = { at: "2026-09-24T23:21:00Z", kind: "elim", team: "BAL", via: [] };
-  assert.deepEqual(LogChanges.merge([routineWrote], [pageFound]), [routineWrote]);
+  assert.deepEqual(LogChanges.mergeLog([routineWrote], [pageFound]), [routineWrote]);
 
   const game = (n) => ({
     at: new Date(Date.UTC(2026, 9, 1, n)).toISOString(),
@@ -258,11 +258,11 @@ test("the log keeps each piece of news once, oldest first, the newest fifty", ()
     won: "TB",
     score: [1, 0],
   });
-  const merged = LogChanges.merge(
+  const merged = LogChanges.mergeLog(
     [],
     Array.from({ length: 60 }, (_, i) => game(i)),
   );
   assert.equal(merged.length, LogChanges.MAX_LOG);
   assert.equal(merged[0].game, 10);
-  assert.deepEqual(LogChanges.merge(merged.slice().reverse(), []), merged);
+  assert.deepEqual(LogChanges.mergeLog(merged.slice().reverse(), []), merged);
 });

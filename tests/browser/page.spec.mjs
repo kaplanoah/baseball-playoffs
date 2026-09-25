@@ -31,7 +31,7 @@ test("falls back to the connector and renders the bracket, standings and stamp",
   await expect(page.locator("#banner")).toContainText("Highest still in");
   await expect(page.locator("#stamp")).toContainText("Reds @ Braves 5-5 in the 5th");
 
-  await page.getByRole("button", { name: "Standings" }).click();
+  await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standingsWrap .div-block")).toHaveCount(8);
   await expect(page.locator("#standingsWrap")).toContainText("AL East");
 
@@ -153,5 +153,73 @@ test("setting the field by hand says what's missing instead of saving", async ({
   await expect(page.getByRole("alert")).toHaveText(
     "Assign all 6 seeds in both the AL and the NL before saving.",
   );
-  await expect(page.locator("#setupModalBg")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Set the playoff field" })).toBeVisible();
+});
+
+test("switching years works without a store", async ({ page }) => {
+  await openApp(page, { dbAvailable: false });
+  await expect(page.locator("#bracketWrap")).toContainText("Dodgers");
+
+  await page.locator("#yearSel").selectOption("2025");
+
+  await expect(page.locator("#bracketWrap")).toContainText("Dodgers win the World Series");
+});
+
+test("the ranking can be reordered from the keyboard, and saves", async ({ page }) => {
+  const app = await openApp(page);
+  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+  await page.getByRole("tab", { name: "Ranking" }).click();
+
+  const first = page.locator("#rankList .rank-item").first();
+  const club = await first.getAttribute("data-id");
+  await first.locator(".grip").focus();
+  await page.keyboard.press("ArrowDown");
+
+  await expect(page.locator("#rankList .rank-item").nth(1)).toHaveAttribute("data-id", club);
+  await expect(page.locator("#rankList .rank-item").nth(1).locator(".grip")).toBeFocused();
+  await expect.poll(async () => (await app.read("seasons/2026")).ranking[1]).toBe(club);
+});
+
+test("a save that fails says so under the title", async ({ page }) => {
+  const app = await openApp(page);
+  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+  await page.evaluate(() => (window.__runtime.failWrites = true));
+  await page.getByRole("tab", { name: "Ranking" }).click();
+
+  await page.locator("#rankList .grip").first().focus();
+  await page.keyboard.press("ArrowDown");
+
+  await expect(page.locator("#stamp")).toContainText("Couldn't save your last change.");
+});
+
+test("markup in the shared store is shown as text", async ({ page }) => {
+  const markup = '<img id="injected" src="x">';
+  await openApp(page, {
+    connectorAdded: false,
+    store: {
+      "seasons/2026": {
+        year: 2026,
+        teams: {},
+        series: {},
+        ranking: [],
+        log: [
+          { kind: "berth", team: "NYY", what: "division", div: markup, at: "2026-09-24T20:00:00Z" },
+        ],
+      },
+    },
+  });
+
+  await expect(page.locator("#updates")).toContainText(markup);
+  await expect(page.locator("#injected")).toHaveCount(0);
+});
+
+test("the field setup dialog closes with Escape", async ({ page }) => {
+  await openApp(page, { connectorAdded: false });
+
+  await page.getByRole("button", { name: "Set the field" }).click();
+  const dialog = page.getByRole("dialog", { name: "Set the playoff field" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(dialog).toBeHidden();
 });

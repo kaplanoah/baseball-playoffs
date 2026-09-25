@@ -1,8 +1,11 @@
 import { beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { session } from "../page/js/session.js";
-import { divisionBlock, nextCell } from "../page/js/standings.js";
-import { entryText, seriesLabel } from "../page/js/updates.js";
+import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
+import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
+import { droughtLabel } from "../page/js/clubs.js";
+import { stampName } from "../page/js/stamp.js";
+import { entryText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
 
 function withNow(iso, check) {
@@ -26,7 +29,7 @@ const NOON = "2026-09-24T16:00:00Z"; // Thursday, 12:00 PM ET
 
 test("Next column: today, another day, home and away", () =>
   withNow(NOON, () => {
-    const cell = (next) => normalizeSpaces(nextCell({ next }));
+    const cell = (next) => normalizeSpaces(renderNextCell({ next }));
     assert.equal(
       cell({ at: "2026-09-25T01:40:00Z", home: false, opp: "ATH" }),
       '<td class="next-cell">Today 9:40 @ ATH</td>',
@@ -157,7 +160,7 @@ test("update log: clinches", () => {
 
 test("Next column: a game that has started gives way to the one after it", () =>
   withNow(NOON, () => {
-    const cell = (row) => normalizeSpaces(nextCell(row));
+    const cell = (row) => normalizeSpaces(renderNextCell(row));
     const today = { at: "2026-09-24T14:05:00Z", home: true, opp: "MIL" }; // 10:05 AM ET
     const fri = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
     assert.equal(cell({ next: today, then: fri }), '<td class="next-cell">Fri 1:05 @ BOS</td>');
@@ -165,9 +168,48 @@ test("Next column: a game that has started gives way to the one after it", () =>
   }));
 
 test("division header: a magic number only when there is a number", () => {
-  const head = (leader) => divisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]);
+  const head = (leader) =>
+    renderDivisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]);
   assert.match(head({ magic: "3" }), /magic 3/);
   assert.doesNotMatch(head({ magic: "-" }), /magic/);
   assert.doesNotMatch(head({ magic: null }), /magic/);
   assert.match(head({ clinched: true, magic: "3" }), /clinched/);
+});
+
+test("text from the shared store or MLB is shown as text, never as markup", () => {
+  const markup = '<img src=x onerror="alert(1)">';
+  const shown = [
+    entryText({ kind: "berth", team: "NYY", what: "division", div: markup }),
+    entryText({ kind: "game", won: "NYY", series: markup, game: markup, score: [markup, 1] }),
+    entryText({ kind: "seed", team: "NYY", from: markup, to: markup }),
+    entryText({ kind: "unknown", text: markup }),
+    renderNextCell({ next: { at: "2026-09-25T23:05:00Z", home: true, opp: markup } }),
+    renderDivisionBlock("AL East", [{ id: "NYY", w: markup, l: 1, pct: markup, gb: markup }]),
+    stampName(markup),
+  ];
+  for (const html of shown) assert.doesNotMatch(html, /<img/);
+});
+
+test("a club that has never won counts its drought from its first season", () => {
+  session.trackedTitles = {};
+  assert.equal(droughtLabel("TB"), "Since 1998");
+  assert.equal(droughtLabel("COL"), "Since 1993");
+  assert.equal(droughtLabel("MIL"), "Since 1969");
+});
+
+test("a club's status names the round it went out in", () => {
+  const teams = {};
+  const clubs = {
+    AL: ["NYY", "TOR", "SEA", "BOS", "DET", "CLE"],
+    NL: ["LAD", "MIL", "PHI", "CHC", "SD", "CIN"],
+  };
+  for (const [league, ids] of Object.entries(clubs))
+    ids.forEach((id, index) => (teams[id] = { league, seed: index + 1 }));
+  const state = {
+    teams,
+    series: { AL_WC2: { winsA: 2, winsB: 0 }, AL_DS1: { winsA: 1, winsB: 3 } },
+  };
+  assert.deepEqual(describeTeamStatus(state, "DET"), { status: "out", round: "WC" });
+  assert.deepEqual(describeTeamStatus(state, "NYY"), { status: "out", round: "DS" });
+  assert.deepEqual(describeTeamStatus(state, "BOS"), { status: "alive", round: null });
 });

@@ -123,12 +123,20 @@ from step 4. They redeploy the same way when the connector's code changes.
 Cloudflare's tools change over time, so if something doesn't match, point them
 to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
 
+### Keeping the connector's address private
+
+The connector answers anyone who has its address. To make the address hard to
+guess, give the Worker a secret named `CONNECTOR_KEY`, with
+`npx wrangler secret put CONNECTOR_KEY` or in the Worker's settings on the
+dashboard. It then answers only at `/mcp/<key>`, so use that as the connector
+URL in step 4.
+
 ## Making changes
 
 `main` is what's published. Work on a branch and open a pull request into
 `main`. GitHub lints, checks formatting and types, and runs the tests, in Node
 and in a browser, on every pull request, so merge once those pass. To run the same
-checks yourself, run `npm install` and `npx playwright install chromium` once,
+checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
 After merging, republish the page from `main` to its existing link. Redeploy

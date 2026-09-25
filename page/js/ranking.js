@@ -1,27 +1,60 @@
-import { teamStatusLabel } from "./bracket.js";
-import { renderBracket } from "./bracket-view.js";
-import { droughtLabel, lastTitle, rankedOrder, rankTag, teamTag } from "./clubs.js";
-import { saveRanking } from "./season-store.js";
+import { describeTeamStatus } from "./bracket.js";
+import { droughtLabel, lastTitle, rankedOrder, rankTag, teamLabel, teamTag } from "./clubs.js";
+import { escapeHtml } from "./html.js";
 import { session } from "./session.js";
 import { TEAMS } from "./teams.js";
 
-const ROUND_SHORT = {
-  "Wild Card": "WC",
-  "Division Series": "DS",
-  "Championship Series": "CS",
-  "World Series": "WS",
+export const REORDER_EVENT = "rankingreorder";
+
+const STATUS_CHIPS = {
+  champion: { label: "Champs", className: "champ" },
+  alive: { label: "Alive", className: "alive" },
+  out: { label: "Out", className: "out" },
 };
-function shortStatus(st) {
-  // \S+ rather than a literal em dash, which a page served without a charset mangles.
-  const m = st.label.match(/^Out\s+\S+\s+(.+)$/);
-  return m ? `Out &middot; ${ROUND_SHORT[m[1]] || m[1]}` : st.label;
+const MOVES = { ArrowUp: -1, ArrowDown: 1 };
+
+function renderStatusChip({ status, round }) {
+  const chip = STATUS_CHIPS[status];
+  const label = round ? `${chip.label} &middot; ${round}` : chip.label;
+  return `<span class="status-chip ${chip.className}">${label}</span>`;
+}
+
+function renderTitleSummary(id, won) {
+  if (!won) return "Never won WS";
+  return `<span>Last WS ${escapeHtml(won)}<span class="sep">&bull;</span></span><span>${droughtLabel(id)}</span>`;
+}
+
+function renderRankItem(id, index) {
+  const { league } = TEAMS[id];
+  const seed = session.state.teams[id].seed;
+  const won = lastTitle(id);
+  const teamStatus = describeTeamStatus(session.state, id);
+  return `<li class="rank-item ${teamStatus.status === "out" ? "eliminated" : ""}" data-id="${id}">
+      <span class="rank-card">
+        <button type="button" class="grip" aria-label="Move ${teamLabel(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
+        <span class="rank-id">
+          ${teamTag(id)}
+          <span class="meta-row">
+            <span class="league-tag ${league}">${league}</span>
+            <span class="rank-seed tabular">${escapeHtml(seed)} seed</span>
+          </span>
+          <span class="rank-ws tabular">${renderTitleSummary(id, won)}</span>
+        </span>
+        <span class="rank-cols">
+          <span class="col-won tabular">${won ? escapeHtml(won) : "&mdash;"}</span>
+          <span class="col-drought">${droughtLabel(id)}</span>
+        </span>
+        <span class="status-slot">${renderStatusChip(teamStatus)}</span>
+      </span>
+    </li>`;
 }
 
 export function renderRanking() {
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
   const gutter = document.getElementById("rankGutter");
-  if (!rankedOrder().length) {
+  const order = rankedOrder();
+  if (!order.length) {
     head.hidden = true;
     gutter.innerHTML = "";
     list.innerHTML = `<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`;
@@ -29,47 +62,42 @@ export function renderRanking() {
   }
   head.hidden = false;
   // Rank numbers live outside the cards so they stay put while cards are dragged.
-  gutter.innerHTML = rankedOrder()
-    .map((_, i) => `<li class="rank-num tabular">${i + 1}</li>`)
+  gutter.innerHTML = order
+    .map((_, index) => `<li class="rank-num tabular">${index + 1}</li>`)
     .join("");
-  list.innerHTML = rankedOrder()
-    .map((id) => {
-      const t = session.state.teams[id];
-      const st = teamStatusLabel(session.state, id);
-      const won = lastTitle(id);
-      return `<li class="rank-item ${st.cls === "out" ? "eliminated" : ""}" data-id="${id}">
-      <span class="rank-card">
-        <span class="grip">&#8942;&#8942;</span>
-        <span class="rank-id">
-          ${teamTag(id)}
-          <span class="meta-row">
-            <span class="league-tag ${t.league}">${t.league}</span>
-            <span class="rank-seed tabular">${t.seed} seed</span>
-          </span>
-          <span class="rank-ws tabular">${
-            won
-              ? `<span>Last WS ${won}<span class="sep">&bull;</span></span><span>${droughtLabel(id)}</span>`
-              : "Never won WS"
-          }</span>
-        </span>
-        <span class="rank-cols">
-          <span class="col-won tabular">${won || "&mdash;"}</span>
-          <span class="col-drought">${droughtLabel(id)}</span>
-        </span>
-        <span class="status-slot"><span class="status-chip ${st.cls}">${shortStatus(st)}</span></span>
-      </span>
-    </li>`;
-    })
-    .join("");
-  wireDrag(list);
+  list.innerHTML = order.map(renderRankItem).join("");
+  wireReordering(list);
+}
+
+const announceOrder = (list, order) =>
+  list.dispatchEvent(new CustomEvent(REORDER_EVENT, { detail: { order } }));
+
+function moveWithKeyboard(list, event) {
+  const grip = event.target instanceof HTMLElement && event.target.closest(".grip");
+  const step = MOVES[event.key];
+  if (!grip || !step) return;
+  event.preventDefault();
+  const id = /** @type {HTMLElement} */ (grip.closest(".rank-item")).dataset.id;
+  const order = rankedOrder();
+  const from = order.indexOf(id);
+  const to = from + step;
+  if (to < 0 || to >= order.length) return;
+  [order[from], order[to]] = [order[to], order[from]];
+  announceOrder(list, order);
+  /** @type {HTMLElement | null} */ (
+    list.querySelector(`.rank-item[data-id="${id}"] .grip`)
+  )?.focus();
 }
 
 // Bound once: the list element survives re-renders.
-let sortable = null;
+let isWired = false;
 
-function wireDrag(list) {
-  if (sortable || typeof Sortable === "undefined") return;
-  sortable = Sortable.create(list, {
+function wireReordering(list) {
+  if (isWired) return;
+  isWired = true;
+  list.addEventListener("keydown", (event) => moveWithKeyboard(list, event));
+  if (typeof Sortable === "undefined") return;
+  Sortable.create(list, {
     animation: 140,
     handle: ".grip",
     chosenClass: "dragging",
@@ -78,31 +106,30 @@ function wireDrag(list) {
       session.isReordering = true;
     },
     onEnd: () => {
-      session.isReordering = false;
-      const rows = [...list.querySelectorAll(".rank-item")];
-      const order = rows.map((el) => el.dataset.id);
-      if (order.join() === rankedOrder().join()) return;
-
-      // Sortable has already moved the row, so the list needs no re-render.
-      session.state.ranking = order;
-      renderBracket();
-      saveRanking(order);
+      const rows = /** @type {HTMLElement[]} */ ([...list.querySelectorAll(".rank-item")]);
+      announceOrder(
+        list,
+        rows.map((row) => row.dataset.id),
+      );
     },
   });
 }
 
 export function renderReference() {
   const body = document.getElementById("refBody");
-  const rows = Object.entries(TEAMS).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const rows = Object.entries(TEAMS).sort((first, second) =>
+    first[1].name.localeCompare(second[1].name),
+  );
   body.innerHTML = rows
-    .map(([id, t]) => {
+    .map(([id, team]) => {
       const won = lastTitle(id);
+      const seed = session.state.teams[id] && session.state.teams[id].seed;
       return `<tr>
       <td class="rank-col">${rankTag(id)}</td>
-      <td class="seed-col">${(session.state.teams[id] && session.state.teams[id].seed) || ""}</td>
+      <td class="seed-col">${escapeHtml(seed || "")}</td>
       <td>${teamTag(id)}</td>
-      <td class="lg-col"><span class="league-tag ${t.league}">${t.league}</span></td>
-      <td class="tabular won-col">${won || "&mdash;"}</td>
+      <td class="lg-col"><span class="league-tag ${team.league}">${team.league}</span></td>
+      <td class="tabular won-col">${won ? escapeHtml(won) : "&mdash;"}</td>
       <td class="tabular">${droughtLabel(id)}</td>
     </tr>`;
     })

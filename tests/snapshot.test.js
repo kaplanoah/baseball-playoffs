@@ -314,3 +314,31 @@ test("fetchSnapshot asks for exactly the requests it builds", async () => {
 test("a snapshot is small enough to poll", () => {
   assert.ok(JSON.stringify(build(EVENING)).length < 20000);
 });
+
+test("a set bracket still builds when a club is missing from the standings", () => {
+  const full = build(SEASON_2025);
+  const responses = JSON.parse(JSON.stringify(SEASON_2025.responses));
+  for (const division of responses.standings.records)
+    division.teamRecords = division.teamRecords.filter((record) => record.team.id !== 113);
+  const snapshot = MLBSnapshot.buildSnapshot(responses, {
+    season: 2025,
+    now: Date.parse(SEASON_2025.now),
+  });
+  assert.equal(snapshot.projected, false);
+  assert.deepEqual(snapshot.teams.CIN, { league: "NL", seed: full.teams.CIN.seed });
+  assert.deepEqual(snapshot.series, full.series);
+});
+
+test("the bracket walk seats seeds and advances winners, 1 against the 4/5 winner", () => {
+  const teams = {};
+  for (const league of ["AL", "NL"])
+    for (let seed = 1; seed <= 6; seed++) teams[`${league}${seed}`] = { league, seed };
+  const bracket = MLBSnapshot.resolveBracket(teams, (_, __, teamA) => teamA);
+  assert.deepEqual([bracket.AL_WC2.teamA, bracket.AL_WC2.teamB], ["AL4", "AL5"]);
+  assert.deepEqual([bracket.AL_DS1.teamA, bracket.AL_DS1.teamB], ["AL1", "AL4"]);
+  assert.deepEqual([bracket.AL_DS2.teamA, bracket.AL_DS2.teamB], ["AL2", "AL3"]);
+  assert.deepEqual([bracket.WS.teamA, bracket.WS.teamB], ["AL1", "NL1"]);
+  assert.equal(MLBSnapshot.findFeederSeries("NL_DS1", 1), "NL_WC2");
+  assert.equal(MLBSnapshot.findFeederSeries("NL_DS1", 0), null);
+  assert.equal(MLBSnapshot.findFeederSeries("WS", 1), "NL_CS");
+});

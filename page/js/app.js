@@ -1,16 +1,20 @@
+import { rankedOrder } from "./clubs.js";
 import { startLive, watchPageVisibility } from "./live.js";
+import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
 import {
-  emptySeason,
+  applyDeferredSeason,
   loadSeason,
   loadSeasonList,
   loadStandings,
+  saveRanking,
+  stopSavingAfterFailedLoad,
   watchSeason,
   watchStandings,
 } from "./season-store.js";
-import { session, seasonYear, composeState } from "./session.js";
-import { openSetup, closeSetup, saveSetup } from "./setup.js";
-import { renderStamp } from "./stamp-view.js";
+import { session, seasonYear } from "./session.js";
+import { openSetup, saveSetup } from "./setup.js";
+import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
@@ -30,15 +34,29 @@ function trackKeyboardFocus() {
 }
 
 const findTabButtons = () =>
-  /** @type {NodeListOf<HTMLButtonElement>} */ (document.querySelectorAll("nav.tabs button"));
+  /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("nav.tabs [role=tab]")]);
 
 function switchTab(tab) {
   for (const button of findTabButtons()) {
-    button.classList.toggle("active", button.dataset.tab === tab);
+    const isActive = button.dataset.tab === tab;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+    button.tabIndex = isActive ? 0 : -1;
   }
   for (const view of document.querySelectorAll("section.view")) {
     view.classList.toggle("active", view.id === `view-${tab}`);
   }
+}
+
+function moveBetweenTabs(event) {
+  const buttons = findTabButtons();
+  const index = buttons.indexOf(event.target);
+  const targets = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: buttons.length - 1 };
+  if (index === -1 || !(event.key in targets)) return;
+  event.preventDefault();
+  const next = buttons[(targets[event.key] + buttons.length) % buttons.length];
+  switchTab(next.dataset.tab);
+  next.focus();
 }
 
 function watchActiveSeason() {
@@ -49,10 +67,19 @@ function watchActiveSeason() {
   });
 }
 
+async function loadActiveSeason() {
+  try {
+    await loadSeason(session.activeYear);
+  } catch {
+    stopSavingAfterFailedLoad();
+    await loadSeason(session.activeYear);
+  }
+  await loadStandings(session.activeYear);
+}
+
 async function switchYear(year) {
   session.activeYear = year;
-  await loadSeason(year);
-  await loadStandings(year);
+  await loadActiveSeason();
   renderAll();
   watchActiveSeason();
   startLive();
@@ -72,7 +99,7 @@ async function listYears() {
   try {
     return await loadSeasonList();
   } catch {
-    session.db = null;
+    stopSavingAfterFailedLoad();
     return recent;
   }
 }
@@ -88,27 +115,26 @@ function fillYearPicker(years) {
   picker.addEventListener("change", () => switchYear(Number(picker.value)));
 }
 
-async function loadActiveSeason() {
-  if (session.db) {
-    try {
-      await loadSeason(session.activeYear);
-      await loadStandings(session.activeYear);
-      return;
-    } catch {
-      session.db = null;
-    }
-  }
-  session.seasonDoc = emptySeason(session.activeYear);
-  composeState();
+// Sortable has already moved the dragged card, so redrawing the list keeps it where it was dropped.
+function finishReordering(order) {
+  session.isReordering = false;
+  if (order.join() !== rankedOrder().join()) showSaveResult(saveRanking(order));
+  applyDeferredSeason();
+  renderAll();
 }
 
 function wireControls() {
   for (const button of findTabButtons()) {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
+    button.addEventListener("keydown", moveBetweenTabs);
   }
   document.getElementById("openSetupBtn").addEventListener("click", openSetup);
-  document.getElementById("cancelSetupBtn").addEventListener("click", closeSetup);
   document.getElementById("saveSetupBtn").addEventListener("click", saveSetup);
+  document
+    .getElementById("rankList")
+    .addEventListener(REORDER_EVENT, (event) =>
+      finishReordering(/** @type {CustomEvent} */ (event).detail.order),
+    );
 }
 
 function refreshStampEveryMinute() {

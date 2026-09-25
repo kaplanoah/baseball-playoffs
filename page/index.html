@@ -1,106 +1,153 @@
-<meta charset="utf-8" />
-<title>MLB Postseason</title>
-<meta
-  name="description"
-  content="Track the MLB postseason bracket and rank who you want to win the World Series, synced across devices."
-/>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link
-  href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;400;500;700&display=swap"
-  rel="stylesheet"
-/>
-<link rel="stylesheet" href="styles.css" />
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MLB Postseason</title>
+  <meta
+    name="description"
+    content="Track the MLB postseason bracket and rank who you want to win the World Series, synced across devices."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="styles.css" />
 
-<header class="top">
-  <div>
-    <h1>MLB Postseason</h1>
-  </div>
-  <div class="head-right">
-    <div class="stamp-wrap">
-      <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
+  <header class="top">
+    <div>
+      <h1>MLB Postseason</h1>
     </div>
-    <div class="year-picker">
-      <select id="yearSel" aria-label="Season"></select>
+    <div class="head-right">
+      <div class="stamp-wrap">
+        <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
+      </div>
+      <div class="year-picker">
+        <select id="yearSel" aria-label="Season"></select>
+      </div>
     </div>
-  </div>
-</header>
+  </header>
 
-<nav class="tabs">
-  <button data-tab="bracket" class="active">Bracket</button>
-  <button data-tab="standings">Standings</button>
-  <button data-tab="ranking">Ranking</button>
-  <button data-tab="reference">All Teams</button>
-  <span id="banner" class="banner" hidden></span>
-</nav>
+  <nav class="tabs">
+    <div class="tab-list" role="tablist" aria-label="Views">
+      <button
+        type="button"
+        role="tab"
+        id="tab-bracket"
+        data-tab="bracket"
+        aria-controls="view-bracket"
+        aria-selected="true"
+        class="active"
+      >
+        Bracket
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="tab-standings"
+        data-tab="standings"
+        aria-controls="view-standings"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Standings
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="tab-ranking"
+        data-tab="ranking"
+        aria-controls="view-ranking"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Ranking
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="tab-reference"
+        data-tab="reference"
+        aria-controls="view-reference"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        All Teams
+      </button>
+    </div>
+    <span id="banner" class="banner" hidden></span>
+  </nav>
 
-<div id="updates" class="updates" hidden></div>
+  <div id="updates" class="updates" hidden></div>
 
-<section id="view-bracket" class="view active">
-  <div id="setupPrompt" class="setup-card" hidden>
-    <h2>Set this year's playoff field</h2>
-    <p>
-      Pick the 12 teams that made it and assign seeds 1&ndash;6 in each league. You can change this
-      later.
+  <section id="view-bracket" role="tabpanel" aria-labelledby="tab-bracket" class="view active">
+    <div id="setupPrompt" class="setup-card" hidden>
+      <h2>Set this year's playoff field</h2>
+      <p>
+        Pick the 12 teams that made it and assign seeds 1&ndash;6 in each league. You can change
+        this later.
+      </p>
+      <button type="button" class="primary" id="openSetupBtn">Set the field</button>
+    </div>
+    <div id="bracketWrap"></div>
+  </section>
+
+  <section id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" class="view">
+    <p class="rank-hint">
+      Drag a card by its handle, or focus the handle and use the arrow keys, to order the field by
+      who you want to win the World Series. Order saves automatically and shows as a rank tag on the
+      bracket.
     </p>
-    <button class="primary" id="openSetupBtn">Set the field</button>
-  </div>
-  <div id="bracketWrap"></div>
-</section>
-
-<section id="view-ranking" class="view">
-  <p class="rank-hint">
-    Drag a card by its handle to order the field by who you want to win the World Series. Order
-    saves automatically and shows as a rank tag on the bracket.
-  </p>
-  <div class="rank-head" id="rankHead" hidden>
-    <span class="rank-num">0</span>
-    <span class="rank-head-card">
-      <span class="rank-cols">
-        <span class="col-won">Last WS win</span>
-        <span class="col-drought">WS drought</span>
+    <div class="rank-head" id="rankHead" hidden>
+      <span class="rank-num">0</span>
+      <span class="rank-head-card">
+        <span class="rank-cols">
+          <span class="col-won">Last WS win</span>
+          <span class="col-drought">WS drought</span>
+        </span>
+        <span class="status-slot"></span>
       </span>
-      <span class="status-slot"></span>
-    </span>
-  </div>
-  <div class="rank-body">
-    <ol class="rank-gutter" id="rankGutter" aria-hidden="true"></ol>
-    <ul class="rank-list" id="rankList"></ul>
-  </div>
-</section>
-
-<section id="view-standings" class="view">
-  <div id="standingsWrap"></div>
-</section>
-
-<section id="view-reference" class="view">
-  <table class="ref">
-    <thead>
-      <tr>
-        <th>Rank</th>
-        <th class="seed-col">Seed</th>
-        <th>Team</th>
-        <th class="lg-col">Lg</th>
-        <th class="won-col">Last WS Win</th>
-        <th>Drought</th>
-      </tr>
-    </thead>
-    <tbody id="refBody"></tbody>
-  </table>
-</section>
-
-<div id="setupModalBg" class="modal-bg">
-  <div class="modal-panel">
-    <h2>Set the playoff field</h2>
-    <p class="sub">Tap 6 AL teams and 6 NL teams.</p>
-    <div class="pick-grid" id="pickGrid"></div>
-    <div id="seedArea" class="setup-columns"></div>
-    <p id="setupError" class="setup-error" role="alert" hidden></p>
-    <div class="modal-actions">
-      <button class="ghost" id="cancelSetupBtn">Cancel</button>
-      <button class="primary" id="saveSetupBtn">Save field</button>
     </div>
-  </div>
-</div>
+    <div class="rank-body">
+      <ol class="rank-gutter" id="rankGutter" aria-hidden="true"></ol>
+      <ul class="rank-list" id="rankList"></ul>
+    </div>
+  </section>
 
-<script src="js/sortable.min.js"></script>
-<script type="module" src="js/app.js"></script>
+  <section id="view-standings" role="tabpanel" aria-labelledby="tab-standings" class="view">
+    <div id="standingsWrap"></div>
+  </section>
+
+  <section id="view-reference" role="tabpanel" aria-labelledby="tab-reference" class="view">
+    <table class="ref">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th class="seed-col">Seed</th>
+          <th>Team</th>
+          <th class="lg-col">Lg</th>
+          <th class="won-col">Last WS Win</th>
+          <th>Drought</th>
+        </tr>
+      </thead>
+      <tbody id="refBody"></tbody>
+    </table>
+  </section>
+
+  <dialog id="setupDialog" class="modal-panel" aria-labelledby="setupTitle">
+    <form method="dialog">
+      <h2 id="setupTitle">Set the playoff field</h2>
+      <p class="sub">Tap 6 AL teams and 6 NL teams.</p>
+      <div class="pick-grid" id="pickGrid"></div>
+      <div id="seedArea" class="setup-columns"></div>
+      <p id="setupError" class="setup-error" role="alert" hidden></p>
+      <div class="modal-actions">
+        <button type="submit" class="ghost" value="cancel">Cancel</button>
+        <button type="button" class="primary" id="saveSetupBtn">Save field</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/sortable.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</html>

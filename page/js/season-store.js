@@ -1,9 +1,14 @@
 import { fullBracket } from "./bracket.js";
 import { sameJson } from "./compare.js";
 import { session, composeState } from "./session.js";
+import { TEAMS } from "./teams.js";
+
+const SAVE_FAILED = "Couldn't save your last change. Try again in a moment.";
+const LOAD_FAILED = "Couldn't load your saved data, so changes won't be saved this visit.";
 
 let unwatchSeason = null;
 let unwatchStandings = null;
+let deferredSeason = null;
 
 export function emptySeason(year) {
   return { year, teams: {}, series: {}, ranking: [], log: [] };
@@ -13,13 +18,22 @@ export function emptySeason(year) {
 const readDoc = (snapshot) =>
   snapshot && snapshot.exists ? JSON.parse(JSON.stringify(snapshot.data())) : null;
 
+const keepKnownClubs = (teams) =>
+  Object.fromEntries(Object.entries(teams || {}).filter(([id]) => TEAMS[id]));
+
 function normalizeSeason(doc, year) {
   const season = doc || emptySeason(year);
-  if (!season.teams) season.teams = {};
+  season.teams = keepKnownClubs(season.teams);
   if (!season.series) season.series = {};
-  if (!season.ranking) season.ranking = [];
+  season.ranking = Array.isArray(season.ranking) ? season.ranking.filter((id) => TEAMS[id]) : [];
   if (!Array.isArray(season.log)) season.log = [];
   return season;
+}
+
+// Saving stops once a read fails, so nothing is written over data this page never saw.
+export function stopSavingAfterFailedLoad() {
+  session.db = null;
+  session.saveProblem = LOAD_FAILED;
 }
 
 function collectTrackedTitles(docs) {
@@ -28,7 +42,7 @@ function collectTrackedTitles(docs) {
     const doc = stored.data();
     if (!doc || !doc.teams || !doc.series) continue;
     const year = Number(doc.year ?? stored.id);
-    const champion = fullBracket(doc).ws?.winner;
+    const champion = fullBracket({ ...doc, teams: keepKnownClubs(doc.teams) }).ws?.winner;
     if (champion && Number.isFinite(year) && !(titles[champion] >= year)) titles[champion] = year;
   }
   return titles;
@@ -39,6 +53,7 @@ export async function loadSeasonList() {
   session.trackedTitles = collectTrackedTitles(result.docs);
   const stored = result.docs
     .map((doc) => doc.id)
+    .filter((id) => /^\d{4}$/.test(id))
     .sort()
     .reverse();
   const active = String(session.activeYear);
@@ -46,7 +61,7 @@ export async function loadSeasonList() {
 }
 
 export async function loadSeason(year) {
-  const snapshot = await session.db.doc(`seasons/${year}`).get();
+  const snapshot = session.db ? await session.db.doc(`seasons/${year}`).get() : null;
   session.seasonDoc = normalizeSeason(readDoc(snapshot), year);
   composeState();
 }
@@ -83,35 +98,56 @@ export function watchStandings(year, onChange) {
   );
 }
 
+function applySeason(incoming) {
+  if (sameJson(incoming, session.seasonDoc)) return false;
+  session.seasonDoc = incoming;
+  composeState();
+  return true;
+}
+
+// A drag keeps the order it shows, so an update that arrives during one waits for it to end.
 export function watchSeason(year, onChange) {
   if (unwatchSeason) {
     unwatchSeason();
     unwatchSeason = null;
   }
+  deferredSeason = null;
   if (!session.db) return;
   unwatchSeason = session.db.doc(`seasons/${year}`).onSnapshot(
     (snapshot) => {
-      if (!snapshot.exists || session.isReordering) return;
+      if (!snapshot.exists) return;
       const incoming = normalizeSeason(readDoc(snapshot), year);
-      if (sameJson(incoming, session.seasonDoc)) return;
-      session.seasonDoc = incoming;
-      composeState();
-      onChange();
+      if (session.isReordering) {
+        deferredSeason = incoming;
+        return;
+      }
+      if (applySeason(incoming)) onChange();
     },
     () => {},
   );
 }
 
+// The drag's own order wins over the one in the deferred update.
+export function applyDeferredSeason() {
+  if (!deferredSeason) return;
+  const incoming = { ...deferredSeason, ranking: session.seasonDoc.ranking };
+  deferredSeason = null;
+  applySeason(incoming);
+}
+
 // Writing the whole document would overwrite fields another open view has changed since.
-export async function writeSeason(fields) {
+async function writeSeason(fields) {
   if (!session.db) return;
   const year = session.activeYear;
   const ref = session.db.doc(`seasons/${year}`);
   try {
-    await ref.update(fields);
-  } catch {
-    // update() rejects when the document doesn't exist yet.
-    await ref.set({ ...emptySeason(year), ...fields });
+    const stored = await ref.get();
+    if (stored.exists) await ref.update(fields);
+    else await ref.set({ ...emptySeason(year), ...fields });
+    if (session.saveProblem === SAVE_FAILED) session.saveProblem = null;
+  } catch (error) {
+    session.saveProblem = SAVE_FAILED;
+    throw error;
   }
 }
 

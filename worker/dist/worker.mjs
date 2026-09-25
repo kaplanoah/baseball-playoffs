@@ -98,8 +98,8 @@ var isDay = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v
 var isTime = (value) => isText(value) && !Number.isNaN(Date.parse(value));
 var isPresent = (value) => value !== void 0 && value !== null && value !== "";
 var hasPlayed = (record) => record.wins + record.losses > 0;
-var isFinal = (game) => gameState(game.status || {}) === "final";
-var hasStarted = (game) => ["live", "final"].includes(gameState(game.status || {}));
+var isFinal = (game) => readGameState(game.status || {}) === "final";
+var hasStarted = (game) => ["live", "final"].includes(readGameState(game.status || {}));
 var requireField = (path, isValid, appliesTo = () => true, onSome = false) => ({
   path,
   isValid,
@@ -197,7 +197,35 @@ function findMissingFields(responses) {
   ];
   return [...new Set(missing)];
 }
-var WINS_TO_TAKE = { WC: 2, DS: 3, CS: 4, WS: 4 };
+var LEAGUES = ["AL", "NL"];
+var BEST_OF = { WC: 3, DS: 5, CS: 7, WS: 7 };
+var countWinsNeeded = (round) => Math.ceil(BEST_OF[round] / 2);
+var LEAGUE_SERIES = [
+  { key: "WC1", round: "WC", sides: [{ seed: 3 }, { seed: 6 }] },
+  { key: "WC2", round: "WC", sides: [{ seed: 4 }, { seed: 5 }] },
+  { key: "DS1", round: "DS", sides: [{ seed: 1 }, { winnerOf: "WC2" }] },
+  { key: "DS2", round: "DS", sides: [{ seed: 2 }, { winnerOf: "WC1" }] },
+  { key: "CS", round: "CS", sides: [{ winnerOf: "DS1" }, { winnerOf: "DS2" }] }
+];
+function resolveBracket(teams, decideWinner) {
+  const holderOfSeed = {};
+  for (const [id, team] of Object.entries(teams)) holderOfSeed[`${team.league}${team.seed}`] = id;
+  const bracket = {};
+  const findWinner = (seriesId) => bracket[seriesId] ? bracket[seriesId].winner : null;
+  const settleSeries = (id, round, teamA, teamB) => {
+    bracket[id] = { id, round, teamA, teamB, winner: decideWinner(id, round, teamA, teamB) };
+  };
+  for (const league of LEAGUES) {
+    for (const { key, round, sides } of LEAGUE_SERIES) {
+      const [teamA, teamB] = sides.map(
+        (side) => side.seed ? holderOfSeed[`${league}${side.seed}`] || null : findWinner(`${league}_${side.winnerOf}`)
+      );
+      settleSeries(`${league}_${key}`, round, teamA, teamB);
+    }
+  }
+  settleSeries("WS", "WS", findWinner("AL_CS"), findWinner("NL_CS"));
+  return bracket;
+}
 var GAME_TYPES = /* @__PURE__ */ new Set(["R", "F", "D", "L", "W"]);
 var POLL_LIVE_MS = 30 * 1e3;
 var POLL_LEAD_MS = 15 * 60 * 1e3;
@@ -211,316 +239,342 @@ var EASTERN = new Intl.DateTimeFormat("en-CA", {
   hourCycle: "h23"
 });
 function easternDay(ms) {
-  const p = {};
-  for (const { type, value } of EASTERN.formatToParts(new Date(ms))) p[type] = value;
-  return { date: `${p.year}-${p.month}-${p.day}`, hour: Number(p.hour), year: Number(p.year) };
+  const parts = {};
+  for (const { type, value } of EASTERN.formatToParts(new Date(ms))) parts[type] = value;
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    hour: Number(parts.hour),
+    year: Number(parts.year)
+  };
 }
-function addDays(date, n) {
-  const [y, m, d] = date.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+function addDays(date, days) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 function mlbRequests(season, now) {
   const today = easternDay(now);
-  const req = {
+  const requests = {
     standings: `/api/v1/standings?leagueId=103,104&season=${season}&standingsTypes=regularSeason&fields=${STANDINGS_FIELDS}`,
     postseason: `/api/v1/schedule/postseason?season=${season}&hydrate=gameInfo&fields=${GAME_FIELDS}`,
     schedule: null
   };
   if (season === today.year) {
-    req.schedule = `/api/v1/schedule?sportId=1&startDate=${addDays(today.date, -4)}&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo&fields=${GAME_FIELDS}`;
+    requests.schedule = `/api/v1/schedule?sportId=1&startDate=${addDays(today.date, -4)}&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo&fields=${GAME_FIELDS}`;
   }
-  return req;
+  return requests;
 }
 async function fetchSnapshot(getJson, season, now = Date.now()) {
-  const req = mlbRequests(season, now);
+  const requests = mlbRequests(season, now);
   const [standings, postseason, schedule] = await Promise.all([
-    getJson(req.standings),
-    getJson(req.postseason),
-    req.schedule ? getJson(req.schedule) : null
+    getJson(requests.standings),
+    getJson(requests.postseason),
+    requests.schedule ? getJson(requests.schedule) : null
   ]);
   return buildSnapshot({ standings, postseason, schedule }, { season, now });
 }
-function gameState(status) {
-  const coded = status.codedGameState;
-  if (["C", "D", "T", "U"].includes(coded) || /postpon|cancel|suspend/i.test(status.detailedState || ""))
-    return "off";
+function readGameState(status) {
+  const isCalledOff = ["C", "D", "T", "U"].includes(status.codedGameState) || /postpon|cancel|suspend/i.test(status.detailedState || "");
+  if (isCalledOff) return "off";
   if (status.abstractGameState === "Live") return "live";
   if (status.abstractGameState === "Final") return "final";
   return "pre";
 }
-function normalizeGame(g) {
-  const side = (key) => {
-    const t = g.teams && g.teams[key] || {};
-    const team = t.team || {};
-    return { id: MLB_TEAM[team.id] || null, name: team.name || "", score: t.score };
+function estimateEnd(game) {
+  const info = game.gameInfo || {};
+  const firstPitch = Date.parse(info.firstPitch || game.gameDate);
+  if (Number.isNaN(firstPitch)) return null;
+  const minutes = info.gameDurationMinutes || (info.firstPitch ? 0 : 180);
+  return new Date(firstPitch + minutes * 6e4).toISOString().replace(".000Z", "Z");
+}
+function normalizeGame(game) {
+  const readSide = (key) => {
+    const side = game.teams && game.teams[key] || {};
+    const team = side.team || {};
+    return { id: MLB_TEAM[team.id] || null, name: team.name || "", score: side.score };
   };
-  const status = g.status || {};
-  const state = gameState(status);
-  const info = g.gameInfo || {};
-  let end = null;
-  if (state === "final") {
-    const first = Date.parse(info.firstPitch || g.gameDate);
-    const minutes = info.gameDurationMinutes || (info.firstPitch ? 0 : 180);
-    if (!isNaN(first)) end = new Date(first + minutes * 6e4).toISOString().replace(".000Z", "Z");
-  }
-  const league = /^(AL|NL)\b/.exec(g.seriesDescription || "");
+  const status = game.status || {};
+  const state = readGameState(status);
+  const league = /^(AL|NL)\b/.exec(game.seriesDescription || "");
   return {
-    pk: g.gamePk,
-    type: g.gameType,
-    date: g.officialDate,
-    start: g.gameDate,
+    type: game.gameType,
+    date: game.officialDate,
+    start: game.gameDate,
     tbd: !!status.startTimeTBD,
     state,
-    away: side("away"),
-    home: side("home"),
-    inning: g.linescore ? g.linescore.currentInning : void 0,
-    number: g.seriesGameNumber,
+    away: readSide("away"),
+    home: readSide("home"),
+    inning: game.linescore ? game.linescore.currentInning : void 0,
+    number: game.seriesGameNumber,
     league: league ? league[1] : null,
-    end
+    end: state === "final" ? estimateEnd(game) : null
   };
 }
-function scheduleGames(resp) {
-  const byPk = /* @__PURE__ */ new Map();
-  for (const day of resp && resp.dates || []) {
-    for (const g of day.games || []) {
-      if (GAME_TYPES.has(g.gameType)) byPk.set(g.gamePk, normalizeGame(g));
+function listScheduledGames(response) {
+  const gamesByPk = /* @__PURE__ */ new Map();
+  for (const day of response && response.dates || []) {
+    for (const game of day.games || []) {
+      if (GAME_TYPES.has(game.gameType)) gamesByPk.set(game.gamePk, normalizeGame(game));
     }
   }
-  return [...byPk.values()];
+  return [...gamesByPk.values()];
 }
-var real = (g) => !!(g.away.id && g.home.id);
-var byStart = (a, b) => Date.parse(a.start) - Date.parse(b.start);
-var byEnd = (a, b) => Date.parse(a.end) - Date.parse(b.end);
-function stampGame(g) {
-  const out = { away: g.away.id, home: g.home.id, state: g.state, start: g.start };
-  if (g.tbd) out.tbd = true;
-  if (g.state !== "pre") out.score = [g.away.score || 0, g.home.score || 0];
-  if (g.state === "live") out.inning = g.inning || 1;
-  if (g.state === "final") out.end = g.end;
-  return out;
+var hasBothClubs = (game) => !!(game.away.id && game.home.id);
+var compareStarts = (first, second) => Date.parse(first.start) - Date.parse(second.start);
+var compareEnds = (first, second) => Date.parse(first.end) - Date.parse(second.end);
+function summarizeGame(game) {
+  const summary = { away: game.away.id, home: game.home.id, state: game.state, start: game.start };
+  if (game.tbd) summary.tbd = true;
+  if (game.state !== "pre") summary.score = [game.away.score || 0, game.home.score || 0];
+  if (game.state === "live") summary.inning = game.inning || 1;
+  if (game.state === "final") summary.end = game.end;
+  return summary;
 }
 function buildSlate(games, now) {
   const clock = easternDay(now);
-  const playable = games.filter((g) => g.state !== "off" && real(g));
-  const on = (date) => playable.filter((g) => g.date === date).sort(byStart);
+  const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
+  const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
   let day = clock.date;
-  if (clock.hour < 6 && on(addDays(day, -1)).length) day = addDays(day, -1);
-  const later = [...new Set(playable.map((g) => g.date))].filter((d) => d > day).sort();
-  const last = playable.filter((g) => g.state === "final" && g.date < day).sort(byEnd).pop();
+  if (clock.hour < 6 && listGamesOn(addDays(day, -1)).length) day = addDays(day, -1);
+  const nextDay = [...new Set(playable.map((game) => game.date))].filter((date) => date > day).sort()[0];
+  const lastFinal = playable.filter((game) => game.state === "final" && game.date < day).sort(compareEnds).pop();
   return {
-    today: { date: day, games: on(day).map(stampGame) },
-    nextDay: later.length ? { date: later[0], games: on(later[0]).map(stampGame) } : null,
-    lastFinal: last ? stampGame(last) : null
+    today: { date: day, games: listGamesOn(day).map(summarizeGame) },
+    nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarizeGame) } : null,
+    lastFinal: lastFinal ? summarizeGame(lastFinal) : null
   };
 }
-function standingsRows(resp) {
+function listStandingsRows(response) {
   const rows = [];
-  for (const rec of resp && resp.records || []) {
-    const div = MLB_DIVISION[rec.division && rec.division.id];
-    if (!div) continue;
-    for (const r of rec.teamRecords || []) {
-      const id = MLB_TEAM[r.team && r.team.id];
-      if (id) rows.push({ id, div, r });
+  for (const divisionRecord of response && response.records || []) {
+    const division = MLB_DIVISION[divisionRecord.division && divisionRecord.division.id];
+    if (!division) continue;
+    for (const record of divisionRecord.teamRecords || []) {
+      const id = MLB_TEAM[record.team && record.team.id];
+      if (id) rows.push({ id, division, record });
     }
   }
   return rows;
 }
-function buildStandings(resp, season, games) {
+function listUpcomingGames(games) {
   const upcoming = {};
-  games.filter((g) => g.type === "R" && g.state === "pre" && real(g)).sort(byStart).forEach((g) => {
-    for (const [us, them, home] of [
-      [g.away.id, g.home.id, false],
-      [g.home.id, g.away.id, true]
+  const gamesAhead = games.filter((game) => game.type === "R" && game.state === "pre" && hasBothClubs(game)).sort(compareStarts);
+  for (const game of gamesAhead) {
+    for (const [club, opponent, home] of [
+      [game.away.id, game.home.id, false],
+      [game.home.id, game.away.id, true]
     ]) {
-      (upcoming[us] = upcoming[us] || []).push({ at: g.start, opp: them, home, tbd: g.tbd });
+      (upcoming[club] = upcoming[club] || []).push({
+        at: game.start,
+        opp: opponent,
+        home,
+        tbd: game.tbd
+      });
     }
-  });
+  }
+  return upcoming;
+}
+var readRank = (value) => Number(value) || 99;
+function buildStandingsRow(id, record) {
+  return {
+    id,
+    w: record.wins,
+    l: record.losses,
+    pct: record.winningPercentage,
+    gb: record.divisionGamesBack,
+    wcgb: record.wildCardGamesBack,
+    elim: record.eliminationNumber,
+    wce: record.wildCardEliminationNumber,
+    magic: null,
+    // Not clinchIndicator: its "x" and "w" mean a playoff spot, not the division.
+    clinched: !!record.divisionChamp,
+    lead: !!record.divisionLeader,
+    // MLB's own marker: x a playoff spot, w a wild card, y the division, z a bye.
+    clinch: record.clinchIndicator || null,
+    wcrank: record.divisionLeader ? null : record.wildCardRank || null,
+    rank: readRank(record.divisionRank)
+  };
+}
+function setMagicNumber(rows) {
+  const leader = rows.find((row) => row.lead);
+  if (!leader || leader.clinched) return;
+  const chasers = rows.filter((row) => row !== leader).map((row) => Number(row.elim)).filter(Number.isFinite);
+  if (chasers.length) leader.magic = String(Math.min(...chasers));
+}
+function buildStandings(response, games) {
+  const upcoming = listUpcomingGames(games);
   const divisions = {};
-  for (const { id, div, r } of standingsRows(resp)) {
-    const row = {
-      id,
-      w: r.wins,
-      l: r.losses,
-      pct: r.winningPercentage,
-      gb: r.divisionGamesBack,
-      wcgb: r.wildCardGamesBack,
-      elim: r.eliminationNumber,
-      wce: r.wildCardEliminationNumber,
-      magic: null,
-      // Not clinchIndicator: its "x" and "w" mean a playoff spot, not the division.
-      clinched: !!r.divisionChamp,
-      lead: !!r.divisionLeader,
-      // MLB's own marker: x a playoff spot, w a wild card, y the division, z a bye.
-      clinch: r.clinchIndicator || null,
-      wcrank: r.divisionLeader ? null : r.wildCardRank || null,
-      rank: Number(r.divisionRank) || 99
-    };
+  for (const { id, division, record } of listStandingsRows(response)) {
+    const row = buildStandingsRow(id, record);
     const [next, then] = upcoming[id] || [];
     if (next) row.next = next;
     if (then) row.then = then;
-    (divisions[div] = divisions[div] || []).push(row);
+    (divisions[division] = divisions[division] || []).push(row);
   }
   for (const rows of Object.values(divisions)) {
-    rows.sort((a, b) => a.rank - b.rank).forEach((row) => delete row.rank);
-    const leader = rows.find((r) => r.lead);
-    const chasing = rows.filter((r) => r !== leader).map((r) => Number(r.elim)).filter(Number.isFinite);
-    if (leader && !leader.clinched && chasing.length) leader.magic = String(Math.min(...chasing));
+    rows.sort((first, second) => first.rank - second.rank).forEach((row) => delete row.rank);
+    setMagicNumber(rows);
   }
-  return { year: season, divisions };
+  return { divisions };
 }
-function projectedField(resp) {
-  const rows = standingsRows(resp);
+function projectField(response) {
+  const rows = listStandingsRows(response);
+  const compareLeagueRank = (first, second) => readRank(first.record.leagueRank) - readRank(second.record.leagueRank);
+  const compareDivisionRank = (first, second) => readRank(first.record.divisionRank) - readRank(second.record.divisionRank) || compareLeagueRank(first, second);
+  const comparePercentage = (first, second) => Number(second.record.winningPercentage) - Number(first.record.winningPercentage) || compareLeagueRank(first, second);
+  const compareWildCardRank = (first, second) => Number(first.record.wildCardRank) - Number(second.record.wildCardRank);
   const teams = {};
-  for (const lg of ["AL", "NL"]) {
-    const mine = rows.filter((x) => x.div.startsWith(lg));
-    const leagueRank = (x) => Number(x.r.leagueRank) || 99;
-    const leaders = [...new Set(mine.map((x) => x.div))].map(
-      (div) => mine.filter((x) => x.div === div).sort(
-        (a, b) => (Number(a.r.divisionRank) || 99) - (Number(b.r.divisionRank) || 99) || leagueRank(a) - leagueRank(b)
-      )[0]
-    );
-    leaders.sort(
-      (a, b) => Number(b.r.winningPercentage) - Number(a.r.winningPercentage) || leagueRank(a) - leagueRank(b)
-    );
-    const lead = new Set(leaders.map((x) => x.id));
-    const wild = mine.filter((x) => !lead.has(x.id) && x.r.wildCardRank).sort((a, b) => Number(a.r.wildCardRank) - Number(b.r.wildCardRank));
-    [...leaders.slice(0, 3), ...wild.slice(0, 3)].forEach((x, i) => {
-      teams[x.id] = { league: lg, seed: i + 1, w: x.r.wins, l: x.r.losses };
+  for (const league of LEAGUES) {
+    const leagueRows = rows.filter((row) => row.division.startsWith(league));
+    const divisions = [...new Set(leagueRows.map((row) => row.division))];
+    const leaders = divisions.map(
+      (division) => leagueRows.filter((row) => row.division === division).sort(compareDivisionRank)
+    ).map((divisionRows) => divisionRows[0]).sort(comparePercentage);
+    const leaderIds = new Set(leaders.map((row) => row.id));
+    const wildCards = leagueRows.filter((row) => !leaderIds.has(row.id) && row.record.wildCardRank).sort(compareWildCardRank);
+    [...leaders.slice(0, 3), ...wildCards.slice(0, 3)].forEach((row, index) => {
+      teams[row.id] = { league, seed: index + 1, w: row.record.wins, l: row.record.losses };
     });
   }
   return teams;
 }
-function seriesOf(g, wildCard, champs) {
-  if (g.type === "W") return "WS";
-  const lg = g.league;
-  if (!lg) return null;
-  const names = `${g.away.name} | ${g.home.name}`;
-  const has = (key) => [g.away.id, g.home.id].some((id) => id && wildCard[`${lg}_${key}`].has(id));
-  switch (g.type) {
+function findSeriesId(game, wildCardClubs, champions) {
+  if (game.type === "W") return "WS";
+  const { league } = game;
+  if (!league) return null;
+  const names = `${game.away.name} | ${game.home.name}`;
+  const cameFrom = (key) => [game.away.id, game.home.id].some((id) => id && wildCardClubs[`${league}_${key}`].has(id));
+  switch (game.type) {
     case "F":
-      if (/#3 Seed|Wild Card #3/.test(names)) return `${lg}_WC1`;
-      if (/Wild Card #[12]/.test(names)) return `${lg}_WC2`;
-      return champs.has(g.home.id) ? `${lg}_WC1` : `${lg}_WC2`;
+      if (/#3 Seed|Wild Card #3/.test(names)) return `${league}_WC1`;
+      if (/Wild Card #[12]/.test(names)) return `${league}_WC2`;
+      return champions.has(game.home.id) ? `${league}_WC1` : `${league}_WC2`;
     case "D":
-      if (/4\/5|#1 Seed/.test(names) || has("WC2")) return `${lg}_DS1`;
-      if (/3\/6|#2 Seed/.test(names) || has("WC1")) return `${lg}_DS2`;
+      if (/4\/5|#1 Seed/.test(names) || cameFrom("WC2")) return `${league}_DS1`;
+      if (/3\/6|#2 Seed/.test(names) || cameFrom("WC1")) return `${league}_DS2`;
       return null;
     case "L":
-      return `${lg}_CS`;
+      return `${league}_CS`;
     default:
       return null;
   }
 }
-function groupPostseason(games, champs) {
-  const wildCard = { AL_WC1: /* @__PURE__ */ new Set(), AL_WC2: /* @__PURE__ */ new Set(), NL_WC1: /* @__PURE__ */ new Set(), NL_WC2: /* @__PURE__ */ new Set() };
-  const bySeries = {};
-  const add = (sid, g) => {
-    if (sid) (bySeries[sid] = bySeries[sid] || []).push(g);
+function groupPostseason(games, champions) {
+  const wildCardClubs = {
+    AL_WC1: /* @__PURE__ */ new Set(),
+    AL_WC2: /* @__PURE__ */ new Set(),
+    NL_WC1: /* @__PURE__ */ new Set(),
+    NL_WC2: /* @__PURE__ */ new Set()
   };
-  for (const g of games.filter((g2) => g2.type === "F")) {
-    const sid = seriesOf(g, wildCard, champs);
-    add(sid, g);
-    if (sid) [g.away.id, g.home.id].forEach((id) => id && wildCard[sid].add(id));
+  const gamesBySeries = {};
+  const addGame = (seriesId, game) => {
+    if (seriesId) (gamesBySeries[seriesId] = gamesBySeries[seriesId] || []).push(game);
+  };
+  for (const game of games.filter((candidate) => candidate.type === "F")) {
+    const seriesId = findSeriesId(game, wildCardClubs, champions);
+    addGame(seriesId, game);
+    if (!seriesId) continue;
+    for (const id of [game.away.id, game.home.id]) if (id) wildCardClubs[seriesId].add(id);
   }
-  for (const g of games.filter((g2) => g2.type !== "F")) add(seriesOf(g, wildCard, champs), g);
-  return { bySeries, wildCard };
+  for (const game of games.filter((candidate) => candidate.type !== "F")) {
+    addGame(findSeriesId(game, wildCardClubs, champions), game);
+  }
+  return { gamesBySeries, wildCardClubs };
 }
-function officialField(grouped, records) {
+function isFieldComplete(teams) {
+  const seats = Object.values(teams);
+  const isSeatTaken = (league, seed) => seats.some((team) => team.league === league && team.seed === seed);
+  return seats.length === 12 && LEAGUES.every((league) => [1, 2, 3, 4, 5, 6].every((seed) => isSeatTaken(league, seed)));
+}
+function readOfficialField({ gamesBySeries, wildCardClubs }, records) {
   const teams = {};
-  const seat = (id, league, seed) => {
-    if (id) teams[id] = { league, seed, w: records[id].w, l: records[id].l };
+  const seatClub = (id, league, seed) => {
+    if (!id) return;
+    const record = records[id];
+    teams[id] = record ? { league, seed, w: record.w, l: record.l } : { league, seed };
   };
-  for (const lg of ["AL", "NL"]) {
-    const series = (key) => grouped.bySeries[`${lg}_${key}`] || [];
-    for (const [key, hi, lo] of [
+  for (const league of LEAGUES) {
+    const listSeriesGames = (key) => gamesBySeries[`${league}_${key}`] || [];
+    for (const [key, higherSeed, lowerSeed] of [
       ["WC1", 3, 6],
       ["WC2", 4, 5]
     ]) {
-      const g = series(key)[0];
-      if (g) {
-        seat(g.home.id, lg, hi);
-        seat(g.away.id, lg, lo);
-      }
+      const game = listSeriesGames(key)[0];
+      if (!game) continue;
+      seatClub(game.home.id, league, higherSeed);
+      seatClub(game.away.id, league, lowerSeed);
     }
-    const inWildCard = (id) => grouped.wildCard[`${lg}_WC1`].has(id) || grouped.wildCard[`${lg}_WC2`].has(id);
+    const playedWildCard = (id) => wildCardClubs[`${league}_WC1`].has(id) || wildCardClubs[`${league}_WC2`].has(id);
     for (const [key, seed] of [
       ["DS1", 1],
       ["DS2", 2]
     ]) {
-      const host = series(key).flatMap((g) => [g.away.id, g.home.id]).find((id) => id && !inWildCard(id));
-      seat(host, lg, seed);
+      const host = listSeriesGames(key).flatMap((game) => [game.away.id, game.home.id]).find((id) => id && !playedWildCard(id));
+      seatClub(host, league, seed);
     }
   }
-  const complete = ["AL", "NL"].every(
-    (lg) => [1, 2, 3, 4, 5, 6].every(
-      (s) => Object.values(teams).some((t) => t.league === lg && t.seed === s)
-    )
-  );
-  return complete && Object.keys(teams).length === 12 ? teams : null;
+  return isFieldComplete(teams) ? teams : null;
 }
-function buildSeries(teams, bySeries, today) {
-  const seed = {};
-  Object.entries(teams).forEach(([id, t]) => {
-    seed[`${t.league}${t.seed}`] = id;
-  });
-  const series = {}, winner = {}, log = [];
-  const play = (sid, round, a, b) => {
-    const games = (bySeries[sid] || []).slice();
-    const rec = { winsA: 0, winsB: 0 };
-    const need = WINS_TO_TAKE[round];
-    const finals = games.filter(
-      (g) => g.state === "final" && real(g) && a && b && [a, b].includes(g.away.id) && [a, b].includes(g.home.id)
-    ).sort(byEnd);
-    for (const g of finals) {
-      if (winner[sid]) break;
-      const won = g.away.score > g.home.score ? g.away.id : g.home.id;
-      if (won === a) rec.winsA++;
-      else rec.winsB++;
-      const lost = won === a ? b : a;
-      const w = won === a ? rec.winsA : rec.winsB, l = won === a ? rec.winsB : rec.winsA;
-      if (w >= need) {
-        winner[sid] = won;
-        log.push({
-          at: g.end,
-          kind: "clinch",
-          series: sid,
-          team: won,
-          over: lost,
-          score: [w, l]
-        });
-      } else {
-        log.push({ at: g.end, kind: "game", series: sid, won, game: g.number, score: [w, l] });
-      }
+var isBetween = (game, teamA, teamB) => [teamA, teamB].includes(game.away.id) && [teamA, teamB].includes(game.home.id);
+function findNextGame(games, today) {
+  return games.filter((game) => (game.state === "pre" || game.state === "live") && game.date >= today).sort((first, second) => first.number - second.number || compareStarts(first, second))[0];
+}
+function tallySeries(seriesId, games, round, teamA, teamB, today) {
+  const record = { winsA: 0, winsB: 0 };
+  const log = [];
+  const need = countWinsNeeded(round);
+  let winner = null;
+  const finals = teamA && teamB ? games.filter((game) => game.state === "final") : [];
+  const decided = finals.filter((game) => hasBothClubs(game) && isBetween(game, teamA, teamB)).sort(compareEnds);
+  for (const game of decided) {
+    const won = game.away.score > game.home.score ? game.away.id : game.home.id;
+    if (won === teamA) record.winsA++;
+    else record.winsB++;
+    const score = won === teamA ? [record.winsA, record.winsB] : [record.winsB, record.winsA];
+    if (score[0] >= need) {
+      winner = won;
+      const over = won === teamA ? teamB : teamA;
+      log.push({ at: game.end, kind: "clinch", series: seriesId, team: won, over, score });
+      break;
     }
-    if (!winner[sid]) {
-      const next = games.filter((g) => (g.state === "pre" || g.state === "live") && g.date >= today).sort((x, y) => x.number - y.number || byStart(x, y))[0];
-      if (next) rec.next = { at: next.start, date: next.date, tbd: next.tbd, game: next.number };
-    }
-    series[sid] = rec;
-  };
-  for (const lg of ["AL", "NL"]) {
-    play(`${lg}_WC1`, "WC", seed[`${lg}3`], seed[`${lg}6`]);
-    play(`${lg}_WC2`, "WC", seed[`${lg}4`], seed[`${lg}5`]);
-    play(`${lg}_DS1`, "DS", seed[`${lg}1`], winner[`${lg}_WC2`]);
-    play(`${lg}_DS2`, "DS", seed[`${lg}2`], winner[`${lg}_WC1`]);
-    play(`${lg}_CS`, "CS", winner[`${lg}_DS1`], winner[`${lg}_DS2`]);
+    log.push({ at: game.end, kind: "game", series: seriesId, won, game: game.number, score });
   }
-  play("WS", "WS", winner.AL_CS, winner.NL_CS);
-  log.sort((x, y) => Date.parse(x.at) - Date.parse(y.at));
+  if (!winner) {
+    const next = findNextGame(games, today);
+    if (next) record.next = { at: next.start, date: next.date, tbd: next.tbd, game: next.number };
+  }
+  return { record, log, winner };
+}
+function buildSeries(teams, gamesBySeries, today) {
+  const series = {};
+  const log = [];
+  resolveBracket(teams, (seriesId, round, teamA, teamB) => {
+    const games = gamesBySeries[seriesId] || [];
+    const tally = tallySeries(seriesId, games, round, teamA, teamB, today);
+    series[seriesId] = tally.record;
+    log.push(...tally.log);
+    return tally.winner;
+  });
+  log.sort((first, second) => Date.parse(first.at) - Date.parse(second.at));
   return { series, log };
 }
-function buildSnapshot(raw, { season, now = Date.now() }) {
-  const games = raw.schedule ? scheduleGames(raw.schedule) : [];
-  const post = scheduleGames(raw.postseason);
-  const records = {}, champs = /* @__PURE__ */ new Set();
-  standingsRows(raw.standings).forEach(({ id, r }) => {
-    records[id] = { w: r.wins, l: r.losses };
-    if (r.divisionChamp || r.divisionRank === "1" && r.divisionLeader) champs.add(id);
-  });
-  const grouped = groupPostseason(post, champs);
-  const official = officialField(grouped, records);
-  const teams = official || projectedField(raw.standings);
-  const { series, log } = buildSeries(teams, grouped.bySeries, easternDay(now).date);
+function readRecords(standings) {
+  const records = {};
+  const champions = /* @__PURE__ */ new Set();
+  for (const { id, record } of listStandingsRows(standings)) {
+    records[id] = { w: record.wins, l: record.losses };
+    if (record.divisionChamp || record.divisionRank === "1" && record.divisionLeader)
+      champions.add(id);
+  }
+  return { records, champions };
+}
+function buildSnapshot(responses, { season, now = Date.now() }) {
+  const games = responses.schedule ? listScheduledGames(responses.schedule) : [];
+  const postseasonGames = listScheduledGames(responses.postseason);
+  const { records, champions } = readRecords(responses.standings);
+  const grouped = groupPostseason(postseasonGames, champions);
+  const official = readOfficialField(grouped, records);
+  const teams = official || projectField(responses.standings);
+  const { series, log } = buildSeries(teams, grouped.gamesBySeries, easternDay(now).date);
   return {
     version: 1,
     season,
@@ -529,9 +583,9 @@ function buildSnapshot(raw, { season, now = Date.now() }) {
     teams,
     series,
     log,
-    standings: buildStandings(raw.standings, season, games),
-    slate: raw.schedule ? buildSlate(games, now) : null,
-    missing: findMissingFields(raw)
+    standings: buildStandings(responses.standings, games),
+    slate: responses.schedule ? buildSlate(games, now) : null,
+    missing: findMissingFields(responses)
   };
 }
 
@@ -561,156 +615,185 @@ var TOOL = {
     openWorldHint: true
   }
 };
+var { minimum: FIRST_SEASON, maximum: LAST_SEASON } = TOOL.inputSchema.properties.season;
+var SEASON_RULE = `season must be a whole year between ${FIRST_SEASON} and ${LAST_SEASON}`;
 var PARSE_ERROR = -32700;
 var INVALID_REQUEST = -32600;
 var METHOD_NOT_FOUND = -32601;
 var INVALID_PARAMS = -32602;
+var INTERNAL_ERROR = -32603;
 var UPSTREAM_TIMEOUT_MS = 8e3;
 var EDGE_CACHE_SECONDS = 15;
 var SNAPSHOT_REUSE_MS = 1e4;
 var MAX_BODY_BYTES = 64 * 1024;
+var MAX_BATCH = 10;
 var describeError = (error) => error instanceof Error ? error.message : String(error);
+var isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
+var CORS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type, accept, mcp-protocol-version, mcp-session-id"
+};
+var respondJson = (body, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { "content-type": "application/json", "cache-control": "no-store", ...CORS }
+});
+var respondText = (body, status, extraHeaders = {}) => new Response(body, {
+  status,
+  headers: { "content-type": "text/plain", ...CORS, ...extraHeaders }
+});
+var respondAccepted = () => new Response(null, { status: 202, headers: CORS });
+var createResult = (id, result) => ({ jsonrpc: "2.0", id, result });
+var createError = (id, code, message) => ({
+  jsonrpc: "2.0",
+  id: id ?? null,
+  error: { code, message }
+});
+async function readBody(request) {
+  const declared = Number(request.headers.get("content-length"));
+  if (declared > MAX_BODY_BYTES) return null;
+  const bytes = await request.arrayBuffer();
+  if (bytes.byteLength > MAX_BODY_BYTES) return null;
+  return new TextDecoder().decode(bytes);
+}
 function createWorker({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now()
 } = {}) {
-  const recent = /* @__PURE__ */ new Map();
-  async function getJson(path) {
-    const res = await fetchImpl(MLB_API + path, {
+  const recentSnapshots = /* @__PURE__ */ new Map();
+  async function fetchMlbJson(path) {
+    const response = await fetchImpl(MLB_API + path, {
       headers: { accept: "application/json", "user-agent": "mlb-live-connector/1.0" },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       cf: { cacheTtl: EDGE_CACHE_SECONDS, cacheEverything: true }
     });
-    if (!res.ok) throw new Error(`MLB Stats API answered ${res.status} for ${path.split("?")[0]}`);
-    return res.json();
+    if (!response.ok)
+      throw new Error(`MLB Stats API answered ${response.status} for ${path.split("?")[0]}`);
+    return response.json();
   }
-  function snapshotFor(season) {
-    const t = now();
-    const hit = recent.get(season);
-    if (hit && t - hit.at < SNAPSHOT_REUSE_MS) return hit.promise;
-    const promise = fetchSnapshot(getJson, season, t);
-    recent.set(season, { at: t, promise });
+  function loadSnapshot(season) {
+    const requestedAt = now();
+    const cached = recentSnapshots.get(season);
+    if (cached && requestedAt - cached.at < SNAPSHOT_REUSE_MS) return cached.promise;
+    const promise = fetchSnapshot(fetchMlbJson, season, requestedAt);
+    recentSnapshots.set(season, { at: requestedAt, promise });
     promise.catch(() => {
-      if (recent.get(season) && recent.get(season).promise === promise) recent.delete(season);
+      if (recentSnapshots.get(season)?.promise === promise) recentSnapshots.delete(season);
     });
     return promise;
   }
-  function seasonArg(args) {
-    const thisYear = easternDay(now()).year;
-    if (args == null || args.season == null) return thisYear;
-    const s = args.season;
-    const { minimum, maximum } = TOOL.inputSchema.properties.season;
-    if (!Number.isInteger(s) || s < minimum || s > maximum) return null;
-    return s;
+  function readSeason(value) {
+    if (value == null) return easternDay(now()).year;
+    const isValid = Number.isInteger(value) && value >= FIRST_SEASON && value <= LAST_SEASON;
+    return isValid ? value : null;
   }
-  const reply = (id, result) => ({ jsonrpc: "2.0", id, result });
-  const failure = (id, code, message) => ({
-    jsonrpc: "2.0",
-    id: id ?? null,
-    error: { code, message }
-  });
-  async function call(msg) {
-    if (!msg || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") {
-      return failure(msg && msg.id, INVALID_REQUEST, "Not a JSON-RPC 2.0 request");
+  async function callTool(id, params) {
+    if (params.name !== TOOL.name)
+      return createError(id, INVALID_PARAMS, `Unknown tool: ${params.name}`);
+    const input = params.arguments ?? {};
+    const hasOnlySeason = isPlainObject(input) && Object.keys(input).every((key) => key === "season");
+    const season = hasOnlySeason ? readSeason(input.season) : null;
+    if (season == null)
+      return createError(id, INVALID_PARAMS, `${SEASON_RULE}, and nothing else is accepted`);
+    try {
+      const snapshot = await loadSnapshot(season);
+      return createResult(id, {
+        content: [{ type: "text", text: JSON.stringify(snapshot) }],
+        structuredContent: snapshot
+      });
+    } catch (error) {
+      return createResult(id, {
+        isError: true,
+        content: [{ type: "text", text: `Couldn't read MLB: ${describeError(error)}` }]
+      });
     }
-    const isNotification = !("id" in msg);
-    if (isNotification) return null;
-    const { id, method, params = {} } = msg;
+  }
+  function initialize(id, params) {
+    const asked = params.protocolVersion;
+    return createResult(id, {
+      protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
+      capabilities: { tools: { listChanged: false } },
+      serverInfo: SERVER_INFO,
+      instructions: "One read-only tool, get_snapshot, returns the live state of an MLB season as JSON."
+    });
+  }
+  async function answerRequest(id, method, params) {
     switch (method) {
-      case "initialize": {
-        const asked = params.protocolVersion;
-        return reply(id, {
-          protocolVersion: PROTOCOL_VERSIONS.includes(asked) ? asked : PROTOCOL_VERSIONS[0],
-          capabilities: { tools: { listChanged: false } },
-          serverInfo: SERVER_INFO,
-          instructions: "One read-only tool, get_snapshot, returns the live state of an MLB season as JSON."
-        });
-      }
+      case "initialize":
+        return initialize(id, params);
       case "ping":
-        return reply(id, {});
+        return createResult(id, {});
       case "tools/list":
-        return reply(id, { tools: [TOOL] });
-      case "tools/call": {
-        if (params.name !== TOOL.name)
-          return failure(id, INVALID_PARAMS, `Unknown tool: ${params.name}`);
-        const extra = Object.keys(params.arguments || {}).filter((k) => k !== "season");
-        const season = seasonArg(params.arguments);
-        if (extra.length || season == null) {
-          return failure(
-            id,
-            INVALID_PARAMS,
-            "season must be a whole year between 1995 and 2100, and nothing else is accepted"
-          );
-        }
-        try {
-          const snapshot = await snapshotFor(season);
-          return reply(id, {
-            content: [{ type: "text", text: JSON.stringify(snapshot) }],
-            structuredContent: snapshot
-          });
-        } catch (error) {
-          return reply(id, {
-            isError: true,
-            content: [{ type: "text", text: `Couldn't read MLB: ${describeError(error)}` }]
-          });
-        }
-      }
+        return createResult(id, { tools: [TOOL] });
+      case "tools/call":
+        return callTool(id, params);
       default:
-        return failure(id, METHOD_NOT_FOUND, `Method not found: ${method}`);
+        return createError(id, METHOD_NOT_FOUND, `Method not found: ${method}`);
     }
   }
-  const CORS = {
-    "access-control-allow-origin": "*",
-    "access-control-allow-methods": "GET, POST, OPTIONS",
-    "access-control-allow-headers": "content-type, accept, mcp-protocol-version, mcp-session-id"
-  };
-  const json = (body, status = 200) => new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store", ...CORS }
-  });
-  const text = (body, status, extra = {}) => new Response(body, { status, headers: { "content-type": "text/plain", ...CORS, ...extra } });
+  async function answerMessage(message) {
+    if (!isPlainObject(message) || message.jsonrpc !== "2.0" || typeof message.method !== "string")
+      return createError(message && message.id, INVALID_REQUEST, "Not a JSON-RPC 2.0 request");
+    const isNotification = !("id" in message);
+    if (isNotification) return null;
+    const { id, method } = message;
+    const params = message.params ?? {};
+    if (!isPlainObject(params)) return createError(id, INVALID_PARAMS, "params must be an object");
+    try {
+      return await answerRequest(id, method, params);
+    } catch (error) {
+      return createError(id, INTERNAL_ERROR, describeError(error));
+    }
+  }
+  async function answerBatch(messages) {
+    if (!messages.length)
+      return respondJson(createError(null, INVALID_REQUEST, "Empty batch"), 400);
+    if (messages.length > MAX_BATCH)
+      return respondJson(
+        createError(null, INVALID_REQUEST, `A batch holds at most ${MAX_BATCH} messages`),
+        400
+      );
+    const answers = (await Promise.all(messages.map(answerMessage))).filter(Boolean);
+    return answers.length ? respondJson(answers) : respondAccepted();
+  }
   async function handleMcp(request) {
     if (request.method !== "POST")
-      return text("This MCP endpoint takes POST only.\n", 405, { allow: "POST, OPTIONS" });
-    const raw = await request.text();
-    if (raw.length > MAX_BODY_BYTES)
-      return json(failure(null, INVALID_REQUEST, "Request too large"), 413);
+      return respondText("This MCP endpoint takes POST only.\n", 405, { allow: "POST, OPTIONS" });
+    const raw = await readBody(request);
+    if (raw == null)
+      return respondJson(createError(null, INVALID_REQUEST, "Request too large"), 413);
     let body;
     try {
       body = JSON.parse(raw);
     } catch {
-      return json(failure(null, PARSE_ERROR, "Body is not valid JSON"), 400);
+      return respondJson(createError(null, PARSE_ERROR, "Body is not valid JSON"), 400);
     }
-    if (Array.isArray(body)) {
-      if (!body.length) return json(failure(null, INVALID_REQUEST, "Empty batch"), 400);
-      const out2 = (await Promise.all(body.map(call))).filter(Boolean);
-      return out2.length ? json(out2) : new Response(null, { status: 202, headers: CORS });
-    }
-    const out = await call(body);
-    return out ? json(out) : new Response(null, { status: 202, headers: CORS });
+    if (Array.isArray(body)) return answerBatch(body);
+    const answer = await answerMessage(body);
+    return answer ? respondJson(answer) : respondAccepted();
   }
-  async function fetchHandler(request, env = {}) {
+  async function serveSnapshot(url) {
+    const season = readSeason(
+      url.searchParams.has("season") ? Number(url.searchParams.get("season")) : null
+    );
+    if (season == null) return respondJson({ error: SEASON_RULE }, 400);
+    try {
+      return respondJson(await loadSnapshot(season));
+    } catch (error) {
+      return respondJson({ error: `Couldn't read MLB: ${describeError(error)}` }, 502);
+    }
+  }
+  async function routeRequest(request, env = {}) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
     const key = env.CONNECTOR_KEY ? `/${env.CONNECTOR_KEY}` : "";
-    const mcpPath = `/mcp${key}`, snapshotPath = `/snapshot${key}`;
-    if (url.pathname === mcpPath) return handleMcp(request);
-    if (url.pathname === snapshotPath && request.method === "GET") {
-      const season = seasonArg({
-        season: url.searchParams.has("season") ? Number(url.searchParams.get("season")) : null
-      });
-      if (season == null)
-        return json({ error: "season must be a whole year between 1995 and 2100" }, 400);
-      try {
-        return json(await snapshotFor(season));
-      } catch (error) {
-        return json({ error: `Couldn't read MLB: ${describeError(error)}` }, 502);
-      }
-    }
-    if (url.pathname === "/" && !key) return text("MLB Live connector. MCP endpoint: /mcp\n", 200);
-    return text("Not found\n", 404);
+    if (url.pathname === `/mcp${key}`) return handleMcp(request);
+    if (url.pathname === `/snapshot${key}` && request.method === "GET") return serveSnapshot(url);
+    if (url.pathname === "/" && !key)
+      return respondText("MLB Live connector. MCP endpoint: /mcp\n", 200);
+    return respondText("Not found\n", 404);
   }
-  return { fetch: fetchHandler };
+  return { fetch: routeRequest };
 }
 
 // worker/src/index.js

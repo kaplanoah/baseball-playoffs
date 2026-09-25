@@ -24,7 +24,7 @@ body {
   font-size: 16px;
   padding-inline: 18px;
   padding-block: 17px 48px;
-  /* 7 x LAY.colW + 6 x LAY.gap in bracket-view.js, plus .tree-scroll's 18px each side. */
+  /* 7 x LAYOUT.columnWidth + 6 x LAYOUT.columnGap in bracket-view.js, plus .tree-scroll's 18px each side. */
   max-width: 1619px;
   margin: 0 auto;
 }
@@ -125,6 +125,11 @@ nav.tabs {
 }
 .stamp-err {
   color: var(--copper-ink);
+}
+.tab-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 nav.tabs button {
   font: inherit;
@@ -895,6 +900,10 @@ table.ref td .team-name {
 }
 .grip {
   flex: none;
+  font: inherit;
+  background: none;
+  border: 0;
+  line-height: inherit;
   color: color-mix(in srgb, var(--ink-dim) 62%, transparent);
   font-size: 1.05rem;
   letter-spacing: -2px;
@@ -1137,25 +1146,18 @@ table.ref th.won-col {
   letter-spacing: 0.05em;
   margin-bottom: 8px;
 }
-.modal-bg {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 50;
-  align-items: flex-start;
-  justify-content: center;
-  overflow: auto;
-  padding: 24px 12px;
-}
 .modal-panel {
   background: var(--card);
+  color: var(--ink);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   padding: 22px;
   max-width: 820px;
-  width: 100%;
-  margin-bottom: 40px;
+  width: calc(100% - 24px);
+  margin: 24px auto 40px;
+}
+.modal-panel::backdrop {
+  background: rgba(0, 0, 0, 0.6);
 }
 .modal-panel h2 {
   margin-bottom: 6px;
@@ -1272,6 +1274,11 @@ table.ref th.won-col {
   }
 
   nav.tabs {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .tab-list {
+    flex: 1 1 100%;
     flex-wrap: nowrap;
     gap: 6px;
   }

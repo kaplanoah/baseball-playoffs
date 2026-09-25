@@ -47,7 +47,7 @@ function findRecordedResponse(url) {
 // Refused hosts reach the page as a TypeError from fetch, as in the artifact sandbox.
 export async function openApp(
   page,
-  { store = {}, connectorAdded = true, directAllowed = false } = {},
+  { store = {}, connectorAdded = true, directAllowed = false, dbAvailable = true } = {},
 ) {
   let mlbRequests = 0;
   await page.route(
@@ -67,6 +67,7 @@ export async function openApp(
       Object.entries(FIXTURES).map(([season, fixture]) => [season, buildFixtureSnapshot(fixture)]),
     ),
     connectorAdded,
+    dbAvailable,
   });
   await page.addInitScript({ path: RUNTIME });
   await page.goto("/");
