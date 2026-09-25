@@ -75,7 +75,7 @@ function gamesBack(v) {
   if (isNaN(n) || n <= 0) return "even, behind on the tiebreaker";
   const whole = Math.floor(n),
     half = n - whole >= 0.5;
-  const num = (whole ? String(whole) : "") + (half ? "½" : "");
+  const num = (whole ? String(whole) : "") + (half ? "\u00bd" : "");
   return `${num} game${n > 1 ? "s" : ""} back`;
 }
 function outBack(e) {

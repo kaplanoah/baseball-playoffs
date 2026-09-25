@@ -260,9 +260,9 @@ function stampContext() {
     const hi = Math.max(s.winsA, s.winsB),
       lo = Math.min(s.winsA, s.winsB);
     const lead = s.winsA > s.winsB ? s.teamA : s.teamB;
-    if (s.winner) return ` — ${stampName(s.winner)} win the ${seriesLabel(s.id)} ${hi}-${lo}`;
-    if (hi === lo) return ` — series even ${hi}-${lo}`;
-    return ` — ${stampName(lead)} now lead ${hi}-${lo}`;
+    if (s.winner) return ` \u2014 ${stampName(s.winner)} win the ${seriesLabel(s.id)} ${hi}-${lo}`;
+    if (hi === lo) return ` \u2014 series even ${hi}-${lo}`;
+    return ` \u2014 ${stampName(lead)} now lead ${hi}-${lo}`;
   };
   return { ranking: (state && state.ranking) || [], alive, seriesNote, now: new Date() };
 }

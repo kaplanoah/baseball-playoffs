@@ -280,8 +280,8 @@ test("in October a final says what it did to the series", () => {
     since: et(DAY, "23:15"),
     today: { date: DAY, games: [final("CHC", "MIL", "20:08", [1, 4], "23:41")] },
   };
-  const c = ctx({ seriesNote: (g) => (g.home === "MIL" ? " — Brewers now lead 2-0" : "") });
-  assert.equal(last(slate, c), "Brewers 4 Cubs 1 final at 11:41 PM — Brewers now lead 2-0");
+  const c = ctx({ seriesNote: (g) => (g.home === "MIL" ? " \u2014 Brewers now lead 2-0" : "") });
+  assert.equal(last(slate, c), "Brewers 4 Cubs 1 final at 11:41 PM \u2014 Brewers now lead 2-0");
 });
 
 test("the day words beside a time", () => {

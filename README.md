@@ -56,7 +56,7 @@ themselves" below.
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
    workers.dev subdomain, have them pick one and tell you what it is.
-2. Have them create a token at **Manage Account → API Tokens → Create Token**
+2. Have them create a token at **Manage Account > API Tokens > Create Token**
    with the **Edit Cloudflare Workers** template, scoped to their account.
    Skip IP filtering because cloud sessions don't have a fixed address. A
    one-week expiry is enough. They copy the token but don't paste it into the
@@ -64,8 +64,8 @@ themselves" below.
 3. Have them find their **Account ID** in the right-hand column of the
    Workers & Pages overview.
 4. In Claude Code, have them open this session's cloud environment (the
-   environment menu in the title bar → **Edit**) and set:
-   - **API credentials → Add credential**: type Bearer, allowed website
+   environment menu in the title bar > **Edit**) and set:
+   - **API credentials > Add credential**: type Bearer, allowed website
      `api.cloudflare.com`, header `Authorization`, prefix `Bearer`, and the
      token as the value. Then **Connect**. Sessions can use it but can't see
      it.
