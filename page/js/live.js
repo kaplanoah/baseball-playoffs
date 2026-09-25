@@ -6,6 +6,7 @@ const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 
 let live = null;
 let liveError = null;
+let liveWarning = null;
 let liveTimer = 0;
 let liveDueAt = Infinity;
 let liveSeq = 0;
@@ -148,8 +149,14 @@ async function refreshLive() {
     if (seq !== liveSeq) return;
     liveError = null;
     liveFailures = 0;
+    const missing = snap.missing || [];
+    liveWarning = describeMissingFields(missing);
     applyLive(snap);
-    report({ source, error: "", detail: "" });
+    report({
+      source,
+      error: missing.length ? "mlb_fields_missing" : "",
+      detail: missing.join(", "),
+    });
     scheduleLive(MLBSnapshot.pollDelay(snap));
   } catch (e) {
     if (seq !== liveSeq) return;
@@ -176,9 +183,15 @@ async function refreshLive() {
   }
 }
 
+function describeMissingFields(missing) {
+  if (!missing.length) return null;
+  return `MLB stopped sending ${missing.join(", ")}, so some details may be blank.`;
+}
+
 function startLive() {
   live = null;
   liveError = null;
+  liveWarning = null;
   liveFailures = 0;
   refreshLive();
 }
@@ -304,7 +317,8 @@ function stampLines() {
 function renderStamp() {
   const el = document.getElementById("stamp");
   const lines = state ? stampLines() : [];
-  if (liveError) lines.push(`<span class="stamp-err">${liveError.message}</span>`);
+  const problem = liveError ? liveError.message : liveWarning;
+  if (problem) lines.push(`<span class="stamp-err">${problem}</span>`);
   el.hidden = !lines.length;
   el.innerHTML = lines.join("");
 }

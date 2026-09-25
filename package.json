@@ -14,8 +14,7 @@
     "test:browser": "playwright test",
     "build": "node worker/build.mjs",
     "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml",
-    "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs",
-    "check:mlb": "node scripts/check-mlb.mjs"
+    "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
