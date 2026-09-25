@@ -277,18 +277,18 @@ function stampLines(){
   if(live && live.season === activeYear){
     if(!state.slate) return [];
     const latest = lastStampText(state.slate, ctx);
-    const lines = latest ? [`<span><b>${stampWhen(new Date(live.asOf))}</b> ${latest}</span>`] : [];
+    const lines = latest ? [`<span><b class="lead">${stampWhenHtml(new Date(live.asOf))}</b>${latest}</span>`] : [];
     const next = upNextText(state.slate, ctx);
     if(next){
       const at = new Date(next.at);
-      lines.push(stampLine("Next first pitch", next.tbd ? stampDay(at) : stampWhen(at), next.text));
+      lines.push(stampLine("Next first pitch", next.tbd ? stampDay(at) : stampWhenHtml(at), next.text));
     }
     return lines;
   }
   const saved = [state && state.updatedAt, standings && standings.updatedAt]
     .map(t => Date.parse(t)).filter(n => !isNaN(n));
   if(!saved.length) return [];
-  return [stampLine("Saved", stampWhen(new Date(Math.max(...saved))), state.slate ? lastStampText(state.slate, ctx) : "")];
+  return [stampLine("Saved", stampWhenHtml(new Date(Math.max(...saved))), state.slate ? lastStampText(state.slate, ctx) : "")];
 }
 
 function renderStamp(){
