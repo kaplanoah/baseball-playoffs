@@ -71,7 +71,7 @@ function divisionBlock(name, rows){
   const leader = rows[0] || {};
   const tag = leader.clinched
     ? `<span class="clinch-tag">clinched</span>`
-    : (leader.magic ? `<span class="magic-tag">magic ${leader.magic}</span>` : "");
+    : (/^\d+$/.test(leader.magic || "") ? `<span class="magic-tag">magic ${leader.magic}</span>` : "");
   const anyNext = rows.some(t => t.next && t.next.at);
   return `<div class="div-block">
     <div class="div-title">

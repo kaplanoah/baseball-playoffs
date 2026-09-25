@@ -46,7 +46,7 @@ const MLBSnapshot = (() => {
   const STANDINGS_FIELDS = [
     "records", "division", "id", "teamRecords", "team", "wins", "losses",
     "winningPercentage", "divisionGamesBack", "wildCardGamesBack",
-    "eliminationNumber", "wildCardEliminationNumber", "magicNumber",
+    "eliminationNumber", "wildCardEliminationNumber",
     "divisionChamp", "divisionLeader", "divisionRank", "wildCardRank", "leagueRank", "clinchIndicator"
   ].join(",");
 
@@ -232,7 +232,7 @@ const MLBSnapshot = (() => {
         id, w: r.wins, l: r.losses, pct: r.winningPercentage,
         gb: r.divisionGamesBack, wcgb: r.wildCardGamesBack,
         elim: r.eliminationNumber, wce: r.wildCardEliminationNumber,
-        magic: r.magicNumber || null,
+        magic: null,
         /* divisionChamp, not the clinch indicator: "x" and "w" also mean
            clinched, but a playoff spot, not the division this tag is for. */
         clinched: !!r.divisionChamp, lead: !!r.divisionLeader,
@@ -246,8 +246,16 @@ const MLBSnapshot = (() => {
       if(then) row.then = then;
       (divisions[div] = divisions[div] || []).push(row);
     }
-    for(const div of Object.keys(divisions)){
-      divisions[div].sort((a, b) => a.rank - b.rank).forEach(row => delete row.rank);
+    for(const rows of Object.values(divisions)){
+      rows.sort((a, b) => a.rank - b.rank).forEach(row => delete row.rank);
+      /* The leader's magic number for the division is the closest chaser's
+         elimination number: wins by the leader plus losses by that club that
+         end it. Not MLB's `magicNumber`, which counts toward clinching a
+         playoff spot -- a leader that already has one gets "-" there while
+         the division is still open. None left to chase, or already won: none. */
+      const leader = rows.find(r => r.lead);
+      const chasing = rows.filter(r => r !== leader).map(r => Number(r.elim)).filter(Number.isFinite);
+      if(leader && !leader.clinched && chasing.length) leader.magic = String(Math.min(...chasing));
     }
     return { year: season, divisions };
   }

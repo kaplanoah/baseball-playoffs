@@ -95,3 +95,13 @@ test("Next column: a game that has started gives way to the one after it", () =>
   // Nothing after it recorded yet: blank, not a game that's already on.
   assert.equal(cell({ next: today }), '<td class="next-cell"></td>');
 }));
+
+test("division header: a magic number only when there is a number", () => {
+  page.run("0", { rankTag: () => "", teamTag: id => id, state: { teams: {} } });
+  const head = leader => run("divisionBlock('AL Central', R)", { R: [{ id: "CLE", lead: true, ...leader }] });
+  assert.match(head({ magic: "3" }), /magic 3/);
+  assert.doesNotMatch(head({ magic: "-" }), /magic/);
+  assert.doesNotMatch(head({ magic: null }), /magic/);
+  assert.match(head({ clinched: true, magic: "3" }), /clinched/);
+});
+
