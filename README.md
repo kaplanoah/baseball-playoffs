@@ -18,13 +18,13 @@ README, and guide me through it one step at a time.
 Claude publishes your page, then walks you through connecting it to live
 scores, one step at a time. About ten minutes.
 
-**You'll need:** a claude.ai Pro or Max plan, and a free
-[Cloudflare](https://dash.cloudflare.com/sign-up) account (Claude will show
-you what to click there).
+**You'll need:** a Claude plan that includes Claude Code on the web, where
+the setup runs, and a free [Cloudflare](https://dash.cloudflare.com/sign-up)
+account (Claude will show you what to click there).
 
-**What it costs:** nothing. Scores come from MLB's free public API through a
-small connector on your Cloudflare account's free tier. No scheduled jobs, no
-tokens spent.
+Running it doesn't cost anything. Scores come from MLB's free public API
+through a small connector on Cloudflare's free tier, and nothing runs on a
+schedule or counts against your Claude usage.
 
 ## Setup, for Claude
 
