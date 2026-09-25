@@ -1,4 +1,4 @@
 worker/dist/
 tests/fixtures/
-js/sortable.min.js
+page/js/sortable.min.js
 package-lock.json

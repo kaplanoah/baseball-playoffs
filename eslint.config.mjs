@@ -2,12 +2,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import js from "@eslint/js";
 import globals from "globals";
 
-const VENDORED = "js/sortable.min.js";
+const VENDORED = "page/js/sortable.min.js";
 
 // The page's scripts share one global scope: each sees the others' top-level names.
-const pageScripts = readdirSync("js")
+const pageScripts = readdirSync("page/js")
   .filter((f) => f.endsWith(".js"))
-  .map((f) => `js/${f}`)
+  .map((f) => `page/js/${f}`)
   .filter((f) => f !== VENDORED);
 const TOP_LEVEL =
   /^(?:async\s+)?(?:function\*?\s+|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/gm;
@@ -42,7 +42,7 @@ export default [
     rules: scriptRules,
   })),
   {
-    // Built into one module after js/snapshot.js, which defines MLBSnapshot.
+    // Built into one module after page/js/snapshot.js, which defines MLBSnapshot.
     files: ["worker/src/**/*.js"],
     languageOptions: {
       sourceType: "script",

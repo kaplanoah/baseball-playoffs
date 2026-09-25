@@ -1,5 +1,7 @@
 # MLB Postseason
 
+[![CI](https://github.com/kaplanoah/baseball-playoffs/actions/workflows/ci.yml/badge.svg)](https://github.com/kaplanoah/baseball-playoffs/actions/workflows/ci.yml)
+
 A private page on claude.ai that tracks the MLB postseason. It shows the
 bracket, your ranking of who you want to win the World Series, the standings,
 and scores that update automatically.
@@ -32,7 +34,7 @@ Guide the user one step at a time. Tell them the one thing to do next, wait
 until they say it's done, then go on. Don't ask them to make choices you can
 make for them. Never ask for the Cloudflare token in the chat.
 
-**1. Publish the page.** Use the Artifact tool to publish `index.html` from
+**1. Publish the page.** Use the Artifact tool to publish `page/index.html` from
 `main` with every file it references, `icon: "baseball"`, and these
 capabilities:
 
@@ -130,6 +132,6 @@ checks yourself, run `npm install` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
 After merging, republish the page from `main` to its existing link. Redeploy
-the connector if anything in `worker/` or `js/snapshot.js` changed. Don't
+the connector if anything in `worker/` or `page/js/snapshot.js` changed. Don't
 publish from a branch that hasn't been merged, because the next publish from
 `main` will overwrite it.

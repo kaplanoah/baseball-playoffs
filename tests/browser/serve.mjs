@@ -2,7 +2,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 
-const ROOT = join(import.meta.dirname, "..", "..");
+const ROOT = join(import.meta.dirname, "..", "..", "page");
 const PORT = Number(process.argv[2]) || 4173;
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",

@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const S = require("../../js/snapshot.js");
+const S = require("../../page/js/snapshot.js");
 
 async function record(season, name){
   const now = Date.now();

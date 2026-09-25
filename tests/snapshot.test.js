@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const S = require("../js/snapshot.js");
+const S = require("../page/js/snapshot.js");
 
 const fixture = (name) =>
   JSON.parse(require("fs").readFileSync(`${__dirname}/fixtures/${name}.json`, "utf8"));
