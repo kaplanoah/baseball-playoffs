@@ -46,10 +46,11 @@ step 4. That's expected.
 **2. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
 and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
-returns `"success":true`, go to step 3. Otherwise walk the user through the
-steps below. Before the first one, mention in one sentence that they could
-instead deploy it themselves from a terminal, then carry on unless they say
-they want to. If they do, see "If they deploy it themselves" below.
+returns `"success":true`, go to step 3. Otherwise start with something like:
+"I'll walk you through adding a few things to this cloud environment so I can
+deploy the connector for you. If you'd rather deploy it yourself from a
+terminal, just let me know." Then go through the steps below. If they want to
+deploy it themselves, see "If they deploy it themselves" below.
 
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
