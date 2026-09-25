@@ -71,6 +71,11 @@ function droughtLabel(id){
   const n = yr - won;
   return n + (n === 1 ? " yr" : " yrs");
 }
+/* The store hands documents back read-only, and this page edits its copies
+   in place -- a dragged ranking, a dismissal, what live.js just saved -- so
+   every document is copied as it is read. */
+const readDoc = snap => snap && snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null;
+
 function normalize(doc, year){
   const s = doc || emptySeason(year);
   if(!s.teams) s.teams = {};
@@ -82,7 +87,7 @@ function normalize(doc, year){
 
 async function loadSeason(year){
   const snap = await db.doc(`seasons/${year}`).get();
-  seasonDoc = normalize(snap.exists ? snap.data() : null, year);
+  seasonDoc = normalize(readDoc(snap), year);
   composeState();
 }
 
@@ -94,7 +99,7 @@ async function loadStandings(year){
   if(db){
     try{
       const snap = await db.doc(`standings/${year}`).get();
-      if(snap.exists) storedStandings = snap.data();
+      storedStandings = readDoc(snap);
     }catch(e){ storedStandings = null; }
   }
   composeState();
@@ -104,7 +109,7 @@ function watchStandings(year){
   if(!db) return;
   unwatchStandings = db.doc(`standings/${year}`).onSnapshot(snap => {
     if(!snap.exists) return;
-    const incoming = snap.data();
+    const incoming = readDoc(snap);
     if(sameJson(incoming, storedStandings)) return;
     storedStandings = incoming;
     composeState();
@@ -120,7 +125,7 @@ function watchSeason(year){
   if(!db) return;
   unwatchSeason = db.doc(`seasons/${year}`).onSnapshot(snap => {
     if(!snap.exists || reordering) return;
-    const incoming = normalize(snap.data(), year);
+    const incoming = normalize(readDoc(snap), year);
     if(sameJson(incoming, seasonDoc)) return;
     seasonDoc = incoming;
     composeState();
