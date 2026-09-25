@@ -225,6 +225,25 @@ test("an entry is logged when it was noticed", () => {
   // Stamped now, not when the game ended: the reader may have dismissed the log since.
   assert.equal(e.at, "2026-09-25T02:00:00Z");
   assert.deepEqual(e.via, [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }]);
+  assert.equal(e.ended, "2026-09-24T20:45:00Z");
+});
+
+test("a change two games made happened when the later one ended", () => {
+  let after = set(BEFORE, "TEX", { wcrank: "3", wcgb: "-", wce: "-" });
+  after = set(after, "CWS", { wcrank: "4", wcgb: "0.5", wce: "3" });
+  const teams = { ...TEAMS, TEX: { league: "AL", seed: 6 } };
+  delete teams.CWS;
+  const games = [
+    { ...final("NYM", "TEX", [1, 3]), end: "2026-09-24T21:06:00Z" },
+    { ...final("CWS", "KC", [2, 5]), end: "2026-09-25T00:41:00Z" },
+  ];
+  const [e] = LogChanges.findChanges(
+    { teams: TEAMS, projected: true, standings: table(BEFORE) },
+    { teams, projected: true, standings: table(after), slate: { today: { games } } },
+    NOW,
+  );
+  assert.equal(e.ended, "2026-09-25T00:41:00Z");
+  assert.equal(e.at, "2026-09-25T02:00:00Z");
 });
 
 test("the real snapshot of 24 September against itself, and against the night before", () => {

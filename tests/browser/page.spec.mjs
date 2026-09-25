@@ -223,3 +223,35 @@ test("the field setup dialog closes with Escape", async ({ page }) => {
 
   await expect(dialog).toBeHidden();
 });
+
+test("the update list shows when a change happened, not when the page noticed it", async ({
+  page,
+}) => {
+  await openApp(page, {
+    connectorAdded: false,
+    store: {
+      "seasons/2026": {
+        year: 2026,
+        teams: {},
+        series: {},
+        ranking: [],
+        seenAt: "2026-09-24T20:00:00Z",
+        log: [
+          {
+            kind: "elim",
+            team: "SEA",
+            via: [{ team: "TEX", won: true, opp: "NYM", score: [3, 1] }],
+            ended: "2026-09-24T23:23:00Z",
+            at: "2026-09-25T00:40:00Z",
+          },
+          { kind: "lock", at: "2026-09-25T00:30:00Z" },
+        ],
+      },
+    },
+  });
+
+  const times = page.locator("#updates .when");
+  await expect(times).toHaveCount(2);
+  await expect(times.nth(0)).toHaveText(/^8:30\sPM$/);
+  await expect(times.nth(1)).toHaveText(/^7:23\sPM$/);
+});

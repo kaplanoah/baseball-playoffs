@@ -33,12 +33,19 @@ function findResult(games, club) {
   return { team: club, won: own > theirs, opp: opponent, score: [own, theirs], end: game.end };
 }
 
-// `at` is when the change was noticed, not when its game ended, so a change found after
-// the last dismissal still shows as new.
+function findLatestEnd(games) {
+  const ends = games.map((game) => game.end).filter((end) => !Number.isNaN(Date.parse(end)));
+  return ends.sort((first, second) => Date.parse(first) - Date.parse(second)).pop() || null;
+}
+
+// `at` is when the change was noticed, so a change found after the last dismissal still
+// shows as new. `ended` is when the last game behind it ended: when the change happened.
 function createEntry(fields, results, now) {
   const games = results.filter(Boolean);
   const entry = { ...fields };
   if (games.length) entry.via = games.map(({ end, ...result }) => result);
+  const ended = findLatestEnd(games);
+  if (ended) entry.ended = ended;
   entry.at = new Date(now).toISOString().replace(".000Z", "Z");
   return entry;
 }
