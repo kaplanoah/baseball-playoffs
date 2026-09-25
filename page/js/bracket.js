@@ -1,5 +1,4 @@
 import { BEST_OF, LEAGUES, countWinsNeeded, findFeederSeries, resolveBracket } from "./snapshot.js";
-import { escapeHtml } from "./html.js";
 
 export const ROUND_LABEL = {
   WC: "Wild Card",
@@ -110,8 +109,8 @@ export function describeTeamStatus(state, id) {
 export function seriesLabel(id) {
   if (id === "WS") return "World Series";
   const [league, key] = String(id).split("_");
-  if (!key) return escapeHtml(id);
-  if (key === "CS") return `${escapeHtml(league)}CS`;
-  if (key.startsWith("DS")) return `${escapeHtml(league)}DS`;
-  return `${escapeHtml(league)} Wild Card Series`;
+  if (!key) return String(id);
+  if (key === "CS") return `${league}CS`;
+  if (key.startsWith("DS")) return `${league}DS`;
+  return `${league} Wild Card Series`;
 }

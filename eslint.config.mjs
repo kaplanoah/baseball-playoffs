@@ -11,6 +11,25 @@ export default [
     languageOptions: { globals: { ...globals.browser, Sortable: "readonly" } },
   },
   {
+    // Markup reaches the page only through setHtml, which escapes whatever html`` didn't build.
+    files: ["page/js/**/*.js"],
+    ignores: ["page/js/html.js"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "AssignmentExpression > MemberExpression.left[property.name=/^(innerHTML|outerHTML)$/]",
+          message: "Write markup with setHtml from html.js.",
+        },
+        {
+          selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+          message: "Write markup with setHtml from html.js.",
+        },
+      ],
+    },
+  },
+  {
     files: ["worker/src/**/*.js"],
     languageOptions: { globals: globals.serviceworker },
   },

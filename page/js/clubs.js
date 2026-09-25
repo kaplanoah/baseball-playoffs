@@ -1,6 +1,6 @@
 import { TEAMS } from "./teams.js";
 import { fullBracket } from "./bracket.js";
-import { escapeHtml } from "./html.js";
+import { html } from "./html.js";
 import { session, seasonYear } from "./session.js";
 
 export function lastTitle(id) {
@@ -38,9 +38,9 @@ function chooseDotSplit(team) {
 
 function teamDot(id) {
   const team = TEAMS[id];
-  if (!team) return `<span class="dot" style="background:#999"></span>`;
+  if (!team) return html`<span class="dot" style="background:#999"></span>`;
   const split = chooseDotSplit(team);
-  return `<span class="dot" style="background:linear-gradient(90deg, ${team.color} ${split}%, ${team.color2} ${split}%)"></span>`;
+  return html`<span class="dot" style="background:linear-gradient(90deg, ${team.color} ${split}%, ${team.color2} ${split}%)"></span>`;
 }
 
 export function teamLabel(id) {
@@ -48,7 +48,7 @@ export function teamLabel(id) {
 }
 
 export function teamTag(id, tag = "span") {
-  return `<span class="club">${teamDot(id)}<${tag} class="team-name">${teamLabel(id)}</${tag}></span>`;
+  return html`<span class="club">${teamDot(id)}<${tag} class="team-name">${teamLabel(id)}</${tag}></span>`;
 }
 
 // `ranking` changes only on a drag, so it can name clubs that left the field and miss ones that arrived.
@@ -61,11 +61,11 @@ export function rankedOrder() {
 }
 
 export function seedMark(seed) {
-  return seed ? `<span class="seed-pre tabular">${escapeHtml(seed)}</span>` : "";
+  return seed ? html`<span class="seed-pre tabular">${seed}</span>` : html``;
 }
 
 export function rankTag(id, solid) {
   const index = rankedOrder().indexOf(id);
-  if (index === -1) return "";
-  return `<span class="rank-slot"><span class="rank-tag ${solid ? "solid" : ""}">#${index + 1}</span></span>`;
+  if (index === -1) return html``;
+  return html`<span class="rank-slot"><span class="rank-tag ${solid ? "solid" : ""}">#${index + 1}</span></span>`;
 }

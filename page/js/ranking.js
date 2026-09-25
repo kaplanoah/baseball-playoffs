@@ -1,6 +1,6 @@
 import { describeTeamStatus } from "./bracket.js";
 import { droughtLabel, lastTitle, rankedOrder, rankTag, teamLabel, teamTag } from "./clubs.js";
-import { escapeHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 import { TEAMS } from "./teams.js";
 
@@ -15,13 +15,13 @@ const MOVES = { ArrowUp: -1, ArrowDown: 1 };
 
 function renderStatusChip({ status, round }) {
   const chip = STATUS_CHIPS[status];
-  const label = round ? `${chip.label} &middot; ${round}` : chip.label;
-  return `<span class="status-chip ${chip.className}">${label}</span>`;
+  const label = round ? html`${chip.label} &middot; ${round}` : chip.label;
+  return html`<span class="status-chip ${chip.className}">${label}</span>`;
 }
 
 function renderTitleSummary(id, won) {
-  if (!won) return "Never won WS";
-  return `<span>Last WS ${escapeHtml(won)}<span class="sep">&bull;</span></span><span>${droughtLabel(id)}</span>`;
+  if (!won) return html`Never won WS`;
+  return html`<span>Last WS ${won}<span class="sep">&bull;</span></span><span>${droughtLabel(id)}</span>`;
 }
 
 function renderRankItem(id, index) {
@@ -29,19 +29,19 @@ function renderRankItem(id, index) {
   const seed = session.state.teams[id].seed;
   const won = lastTitle(id);
   const teamStatus = describeTeamStatus(session.state, id);
-  return `<li class="rank-item ${teamStatus.status === "out" ? "eliminated" : ""}" data-id="${id}">
+  return html`<li class="rank-item ${teamStatus.status === "out" ? "eliminated" : ""}" data-id="${id}">
       <span class="rank-card">
         <button type="button" class="grip" aria-label="Move ${teamLabel(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
         <span class="rank-id">
           ${teamTag(id)}
           <span class="meta-row">
             <span class="league-tag ${league}">${league}</span>
-            <span class="rank-seed tabular">${escapeHtml(seed)} seed</span>
+            <span class="rank-seed tabular">${seed} seed</span>
           </span>
           <span class="rank-ws tabular">${renderTitleSummary(id, won)}</span>
         </span>
         <span class="rank-cols">
-          <span class="col-won tabular">${won ? escapeHtml(won) : "&mdash;"}</span>
+          <span class="col-won tabular">${won || html`&mdash;`}</span>
           <span class="col-drought">${droughtLabel(id)}</span>
         </span>
         <span class="status-slot">${renderStatusChip(teamStatus)}</span>
@@ -56,16 +56,18 @@ export function renderRanking() {
   const order = rankedOrder();
   if (!order.length) {
     head.hidden = true;
-    gutter.innerHTML = "";
-    list.innerHTML = `<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`;
+    setHtml(gutter, html``);
+    setHtml(
+      list,
+      html`<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`,
+    );
     return;
   }
   head.hidden = false;
   // Rank numbers live outside the cards so they stay put while cards are dragged.
-  gutter.innerHTML = order
-    .map((_, index) => `<li class="rank-num tabular">${index + 1}</li>`)
-    .join("");
-  list.innerHTML = order.map(renderRankItem).join("");
+  const numbers = order.map((_, index) => html`<li class="rank-num tabular">${index + 1}</li>`);
+  setHtml(gutter, html`${numbers}`);
+  setHtml(list, html`${order.map(renderRankItem)}`);
   wireReordering(list);
 }
 
@@ -120,18 +122,17 @@ export function renderReference() {
   const rows = Object.entries(TEAMS).sort((first, second) =>
     first[1].name.localeCompare(second[1].name),
   );
-  body.innerHTML = rows
-    .map(([id, team]) => {
-      const won = lastTitle(id);
-      const seed = session.state.teams[id] && session.state.teams[id].seed;
-      return `<tr>
+  const renderedRows = rows.map(([id, team]) => {
+    const won = lastTitle(id);
+    const seed = session.state.teams[id] && session.state.teams[id].seed;
+    return html`<tr>
       <td class="rank-col">${rankTag(id)}</td>
-      <td class="seed-col">${escapeHtml(seed || "")}</td>
+      <td class="seed-col">${seed || ""}</td>
       <td>${teamTag(id)}</td>
       <td class="lg-col"><span class="league-tag ${team.league}">${team.league}</span></td>
-      <td class="tabular won-col">${won ? escapeHtml(won) : "&mdash;"}</td>
+      <td class="tabular won-col">${won || html`&mdash;`}</td>
       <td class="tabular">${droughtLabel(id)}</td>
     </tr>`;
-    })
-    .join("");
+  });
+  setHtml(body, html`${renderedRows}`);
 }

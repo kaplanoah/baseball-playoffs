@@ -30,6 +30,7 @@
     "typescript": "7.0.2"
   },
   "prettier": {
-    "printWidth": 100
+    "printWidth": 100,
+    "embeddedLanguageFormatting": "off"
   }
 }

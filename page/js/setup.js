@@ -1,4 +1,5 @@
 import { teamTag } from "./clubs.js";
+import { html, setHtml } from "./html.js";
 import { renderAll } from "./render.js";
 import { saveTeams } from "./season-store.js";
 import { session } from "./session.js";
@@ -36,16 +37,16 @@ function togglePick(id) {
 
 function renderPickGrid() {
   const grid = document.getElementById("pickGrid");
-  grid.innerHTML = Object.entries(TEAMS)
+  const labels = Object.entries(TEAMS)
     .sort((first, second) => first[1].name.localeCompare(second[1].name))
     .map(
-      ([id, team]) => `
+      ([id, team]) => html`
     <label class="pick-team ${picked.has(id) ? "selected" : ""}" data-id="${id}">
       <input type="checkbox" ${picked.has(id) ? "checked" : ""}>
       ${teamTag(id)} <span style="color:var(--ink-dim); font-size:.72rem;">(${team.league})</span>
     </label>`,
-    )
-    .join("");
+    );
+  setHtml(grid, html`${labels}`);
   /** @type {NodeListOf<HTMLElement>} */ (grid.querySelectorAll(".pick-team")).forEach((label) => {
     label.addEventListener("click", (event) => {
       event.preventDefault();
@@ -67,13 +68,11 @@ function dropUnpickedSeeds() {
 }
 
 function renderSeedPicker(league, seed, ids) {
-  const options = ids
-    .map(
-      (id) =>
-        `<option value="${id}" ${seeds[league][seed] === id ? "selected" : ""}>${TEAMS[id].name}</option>`,
-    )
-    .join("");
-  return `
+  const options = ids.map(
+    (id) =>
+      html`<option value="${id}" ${seeds[league][seed] === id ? "selected" : ""}>${TEAMS[id].name}</option>`,
+  );
+  return html`
         <div class="seed-row">
           <span>Seed ${seed}</span>
           <select data-league="${league}" data-seed="${seed}" aria-label="${league} seed ${seed}">
@@ -86,15 +85,14 @@ function renderSeedPicker(league, seed, ids) {
 function renderSeedArea() {
   dropUnpickedSeeds();
   const area = document.getElementById("seedArea");
-  area.innerHTML = ["AL", "NL"]
-    .map((league) => {
-      const ids = listPickedIn(league);
-      return `<div>
+  const columns = ["AL", "NL"].map((league) => {
+    const ids = listPickedIn(league);
+    return html`<div>
       <h3 style="color:var(--${league.toLowerCase()});">${league} seeds (${ids.length}/6)</h3>
-      ${SEED_NUMBERS.map((seed) => renderSeedPicker(league, seed, ids)).join("")}
+      ${SEED_NUMBERS.map((seed) => renderSeedPicker(league, seed, ids))}
     </div>`;
-    })
-    .join("");
+  });
+  setHtml(area, html`${columns}`);
   area.querySelectorAll("select").forEach((select) => {
     select.addEventListener("change", () => {
       seeds[select.dataset.league][select.dataset.seed] = select.value || null;

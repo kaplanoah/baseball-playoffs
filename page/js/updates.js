@@ -1,7 +1,7 @@
 import { seriesLabel } from "./bracket.js";
 import { rankTag, teamLabel, teamTag } from "./clubs.js";
 import { DAYS, countDaysBetween } from "./dates.js";
-import { escapeHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, seasonYear } from "./session.js";
 import { showSaveResult } from "./stamp-view.js";
@@ -17,14 +17,14 @@ const BERTHS = {
 const leagueOf = (id) => (TEAMS[id] ? TEAMS[id].league : "");
 
 function renderClubChip(id) {
-  return TEAMS[id] ? rankTag(id) + teamTag(id, "b") : "";
+  return TEAMS[id] ? html`${rankTag(id)}${teamTag(id, "b")}` : html``;
 }
 const isPair = (value) => Array.isArray(value) && value.length === 2;
-function formatSeriesScore(score) {
-  return isPair(score) ? `${escapeHtml(score[0])}&ndash;${escapeHtml(score[1])}` : "";
+function renderSeriesScore(score) {
+  return html`${score[0]}&ndash;${score[1]}`;
 }
 function formatGameScore(score) {
-  return isPair(score) ? `${escapeHtml(score[0])}-${escapeHtml(score[1])}` : "";
+  return isPair(score) ? `${score[0]}-${score[1]}` : "";
 }
 
 // `via` entries are { team, won, opp, score: [own, opp] }, own score first even in a loss.
@@ -49,7 +49,7 @@ function describeVia(entry, mover, other) {
 
 function appendVia(sentence, entry, mover, other, also = "") {
   const tail = [describeVia(entry, mover, other), also].filter(Boolean).join(", ");
-  return tail ? `${sentence} &mdash; ${tail}` : sentence;
+  return tail ? html`${sentence} &mdash; ${tail}` : sentence;
 }
 
 function findDivision(id) {
@@ -72,8 +72,7 @@ function describeSpot(entry) {
     division = division || findDivision(entry.in);
   }
   // "an AL", "an NL": both are said letter by letter.
-  if (spot === "division")
-    return division ? `the ${escapeHtml(division)} lead` : `an ${league} division lead`;
+  if (spot === "division") return division ? `the ${division} lead` : `an ${league} division lead`;
   return `an ${league} wild card spot`;
 }
 
@@ -93,21 +92,21 @@ function describeOutBack(entry) {
 
 function describeFieldEntry(entry) {
   if (entry.in && entry.out) {
-    const sentence = `${renderClubChip(entry.in)} take ${describeSpot(entry)} from the ${renderClubChip(entry.out)}`;
+    const sentence = html`${renderClubChip(entry.in)} take ${describeSpot(entry)} from the ${renderClubChip(entry.out)}`;
     return appendVia(sentence, entry, entry.in, entry.out, describeOutBack(entry));
   }
-  if (entry.in) return `${renderClubChip(entry.in)} into the projected field`;
-  if (entry.out) return `${renderClubChip(entry.out)} out of the projected field`;
-  return "";
+  if (entry.in) return html`${renderClubChip(entry.in)} into the projected field`;
+  if (entry.out) return html`${renderClubChip(entry.out)} out of the projected field`;
+  return null;
 }
 
 function describeSeedEntry(entry) {
-  const where = `the ${leagueOf(entry.team)} ${escapeHtml(entry.to)} seed`;
+  const where = `the ${leagueOf(entry.team)} ${entry.to} seed`;
   if (entry.over) {
-    const sentence = `${renderClubChip(entry.team)} passed the ${renderClubChip(entry.over)} for ${where}`;
+    const sentence = html`${renderClubChip(entry.team)} passed the ${renderClubChip(entry.over)} for ${where}`;
     return appendVia(sentence, entry, entry.team, entry.over);
   }
-  const sentence = `${renderClubChip(entry.team)} up to ${where}, from ${escapeHtml(entry.from)}`;
+  const sentence = html`${renderClubChip(entry.team)} up to ${where}, from ${entry.from}`;
   return appendVia(sentence, entry, entry.team, null);
 }
 
@@ -119,25 +118,25 @@ function describeSeriesStanding(score) {
 }
 
 function describeGameEntry(entry) {
-  const game = entry.game ? `Game ${escapeHtml(entry.game)}` : "a game";
+  const game = entry.game ? `Game ${entry.game}` : "a game";
   const standing = describeSeriesStanding(entry.score);
   const series = seriesLabel(entry.series);
   const tail = standing
-    ? ` &mdash; ${standing} the ${series} ${formatSeriesScore(entry.score)}`
+    ? html` &mdash; ${standing} the ${series} ${renderSeriesScore(entry.score)}`
     : ` of the ${series}`;
-  return `${renderClubChip(entry.won)} took ${game}${tail}`;
+  return html`${renderClubChip(entry.won)} took ${game}${tail}`;
 }
 
 function describeClinchEntry(entry) {
-  const over = entry.over ? ` over the ${renderClubChip(entry.over)}` : "";
-  const score = formatSeriesScore(entry.score);
-  return `${renderClubChip(entry.team)} win the ${seriesLabel(entry.series)}${score ? `, ${score}` : ""}${over}`;
+  const over = entry.over && html` over the ${renderClubChip(entry.over)}`;
+  const score = isPair(entry.score) && html`, ${renderSeriesScore(entry.score)}`;
+  return html`${renderClubChip(entry.team)} win the ${seriesLabel(entry.series)}${score}${over}`;
 }
 
 function describeEliminationEntry(entry) {
   const chaser = (entry.via || []).find((result) => result && result.team !== entry.team);
   return appendVia(
-    `${renderClubChip(entry.team)} eliminated`,
+    html`${renderClubChip(entry.team)} eliminated`,
     entry,
     entry.team,
     chaser ? chaser.team : null,
@@ -147,9 +146,9 @@ function describeEliminationEntry(entry) {
 function describeBerthEntry(entry) {
   const berth =
     entry.what === "division"
-      ? `the ${entry.div ? escapeHtml(entry.div) : `${leagueOf(entry.team)} division`}`
+      ? `the ${entry.div || `${leagueOf(entry.team)} division`}`
       : BERTHS[entry.what] || BERTHS.playoff;
-  return appendVia(`${renderClubChip(entry.team)} clinch ${berth}`, entry, entry.team, null);
+  return appendVia(html`${renderClubChip(entry.team)} clinch ${berth}`, entry, entry.team, null);
 }
 
 const DESCRIBE_ENTRY = {
@@ -159,12 +158,13 @@ const DESCRIBE_ENTRY = {
   clinch: describeClinchEntry,
   elim: describeEliminationEntry,
   berth: describeBerthEntry,
-  lock: () => "The official bracket is set",
+  lock: () => html`The official bracket is set`,
 };
 
+// Markup for an entry, or null for one there is nothing to say about.
 export function entryText(entry) {
   const describe = DESCRIBE_ENTRY[entry.kind];
-  return describe ? describe(entry) : "";
+  return describe ? describe(entry) : null;
 }
 
 function formatWhen(iso, now = new Date()) {
@@ -199,14 +199,13 @@ function listFreshEntries() {
 }
 
 function renderEntry(entry) {
-  const text = entryText(entry);
   const when = formatWhen(findHappenedAt(entry));
-  return text ? `<li><span class="when">${when}</span><span class="what">${text}</span></li>` : "";
+  return html`<li><span class="when">${when}</span><span class="what">${entryText(entry)}</span></li>`;
 }
 
 function hideUpdates(panel) {
   panel.hidden = true;
-  panel.innerHTML = "";
+  setHtml(panel, html``);
 }
 
 export function renderUpdates() {
@@ -225,15 +224,18 @@ export function renderUpdates() {
   const since = formatSince(findHappenedAt(fresh[fresh.length - 1]));
   const head = `${fresh.length} update${fresh.length === 1 ? "" : "s"} ${since}`;
 
-  panel.innerHTML = `
+  setHtml(
+    panel,
+    html`
     <div class="updates-head">
       <span class="updates-count">${head}</span>
       <button type="button" class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
     </div>
     <ul class="updates-list">
-      ${shown.map(renderEntry).join("")}
-      ${extra > 0 ? `<li class="more">and ${extra} more</li>` : ""}
-    </ul>`;
+      ${shown.map(renderEntry)}
+      ${extra > 0 && html`<li class="more">and ${extra} more</li>`}
+    </ul>`,
+  );
   document.getElementById("dismissUpdates").addEventListener("click", dismissUpdates);
 }
 
