@@ -61,7 +61,7 @@ test("update log: a field change names the spot and how far back the club that d
     "Rangers take the AL West lead from the Astros &mdash; Astros ½ game back");
   assert.equal(say({ in: "DET", out: "BAL", spot: "wildcard", outBack: "2.0", outAlive: true,
     via: [{ team: "DET", won: true, opp: "KC", score: [5, 3] }] }),
-    "Tigers take an AL wild card spot from the Orioles &mdash; beat the Royals 5-3; Orioles 2 games back");
+    "Tigers take an AL wild card spot from the Orioles &mdash; beat the Royals 5-3, Orioles 2 games back");
   // Out altogether: its own "eliminated" entry says so.
   assert.equal(say({ in: "TEX", out: "HOU", spot: "division", div: "AL West", outBack: "0.5", outAlive: false }),
     "Rangers take the AL West lead from the Astros");

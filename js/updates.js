@@ -51,7 +51,7 @@ function viaText(e, mover, other){
   return parts.join(" and ");
 }
 function withVia(sentence, e, mover, other, also){
-  const tail = [viaText(e, mover, other), also].filter(Boolean).join("; ");
+  const tail = [viaText(e, mover, other), also].filter(Boolean).join(", ");
   return tail ? `${sentence} &mdash; ${tail}` : sentence;
 }
 
