@@ -31,7 +31,7 @@ export default [
   },
   {
     files: ["worker/src/**/*.js"],
-    languageOptions: { globals: globals.serviceworker },
+    languageOptions: { globals: { ...globals.serviceworker, WebSocketPair: "readonly" } },
   },
   {
     files: ["tests/browser/runtime.js"],
