@@ -19,6 +19,7 @@ import { easternDay } from "./snapshot.js";
 import { openSetup, saveSetup } from "./setup.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
+import { createWorkerStore, isSelfHosted } from "./worker-store.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
 const SPRING_CHECK_MS = 60 * 60 * 1000;
@@ -92,6 +93,10 @@ async function switchYear(year) {
 }
 
 async function connectStore() {
+  if (isSelfHosted()) {
+    session.db = createWorkerStore();
+    return;
+  }
   try {
     session.db = (await window.claude?.use?.("db")) || null;
   } catch {

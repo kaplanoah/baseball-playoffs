@@ -2,30 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../worker/src/index.js";
 import { SeasonStore, mergeFields } from "../worker/src/store.js";
+import { createDurableObjectContext } from "./durable-object-context.js";
 
 const APP_KEY = "k3y";
 const ORIGIN = "https://mlb-live.example";
 
 function createFakeStore() {
-  const stored = new Map();
-  const sockets = [];
-  const ctx = {
-    storage: {
-      get: async (key) => structuredClone(stored.get(key)),
-      put: async (key, value) => {
-        stored.set(key, structuredClone(value));
-      },
-      list: async ({ prefix, limit }) =>
-        new Map(
-          [...stored]
-            .filter(([key]) => key.startsWith(prefix))
-            .sort(([first], [second]) => first.localeCompare(second))
-            .slice(0, limit),
-        ),
-    },
-    acceptWebSocket: (socket) => sockets.push(socket),
-    getWebSockets: () => sockets,
-  };
+  const { ctx, stored, sockets } = createDurableObjectContext();
   const openSocket = (context) => {
     const socket = {
       sent: [],

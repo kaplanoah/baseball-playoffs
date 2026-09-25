@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test as base, expect } from "@playwright/test";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
+import { SeasonStore } from "../../worker/src/store.js";
+import { createDurableObjectContext } from "../durable-object-context.js";
 
 const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
@@ -13,6 +15,7 @@ const FIXTURES_BY_SEASON = {
 };
 
 const RUNTIME_SCRIPT_PATH = fileURLToPath(new URL("runtime.js", import.meta.url));
+const PAGE_HTML = readFileSync(new URL("../../page/index.html", import.meta.url), "utf8");
 
 export const buildFixtureSnapshot = (fixture) =>
   MLBSnapshot.buildSnapshot(fixture.responses, {
@@ -51,6 +54,21 @@ function findRecordedResponse(url) {
   return responses[responseName];
 }
 
+async function routeMlbToFixtures(page, { directAllowed }) {
+  const counter = { requests: 0 };
+  await page.route(
+    (url) => url.hostname !== "127.0.0.1",
+    (route) => {
+      const url = new URL(route.request().url());
+      if (url.hostname !== "statsapi.mlb.com") return route.abort();
+      counter.requests++;
+      if (!directAllowed) return route.abort();
+      return route.fulfill({ json: findRecordedResponse(url) });
+    },
+  );
+  return counter;
+}
+
 // Refused hosts reach the page as a TypeError from fetch, as in the artifact sandbox.
 export async function openApp(
   page,
@@ -63,17 +81,7 @@ export async function openApp(
     extraSnapshots = {},
   } = {},
 ) {
-  let mlbRequestCount = 0;
-  await page.route(
-    (url) => url.hostname !== "127.0.0.1",
-    (route) => {
-      const url = new URL(route.request().url());
-      if (url.hostname !== "statsapi.mlb.com") return route.abort();
-      mlbRequestCount++;
-      if (!directAllowed) return route.abort();
-      return route.fulfill({ json: findRecordedResponse(url) });
-    },
-  );
+  const mlbRequests = await routeMlbToFixtures(page, { directAllowed });
   await page.clock.install({ time: new Date(now) });
   await page.addInitScript((config) => (window.__runtimeConfig = config), {
     store,
@@ -96,6 +104,74 @@ export async function openApp(
     readDocument: (path) =>
       page.evaluate((documentPath) => window.__runtime.read(documentPath), path),
     countToolCalls: () => page.evaluate(() => window.__runtime.toolCalls.length),
-    countMlbRequests: () => mlbRequestCount,
+    countMlbRequests: () => mlbRequests.requests,
+  };
+}
+
+async function answerFromStore(route, store) {
+  const request = route.request();
+  const answer = await store.fetch(
+    new Request(request.url(), {
+      method: request.method(),
+      headers: request.headers(),
+      body: request.postData() ?? undefined,
+    }),
+  );
+  await route.fulfill({
+    status: answer.status,
+    headers: Object.fromEntries(answer.headers),
+    body: Buffer.from(await answer.arrayBuffer()),
+  });
+}
+
+// The page as the Worker serves it: no claude.ai runtime, and the Worker's store behind it.
+export async function openSelfHostedApp(page, { store = {}, now = EVENING_FIXTURE.now } = {}) {
+  const context = createDurableObjectContext();
+  for (const [path, data] of Object.entries(store)) context.stored.set(path, data);
+  const seasonStore = new SeasonStore(context.ctx, {});
+
+  await routeMlbToFixtures(page, { directAllowed: true });
+  await page.route(
+    (url) => url.pathname === "/",
+    (route) =>
+      route.fulfill({
+        contentType: "text/html",
+        body: PAGE_HTML.replace(
+          '<meta charset="utf-8" />',
+          '<meta charset="utf-8" />\n  <meta name="store" content="worker" />',
+        ),
+      }),
+  );
+  await page.route(
+    (url) => url.pathname.startsWith("/store/"),
+    (route) => answerFromStore(route, seasonStore),
+  );
+  const openSockets = [];
+  await page.routeWebSocket(
+    (url) => url.pathname === "/watch",
+    (socket) => {
+      openSockets.push(socket);
+      context.ctx.acceptWebSocket({ send: (message) => socket.send(message) });
+    },
+  );
+  await page.clock.install({ time: new Date(now) });
+  await page.goto("/");
+
+  return {
+    readDocument: async (path) => (await context.ctx.storage.get(path)) ?? null,
+    writeFromAnotherDevice: (path, data) =>
+      seasonStore.fetch(
+        new Request(`http://127.0.0.1/store/${path}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(data),
+        }),
+      ),
+    countOpenSockets: () => openSockets.length,
+    dropConnections: async () => {
+      await Promise.all(openSockets.map((socket) => socket.close()));
+      openSockets.length = 0;
+      context.sockets.length = 0;
+    },
   };
 }
