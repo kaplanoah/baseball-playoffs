@@ -1,11 +1,3 @@
-/* The change log: what moved since you last looked. Entries are data --
-   from MLB's postseason schedule (snapshot.js) and from what moved in the
-   standings (changes.js) -- and all of the wording is built here. */
-
-/* ---------- what's changed since you last looked ---------- */
-/* Entries say which team, which seed, which series, and the wording is
-   built here, so the log reads the same every time and can be restyled
-   without touching the code that finds the news. */
 function seriesLabel(id) {
   if (id === "WS") return "World Series";
   const [lg, key] = String(id).split("_");
@@ -14,8 +6,6 @@ function seriesLabel(id) {
   if (key.startsWith("DS")) return `${lg}DS`;
   return `${lg} Wild Card Series`;
 }
-/* Your rank chip, then the club, the way the bracket and tables show it. A
-   club outside the field has no rank, so it gets the name alone. */
 function logChip(id) {
   return TEAMS[id] ? rankTag(id) + teamTag(id, "b") : "";
 }
@@ -23,17 +13,7 @@ function score(s) {
   return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${s[1]}` : "";
 }
 
-/* Why a team moved, from the games behind it. `via` entries are
-   { team, won, opp, score:[own, opp] } -- own score first however it ends, so
-   a loss just reads its pair backwards ("lost to the Dodgers 4-1" is the
-   Dodgers' 4 before the Padres' 1). Four shapes, because the reader's first
-   question is which of the two clubs actually played:
-     beat the Mets 6-2
-     Padres lost to the Dodgers 4-1
-     beat the Mets 6-2 and Padres lost to the Dodgers 4-1
-     beat them 6-2                        (the two met)
-   The mover is the subject of the sentence this tails, so its verb needs no
-   subject; the other club is always named. */
+// `via` entries are { team, won, opp, score: [own, opp] }, own score first even in a loss.
 function pair(n) {
   return Array.isArray(n) && n.length === 2 ? `${n[0]}-${n[1]}` : "";
 }
@@ -66,9 +46,6 @@ function withVia(sentence, e, mover, other, also) {
   return tail ? `${sentence} &mdash; ${tail}` : sentence;
 }
 
-/* Which spot a field change was about. The entry records it (`spot`, and
-   `div` for a division); an older entry without it falls back to the
-   incoming club's seed, which is 1-3 for a division leader. */
 function divisionOf(id) {
   const divs = typeof standings !== "undefined" && standings && standings.divisions;
   if (!divs) return "";
@@ -93,9 +70,6 @@ function spotLabel(e) {
   if (spot === "division") return div ? `the ${div} lead` : `an ${lg} division lead`;
   return `an ${lg} wild card spot`;
 }
-/* How far back the club that dropped out is, on its best remaining route
-   (the entry records `outBack` and `outAlive` at the time). A club that is
-   out altogether gets its own "eliminated" entry, so it adds nothing here. */
 function gamesBack(v) {
   const n = parseFloat(v);
   if (isNaN(n) || n <= 0) return "even, behind on the tiebreaker";
@@ -112,16 +86,6 @@ function outBack(e) {
 function entryText(e) {
   const lg = (id) => (TEAMS[id] ? TEAMS[id].league : "");
   switch (e.kind) {
-    /* "in, out" read as elimination. Nothing in the line said what they were
-       in and out OF, and a club can leave the projected field while sitting in
-       first place -- the Rangers did, at 78-79 and tied for the AL West lead.
-       Naming the spot makes it a position changing hands, which is all that
-       happened. The one-sided cases below always said "the projected field";
-       the swap was the only branch that dropped it. */
-    /* And naming "the last spot" still wasn't enough: the Rangers passing the
-       Astros for the AL West lead read like a wild card changing hands, and
-       said nothing of whether the Astros were done. So the line names the
-       actual spot, and says how far back the club that dropped out is. */
     case "field":
       if (e.in && e.out)
         return withVia(
@@ -164,23 +128,13 @@ function entryText(e) {
       const sc = score(e.score) ? `, ${score(e.score)}` : "";
       return `${logChip(e.team)} win the ${seriesLabel(e.series)}${sc}${over}`;
     }
-    /* Elimination had no entry kind at all, which is why "out" got borrowed
-       for a club that had merely lost a projected spot. It is its own news:
-       six AL clubs went out on one September night and the log said nothing.
-       Plain text, in the line's own color: no strikethrough, no dimming. */
     case "elim":
-      /* Why: its own loss, the win by the club it was chasing, or both --
-         "Orioles eliminated — White Sox beat the Royals 9-1". */
       return withVia(
         `${logChip(e.team)} eliminated`,
         e,
         e.team,
         ((e.via || []).find((v) => v && v.team !== e.team) || {}).team || null,
       );
-    /* The mirror of elim, and it was missing for the same reason: the log
-       could say a club moved up a seed but not that it had actually secured
-       anything. A club can clinch without its seed changing, so nothing
-       fired -- the Rays clinched the AL East and the log stayed silent. */
     case "berth": {
       const what =
         e.what === "division"
@@ -201,8 +155,6 @@ function entryText(e) {
   }
 }
 
-/* Recent entries want the day, older ones the date — "Sunday" stops meaning
-   anything once it could be one of several Sundays. */
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 function dayDiff(then, now) {
   const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
@@ -231,7 +183,6 @@ function sinceLabel(iso, now = new Date()) {
 const MAX_SHOWN = 12;
 function renderUpdates() {
   const el = document.getElementById("updates");
-  // "Since you last looked" is about the season being played, not one looked back on.
   if (activeYear !== seasonYear()) {
     el.hidden = true;
     el.innerHTML = "";

@@ -1,15 +1,10 @@
-/* ESLint for the page, the connector, the tests, and the build scripts.
-   Formatting is Prettier's job; this only looks for mistakes. */
 import { readFileSync, readdirSync } from "node:fs";
 import js from "@eslint/js";
 import globals from "globals";
 
 const VENDORED = "js/sortable.min.js";
 
-/* The page loads js/*.js as plain scripts into one global scope, so each
-   file's top-level names are globals to every other file. Reading them from
-   the files keeps that list from going stale, and still catches a name that
-   no file declares. */
+// The page's scripts share one global scope: each sees the others' top-level names.
 const pageScripts = readdirSync("js")
   .filter((f) => f.endsWith(".js"))
   .map((f) => `js/${f}`)
@@ -27,13 +22,10 @@ const fromOtherScripts = (file) =>
       .map((name) => [name, "writable"]),
   );
 
-/* In a plain script a top-level name is meant for other files, so only
-   unused locals count. Leaving a field out with a rest pattern is how the
-   code drops keys, so those aren't unused either. */
 const scriptRules = { "no-unused-vars": ["error", { vars: "local", ignoreRestSiblings: true }] };
 
 export default [
-  { ignores: ["worker/dist/", "tests/fixtures/", VENDORED] },
+  { ignores: [".claude/worktrees/", "worker/dist/", "tests/fixtures/", VENDORED] },
   js.configs.recommended,
   { rules: { "no-unused-vars": ["error", { ignoreRestSiblings: true }] } },
   ...pageScripts.map((file) => ({
@@ -50,7 +42,7 @@ export default [
     rules: scriptRules,
   })),
   {
-    // Concatenated after js/snapshot.js into the Worker's one module.
+    // Built into one module after js/snapshot.js, which defines MLBSnapshot.
     files: ["worker/src/**/*.js"],
     languageOptions: {
       sourceType: "script",

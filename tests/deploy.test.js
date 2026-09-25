@@ -1,6 +1,3 @@
-/* worker/deploy.mjs against a stand-in for Cloudflare's API: the three calls
-   it makes, what it uploads, when it sends a token itself, and how a refusal
-   reads. The real API is never called. */
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -68,7 +65,7 @@ test("upload, route, and the connector URL", async () => {
 
 test("a token is sent only when one is in the environment", async () => {
   const { deploy } = await load();
-  // In a cloud session the proxy adds it; the script must not send its own.
+  // In a cloud session the proxy adds the token; the script must not send its own.
   const proxied = fakeCloudflare();
   await deploy({ fetchImpl: proxied.fetchImpl, env: ENV, script: "", log: () => {} });
   assert.ok(proxied.calls.every((c) => !c.init.headers.authorization));
@@ -139,7 +136,6 @@ test("a request that carried no token says why, unless the script sent one itsel
     }),
     (e) => /upload failed: 9106/.test(e.message) && !/No token reached/.test(e.message),
   );
-  // Any other refusal (a bad or expired token, say) gets no proxy hint.
   const cf = fakeCloudflare({ refuse: "/scripts/mlb-live" });
   await assert.rejects(
     deploy({ fetchImpl: cf.fetchImpl, env: ENV, script: "", log: () => {} }),
@@ -147,7 +143,6 @@ test("a request that carried no token says why, unless the script sent one itsel
   );
 });
 
-/* A stand-in git: answers the questions checkRelease asks. */
 function fakeGit({
   branch = "main",
   dirty = "",
@@ -171,7 +166,7 @@ test("a release is clean and exactly what GitHub has as main, on any branch", as
   const ok = fakeGit();
   assert.equal(checkRelease(ok.git), "a".repeat(40));
   assert.ok(ok.asked.includes("fetch --quiet origin main"), "compares against a fresh fetch");
-  // A cloud session's own branch, or a detached checkout, at main's commit.
+  // A detached checkout reports its branch as HEAD.
   assert.equal(checkRelease(fakeGit({ branch: "claude/some-branch" }).git), "a".repeat(40));
   assert.equal(checkRelease(fakeGit({ branch: "HEAD" }).git), "a".repeat(40));
 });

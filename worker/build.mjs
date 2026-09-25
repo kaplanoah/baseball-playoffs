@@ -1,10 +1,3 @@
-/* Builds the connector into one file, worker/dist/worker.mjs: js/snapshot.js
-   (shared with the page), then worker/src/mcp.js, then the export. One file
-   with no imports deploys the same way everywhere: `wrangler deploy`, or
-   pasted into the Cloudflare dashboard's editor.
-
-     node worker/build.mjs           write it
-     node worker/build.mjs --check   fail if it is out of date */
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 

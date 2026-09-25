@@ -1,7 +1,3 @@
-/* The Ranking tab -- your order of the field, dragged by the grip -- and the
-   All Teams table, which is the same club information without the ordering. */
-
-/* The status chip is a small box, so the round it names comes in short. */
 const ROUND_SHORT = {
   "Wild Card": "WC",
   "Division Series": "DS",
@@ -9,13 +5,11 @@ const ROUND_SHORT = {
   "World Series": "WS",
 };
 function shortStatus(st) {
-  // The dash is matched as "any one token", not a literal em dash, so a page
-  // served without a charset can't break this into "Out A-- Wild Card".
+  // \S+ rather than a literal em dash, which a page served without a charset mangles.
   const m = st.label.match(/^Out\s+\S+\s+(.+)$/);
   return m ? `Out &middot; ${ROUND_SHORT[m[1]] || m[1]}` : st.label;
 }
 
-/* ---------- ranking: drag a card by its grip to reorder ---------- */
 function renderRanking() {
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
@@ -27,12 +21,7 @@ function renderRanking() {
     return;
   }
   head.hidden = false;
-  /* The ranks are a column of their own beside the list, not part of the
-     cards: a slot's number stays put while cards are dragged past it, so 1
-     is always the top. Inside each card, the club over its league chip and
-     seed, then the two title columns, which line up under the headings above
-     the list. A phone has no room for the columns, so it gets them as a third
-     line instead. */
+  // Rank numbers live outside the cards so they stay put while cards are dragged.
   gutter.innerHTML = rankedOrder()
     .map((_, i) => `<li class="rank-num tabular">${i + 1}</li>`)
     .join("");
@@ -68,16 +57,14 @@ function renderRanking() {
   wireDrag(list);
 }
 
-/* Reordering runs on Sortable (vendored, see sortable.min.js), which handles
-   mouse, touch and pen across browsers. Bound once to the list element, which
-   survives re-renders, so re-rendering the rows doesn't need to rebind. */
+// Bound once: the list element survives re-renders.
 let sortable = null;
 
 function wireDrag(list) {
   if (sortable || typeof Sortable === "undefined") return;
   sortable = Sortable.create(list, {
     animation: 140,
-    handle: ".grip", // the six dots, not the whole card
+    handle: ".grip",
     chosenClass: "dragging",
     ghostClass: "drag-ghost",
     onStart: () => {
@@ -89,8 +76,7 @@ function wireDrag(list) {
       const order = rows.map((el) => el.dataset.id);
       if (order.join() === rankedOrder().join()) return;
 
-      // Sortable already placed the row, and the numbers never moved, so
-      // there is nothing to redraw here.
+      // Sortable has already moved the row, so the list needs no re-render.
       state.ranking = order;
       renderBracket();
       saveRanking(order);

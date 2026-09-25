@@ -1,8 +1,3 @@
-/* The regular-season update log: what moved between the table the page last
-   recorded and a new snapshot. Small tables built from real nights -- the
-   Orioles eliminated and the White Sox clinching on one White Sox win, the
-   Rangers passing the Astros -- and then the real snapshot of 24 September
-   2026, to check the pieces fit together. */
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const S = require("../js/snapshot.js");
@@ -10,7 +5,6 @@ const C = require("../js/changes.js");
 
 const NOW = Date.parse("2026-09-25T02:00:00Z");
 
-// One AL table, with only the fields the log reads.
 const row = (id, o) => ({
   id,
   gb: "-",
@@ -54,7 +48,6 @@ const TEAMS = {
 };
 const final = (away, home, score) => ({ away, home, state: "final", score });
 
-/* The log entries from one table to the next, without `at`. */
 function changes(oldRows, newRows, oldTeams, newTeams, games = [], projected = true) {
   const before = { teams: oldTeams, projected: true, standings: table(oldRows) };
   const after = {
@@ -120,7 +113,6 @@ test("the Rangers pass the Astros: the spot, how far back, and the game", () => 
       outAlive: true,
       outBack: "0.5",
     },
-    // The Mariners' last route was the division, closed by the leader's win.
     { kind: "elim", team: "SEA", via: [tex] },
   ]);
 });
@@ -168,7 +160,6 @@ test("a wild card changes hands: the spot, how far back, and both games", () => 
 });
 
 test("seeds: a pass inside the field names who was passed and why", () => {
-  // The Padres pass the Cubs for the NL 4 seed on a Cubs loss.
   const nl = {
     SD: { league: "NL", seed: 5 },
     CHC: { league: "NL", seed: 4 },
@@ -226,7 +217,7 @@ test("an entry is logged when it was noticed", () => {
     { teams: TEAMS, projected: true, standings: table(after), slate: { today: { games } } },
     NOW,
   );
-  // Not 8:45, when the game ended: you may have dismissed the log since.
+  // Stamped now, not when the game ended: the reader may have dismissed the log since.
   assert.equal(e.at, "2026-09-25T02:00:00Z");
   assert.deepEqual(e.via, [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }]);
 });
@@ -250,7 +241,6 @@ test("the real snapshot of 24 September against itself, and against the night be
 });
 
 test("the log keeps each piece of news once, oldest first, the newest fifty", () => {
-  // The routine logged this elimination; the page noticing it again changes nothing.
   const routineWrote = { at: "2026-09-24T23:20:00Z", kind: "elim", team: "BAL" };
   const pageFound = { at: "2026-09-24T23:21:00Z", kind: "elim", team: "BAL", via: [] };
   assert.deepEqual(C.merge([routineWrote], [pageFound]), [routineWrote]);

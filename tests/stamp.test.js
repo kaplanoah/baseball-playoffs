@@ -1,18 +1,12 @@
-/* The freshness stamp: "<time> <the newest baseball there is>" and,
-   while nothing is on, "Next first pitch ... — <the game>". Each case is a
-   real situation from the season, with the exact sentence the page must show.
-
-   Times are Eastern (npm test sets TZ), written as ET wall-clock times and
-   converted to the UTC timestamps a snapshot carries. Thursday 24 September
-   2026 unless a case says otherwise. `since` is ten minutes before the
-   snapshot: a final newer than that leads the line. */
+// Expected times are Eastern because npm test sets TZ. `since` is ten minutes
+// before the snapshot: only a final newer than that leads the line.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadPage, plain } = require("./load");
 
 const page = loadPage(["teams.js", "updates.js", "stamp.js"]);
 
-// ET wall clock -> UTC ISO. September and early October are EDT, UTC-4.
+// September and early October are EDT, UTC-4.
 const et = (date, hm) => {
   const [h, m] = hm.split(":").map(Number);
   return new Date(
@@ -45,7 +39,6 @@ const final = (away, home, start, score, end, date = DAY, endDate = date) => ({
   end: et(endDate, end),
 });
 
-// Filler games, all still to come, to make up a slate of any size.
 const LATE = [
   ["NYM", "TEX"],
   ["MIA", "CHC"],
@@ -89,12 +82,11 @@ function ctx(opts = {}) {
   };
 }
 const last = (slate, c = ctx()) => plain(page.run("lastStampText(S, C)", { S: slate, C: c }));
-// Round-tripped so an object from the page's sandbox compares with one built here.
+// Objects from the sandbox's realm only deepEqual after a JSON round trip.
 const upNext = (slate, c = ctx()) =>
   JSON.parse(JSON.stringify(page.run("upNextText(S, C)", { S: slate, C: c })));
 
 test("the night's last final, with the day's clause", () => {
-  // 2:21 AM. Last night's slate is over.
   const slate = {
     since: et(DAY, "01:21"),
     today: {
@@ -115,7 +107,6 @@ test("the night's last final, with the day's clause", () => {
     },
   };
   assert.equal(last(slate), "Mariners 6 Astros 5 final at 1:30 AM, slate of 16 over");
-  // Next: today's first pitch, and how many games the day holds.
   assert.deepEqual(upNext(slate), {
     at: et(DAY, "12:35"),
     tbd: false,
@@ -156,7 +147,6 @@ test("early afternoon: one game on, and no next line while it is", () => {
 });
 
 test("your club's game leads while games are on", () => {
-  // Both games are live; the White Sox are ranked higher.
   const slate = {
     since: et(DAY, "13:17"),
     today: {
@@ -179,7 +169,7 @@ test("a fresh final outranks the games still going", () => {
       games: [
         final("TB", "NYY", "19:05", [2, 5], "21:14"),
         live("CWS", "KC", "19:40", [4, 4], 7),
-        final("STL", "PIT", "12:35", [3, 2], "15:40"), // final, but not fresh
+        final("STL", "PIT", "12:35", [3, 2], "15:40"),
         ...later(9, "19:10").map((g) => ({ ...g, state: "live", score: [0, 0], inning: 5 })),
       ],
     },
@@ -200,8 +190,8 @@ test("between the afternoon and the evening: the newest final, then the next fir
     },
   };
   assert.equal(last(slate), "Tigers 7 Twins 1 final at 4:02 PM, slate of 12 under way");
-  // Every late game is 7:05, so your ranking breaks the tie: the Cubs are #3.
-  // The day has begun, so no "first of".
+  // Every late game starts at 7:05, so the ranking picks the Cubs. No "first of"
+  // once the day's first game has started.
   assert.deepEqual(upNext(slate), { at: et(DAY, "19:05"), tbd: false, text: "Marlins @ Cubs" });
 });
 
@@ -210,12 +200,10 @@ test("ties go to your ranking, then to a club still alive", () => {
     g2 = live("WSH", "DET", "19:05", [2, 2], 4);
   const games = [g1, g2, pre("SD", "LAD", "22:10")];
   const slate = { since: et(DAY, "19:15"), today: { date: DAY, games } };
-  // Neither ranked; Nationals and Tigers both out -> Blue Jays @ Orioles.
   assert.equal(
     last(slate, ctx({ ranking: [], out: ["WSH", "DET"] })),
     "Blue Jays @ Orioles 1-0 in the 4th, slate of 3 under way",
   );
-  // Rank the Tigers and that game wins, out or not.
   assert.equal(
     last(slate, ctx({ ranking: ["DET"], out: ["WSH", "DET"] })),
     "Nationals @ Tigers 2-2 in the 4th, slate of 3 under way",
@@ -316,7 +304,6 @@ test("no sentence is ever a bare matchup or 'under way with'", () => {
   for (const games of days) {
     const line = last({ since: et(DAY, "02:21"), today: { date: DAY, games } });
     assert.doesNotMatch(line, /under way with/, line);
-    // Every "Away @ Home" is followed by a score or a first pitch.
     for (const m of line.matchAll(/@ [A-Z][a-zA-Z ]+?(?=,|$| \d| first)/g)) {
       const after = line.slice(m.index + m[0].length);
       assert.match(after, /^( \d+-\d+ in the| first pitch at)/, line);

@@ -1,35 +1,22 @@
-/* UI core: the season document, the artifact store it lives in, the small
-   render helpers every view shares, and the boot sequence. The views
-   themselves are in bracket-view.js, ranking.js, updates.js, standings.js
-   and setup.js, and live data in live.js; this file loads last, because it
-   is the one that starts everything once they have all defined their
-   renderers.
-
-   Two copies of each document: `seasonDoc` and `storedStandings` as the
-   store holds them, and `state` and `standings`, which are what the views
-   read -- the stored ones with the latest live snapshot laid over them
-   (composeState in live.js). */
-
 const CURRENT_YEAR = new Date().getFullYear();
 const seasonYear = () => (new Date().getMonth() >= 8 ? CURRENT_YEAR : CURRENT_YEAR - 1);
 
 let db = null;
-let seasonDoc = null; // seasons/<year> as stored
-let storedStandings = null; // standings/<year> as stored
+let seasonDoc = null;
+let storedStandings = null;
 let state = null;
 let years = [];
 let activeYear = seasonYear();
-let trackedTitles = {}; // team id -> most recent year it won a tracked World Series
+let trackedTitles = {};
 let unwatchSeason = null;
 let unwatchStandings = null;
-let standings = null; // regular-season table the views read, or null
-let reordering = false; // true mid-drag, so a live update can't yank the list
+let standings = null;
+let reordering = false;
 
 function emptySeason(year) {
   return { year, teams: {}, series: {}, ranking: [], log: [] };
 }
 
-/* ---------- persistence ---------- */
 async function loadSeasonList() {
   const snap = await db.collection("seasons").limit(50).get();
   years = snap.docs
@@ -39,9 +26,6 @@ async function loadSeasonList() {
   if (!years.includes(String(activeYear))) years = [String(activeYear), ...years];
   years = [...new Set(years)];
 
-  // Every season this tool has tracked already records who won the World
-  // Series, so titles stay current on their own — teams.js only has to cover
-  // what happened before it existed.
   trackedTitles = {};
   snap.docs.forEach((d) => {
     const doc = d.data();
@@ -54,7 +38,6 @@ async function loadSeasonList() {
   });
 }
 
-// Most recent World Series win: whatever this tool has seen, else the seed data.
 function lastTitle(id) {
   const seeded = TEAMS[id].lastWS;
   const tracked = trackedTitles[id];
@@ -62,8 +45,6 @@ function lastTitle(id) {
   return tracked || seeded;
 }
 
-/* The defending champion isn't in a drought -- they're the ones holding it.
-   They go back to counting the moment this season crowns someone else. */
 function droughtLabel(id) {
   const won = lastTitle(id);
   if (!won) return "Since 1969";
@@ -74,9 +55,7 @@ function droughtLabel(id) {
   const n = yr - won;
   return n + (n === 1 ? " yr" : " yrs");
 }
-/* The store hands documents back read-only, and this page edits its copies
-   in place -- a dragged ranking, a dismissal, what live.js just saved -- so
-   every document is copied as it is read. */
+// The store hands documents back read-only, and this page edits its copies in place.
 const readDoc = (snap) => (snap && snap.exists ? JSON.parse(JSON.stringify(snap.data())) : null);
 
 function normalize(doc, year) {
@@ -94,9 +73,6 @@ async function loadSeason(year) {
   composeState();
 }
 
-/* The 30-club regular-season table. It lives in its own document because
-   it's five times the size of the season doc and stops changing entirely
-   once October starts. */
 async function loadStandings(year) {
   storedStandings = null;
   if (db) {
@@ -129,8 +105,6 @@ function watchStandings(year) {
   );
 }
 
-/* Stay subscribed so a ranking dragged on your phone, or a dismissal on
-   your laptop, lands here without a reload. */
 function watchSeason(year) {
   if (unwatchSeason) {
     unwatchSeason();
@@ -149,17 +123,14 @@ function watchSeason(year) {
     () => {},
   );
 }
-/* Write only the fields this page owns. Writing the whole document would send
-   our in-memory copy of everything else back too, and that copy goes stale the
-   moment another open view writes — which is how a saved ranking gets
-   overwritten by a reload of an older one. */
+// Writing the whole document would overwrite fields another open view has changed since.
 async function writeSeason(fields) {
   if (!db) return;
   const ref = db.doc(`seasons/${activeYear}`);
   try {
     await ref.update(fields);
   } catch {
-    // update() rejects when the document doesn't exist yet; create it once.
+    // update() rejects when the document doesn't exist yet.
     await ref.set({ year: activeYear, teams: {}, series: {}, ranking: [], log: [], ...fields });
   }
 }
@@ -176,9 +147,6 @@ async function saveRanking(order) {
   await writeSeason({ ranking: order });
 }
 
-/* Dismissing marks everything logged so far as read. It's stored in the season
-   doc rather than in this browser, so clearing the log on a laptop also clears
-   it on a phone — "since I last looked" is about you, not about a device. */
 async function dismissUpdates() {
   const at = new Date().toISOString();
   seasonDoc.seenAt = at;
@@ -187,19 +155,13 @@ async function dismissUpdates() {
   await writeSeason({ seenAt: at });
 }
 
-/* ---------- shared render helpers ---------- */
 const perceivedLightness = (hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return 0.299 * r + 0.587 * g + 0.114 * b;
 };
 
-/* Split vertically, not diagonally: the dot's inner shadow falls across its
-   top edge, and on a diagonal that shades the primary's corner while leaving
-   the secondary untouched. Side by side, both halves take the same shading.
-   A light color reads larger than a dark one at equal area, so when one half
-   is much lighter it gives up a little room. 54/46 overshot and read as an
-   off-center line; dead center read as the light half bulging. 52/48 sits
-   between them. */
+// Split vertically so the inner shadow shades both halves alike; a much lighter half reads larger,
+// so it gets slightly less room.
 function teamDot(id) {
   const t = TEAMS[id];
   if (!t) return `<span class="dot" style="background:#999"></span>`;
@@ -210,20 +172,10 @@ function teamDot(id) {
 function teamLabel(id) {
   return TEAMS[id] ? TEAMS[id].name : "?";
 }
-/* ONE TEAM. The dot and the club name as a single piece, so every view spaces
-   and aligns them the same way -- see .club in styles.css. `tag` is the name's
-   element: "b" where the name is bold inside running text. */
 function teamTag(id, tag = "span") {
   return `<span class="club">${teamDot(id)}<${tag} class="team-name">${teamLabel(id)}</${tag}></span>`;
 }
-/* EVERY CLUB IN THE FIELD HAS TO APPEAR IN THE RANKING. One that is missing is
-   invisible on the Ranking tab -- you cannot drag what is not drawn -- and can
-   never be the highest still in. The field changes under the ranking --
-   projected clubs come and go all September -- and `ranking` is only ever
-   written by a drag, so it can name a club that left and miss one that
-   arrived. This puts the order right at render time whatever the document
-   holds: clubs that left dropped, new ones last. The next drag saves the
-   correction back, so it heals rather than papering over. */
+// `ranking` changes only on a drag, so it can name clubs that left the field and miss ones that arrived.
 function rankedOrder() {
   if (!state || !state.teams) return [];
   const ranked = (state.ranking || []).filter((id) => state.teams[id]);
@@ -231,13 +183,9 @@ function rankedOrder() {
   return ranked.concat(missing);
 }
 
-// A bare digit, the way a lineup card carries a uniform number.
 function seedMark(seed) {
   return seed ? `<span class="seed-pre tabular">${seed}</span>` : "";
 }
-/* `solid` fills the tag, marking the team you rank higher in a given matchup.
-   The slot is a fixed width so a two-digit rank doesn't push the dot and name
-   further right than a one-digit one; the tag itself still hugs its text. */
 function rankTag(id, solid) {
   const idx = rankedOrder().indexOf(id);
   if (idx === -1) return "";
@@ -253,11 +201,7 @@ function renderAll() {
   renderReference();
 }
 
-/* ---------- tabs / season switching ---------- */
-
-/* The browser treats ANY keydown as a switch to keyboard navigation, so
-   holding shift lights a focus ring around whatever you last clicked. Only
-   the keys that actually move focus should raise it. */
+// Browsers treat any keydown as keyboard navigation, so Shift alone would ring the last-clicked element.
 const NAV_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
 addEventListener(
   "keydown",

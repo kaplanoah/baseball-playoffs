@@ -1,26 +1,5 @@
-/* Deploys the connector through Cloudflare's REST API, without wrangler.
-
-   For a Claude Code cloud session whose environment holds the Cloudflare
-   token as an API credential: the agent proxy adds the token to requests
-   for api.cloudflare.com, so the session never sees it -- and wrangler,
-   which looks for the token in an environment variable, refuses to start.
-   Node's fetch ignores HTTPS_PROXY unless NODE_USE_ENV_PROXY=1 (Node 22.21
-   or later), so deploy:api sets it; without it no token reaches Cloudflare.
-   Anywhere else, set CLOUDFLARE_API_TOKEN and this sends it itself.
-
-     npm run deploy:api     (runs npm test first, then this)
-
-   It deploys only a release: the checked-out commit must be exactly what
-   GitHub has as main, with nothing uncommitted. The branch name doesn't
-   matter, so a cloud session's own branch deploys once it matches main. It
-   uploads the committed worker/dist/worker.mjs as it is -- it never
-   rebuilds, and the tests have already failed if that file is stale. Anything else is refused
-   with the reason, before Cloudflare is contacted.
-
-   Then three calls: upload the script, switch on its workers.dev route,
-   and read the account's workers.dev subdomain to print the connector's
-   URL. The name and compatibility date come from worker/wrangler.toml, so
-   both ways of deploying produce the same Worker. */
+// Uses Cloudflare's REST API, not wrangler, so it works when a proxy adds the token:
+// wrangler refuses to start without CLOUDFLARE_API_TOKEN in the environment.
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -29,7 +8,6 @@ const API = "https://api.cloudflare.com/client/v4";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), "utf8");
 
-/* The two settings the deploy needs from wrangler.toml. */
 export function workerConfig(toml = read("worker/wrangler.toml")) {
   const value = (key) => (toml.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, "m")) || [])[1];
   const name = value("name"),
@@ -41,9 +19,6 @@ export function workerConfig(toml = read("worker/wrangler.toml")) {
 
 const RELEASE_BRANCH = "main";
 
-/* Refuses unless the checked-out commit is exactly main as GitHub has it,
-   on whatever branch. `git` runs one git command and returns its output;
-   the tests pass a stand-in. */
 export function checkRelease(
   git = (args) => execFileSync("git", args, { cwd: fileURLToPath(root), encoding: "utf8" }).trim(),
 ) {
@@ -61,11 +36,8 @@ export function checkRelease(
   return local;
 }
 
-/* Cloudflare's codes for a request that carried no credentials at all. */
 const NO_CREDENTIALS = new Set([9106, 1001]);
 
-/* Upload, route, report. Returns the connector's URL. `fetchImpl` and `env`
-   are parameters so the tests can run it against a stand-in API. */
 export async function deploy({
   fetchImpl = fetch,
   env = process.env,
@@ -94,8 +66,7 @@ export async function deploy({
     }
     if (!res.ok || body.success === false) {
       const errors = body.errors || [];
-      /* A refusal that isn't Cloudflare's JSON (a proxy's, a firewall's)
-         says why only in its raw body, so show that. */
+      // A refusal from a proxy or firewall explains itself only in its raw body.
       const raw = text.trim()
         ? `HTTP ${res.status} (server: ${res.headers.get("server") || "?"}): ${text.trim().slice(0, 500)}`
         : `HTTP ${res.status}`;
