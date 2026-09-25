@@ -5,6 +5,7 @@
   "scripts": {
     "test": "node worker/build.mjs --check && TZ=America/New_York node --test tests/*.test.js",
     "build": "node worker/build.mjs",
-    "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml"
+    "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml",
+    "deploy:api": "node worker/build.mjs && node worker/deploy.mjs"
   }
 }
