@@ -215,15 +215,17 @@ const MLBSnapshot = (() => {
   }
 
   /* The Standings tab's table, one row per club in division order. `next` is
-     the club's next regular-season game; once the season is over no club has
-     one, and the column drops off the page on its own. */
+     the club's next regular-season game that hasn't started, and `then` the
+     one after it: a copy saved before a first pitch still knows what comes
+     next once that game is under way (see nextCell in standings.js). Once
+     the season is over no club has either, and the column drops off. */
   function buildStandings(resp, season, games){
-    const nextGame = {};
-    games.filter(g => g.type === "R" && (g.state === "pre" || g.state === "live") && real(g))
+    const upcoming = {};
+    games.filter(g => g.type === "R" && g.state === "pre" && real(g))
       .sort(byStart)
       .forEach(g => {
         for(const [us, them, home] of [[g.away.id, g.home.id, false], [g.home.id, g.away.id, true]]){
-          if(!nextGame[us]) nextGame[us] = { at: g.start, opp: them, home, tbd: g.tbd };
+          (upcoming[us] = upcoming[us] || []).push({ at: g.start, opp: them, home, tbd: g.tbd });
         }
       });
 
@@ -242,7 +244,9 @@ const MLBSnapshot = (() => {
         wcrank: r.divisionLeader ? null : (r.wildCardRank || null),
         rank: Number(r.divisionRank) || 99
       };
-      if(nextGame[id]) row.next = nextGame[id];
+      const [next, then] = upcoming[id] || [];
+      if(next) row.next = next;
+      if(then) row.then = then;
       (divisions[div] = divisions[div] || []).push(row);
     }
     for(const div of Object.keys(divisions)){

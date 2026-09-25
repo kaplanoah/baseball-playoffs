@@ -132,8 +132,12 @@ test("September: the standings table the page draws", () => {
   assert.equal(east[1].clinch, "w");
   assert.equal(east[1].wcrank, "1");
   assert.deepEqual(Object.keys(east[1]).sort(),
-    ["clinch", "clinched", "elim", "gb", "id", "l", "lead", "magic", "next", "pct", "w", "wce", "wcgb", "wcrank"]);
-  assert.deepEqual(east[1].next, { at: "2026-09-24T23:05:00Z", opp: "TB", home: true, tbd: false });
+    ["clinch", "clinched", "elim", "gb", "id", "l", "lead", "magic", "next", "pct", "then", "w", "wce", "wcgb", "wcrank"]);
+  // The Yankees were playing the Rays when this was recorded: that game isn't
+  // next any more. Next is Friday's doubleheader with Baltimore, and `then`
+  // its second game, whose start MLB leaves open.
+  assert.deepEqual(east[1].next, { at: "2026-09-25T20:05:00Z", opp: "BAL", home: true, tbd: false });
+  assert.deepEqual(east[1].then, { at: "2026-09-25T20:10:00Z", opp: "BAL", home: true, tbd: true });
 });
 
 test("September: the day's games, in the shape the stamp reads", () => {

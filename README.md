@@ -2,14 +2,41 @@
 
 A personal postseason tracker: the full 12-team bracket, your ranking of who you
 want to win the World Series, division and wild card standings, and last-title
-context for all 30 clubs. A scheduled job keeps the scores current.
+context for all 30 clubs. It keeps itself current: scores, innings, series
+records and standings update on the page while you watch, with no reload.
 
-You end up with a private page, already filled in with this year's bracket, that
-you can open on any device.
+You end up with a private page on claude.ai that you can open on any device.
+
+## How it stays current
+
+The page builds everything MLB decides from three responses of MLB's public
+Stats API (standings, the postseason schedule, and the games around today),
+through `js/snapshot.js`. No model runs, so there is no token cost:
+
+```
+page ──fetch──▶ statsapi.mlb.com                  (if the artifact may reach it)
+page ──mcp────▶ MLB Live connector ──▶ statsapi   (otherwise: a Cloudflare Worker)
+```
+
+- **When:** every 30 seconds while a game is on or about to start, otherwise
+  asleep until 15 minutes before the next first pitch, with a look at the
+  schedule at least hourly in case it changed. A game past its start time
+  with no first pitch counts as on (that's a delay). Nothing runs while the
+  tab is hidden or closed, and a check that fell due runs the moment you come
+  back. A finished season isn't polled at all.
+- **Cost:** a Worker request and about a millisecond of CPU per poll, well
+  inside Cloudflare's free tier (100,000 requests a day; a page left open all
+  evening makes a few hundred). MLB's API is free and needs no key.
+- **Not open:** nothing updates, and nothing needs to. The page catches up
+  the moment it opens.
+
+This replaced a scheduled Claude run that did the same work twelve times a
+day, at hundreds of thousands of tokens a run, with updates up to an hour old.
 
 ## Setup
 
-Paste this into Claude Code:
+Two parts: the connector (a one-file Cloudflare Worker you deploy once), and
+the page. Paste this into Claude Code:
 
 ```
 Set up the MLB postseason tracker from
@@ -17,18 +44,22 @@ https://github.com/kaplanoah/baseball-playoffs for me. Clone it, read the
 "Setup, for Claude" section of its README, and do everything in it.
 ```
 
-Claude publishes the page, fills in the current bracket, and schedules the job
-that keeps it updated. It'll pause once to ask you to allow the MLB API through
-your environment's network policy, which is the one part it can't do on your
-behalf. The whole thing takes a couple of minutes.
+Claude publishes the page. Deploying the Worker and adding it as a connector
+are yours, because they happen in your Cloudflare and claude.ai accounts; the
+steps are below and take about five minutes.
 
 ## Setup, for Claude
 
-Work through these in order. Steps 3 and 4 need the artifact URL from step 1.
+**1. Publish the page.** With the Artifact tool, publish `index.html` with
+`icon: "baseball"`, these capabilities:
 
-**1. Publish the page.** Using the Artifact tool, publish `index.html` with
-`icon: "baseball"`, `capabilities: {"db": {}, "mcp": {"servers": [{"server":
-"Claude Code Remote", "tools": ["fire_trigger"]}]}}`, and the supporting files:
+```
+{ "db": {},
+  "mcp": { "servers": [ { "server": "MLB Live", "tools": ["get_snapshot"] } ] } }
+```
+
+and these supporting files (the page reads its siblings by relative path, so
+every one has to go up with it; `js/app.js` boots the page and loads last):
 
 ```
 files: {
@@ -42,904 +73,69 @@ files: {
   "js/stamp.js":        "js/stamp.js",
   "js/standings.js":    "js/standings.js",
   "js/setup.js":        "js/setup.js",
+  "js/snapshot.js":     "js/snapshot.js",
+  "js/changes.js":      "js/changes.js",
+  "js/live.js":         "js/live.js",
   "js/app.js":          "js/app.js"
 }
 ```
 
-The `db` capability is what gives the page a place to keep state, and the page
-reads its siblings by relative path, so every one of them has to go up with it.
-Load order matters: `js/app.js` boots the page and has to come last.
-
-**2. Get the MLB API unblocked.** Scheduled runs inherit the cloud
-environment's network policy, and the default ("Trusted") rejects
-`statsapi.mlb.com` with a 403 from the egress proxy. Ask the user to open their
-cloud environment's settings, set **Network access** to **Custom**, and add
-`statsapi.mlb.com` — or choose **Full**. Wait for them to confirm, then verify
-before going on:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" \
-  "https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=$(date +%F)"
-```
-
-A 200 means you're clear; a 403 means the policy hasn't taken effect yet.
-
-**3. Fill in the bracket.** The page is empty until the season doc exists, so
-seed it now rather than leaving the user at a setup screen.
-
-Fetch
-`/api/v1/schedule/postseason?season=<YEAR>` and check whether real team names
-have replaced placeholder seed labels like "AL Wild Card #3". If they have, use
-that official bracket. If they haven't, build the field that would happen if the
-season ended today, from
-`/api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason`:
-per league, the three division leaders (`divisionRank` 1) seeded 1–3 by win
-percentage, then the top three by `wildCardRank` seeded 4–6.
-
-Write it with the ArtifactData tool to collection `seasons`, doc id `<YEAR>`,
-using the team ids and doc shape under [Data](#data) below. Set `ranking` to the
-12 ids ordered by seed as a starting point — the user drags it into their real
-order — and `projected` to `true` unless the official bracket was already set.
-
-**4. Schedule the routine.** Create it with the `create_trigger` tool (or, if
-that isn't available, have the user create it at
-[claude.ai/code/routines](https://claude.ai/code/routines)):
-
-- **Schedule:** three Routines, together a clock grid:
-  - `15 16,23,0-6 * 9-11 *` — noon ET, then hourly 7pm to 2am
-  - `30 2,3,4,5 * 9-11 *` and `45 2,3,4,5 * 9-11 *` — 10pm to 2am only
-
-  Seventeen fires a day rather than twenty-four, concentrated where games end.
-  Two quirks of the scheduler shape this. A cron minute of `0` is **not**
-  honoured: minute-`0` schedules get spread across the hour (this one sat at
-  `:08` for weeks). Nor is a minute honoured when the hours are written as a
-  range — `30 2-5` fired at `:35`, while `30 2,3,4,5` fires at `:30`. So every
-  expression here uses a non-zero minute and an explicit hour list.
-
-  Cron cannot be conditional, so this is the outer envelope; the *instructions*
-  decide what each run actually does:
-  - **The prompt makes the call.** Every run starts with one call to
-    `/api/v1/schedule`, and unless a game has gone final since the last run, a
-    game is in progress, or one starts within the hour, it writes the two
-    timestamps and stops there. Quiet hours cost one request.
-  - **Hours** run from noon ET, an hour before the earliest first pitch, to
-    2am ET, past the end of a west coast night game. A missed run self-corrects
-    — each run syncs to MLB's current series record rather than incrementing,
-    so the next one catches up.
-  - **Months** are coarse because cron ANDs day-of-month with month, so a
-    "Sept 15 → Nov 5" window can't be written as one expression. The early-exit
-    above is what keeps the out-of-season hours cheap.
-  - **A run cannot schedule extra runs.** Verified, not assumed: a run was
-    told to call `create_trigger` with exact arguments, the run succeeded, and
-    no trigger was created. Routine-fired sessions are built without connector
-    (`mcp__*`) tools, and every scheduling tool is one. A Routine created from
-    the claude.ai Routines UI may be able to carry those connectors — untested.
-    Until then the grid above is the whole schedule, and each run picks its
-    `nextAt` from that fixed list rather than promising a time that cannot
-    happen.
-  - **Quiet runs must be cheap.** The grid cannot know whether baseball is on,
-    so most runs have nothing to do. The instructions require a quiet run to
-    make one filtered schedule call, write the stamp, and stop — no standings,
-    no postseason endpoint, no second look.
-  - **Every run leaves a record** at `routine/lastrun`: what it fetched,
-    whether it filtered, how many turns it took, and anything that failed. A
-    run's final message goes nowhere anyone reads, so this is the only way a
-    fault surfaces.
-  - **Keep each run small.** Cost is dominated by context re-read on every
-    turn, not by the number of runs: the MLB payloads are ~53k tokens if they
-    land raw. The instructions require filtering every response down to the
-    handful of fields actually used.
-- **Environment:** the one from step 2.
-- **Fresh session per run**, with push notifications on, so a decided series
-  reaches the user's phone.
-- **Prompt:** not the instructions themselves — just this bootstrap, with the
-  artifact URL filled in:
-
-  ```
-  You maintain a published Claude Artifact — a personal MLB postseason bracket
-  tracker — at this URL:
-
-  <ARTIFACT URL>
-
-  YOUR INSTRUCTIONS ARE NOT IN THIS MESSAGE. They live in the artifact's own
-  database, so that this schedule, the follow-up checks it schedules, and the
-  project's README all read one copy rather than three that drift apart.
-
-  Fetch them first, before anything else:
-
-  - Load the ArtifactData tool (ToolSearch for "ArtifactData" if it is not
-    already in your tool list).
-  - Read collection "routine", doc id "prompt", from the artifact URL above.
-  - Its `text` field holds your full instructions. Follow them exactly, as
-    though they had been given to you here directly. They tell you what to
-    fetch, what to write, and when to schedule your next check.
-
-  If that read fails, or the document is missing or empty, do NOT improvise a
-  run from memory and do NOT write anything to the artifact: a half-guessed
-  write is worse than a skipped hour. Say plainly that the instructions could
-  not be read, name the error, and stop.
-  ```
-
-**5. Store the instructions.** Write the block below, with the artifact URL and
-year filled in, to collection `routine`, doc id `prompt`, as a single field
-named `text`. That is the copy every run reads — the schedule's own runs and
-the one-shot follow-ups they create. Changing how the routine behaves later
-means editing this document, not the Routine.
-
-````
-You are maintaining a published Claude Artifact — a personal MLB postseason
-bracket tracker — at this URL:
-
-<ARTIFACT URL>
-
-It stores its state via the ArtifactData tool (load via ToolSearch for
-"ArtifactData" if it isn't in your tool list). The season's state lives in
-collection "seasons", doc id "<YEAR>" (a JSON object). Read it first with a
-"get" call.
-
-The doc shape:
-```
-{
-  year: <YEAR>,
-  teams: {
-    "<TEAM_ID>": { league: "AL"|"NL", seed: 1-6, w: <wins>, l: <losses> }, ...
-  },                               // 12 entries
-  series: {
-    "<SERIES_ID>": {
-      winsA: n, winsB: n,
-      next: { at: "<ISO timestamp>", date: "YYYY-MM-DD", tbd: true|false, game: n }
-    }, ...
-  },
-  ranking: [ "<TEAM_ID>", ... ],   // the user's own preference order
-  log: [ { at: "<ISO timestamp>", kind: "...", ... }, ... ],
-                                   // append-only change log, oldest first
-  seenAt: "<ISO timestamp>",       // the user's dismiss marker — never write it
-  updatedAt: "<ISO timestamp>",    // when this routine last ran — see below
-  nextAt: "<ISO timestamp>",       // when the next run fires
-  slate: { ... },                  // the day's games -- see WRITING
-  projected: true|false,           // true = teams/seeds are your projection
-                                   // from standings, not the official bracket
-  projectedAsOf: "YYYY-MM-DD"
-}
-```
-
-`w` and `l` are final regular-season win/loss totals. The page needs them for
-one thing: World Series home field goes to the pennant winner with the better
-regular-season record, and seeds don't compare across leagues. Always include
-them when you write `teams`, and never drop them.
-
-COST — a run is expensive, so two rules govern everything below: run rarely,
-and keep each run small. Rarely is handled by the schedule, which fires nine
-times a day at the hours baseball is actually on. Small is up to you, and it
-is mostly about how much text you let into your context:
-
-- NEVER LET A RAW API RESPONSE INTO YOUR CONTEXT. This is the single biggest
-  thing you control. The standings response is 80KB, the five-day schedule
-  90KB, the day's schedule with linescores 40KB — together about 53,000
-  tokens, and every one of them is re-read on every turn of the run for the
-  rest of the run. Pipe each fetch through a filter and print only the handful
-  of fields named below, a few hundred tokens instead of tens of thousands:
-
-      curl -sS "<url>" | python3 -c "
-      import sys, json
-      d = json.load(sys.stdin)
-      ...print only what the rules below need...
-      "
-
-  Never `curl` an endpoint and let the body land in the transcript, never
-  `cat` a saved response, and never read one back with the Read tool. If you
-  need a field you did not extract, widen the filter and run it again — that
-  is far cheaper than having had the whole body in context all along.
-  From the day's schedule you need, per game: start time, status, the two
-  clubs, the score, the inning, and — for anything final — `gameInfo`'s
-  `firstPitch` and `gameDurationMinutes`, which give you the time it ended.
-  From standings, per club: the fields the STANDINGS section below lists,
-  and nothing else. Work in as few turns as
-  you can: each turn re-reads everything already in context.
-
-- STOP EARLY AND STOP CHEAP. Most runs have nothing to do: the schedule is a
-  fixed grid of clock times, and it cannot know whether baseball is on. YOUR
-  JOB ON A QUIET RUN IS TO COST ALMOST NOTHING. One filtered call, the stamp,
-  done — no standings, no postseason endpoint, no second look. A
-  quiet run that takes fifteen turns and reads three endpoints has done more
-  damage than the stale minute it was trying to prevent.
-
-  So: make the ONE schedule call below, filtered, and read off it whether any
-  game today has gone final since `updatedAt`, is in progress, or starts
-  within the hour. IF NONE OF THOSE IS TRUE — and on a day with no games at
-  all it plainly is not — write the stamp, write your `lastrun`
-  record, and END THE RUN. Do not go on to the numbered sections.
-
-- Fetch the day's schedule FIRST, before anything else:
-  `/api/v1/schedule?sportId=1&date=<today>&hydrate=linescore,gameInfo` — the
-  hydrates cost nothing in context and between them carry everything a stamp
-  needs: `linescore` the score and inning of anything in progress, `gameInfo`
-  the `firstPitch` and `gameDurationMinutes` of anything already final. Add
-  `/api/v1/schedule/postseason?season=<YEAR>` once `projected` is false. Every
-  decision below reads from it, and it is the only call a quiet run makes.
-
-  A FINAL GAME'S END TIME IS firstPitch + gameDurationMinutes. That is where
-  "final at 9:14" comes from, and the one call above has it for every game on
-  the slate at once. NEVER call `/api/v1.1/game/<pk>/feed/live` to find it.
-  That endpoint is per-game: a five-final evening becomes five fetches, five
-  tool results and five more turns re-reading everything already in context,
-  which doubles the cost of the run to learn what you had already been told.
-  The same goes for every other per-game endpoint. If you want a field for
-  several games, get it from the schedule call or do without it.
-- Then END THE RUN, writing only the stamp (see WRITING), unless
-  one of these is true:
-  - a game has gone Final since `updatedAt`,
-  - a game is in progress,
-  - a game starts within the next hour, or
-  - `projected` is true, `projectedAsOf` is not today's date, and at least one
-    game has gone final today — the once-a-day projected field refresh.
-- A skipped or missed hour costs nothing: every run syncs to MLB's current
-  series record rather than incrementing, so the next one catches up.
-
-WRITING — read this before any write:
-
-- Use "update" with ONLY the fields you are changing. Never "set" the whole
-  document. The page writes `ranking` and `seenAt` from the user's browser; a
-  full-document write from here sends your copies back over theirs and silently
-  undoes their reordering.
-- Pass `if_version` from your "get" on every write. If it fails because the
-  version moved, re-read and redo — do not force it.
-- `ranking` is the USER'S FIELD. Do not include it in a write at all unless the
-  set of teams in the field actually changed. When it did: keep every surviving
-  id in its existing relative order, drop ids no longer in the field, and append
-  ids new to the field at the end. Never reorder, never regenerate it, never
-  sort it by seed.
-- `seenAt` is the user's too. Never write it under any circumstance.
-- Write the STAMP on EVERY run, including runs that change nothing and runs
-  that stop at an early exit above: `updatedAt`, `nextAt` and `slate`. The
-  page shows two lines from them -- "Last updated 9:20 PM — Yankees 5 Rays 2
-  final at 9:14 PM" and "Next update 10:15 PM — Astros @ Mariners first pitch
-  at 9:40 PM" -- so a quiet stretch explains itself.
-
-  ALL OF THE WORDING IS BUILT BY THE PAGE, in code, with tests: which game to
-  name, "in the 3rd", "final at 9:14", the slate count, "routine check", the
-  series score. YOUR JOB IS THE FACTS, exactly as the schedule call gives
-  them. Do not write `updatedFor` or `nextFor`: they are retired, and the
-  page ignores them once `slate` is present. Do not add any sentence, label
-  or note of your own anywhere in `slate`.
-  - `updatedAt` is the current time, as a UTC ISO timestamp.
-  - `slate` is this object, written whole every run -- ALL FOUR KEYS, every
-    time, with null where the rules below say null. An "update" merges
-    objects key by key, so a key you leave out keeps its old value: a missing
-    `nextDay` would leave last night's in place.
-
-        {
-          since:     "<the updatedAt you read at the start of this run>",
-          today:     { date: "YYYY-MM-DD", games: [ <GAME>, ... ] },
-          nextDay:   { date: "YYYY-MM-DD", games: [ <GAME>, ... ] } | null,
-          lastFinal: <GAME> | null
-        }
-
-    and each <GAME> is
-
-        {
-          away:   "<TEAM_ID>",                 // from the list below
-          home:   "<TEAM_ID>",
-          start:  "<gameDate, UTC ISO>",
-          state:  "pre" | "live" | "final",    // status.abstractGameState:
-                                               // Preview, Live, Final
-          score:  [<away runs>, <home runs>],  // live and final only
-          inning: <currentInning, a number>,   // live only
-          end:    "<UTC ISO>"                  // final only: gameInfo
-                                               // firstPitch + gameDurationMinutes
-        }
-
-  - `today` is the day you fetched: EVERY game on it, in whatever state, from
-    the one schedule call you already make. A game that runs past midnight
-    belongs to the night it started, so the date is the one you passed to that
-    call. Leave out a game that is postponed, suspended or cancelled
-    (`detailedState` says so); it will not be played that day.
-  - `nextDay` is null UNLESS `nextAt` falls on a later baseball day than
-    `today` -- which happens on the night's last run, after the slate is over.
-    Then fetch that day's schedule too, filtered to the same fields, and list
-    its games (all "pre"). That is the only run that makes this second call.
-  - `lastFinal` is the newest final game from BEFORE `today`'s date. When the
-    `slate` you read has a different `today.date` from the one you are
-    writing, carry it forward: the newest final in the old `slate.today`, or,
-    if it had none, the old `slate.lastFinal`. Otherwise copy it unchanged. On
-    the first run with no `slate` to read, use null.
-  - The page decides everything else from these facts: the user's ranking,
-    who is still alive and what a final did to its series come from the rest
-    of the season document. Nothing about the wording is yours to judge.
-  - WHEN THE NEXT RUN HAPPENS. Your cron, exactly as the Routine stores it:
-
-        15 17,18,20,22,23,0-6 * 9-11 *
-
-    That is UTC, and it is the ONLY source. `nextAt` is the next instant
-    matching it: take the UTC time now, find the next hour on that list, set
-    the minute to 15. Write it as a UTC ISO timestamp and nothing else. DO
-    NOT CONVERT IT TO EASTERN and do not put a clock time in it anywhere.
-    The page formats it in the reader's own timezone (`toLocaleTimeString`
-    with no locale given), so a time converted by hand here is wrong for
-    anyone not sitting where you assumed, and wrong for everyone once
-    daylight saving ends.
-
-    QUOTING THE CRON IS THE POINT. A list of Eastern times written out here
-    has to be re-edited by hand every time the schedule moves, and twice it
-    was not: the page promised 10:30 PM after that Routine had been disabled,
-    and promised noon after the noon slot was replaced. Both times it read
-    "Update overdue" for hours. There is no list to drift now, because the
-    line above IS the cron. If the two ever disagree, the Routine is right
-    and this line is the thing to fix.
-
-    Twelve fires a day, placed where the games are: across September and
-    October 32% of all first pitches fall between 1pm and 4pm Eastern, and
-    the day's opening pitch is 12:10pm at the very earliest, so the first
-    slot sits just after the earliest baseball rather than in front of it.
-    The page may therefore carry a "Last updated" from last night right
-    through the morning. That is correct, not stale — the last thing that
-    happened really was last night, and the page names which game it was.
-
-    You cannot schedule extra runs. The tools that would do it
-    (`create_trigger` and friends) are not available inside a run, so do not
-    try, and never promise an instant that is not on the cron above.
-
-    DO NOT DERIVE THE MINUTE FROM WHEN THIS RUN STARTED. A run fired by hand
-    starts whenever it was fired, and reading :20 off such a run makes the
-    page promise :20 for a check that happens at :15. The minute is always
-    15, from the cron, whatever the clock said when you woke up.
-
-  - `nextAt` IS SIMPLY THE NEXT INSTANT ON THE CRON. Every one of them fires
-    whether or not there is anything to find, so the next is when the page
-    will next be updated, and that is what the line must say. Do not reason
-    about which one would be interesting and name that — the page would then
-    sit showing a promise it had already broken, because a run will have
-    happened before it. A run takes three or four minutes, so the stamp
-    appears a little after the time the reader sees; that is expected and
-    needs no allowance here.
-  - When the season is over, write `nextAt` as null. There is no
-    next check to promise, and the page drops the line entirely.
-- When you write `teams`, `series` or `log`, send that whole object or array
-  with every entry you know about, preserving existing win counts, records and
-  log entries.
-- AN "update" MERGES OBJECTS KEY BY KEY, so leaving a key out of what you send
-  does NOT remove it. When a club leaves the field, its entry in `teams` must
-  be deleted explicitly, in the same write that adds its replacement:
-      teams: { ..., "HOU": { league: "AL", seed: 3, w: 78, l: 79 },
-               "TEX": { "__delete__": true } }
-  Leaving it out is how the Rangers stayed in `teams` beside the Astros, both
-  at AL seed 3, and the bracket kept drawing the Rangers. After ANY write to
-  `teams`, it must hold exactly 12 entries, six per league with seeds 1-6
-  once each. If a read ever shows otherwise, fix it in this run with the
-  delete marker; it will not correct itself.
-
-LOGGING — the page shows the user what changed since they last looked, from
-`log`, so every change you write gets an entry in the same write:
-
-- APPEND ONLY. Never reword, reorder or remove an entry that is already there.
-  `at` is the current time, ISO 8601 in UTC. Keep at most 50 entries: drop from
-  the front when a write would exceed that.
-- Entries are data, not prose — the page writes the sentence. Use these shapes
-  and no others:
-  { at, kind: "field", in: "<TEAM_ID>", out: "<TEAM_ID>",
-    spot: "division" | "wildcard", div: "<AL West etc, division only>",
-    outBack: "0.5", outAlive: true|false, via: [...] }
-      a team entered the projected field and the one it displaced. `spot`,
-      `div`, `outBack` (games back on the displaced club's best remaining
-      route) and `outAlive` come from changes.py below -- copy them as it
-      prints them, so the page can say "Rangers take the AL West lead from
-      the Astros — Astros ½ game back" instead of a vague "last spot".
-  { at, kind: "seed", team: "<TEAM_ID>", from: n, to: n, over: "<TEAM_ID>",
-    via: [...] }
-      a team that moved UP a seed inside the field (every move up implies one
-      down, so the other side is never logged). `over` names the team passed
-      when the two simply swapped. changes.py prints these.
-
-      `via` ON EITHER OF THOSE SAYS WHY IT HAPPENED, which is the reader's
-      first question: did mine win, did theirs lose, or did the two play each
-      other? It lists the games behind the move, at most one per club:
-
-          via: [ { team: "<TEAM_ID>", won: true|false, opp: "<TEAM_ID>",
-                   score: [<that team's runs>, <the opponent's runs>] }, ... ]
-
-      THAT TEAM'S OWN RUNS ALWAYS COME FIRST, win or lose — the page turns
-      the pair round itself when it writes a loss, so "lost to the Dodgers
-      4-1" comes from score [1, 4]. Include the club that moved, the club it
-      passed, or both, whichever actually played. When the two met each other,
-      ONE entry naming the other as `opp` is enough and the page writes "beat
-      them 6-2". Omit `via` entirely if you cannot identify the games rather
-      than guessing at them. The scores are in the day's schedule you already
-      fetched, so this costs no extra request.
-  { at, kind: "game", series: "<SERIES_ID>", won: "<TEAM_ID>", game: n,
-    score: [<winner's wins>, <loser's wins>] }
-      one completed game. `score` is the series record after it, from the
-      perspective of whoever won that game.
-  { at, kind: "clinch", series: "<SERIES_ID>", team: "<TEAM_ID>",
-    over: "<TEAM_ID>", score: [<winner's wins>, <loser's wins>] }
-      the series is decided. Log this INSTEAD of a `game` entry for the
-      clinching game, never both.
-  { at, kind: "elim", team: "<TEAM_ID>", via: [...] }
-      a club is out of it, for the season. THIS IS ITS OWN NEWS and the log
-      had no way to say it: "out" belonged to the projected field, so a club
-      that had merely lost a projected spot and a club whose season was over
-      read exactly the same. Six AL clubs were eliminated on one September
-      night and the log said nothing at all.
-      WHEN: in the regular season, the first run where the `standings`
-      document shows "E" for BOTH `elim` and `wce` for that club. changes.py
-      below finds these; do not look for them by eye. REGULAR
-      SEASON ONLY: in the postseason a `clinch` entry already names the club
-      that went out ("Brewers win the NLDS, 3-1, over the Cubs"), so an
-      `elim` beside it says the same thing twice. LOG IT ONCE, on the run
-      where it crosses over, and never again; a club that was already "E"
-      last run is not news.
-      `via` names the game that did it, by the same rules as above — usually
-      the club's own loss, sometimes the win by the club it was chasing.
-  { at, kind: "berth", team: "<TEAM_ID>", what: "playoff" | "wildcard" |
-    "division" | "bye", div: "<AL East etc, only when what is division>",
-    via: [...] }
-      a club has SECURED something. This is the mirror of `elim`, and it was
-      missing for the same reason: the log could say a club moved up a seed
-      but not that it had actually clinched anything, and a club can clinch
-      without its seed moving at all — so nothing fired, and the Rays took
-      the AL East with the log silent.
-      WHEN: the run where the club's `clinch` in the standings steps up --
-      nothing to x, x to w, anything to y, anything to z. changes.py finds
-      these from the table you read and the one you built; the White Sox
-      clinched a playoff spot with no entry because only division titles
-      used to be recorded at all.
-      A club that clinches its division and later locks a bye gets one entry
-      for each — they are different news.
-  { at, kind: "lock" }
-      the official bracket replaced your projection. Once per season.
-  { at, kind: "note", text: "<one short sentence>" }
-      only for something the shapes above can't express.
-- FINDING WHAT CHANGED IS A SCRIPT'S JOB, NOT YOURS. Comparing two tables of
-  thirty clubs by eye is how the Orioles' elimination went unlogged. On every
-  run that rebuilds the standings (step 1), run this, and append EVERY entry
-  it prints -- in any branch of step 1, including "same 12 ids", because a
-  club can be eliminated or clinch without the field moving at all:
-
-  - Read the standings document with ArtifactData "get" and `out_dir`, so the
-    table you read lands in a file without passing through your context;
-    likewise read the season document to a file (its `teams` and its `log`
-    come from there) and collection "routine", doc id "baseline", to a file.
-  - Write the table you build, the `teams` you will write, and the `games`
-    list you are writing to `slate.today` to files too (build them in Python,
-    which you need anyway for the filtering).
-  - Save the script below as changes.py and run
-        python3 changes.py <read standings> <built standings> <read teams> <new teams> <games> <season doc> <baseline>
-    passing the same teams file twice when the field did not change.
-  - It prints a JSON list of entries without `at`, each with its `via` (the
-    finals behind it) already worked out. Entries marked `late: true` are
-    the catch-up: news an earlier run missed. Log them like any other. Add `at` (now) to each and append
-    them in order, exactly as printed, in the same write. Do not add, change
-    or drop a `via` of your own. An empty list means there is nothing to log
-    for the standings.
-
-  ```python
-"""What changed between two standings tables, as update-log entries.
-
-The routine runs this instead of comparing the tables by eye: that is how the
-Orioles' elimination went unlogged. It reads five JSON files and prints a
-JSON list of log entries WITHOUT `at`; the routine adds that and appends
-every entry, in order, in the same write as the change itself.
-
-  python3 changes.py project NEW_STANDINGS
-  python3 changes.py OLD_STANDINGS NEW_STANDINGS OLD_TEAMS NEW_TEAMS GAMES LOG BASELINE
-
-The first form prints the projected field (`teams`) from the table you built,
-so the projection is computed, not judged. The second prints the log entries.
-
-OLD_STANDINGS / NEW_STANDINGS: the standings document as read and as built
-({divisions: {...}}). OLD_TEAMS / NEW_TEAMS: the season document's `teams`
-as read and as it will be written. Pass the same file twice for the teams
-when the field did not change. GAMES: the `games` list the routine writes
-to `slate.today` (away, home, state, score), from which each entry gets its
-`via` -- the finals behind it -- so the log says WHY: "Orioles eliminated —
-White Sox beat the Royals 9-1". LOG: the season document's `log` as read.
-BASELINE: the `routine/baseline` document -- what was already clinched or
-eliminated when the log began.
-
-Comparing the two tables catches what changed on this run. The last part,
-the CATCH-UP, catches what an earlier run missed, whatever the reason: every
-club MLB currently marks as eliminated or clinched must have a log entry (or
-be in the baseline), and any that doesn't gets one now, marked `late`. That
-is the check that would have caught the White Sox, the Blue Jays and the
-wild card clinches that went unlogged for days.
-"""
-import json
-import sys
-
-
-def rows(doc):
-    """Every club's standings row, by id, with its division."""
-    out = {}
-    for div, clubs in (doc.get("divisions") or {}).items():
-        for r in clubs:
-            out[r["id"]] = dict(r, div=div)
-    return out
-
-
-def out_of_it(r):
-    return r.get("elim") == "E" and r.get("wce") == "E"
-
-
-def games(v):
-    try:
-        return float(str(v).lstrip("+"))
-    except ValueError:
-        return 0.0  # "-": leading, or level with the spot
-
-
-def best_back(r):
-    """Games back on the club's best remaining route: its division, or the
-    wild card, whichever it is still alive for and closer in."""
-    routes = []
-    if r.get("elim") != "E":
-        routes.append(games(r.get("gb")))
-    if r.get("wce") != "E":
-        routes.append(games(r.get("wcgb")))
-    return f"{min(routes):.1f}" if routes else None
-
-
-def result(games, club):
-    """A club's final today as a `via` item, own runs first, or None."""
-    for g in games:
-        if g.get("state") != "final" or club not in (g["away"], g["home"]):
-            continue
-        a, h = g["score"]
-        own, opp_runs, opp = (a, h, g["home"]) if g["away"] == club else (h, a, g["away"])
-        return {"team": club, "won": own > opp_runs, "opp": opp, "score": [own, opp_runs]}
-    return None
-
-
-def via(*items):
-    return [v for v in items if v]
-
-
-def last_wild_card(after, league_of, lg):
-    """The club holding the league's last wild card spot."""
-    holders = [r for i, r in after.items()
-               if league_of(i) == lg and r.get("wcrank") and not r.get("lead")]
-    holders.sort(key=lambda r: int(r["wcrank"]))
-    return holders[2]["id"] if len(holders) >= 3 else None
-
-
-CLINCH_WHAT = {"x": "playoff", "w": "wildcard", "y": "division", "z": "bye"}
-CLINCH_STEP = {"x": 1, "w": 2, "y": 3, "z": 4}
-STEP_OF_WHAT = {w: CLINCH_STEP[c] for c, w in CLINCH_WHAT.items()}
-
-
-def catch_up(after, entries, log, baseline):
-    """Entries for anything MLB shows that neither the log, the baseline, nor
-    this run's entries account for."""
-    seen = list(log) + list(entries)
-    out_logged = set(baseline.get("out", [])) | {e.get("team") for e in seen if e.get("kind") == "elim"}
-    step = {i: CLINCH_STEP.get(c, 0) for i, c in (baseline.get("clinch") or {}).items()}
-    for e in seen:
-        if e.get("kind") == "berth":
-            step[e["team"]] = max(step.get(e["team"], 0), STEP_OF_WHAT.get(e.get("what"), 0))
-    late = []
-    for i, r in after.items():
-        c = r.get("clinch")
-        if c in CLINCH_STEP and CLINCH_STEP[c] > step.get(i, 0):
-            e = {"kind": "berth", "team": i, "what": CLINCH_WHAT[c], "late": True}
-            if e["what"] == "division":
-                e["div"] = r["div"]
-            late.append(e)
-    for i, r in after.items():
-        if out_of_it(r) and i not in out_logged:
-            late.append({"kind": "elim", "team": i, "late": True})
-    return late
-
-
-def project(st):
-    """The field if the season ended today, per league: the three division
-    leaders seeded 1-3 by win percentage, then the top three by wild card
-    rank seeded 4-6. Ties keep MLB's own order (the table is in it)."""
-    teams = {}
-    for lg in ("AL", "NL"):
-        divs = [d for d in st["divisions"] if d.startswith(lg)]
-        leaders = [next(r for r in st["divisions"][d] if r.get("lead")) for d in divs]
-        leaders.sort(key=lambda r: -float(r["pct"]))
-        wild = sorted((r for d in divs for r in st["divisions"][d] if r.get("wcrank") and not r.get("lead")),
-                      key=lambda r: int(r["wcrank"]))[:3]
-        for seed, r in enumerate(leaders + wild, 1):
-            teams[r["id"]] = {"league": lg, "seed": seed, "w": r["w"], "l": r["l"]}
-    return teams
-
-
-def main(old_st, new_st, old_teams, new_teams, games, log=None, baseline=None):
-    before, after = rows(old_st), rows(new_st)
-    entries = []
-    league_of = lambda i: after[i]["div"][:2] if i in after else ""
-
-    # The field: who came in, who went out, per league, paired in seed order.
-    for lg in ("AL", "NL"):
-        ins = sorted((i for i, t in new_teams.items() if t["league"] == lg and i not in old_teams),
-                     key=lambda i: new_teams[i]["seed"])
-        outs = sorted((i for i, t in old_teams.items() if t["league"] == lg and i not in new_teams),
-                      key=lambda i: old_teams[i]["seed"])
-        for i, o in zip(ins, outs):
-            e = {"kind": "field", "in": i, "out": o}
-            v = via(result(games, i), result(games, o))
-            if v:
-                e["via"] = v
-            if new_teams[i]["seed"] <= 3:
-                e.update(spot="division", div=after.get(i, {}).get("div", ""))
-            else:
-                e["spot"] = "wildcard"
-            r = after.get(o)
-            if r:
-                e["outAlive"] = not out_of_it(r)
-                back = best_back(r)
-                if back is not None:
-                    e["outBack"] = back
-            entries.append(e)
-        for i in ins[len(outs):]:
-            entries.append({"kind": "field", "in": i})
-        for o in outs[len(ins):]:
-            entries.append({"kind": "field", "out": o})
-
-    # Seed moves among clubs that stayed in the field: only moves UP, since
-    # every move up implies one down. `over` names the club passed when the
-    # two simply swapped seeds.
-    for lg in ("AL", "NL"):
-        stayed = [i for i, t in new_teams.items() if t["league"] == lg and i in old_teams]
-        for i in sorted(stayed, key=lambda i: new_teams[i]["seed"]):
-            was, now = old_teams[i]["seed"], new_teams[i]["seed"]
-            if now >= was:
-                continue
-            e = {"kind": "seed", "team": i, "from": was, "to": now}
-            swap = [j for j in stayed if old_teams[j]["seed"] == now and new_teams[j]["seed"] == was]
-            if swap:
-                e["over"] = swap[0]
-            v = via(result(games, i), result(games, e["over"]) if swap else None)
-            if v:
-                e["via"] = v
-            entries.append(e)
-
-    # Clinches on this run, from MLB's clinchIndicator (`clinch` in the table):
-    # x a playoff spot, w a wild card, y the division, z a first-round bye.
-    # Each step up is its own news -- the White Sox clinching a spot and,
-    # later, a wild card are two entries. A table read before `clinch` was
-    # recorded has nothing to compare against, so only division titles (from
-    # `clinched`) can be found then.
-    WHAT, STEP = CLINCH_WHAT, CLINCH_STEP
-    for i, r in after.items():
-        old = before.get(i, {})
-        if "clinch" in old:
-            new_c, old_c = r.get("clinch"), old.get("clinch")
-            if new_c not in WHAT or STEP[new_c] <= STEP.get(old_c, 0):
-                continue
-            e = {"kind": "berth", "team": i, "what": WHAT[new_c]}
-        elif r.get("clinched") and not old.get("clinched"):
-            e = {"kind": "berth", "team": i, "what": "division"}
-        else:
-            continue
-        if e["what"] == "division":
-            e["div"] = r["div"]
-        own = result(games, i)
-        if own and own["won"]:
-            e["via"] = [own]
-        entries.append(e)
-
-    # Clubs whose season ended on this run: out of the division AND the wild card.
-    # Why: its own loss, and the win by the club it was chasing on the route
-    # that closed this run -- the division leader, or the last wild card.
-    for i, r in after.items():
-        if out_of_it(r) and not out_of_it(before.get(i, {})):
-            e = {"kind": "elim", "team": i}
-            old = before.get(i, {})
-            chasing = None
-            if old.get("wce") != "E":
-                chasing = last_wild_card(after, league_of, league_of(i))
-            elif old.get("elim") != "E":
-                chasing = next((x for x, rr in after.items() if rr["div"] == r["div"] and rr.get("lead")), None)
-            own = result(games, i)
-            them = result(games, chasing) if chasing else None
-            v = via(own if own and not own["won"] else None, them if them and them["won"] else None)
-            if v:
-                e["via"] = v
-            entries.append(e)
-
-    if log is not None:
-        entries += catch_up(after, entries, log, baseline or {})
-    return entries
-
-
-if __name__ == "__main__":
-    if sys.argv[1] == "project":
-        # python3 changes.py project NEW_STANDINGS: the projected `teams`.
-        print(json.dumps(project(json.load(open(sys.argv[2]))), indent=1))
-        sys.exit()
-    docs = [json.load(open(p)) for p in sys.argv[1:8]]
-    if len(docs) > 5:
-        # The season document as read: its log. The baseline document as read.
-        docs[5] = docs[5].get("log", docs[5]) if isinstance(docs[5], dict) else docs[5]
-    print(json.dumps(main(*docs), indent=1))
-  ```
-- Log only what you actually wrote, and write nothing you don't log. Refreshed
-  `next` times, refreshed `w`/`l` and the stamp fields are not changes — never
-  log those.
-
-STANDINGS — a second document, collection "standings", doc id "<YEAR>", holding
-all 30 clubs for the Standings tab. Everything but `next` comes from the
-`/api/v1/standings` response you already fetch, so it is nearly free:
-
-```
-{
-  year: <YEAR>,
-  updatedAt: "<ISO timestamp>",    // when you last changed this document
-  divisions: {
-    "AL East": [ {                 // in divisionRank order, leader first
-      id: "<TEAM_ID>",
-      w: 95, l: 60,                // wins and losses
-      pct: ".613",                 // winningPercentage, as the API gives it
-      gb: "-" | "6.0",             // divisionGamesBack
-      wcgb: "-" | "+4.0" | "3.0",  // wildCardGamesBack
-      elim: "-" | "E" | "4",       // eliminationNumber (division)
-      wce: "-" | "E" | "3",        // wildCardEliminationNumber
-      magic: "6" | null,           // magicNumber, null unless it has one
-      clinched: true|false,        // clinchIndicator is x/y/z/w AND divisionLeader
-      clinch: "x"|"w"|"y"|"z"|null, // clinchIndicator exactly as MLB gives it,
-                                   // for EVERY club, division leader or not:
-                                   // x playoff spot, w wild card, y division,
-                                   // z bye. changes.py logs each step up.
-      lead: true|false,            // divisionLeader
-      wcrank: "1" | null,          // wildCardRank, null for division leaders
-      next: {                      // this club's next unplayed game, or null
-        at: "<ISO timestamp>",     //   that game's gameDate
-        opp: "<TEAM_ID>",          //   the other club
-        home: true|false,          //   true when this club is hosting
-        tbd: true|false            //   its status.startTimeTBD
-      },
-      then: { at, opp, home, tbd } // the game after `next`, same shape, or
-                                   // null. The page shows it the moment
-                                   // `next` has started, so the column never
-                                   // shows a game already under way or over.
-    }, ... ],
-    "AL Central": [...], "AL West": [...],
-    "NL East": [...], "NL Central": [...], "NL West": [...]
-  }
-}
-```
-
-- Write it with "set", not "update": it is entirely yours, the page never
-  writes it, and a stale club would otherwise linger.
-- ONLY TOUCH THIS DOCUMENT WHEN A GAME HAS GONE FINAL since its own
-  `updatedAt`. Nothing in the table moves while games are being played — a
-  record, a games-back, a magic number and an elimination number all change
-  at the final out and at no other moment. So a run in the middle of a slate
-  has nothing to write here, and the way to spend nothing on it is not to
-  fetch: skip the standings request AND the five-day schedule request below,
-  and leave the document alone. Decide this BEFORE fetching rather than after
-  building the table — the cost is in those two requests and in composing
-  thirty clubs, so a write you talk yourself out of at the end has already
-  been paid for in full.
-- When a game HAS gone final since then, rebuild all thirty clubs and write
-  once. Still compare against what you read, and skip the write if every
-  value is identical anyway.
-- Once the regular season is over these stop moving. Leave the document alone
-  rather than rewriting identical numbers — the page keeps showing the final
-  table all postseason.
-- `next` needs one more request: `/api/v1/schedule?sportId=1&startDate=<today>
-  &endDate=<today + 4 days>`. Take each club's earliest regular-season game
-  (`gameType` "R") that isn't Final as `next`, and the one after it as `then`.
-  It's the only extra call in the run, and only while the regular season is on.
-- Once every club is out of games, drop `next` and `then` entirely rather than leaving
-  last week's matchup sitting in the table.
-- Do not log standings changes. The update log is for the bracket; standings
-  move every day and would bury it.
-
-TEAM_ID map (MLB team name -> id): ARI Diamondbacks, ATL Braves, BAL Orioles,
-BOS Red Sox, CHC Cubs, CWS White Sox, CIN Reds, CLE Guardians, COL Rockies,
-DET Tigers, HOU Astros, KC Royals, LAA Angels, LAD Dodgers, MIA Marlins,
-MIL Brewers, MIN Twins, NYM Mets, NYY Yankees, ATH Athletics, PHI Phillies,
-PIT Pirates, SD Padres, SF Giants, SEA Mariners, STL Cardinals, TB Rays,
-TEX Rangers, TOR Blue Jays, WSH Nationals.
-
-SERIES_ID scheme (per league LG = AL or NL). The bracket is FIXED, not reseeded:
-- LG_WC1 = seed 3 (side A) vs seed 6 (side B), best-of-3
-- LG_WC2 = seed 4 (side A) vs seed 5 (side B), best-of-3
-- LG_DS1 = seed 1 (side A) vs the LG_WC2 (4/5) winner (side B), best-of-5
-- LG_DS2 = seed 2 (side A) vs the LG_WC1 (3/6) winner (side B), best-of-5
-- LG_CS  = LG_DS1 winner (A) vs LG_DS2 winner (B), best-of-7
-- WS     = AL_CS winner (A) vs NL_CS winner (B), best-of-7
-A series is decided at 2 wins (best-of-3), 3 (best-of-5), or 4 (best-of-7).
-
-In `/api/v1/schedule/postseason`, map a game to a SERIES_ID from its
-`seriesDescription` plus its placeholder team names: a Wild Card game hosted at
-"<LG> #3 Seed" is LG_WC1 and one hosted at "<LG> Wild Card #1" is LG_WC2; a
-Division Series game whose away side is "<LG> 4/5 Winner" is LG_DS1 and
-"<LG> 3/6 Winner" is LG_DS2.
-
-EACH RUN, after the early-exit checks above:
-
-1. STANDINGS AND THE PROJECTED FIELD ride on one fetch, and one question
-   decides both: HAS A GAME GONE FINAL since the `standings` document's
-   `updatedAt`? If none has, SKIP THIS WHOLE STEP — do not fetch standings,
-   do not fetch the five-day schedule. Nothing this step computes can have
-   moved, because standings, seeds and the projected field all turn on
-   completed games and a slate in the fifth inning has completed none. A
-   mid-slate run belongs in step 2 onward, and that is most of the runs in
-   an evening.
-
-   If one has, and `projected` is true or missing, or `teams` is empty: fetch
-   `/api/v1/standings?leagueId=103,104&season=<YEAR>&standingsTypes=regularSeason`
-   and check `/api/v1/schedule/postseason?season=<YEAR>` for whether real team
-   names have replaced placeholder seed labels (e.g. "AL Wild Card #3") yet.
-   - FIRST, before the branches below and whichever one you end up in: rebuild
-     the `standings` document from that same response and write it if any value
-     moved. It needs no extra request beyond the schedule call for `next`, and
-     a branch that ends in "stop" still does this.
-   - If the official bracket is NOT set yet: THE SCRIPT PROJECTS THE FIELD.
-     Run `python3 changes.py project <built standings>`; it prints `teams`
-     (the 3 division leaders seeded 1-3 by win%, then the top 3 by wild card
-     rank seeded 4-6, with `w`/`l`). Use exactly that; do not compute it
-     yourself. Then run changes.py in its full form (see LOGGING) with that
-     `teams` as NEW_TEAMS, and:
-     - Same 12 ids, same seeds: refresh `w`/`l` if they moved and write
-       `projectedAsOf` (today).
-     - Seeds moved, or the set of ids changed: write `teams` as printed, set
-       `projectedAsOf` to today, keep `projected: true`. Only when the set of
-       ids changed, also reset each series' win counts to 0 and adjust
-       `ranking` under the rules above; a seed move leaves `series` and
-       `ranking` alone.
-     - In every case, append every entry changes.py printed -- field swaps,
-       seed moves, clinches, eliminations and catch-up entries -- in order,
-       and no others of these kinds. Then stop.
-   - If the official bracket IS now set: write the 12 real teams with their
-     seeds and final `w`/`l`, reset win counts only if `teams` is actually
-     changing, set `projected: false`, remove `projectedAsOf`, adjust `ranking`
-     under the rules above, and log one `lock` entry plus a `field` entry for
-     each team the official bracket has that your projection didn't. Don't log
-     seed changes here — `lock` covers them.
-
-2. Refresh each undecided series' `next` from
-   `/api/v1/schedule/postseason?season=<YEAR>`: its earliest game today or
-   later, as `{ at: <that game's gameDate>, date: <its officialDate>,
-   tbd: <its status.startTimeTBD>, game: <its seriesGameNumber> }`. Drop `next`
-   from a series once it's decided. Only write if something actually changed —
-   game times firm up gradually, so don't rewrite identical values, and never
-   log a `next` change.
-
-3. If `projected` is false: check today's schedule for games that are "Final"
-   and belong to an undecided SERIES_ID matchup. Update `series` so winsA/winsB
-   match MLB's current series record for that matchup whenever it's ahead of the
-   doc. Only act on a confirmed "Final" — never guess or project a result. Log
-   each game you record: a `game` entry, or a `clinch` entry if that game ended
-   the series. If the record moved by more than one game (a run was missed),
-   log one entry per finished game you can identify from the schedule, oldest
-   first.
-
-4. If nothing else changed, still write the stamp before ending
-   the run. They are the whole point of a quiet run.
-
-5. LEAVE A RECORD OF THIS RUN. Your final message goes nowhere anyone reads,
-   so anything worth knowing has to be written down. With "set", to collection
-   "routine", doc id "lastrun":
-
-   {
-     at:        "<ISO timestamp, now>",
-     slot:      "<the scheduled time you believe this run is for, or 'manual'>",
-     work:      "early-exit" | "standings" | "series" | "field" | "lock",
-     fetched:   [ "<each URL path you called, without the host>" ],
-     filtered:  true | false,   // did every response go through a filter
-                                // before reaching your context?
-     wrote:     [ "<each doc you wrote: seasons, standings, ...>" ],
-     turns:     <how many tool calls you made this run, your best count>,
-     trouble:   "<one line naming anything that failed, refused, or was
-                 missing -- a tool you could not load, an API error, a version
-                 conflict. Empty string when the run was clean.>"
-   }
-
-   Overwrite it every run; it is a mailbox, not a log. Be accurate about
-   `trouble` in particular -- a run that quietly worked around a problem and
-   reported nothing is how a fault stays hidden for a week.
-
-Keep each run terse — this is unattended maintenance, not a conversation. Speak
-up only for something worth knowing: the field changed, the real bracket locked
-in, a series was decided, or the API or environment access is broken.
-````
-
-When you're done, give the user the artifact link and mention that their ranking
-is theirs to set on the Ranking tab.
+The page seeds itself: the first time it reaches MLB it writes the season,
+the standings and the field. There is nothing to write by hand.
+
+**2. Hand the connector to the user.** Give them the steps under
+[The live connector](#the-live-connector): deploy, then add it in claude.ai
+under the name **MLB Live**, exactly (the page asks for it by that name). If
+the user has Cloudflare credentials in this environment
+(`CLOUDFLARE_API_TOKEN`), you can run `npm run deploy` for them instead.
+
+**3. Check it.** Once they have opened the page, read collection `live`, doc
+`status` with the ArtifactData tool. `source` says how the page got its data
+(`direct` or `connector`) and `error` is empty when it worked; otherwise it is
+the connector's error code, which the page also explains in words under the
+title.
+
+Then give the user the link, and mention that their ranking is theirs to set
+on the Ranking tab.
+
+## The live connector
+
+`worker/` is a Cloudflare Worker that speaks just enough of the Model Context
+Protocol for claude.ai to add it as a custom connector. It has one read-only
+tool, `get_snapshot({ season })`, which returns the same snapshot the page
+would build itself. It is stateless, keeps no data, holds no secrets, and has
+no dependencies: `npm run build` concatenates `js/snapshot.js` and
+`worker/src/mcp.js` into one file, `worker/dist/worker.mjs`, so the page and
+the connector can never disagree about what a snapshot is.
+
+**Deploy**, either way:
+
+- From a terminal: `npx wrangler login`, then `npm run deploy` in this repo.
+- Or in the Cloudflare dashboard: Workers & Pages → Create → Worker, name it
+  `mlb-live`, and replace its code with the contents of
+  `worker/dist/worker.mjs`.
+
+It is then at `https://mlb-live.<your-subdomain>.workers.dev`. Opening that
+URL in a browser should say "MLB Live connector", and
+`/snapshot?season=2026` shows a snapshot as plain JSON.
+
+**Add it to claude.ai** at
+[claude.ai/customize/connectors](https://claude.ai/customize/connectors):
+add a custom connector named **MLB Live** with the URL
+`https://mlb-live.<your-subdomain>.workers.dev/mcp`. The first time the page
+uses it, claude.ai asks you to allow it for the page.
+
+**Optional: keep it to yourself.** The data is public, but anyone with the
+URL could spend your free-tier requests. Set a secret with
+`npx wrangler secret put CONNECTOR_KEY` (or under the Worker's Settings →
+Variables), and the endpoint moves to `/mcp/<key>`; use that URL in claude.ai.
+
+Endpoints: `POST /mcp` (MCP, JSON-RPC over plain JSON responses; no sessions
+or streaming, since the one tool is a pure read), `GET /snapshot?season=`
+(the same answer over plain HTTP), `GET /` (a one-line hello, only without
+a key). Upstream requests go through Cloudflare's cache for 15 seconds, and
+concurrent calls for one season share a single set of MLB requests, so
+several open views cost MLB no more than one.
 
 ## Files
 
@@ -951,104 +147,97 @@ is theirs to set on the Ranking tab.
 | `js/bracket.js` | Bracket rules as pure functions — seeding, advancement, elimination |
 | `js/bracket-view.js` | The bracket tab: cards, connector geometry, the highest-pick banner |
 | `js/ranking.js` | The Ranking tab's cards and drag, and the All Teams table |
-| `js/updates.js` | The change log — what moved since you last looked |
-| `js/standings.js` | Divisions, the wild card race, and the freshness stamp |
-| `js/stamp.js` | The stamp's two sentences, built from the day's games — pure functions |
-| Update now | The ↻ at the end of the stamp's second line fires the routine on demand through the viewer's Claude Code Remote connector (`fire_trigger`, trigger id in `js/standings.js`). Published with `capabilities: {"db": {}, "mcp": {"servers": [{"server": "Claude Code Remote", "tools": ["fire_trigger"]}]}}`; the first tap asks to allow it |
-| `routine/changes.py` | The projected field, and what changed between two standings tables as log entries: field swaps (with the spot, how far back the displaced club is, and the games), seed moves, clinches at every level, eliminations, plus a catch-up that logs anything MLB shows that the log never recorded (against `routine/baseline`). Embedded in the routine's instructions; `tests/changes.test.js` covers it |
-| `tests/` | `npm test`: the stamp's sentences and a few page helpers, in plain `node` with no dependencies |
-| `js/setup.js` | The manual field-setting modal, for when the routine hasn't |
+| `js/updates.js` | The change log's wording — what moved since you last looked |
+| `js/stamp.js` | The stamp's sentences, built from the day's games — pure functions |
+| `js/standings.js` | Divisions and the wild card race |
+| `js/setup.js` | The manual field-setting modal, for when there's no live data |
+| `js/snapshot.js` | MLB's three responses → one snapshot, and when to ask again — pure, shared with the Worker |
+| `js/changes.js` | What moved between two tables, as log entries, and the log's merge — pure |
+| `js/live.js` | Fetching, scheduling, laying live data over the stored season, writing it back, and the stamp |
 | `js/app.js` | The season document, the artifact store, shared helpers, boot |
 | `js/sortable.min.js` | SortableJS 1.15.6, vendored, for drag-to-rank |
+| `worker/src/mcp.js` | The MLB Live connector's MCP server |
+| `worker/build.mjs`, `worker/dist/worker.mjs` | The build, and the one deployable file it writes |
+| `worker/wrangler.toml` | Cloudflare config for `npm run deploy` |
+| `tests/` | `npm test`: plain `node --test`, no dependencies, no network |
 
-`js/bracket.js` and `js/stamp.js` never touch the DOM or storage, so the
-postseason rules and the stamp's wording can each be read, changed and tested
-in one place. Run `npm test` after changing either. The view files are plain scripts sharing one
-`state` global; `js/app.js` loads last because it is what boots the page.
+## Development
+
+```
+npm test        # checks the Worker build is current, then runs every test
+npm run build   # rebuild worker/dist/worker.mjs after changing snapshot.js or mcp.js
+npm run deploy  # build and deploy the Worker (needs wrangler login)
+```
+
+The tests run against real MLB responses recorded in `tests/fixtures/`: the
+whole 2025 postseason, where every seed and every series result has to come
+out right, states in between made by winding it back, and the evening of 24
+September 2026 with games in progress. `node tests/fixtures/record.js <season>
+<name>` records a new one.
+
+`js/bracket.js`, `js/stamp.js`, `js/snapshot.js` and `js/changes.js` never
+touch the DOM or storage, so the postseason rules, the stamp's wording and
+the data pipeline can each be read, changed and tested in one place. The view
+files are plain scripts sharing one `state` global; `snapshot.js` and
+`changes.js` each expose a single namespace (`MLBSnapshot`, `LogChanges`) so
+they also load under node and in the Worker.
 
 Card geometry is shared between `styles.css` and the `LAY` constants in
-`js/bracket-view.js`: a bracket card is 90px tall, with its top row centered 41px down, the
-divider between its two teams at 57px, and its bottom row at 73px. The connector
-lines are computed from those numbers, so changing a card's padding or font size
-means updating both. The body's `max-width` is set by the same numbers — seven
-columns plus their gaps — so widening a card means widening that too, or the
-last column clips.
+`js/bracket-view.js`: a bracket card is 90px tall, with its top row centered
+41px down, the divider between its two teams at 57px, and its bottom row at
+73px. The connector lines are computed from those numbers, so changing a
+card's padding or font size means updating both. The body's `max-width` is set
+by the same numbers — seven columns plus their gaps — so widening a card means
+widening that too, or the last column clips.
 
 ## Data
+
+Everything MLB decides comes from the latest snapshot; the store keeps your
+own choices and a copy of MLB's side. The page writes the copy back (only
+when something changed) for three reasons: the next snapshot is compared
+against it to find what moved, a view that can't reach MLB still shows the
+last known state, and a past season's champion is remembered.
 
 One document per season, at `seasons/<year>`:
 
 ```json
 {
   "year": 2026,
-  "teams": { "TB": { "league": "AL", "seed": 1, "w": 94, "l": 68 }, "...": {} },
+  "teams": { "TB": { "league": "AL", "seed": 1, "w": 96, "l": 66 }, "...": {} },
   "series": {
     "AL_WC1": {
-      "winsA": 2, "winsB": 0,
-      "next": { "at": "2026-09-29T23:08:00Z", "date": "2026-09-29", "tbd": false, "game": 3 }
+      "winsA": 1, "winsB": 0,
+      "next": { "at": "2026-09-30T19:08:00Z", "date": "2026-09-30", "tbd": false, "game": 2 }
     }
   },
+  "projected": false,
   "ranking": ["TB", "MIL", "..."],
   "log": [
-    { "at": "2026-09-19T02:14:00Z", "kind": "seed", "team": "SD", "from": 5, "to": 4, "over": "CHC" },
-    { "at": "2026-10-01T02:41:00Z", "kind": "game", "series": "AL_WC1", "won": "TEX", "game": 2, "score": [2, 0] }
+    { "at": "2026-09-26T02:14:00Z", "kind": "seed", "team": "SD", "from": 5, "to": 4, "over": "CHC" },
+    { "at": "2026-09-29T21:41:00Z", "kind": "game", "series": "AL_WC1", "won": "TEX", "game": 1, "score": [1, 0] }
   ],
-  "seenAt": "2026-09-19T13:02:00Z",
-  "updatedAt": "2026-09-21T13:14:00Z",
-  "projected": true,
-  "projectedAsOf": "2026-09-19"
+  "seenAt": "2026-09-29T13:02:00Z"
 }
 ```
 
-Fields, and who owns each:
-
-| Field | Written by | Notes |
+| Field | Owner | Notes |
 | --- | --- | --- |
-| `teams` | routine | The 12-team field, 6 per league, seeded 1–6 |
-| `teams.*.w` / `.l` | routine | Regular-season win and loss totals. Used to decide World Series home field, where seeds from two leagues can't be compared |
-| `series` | routine | Win counts per series, plus `next` |
-| `series.*.next` | routine | The next scheduled game: `at` (timestamp), `date` (plain calendar date), `tbd` (whether MLB has set a real first pitch), `game` (number within the series). Dropped once the series is decided |
-| `ranking` | you | Your preference order, best first |
-| `log` | routine | Append-only record of every change it makes, oldest first, capped at 50 |
+| `teams` | MLB | The field, six per league seeded 1–6: official once MLB's postseason schedule names all twelve clubs, projected from the standings until then. `w`/`l` decide World Series home field, where seeds from two leagues can't be compared |
+| `series` | MLB | Win counts per series, counted from finals, plus `next`: the next game's `at`, `date`, `tbd` (MLB hasn't set a time) and `game` number. Dropped once a series is decided |
+| `projected` | MLB | `true` while the field is a projection |
+| `log` | the page | What changed, oldest first, the newest 50. Postseason games and clinches come straight from MLB's schedule; regular-season moves (a club taking a spot, a seed pass, a clinch, an elimination, the bracket locking) from comparing the stored table with the new one. One entry per piece of news, however many views notice it |
+| `ranking` | you | Your preference order, best first. Clubs that leave the field are dropped at render time and new ones go last |
 | `seenAt` | you | Set by Dismiss. Everything logged before it is read |
-| `updatedAt` | routine | When the routine last ran. Written on every run, including quiet ones |
-| `slate` | routine | The facts the stamp is built from: `since` (the run before), `today` (every game of the day with its state, score, inning, first pitch and end), `nextDay` (the next day's games, only when the next check falls on it), `lastFinal` (the newest final before today). The routine writes no wording; `js/stamp.js` turns these into both lines, and `tests/stamp.test.js` pins each shape |
-| `nextAt` | routine | When the next check lands, straight from the cron. Null once the season is over, which drops the line from the page |
-| `updatedFor` / `nextFor` | retired | The freehand lines the routine used to write. The page reads them only when a document has no `slate` |
-| `projected` | routine | `true` while the field is a projection from standings |
-| `projectedAsOf` | routine | Date of the last projection refresh; doubles as the routine's once-a-day guard |
-
-`ranking` is yours alone — the routine only appends teams that join the field or
-drops ones that leave it. Series scores are read-only in the UI because the
-routine owns them.
-
-The update log answers "what happened since I last looked." The routine appends
-one entry per change it writes — a game, a clinched series, a team entering the
-projected field, a team passing another for a seed — and the page shows the ones
-newer than `seenAt`, which Dismiss moves to now. `seenAt` lives in the document
-rather than in browser storage, so dismissing on a laptop also clears the log on
-a phone.
-
-Entries carry data, not sentences: `{ kind, team, from, to, over }` rather than
-"the Padres passed the Cubs." `js/updates.js` writes the wording, so the log reads the
-same every time and can be restyled without touching the job that fills it. Each
-`kind` and its fields are specified in the routine prompt above.
-
-Every bracket card puts the home team on the bottom. Within a league that's
-the higher seed, which hosts every round; the World Series goes to whichever
-pennant winner had the better regular-season record, which is what `w` and `l`
-are there for. A matchup with an empty side keeps its structural order until
-both teams are known.
+| `updatedAt`, `updatedFor`, `nextAt`, `nextFor`, `slate`, `projectedAsOf` | retired | Written by the old scheduled run. Without live data the page still shows `updatedAt` and `slate` as "Saved <time>" |
 
 A second document, `standings/<year>`, holds all 30 clubs for the Standings
 tab: wins and losses, win percentage, games back, wild card games back,
-elimination numbers, clinch status and each club's next game, grouped by
-division. Everything but the next game comes from the standings response the
-routine already fetches; the next game costs one more schedule request, and
-only while the regular season is on. The table stops changing when the season
-ends — the page keeps showing the final standings through October — and `next`
-is dropped once nobody has a game left. The routine owns this document
-outright; the page only reads it.
+elimination numbers, magic numbers, MLB's clinch marker (`clinch`: x a playoff
+spot, w a wild card, y the division, z a bye), and each club's next game and
+the one after (`next`, `then`; the Next column moves on to `then` once `next`
+has started, so even a saved copy never shows a game already under way),
+grouped by division. It stops changing when the season ends, and the page
+keeps showing the final table through October.
 
 Each standings table asks one question, so each marks one kind of elimination:
 a division table dims the clubs that can no longer win the division, a wild
@@ -1056,14 +245,27 @@ card table dims the ones that can no longer reach the wild card. A club can be
 bright in one and dim in the other, which is the honest answer — the Red Sox
 can be out of the AL East and still hold a wild card spot.
 
+`live/status` records where this view's live data came from (`direct` or
+`connector`) and the last error code, written only when either changes.
+
+Log entries carry data, not sentences: `{ kind, team, from, to, over }` rather
+than "the Padres passed the Cubs." `js/updates.js` writes the wording, so the
+log reads the same every time and can be restyled without touching the code
+that finds the news. `seenAt` lives in the document rather than in browser
+storage, so dismissing on a laptop also clears the log on a phone.
+
+Every bracket card puts the home team on the bottom. Within a league that's
+the higher seed, which hosts every round; the World Series goes to whichever
+pennant winner had the better regular-season record. A matchup with an empty
+side keeps its structural order until both teams are known.
+
 `next.at` is a placeholder until `tbd` turns false, so the page reads `date`
 rather than the timestamp while a time is unset — converting a placeholder
 through local time can land on the wrong calendar day in western timezones.
 
-Last World Series wins stay current on their own: `lastTitle` in `js/app.js` takes
-the later of the seeded year in `js/teams.js` and the champion of any season this
-tool has tracked, so a title won while the tracker is running supersedes the
-static table without anyone editing it.
+Last World Series wins stay current on their own: `lastTitle` in `js/app.js`
+takes the later of the seeded year in `js/teams.js` and the champion of any
+season this tool has tracked.
 
-Nothing here needs credentials: MLB's Stats API is public, and writes to the
-artifact store are authorized by the routine running under your own account.
+Nothing needs credentials: MLB's Stats API is public, and the page writes to
+its own store as you.

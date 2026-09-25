@@ -64,14 +64,15 @@ async function fetchViaConnector(season){
   return snap;
 }
 
-/* The page's own fetch first: it needs nothing set up. A TypeError is the
-   browser refusing the request -- the artifact isn't allowed to reach MLB --
-   so from then on this page load goes straight to the connector. */
+/* The page's own fetch first: it needs nothing set up. A TypeError while
+   the browser is online is the request being refused -- the artifact isn't
+   allowed to reach MLB -- so from then on this page load goes straight to
+   the connector. Offline, it's just offline, and the next try is direct. */
 async function fetchLive(season){
   if(!directBlocked){
     try{ return { snap: await fetchDirect(season), source: "direct" }; }
     catch(e){
-      if(!(e instanceof TypeError)) throw e;
+      if(!(e instanceof TypeError) || navigator.onLine === false) throw e;
       directBlocked = true;
     }
   }
@@ -82,7 +83,7 @@ async function fetchLive(season){
    Codes are the mcp capability's; each one that has a fix names it. */
 function describeLiveError(e){
   const code = (e && e.code) || "upstream_error";
-  const where = `claude.ai Settings → Connectors`;
+  const where = "claude.ai's connector settings";
   const says = {
     server_not_connected: `Live scores need the ${LIVE_SERVER} connector: add it in ${where}.`,
     needs_reauth:         `Reconnect ${LIVE_SERVER} in ${where} for live scores.`,
@@ -98,10 +99,13 @@ function describeLiveError(e){
   };
   const permanent = ["server_not_connected", "needs_reauth", "selection_required", "not_in_manifest",
     "blocked_by_policy", "approval_required", "no_mcp", "not_granted", "capability_disabled", "bad_payload", "bad_request"];
+  /* Access withdrawn: what the connector showed before goes too. */
+  const denied = ["server_not_connected", "needs_reauth", "not_in_manifest", "blocked_by_policy", "approval_required"];
   return {
     code,
     message: says[code] || "Couldn't reach live scores. Trying again shortly.",
-    retry: !permanent.includes(code)
+    retry: !permanent.includes(code),
+    retract: denied.includes(code)
   };
 }
 
@@ -129,7 +133,13 @@ async function refreshLive(){
   }catch(e){
     if(seq !== liveSeq) return;
     liveError = describeLiveError(e);
-    renderStamp();
+    if(liveError.retract && live){
+      live = null;
+      composeState();
+      if(!reordering) renderAll();
+    } else {
+      renderStamp();
+    }
     report(directBlocked ? "connector" : "direct", liveError.code);
     if(liveError.retry){
       scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
