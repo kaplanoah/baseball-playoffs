@@ -94,3 +94,12 @@ test("update log: clinches", () => {
   assert.equal(say({ team: "TB", what: "division", div: "AL East" }), "Rays clinch the AL East");
   assert.equal(say({ team: "TB", what: "bye" }), "Rays clinch a first-round bye");
 });
+
+test("Next column: a game that has started gives way to the one after it", () => withNow(NOON, () => {
+  const cell = t => run("nextCell(T)", { T: t });
+  const today = { at: "2026-09-24T14:05:00Z", home: true, opp: "MIL" };        // 10:05 AM, started
+  const fri = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
+  assert.equal(cell({ next: today, then: fri }), '<td class="next-cell">Fri 1:05 @ BOS</td>');
+  // Nothing after it recorded yet: blank, not a game that's already on.
+  assert.equal(cell({ next: today }), '<td class="next-cell"></td>');
+}));
