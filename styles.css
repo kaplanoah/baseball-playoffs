@@ -68,7 +68,7 @@ nav.tabs{ display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; align-items
    as one figure. A time that opens the line gets a little more air after it
    than a word space, in place of the space itself. */
 .stamp .ap{ margin-left:.5ch; font-size:.95em; }
-.stamp b.lead{ margin-right:1.25ch; }
+.stamp b.lead{ margin-right:1.3ch; }
 /* The stamp's own box, so the phone layout can give it a row of its own. */
 .stamp-wrap{ display:flex; align-items:center; gap:8px; min-width:0; }
 .stamp-err{ color:var(--copper-ink); }
