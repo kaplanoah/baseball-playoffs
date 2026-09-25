@@ -70,8 +70,11 @@ returns `"success":true`, skip to step 3. Otherwise walk the user through this:
    have it; otherwise have the user start it) with this prompt:
    `Continue setting up the MLB postseason tracker: README "Setup, for Claude", step 3. The page is at <artifact URL>.`
 
-**3. Deploy the connector.** Run `npm test`, then `npm run deploy:api`. It
-prints the connector URL, `https://mlb-live.<subdomain>.workers.dev/mcp`.
+**3. Deploy the connector.** Run `npm run deploy:api`: it runs the tests,
+deploys only a clean checkout of `main` as GitHub has it, and prints the
+connector URL, `https://mlb-live.<subdomain>.workers.dev/mcp`. The repo's
+`.claude/settings.json` lets Claude run exactly that command without asking,
+and blocks the unchecked ways to deploy.
 Check it answers: a POST of a JSON-RPC `initialize` to that URL returns the
 server info.
 

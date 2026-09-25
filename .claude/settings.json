@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run deploy:api)"
+    ],
+    "deny": [
+      "Bash(npm run deploy)",
+      "Bash(npm run deploy *)",
+      "Bash(wrangler *)",
+      "Bash(npx wrangler *)",
+      "Bash(node worker/deploy.mjs *)",
+      "Bash(node worker/deploy.mjs)"
+    ]
+  }
+}
