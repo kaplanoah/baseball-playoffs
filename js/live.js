@@ -58,10 +58,29 @@ async function fetchViaConnector(season){
     try{ mcp = await window.claude?.use?.("mcp"); }catch(e){ mcp = null; }
   }
   if(!mcp) throw new LiveError("no_mcp", "no connector access in this view");
-  const result = await mcp.callTool(LIVE_SERVER, LIVE_TOOL, { season }, { cache: { staleTime: LIVE_CACHE_MS } });
+  let result;
+  try{
+    result = await mcp.callTool(LIVE_SERVER, LIVE_TOOL, { season }, { cache: { staleTime: LIVE_CACHE_MS } });
+  }catch(e){
+    throw (await connectorMissing()) ? new LiveError("server_not_connected", `${e && e.code}: not added`) : e;
+  }
   const snap = result && result.payload;
   if(!snap || snap.version !== 1 || snap.season !== season) throw new LiveError("bad_payload", "unexpected answer");
   return snap;
+}
+
+/* Whether the viewer has no MLB Live connector at all. A call can fail with
+   a vague code (`upstream_error`) when the connector was never added, and
+   "add it" is the one instruction that fixes that, so ask: a connector the
+   viewer hasn't connected lists with no tools, or not at all. */
+async function connectorMissing(){
+  try{
+    const { servers } = await mcp.listTools(LIVE_SERVER);
+    const mine = (servers || []).find(x => x.server === LIVE_SERVER);
+    return !mine || !(mine.tools || []).length;
+  }catch(e){
+    return false;
+  }
 }
 
 /* The page's own fetch first: it needs nothing set up. A TypeError while
@@ -105,7 +124,8 @@ function describeLiveError(e){
     code,
     message: says[code] || "Couldn't reach live scores. Trying again shortly.",
     retry: !permanent.includes(code),
-    retract: denied.includes(code)
+    retract: denied.includes(code),
+    detail: String((e && e.message) || "").slice(0, 200)
   };
 }
 
@@ -128,7 +148,7 @@ async function refreshLive(){
     liveError = null;
     liveFailures = 0;
     applyLive(snap);
-    report(source, "");
+    report(source, "", "");
     scheduleLive(MLBSnapshot.pollDelay(snap));
   }catch(e){
     if(seq !== liveSeq) return;
@@ -140,7 +160,7 @@ async function refreshLive(){
     } else {
       renderStamp();
     }
-    report(directBlocked ? "connector" : "direct", liveError.code);
+    report(directBlocked ? "connector" : "direct", liveError.code, liveError.detail);
     if(liveError.retry){
       scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
     } else {
@@ -347,10 +367,10 @@ async function writeLive(snap){
    store so the owner (or Claude, with the ArtifactData tool) can see why a
    page isn't updating without opening a browser console. Written only when
    it changes, never on a timer. */
-function report(source, error){
+function report(source, error, detail){
   const key = `${source}|${error}`;
   if(!db || writesBlocked || key === reported) return;
   reported = key;
-  const status = { source, error, at: new Date().toISOString() };
+  const status = { source, error, detail, at: new Date().toISOString() };
   writing = writing.then(() => db.doc("live/status").set(status)).catch(() => {});
 }
