@@ -1,8 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(npm run deploy:api)"
-    ],
+    "allow": ["Bash(npm run deploy:api)"],
     "deny": [
       "Bash(npm run deploy)",
       "Bash(npm run deploy *)",

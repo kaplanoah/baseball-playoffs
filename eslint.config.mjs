@@ -14,7 +14,8 @@ const pageScripts = readdirSync("js")
   .filter((f) => f.endsWith(".js"))
   .map((f) => `js/${f}`)
   .filter((f) => f !== VENDORED);
-const TOP_LEVEL = /^(?:async\s+)?(?:function\*?\s+|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/gm;
+const TOP_LEVEL =
+  /^(?:async\s+)?(?:function\*?\s+|class\s+|const\s+|let\s+|var\s+)([A-Za-z_$][\w$]*)/gm;
 const declared = Object.fromEntries(
   pageScripts.map((f) => [f, [...readFileSync(f, "utf8").matchAll(TOP_LEVEL)].map((m) => m[1])]),
 );
@@ -39,14 +40,22 @@ export default [
     files: [file],
     languageOptions: {
       sourceType: "script",
-      globals: { ...globals.browser, ...fromOtherScripts(file), Sortable: "readonly", module: "readonly" },
+      globals: {
+        ...globals.browser,
+        ...fromOtherScripts(file),
+        Sortable: "readonly",
+        module: "readonly",
+      },
     },
     rules: scriptRules,
   })),
   {
     // Concatenated after js/snapshot.js into the Worker's one module.
     files: ["worker/src/**/*.js"],
-    languageOptions: { sourceType: "script", globals: { ...globals.serviceworker, MLBSnapshot: "readonly" } },
+    languageOptions: {
+      sourceType: "script",
+      globals: { ...globals.serviceworker, MLBSnapshot: "readonly" },
+    },
     rules: scriptRules,
   },
   { files: ["tests/**/*.js"], languageOptions: { sourceType: "commonjs", globals: globals.node } },

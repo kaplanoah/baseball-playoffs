@@ -74,6 +74,7 @@ themselves" below.
      and keep the default package managers.
 
    Then **Save changes**.
+
 5. Environment settings only apply to new sessions. Start one in the same
    environment on this repo's `main` with this prompt. Use the
    `create_session` tool if you have it. Otherwise have the user start it.
