@@ -50,6 +50,22 @@ export default [
     },
     rules: scriptRules,
   },
-  { files: ["tests/**/*.js"], languageOptions: { sourceType: "commonjs", globals: globals.node } },
+  {
+    files: ["tests/**/*.js"],
+    ignores: ["tests/browser/**"],
+    languageOptions: { sourceType: "commonjs", globals: globals.node },
+  },
   { files: ["**/*.mjs"], languageOptions: { sourceType: "module", globals: globals.node } },
+  {
+    files: ["tests/browser/runtime.js"],
+    languageOptions: {
+      sourceType: "script",
+      globals: { ...globals.browser, MLBSnapshot: "readonly" },
+    },
+  },
+  {
+    // Callbacks passed to page.evaluate run in the page.
+    files: ["tests/browser/*.mjs"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
 ];
