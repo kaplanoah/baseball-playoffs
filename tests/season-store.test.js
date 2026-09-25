@@ -1,10 +1,20 @@
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { session } from "../page/js/session.js";
-import { loadSeason, saveRanking } from "../page/js/season-store.js";
+import {
+  applyDeferredSeason,
+  loadSeason,
+  saveRanking,
+  watchSeason,
+} from "../page/js/season-store.js";
 
 function createStore(documents, { failUpdates = false } = {}) {
   const writes = [];
+  const listeners = {};
+  const deliver = (path, data) => {
+    documents[path] = data;
+    listeners[path]({ id: path.split("/").pop(), exists: true, data: () => data });
+  };
   const database = {
     doc: (path) => ({
       get: async () => ({
@@ -21,9 +31,13 @@ function createStore(documents, { failUpdates = false } = {}) {
         if (failUpdates) throw Object.assign(new Error("try later"), { code: "unavailable" });
         documents[path] = { ...documents[path], ...fields };
       },
+      onSnapshot: (onNext) => {
+        listeners[path] = onNext;
+        return () => delete listeners[path];
+      },
     }),
   };
-  return { database, writes };
+  return { database, writes, deliver };
 }
 
 const STORED = {
@@ -37,6 +51,7 @@ const STORED = {
 beforeEach(() => {
   session.activeYear = 2026;
   session.saveProblem = null;
+  session.isReordering = false;
 });
 
 test("a ranking saved to an existing season only updates the ranking", async () => {
@@ -88,4 +103,25 @@ test("stored clubs the page doesn't know are dropped on load", async () => {
   session.db = createStore(documents).database;
   await loadSeason(2026);
   assert.deepEqual(Object.keys(session.seasonDoc.teams), ["NYY"]);
+});
+
+test("an update that arrives during a drag waits for it, and keeps the drag's order", async () => {
+  const documents = { "seasons/2026": structuredClone(STORED) };
+  const { database, deliver } = createStore(documents);
+  session.db = database;
+  await loadSeason(2026);
+  let redraws = 0;
+  watchSeason(2026, () => redraws++);
+
+  session.isReordering = true;
+  session.seasonDoc.ranking = ["NYY"];
+  const newEntry = { kind: "elim", team: "SEA", at: "2026-10-01T00:00:00Z" };
+  deliver("seasons/2026", { ...structuredClone(STORED), log: [...STORED.log, newEntry] });
+  assert.equal(session.seasonDoc.log.length, 1);
+  assert.equal(redraws, 0);
+
+  session.isReordering = false;
+  applyDeferredSeason();
+  assert.deepEqual(session.seasonDoc.log, [...STORED.log, newEntry]);
+  assert.deepEqual(session.seasonDoc.ranking, ["NYY"]);
 });
