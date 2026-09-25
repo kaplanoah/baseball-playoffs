@@ -85,7 +85,7 @@ test("update log: a field change names the spot and how far back the club that d
       outBack: "0.5",
       outAlive: true,
     }),
-    "Rangers take the AL West lead from the Astros &mdash; Astros ½ game back",
+    "Rangers take the AL West lead from the Astros &mdash; Astros \u00bd game back",
   );
   assert.equal(
     say({

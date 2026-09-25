@@ -24,7 +24,7 @@ body {
   font-size: 16px;
   padding-inline: 18px;
   padding-block: 17px 48px;
-  /* 7 × LAY.colW + 6 × LAY.gap in bracket-view.js, plus .tree-scroll's 18px each side. */
+  /* 7 x LAY.colW + 6 x LAY.gap in bracket-view.js, plus .tree-scroll's 18px each side. */
   max-width: 1619px;
   margin: 0 auto;
 }

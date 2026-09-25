@@ -110,7 +110,7 @@ function teamStatusLabel(state, id) {
   for (const [round, arr] of rounds) {
     for (const s of arr) {
       if (s && s.winner && (s.teamA === id || s.teamB === id) && s.winner !== id) {
-        return { label: `Out — ${ROUND_LABEL[round]}`, cls: "out" };
+        return { label: `Out \u2014 ${ROUND_LABEL[round]}`, cls: "out" };
       }
     }
   }

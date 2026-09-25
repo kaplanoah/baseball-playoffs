@@ -47,7 +47,7 @@ export async function deploy({
   const account = env.CLOUDFLARE_ACCOUNT_ID;
   if (!account)
     throw new Error(
-      "Set CLOUDFLARE_ACCOUNT_ID (Cloudflare dashboard → Workers & Pages → Account ID).",
+      "Set CLOUDFLARE_ACCOUNT_ID (Cloudflare dashboard > Workers & Pages > Account ID).",
     );
   const { name, compatibilityDate } = workerConfig();
   const auth = env.CLOUDFLARE_API_TOKEN
