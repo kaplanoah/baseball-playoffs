@@ -2,6 +2,9 @@
   "name": "baseball-playoffs",
   "private": true,
   "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies: plain node for tests and the build, and ESLint and Prettier for checks.",
+  "engines": {
+    "node": ">=22.21"
+  },
   "scripts": {
     "test": "node worker/build.mjs --check && TZ=America/New_York node --test tests/*.test.js",
     "lint": "eslint .",
