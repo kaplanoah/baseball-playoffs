@@ -120,7 +120,8 @@ export function upNextText(slate, context) {
     return {
       at: game.start,
       tbd: !!game.tbd,
-      text: !hasBegun && games.length >= 3 ? `${matchup}, first of ${games.length}` : matchup,
+      text:
+        !hasBegun && games.length >= 3 ? `${matchup}, starts slate of ${games.length}` : matchup,
     };
   }
   return null;
