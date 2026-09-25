@@ -1,0 +1,10 @@
+{
+  "name": "baseball-playoffs",
+  "private": true,
+  "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies: plain node for tests and the build.",
+  "scripts": {
+    "test": "node worker/build.mjs --check && TZ=America/New_York node --test tests/*.test.js",
+    "build": "node worker/build.mjs",
+    "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml"
+  }
+}

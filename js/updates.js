@@ -1,10 +1,11 @@
-/* The change log: what moved since you last looked. The routine appends
-   structured entries; all of the wording is built here. */
+/* The change log: what moved since you last looked. Entries are data --
+   from MLB's postseason schedule (snapshot.js) and from what moved in the
+   standings (changes.js) -- and all of the wording is built here. */
 
 /* ---------- what's changed since you last looked ---------- */
-/* The routine appends structured entries — which team, which seed, which
-   series — and the wording is built here, so the log reads the same every
-   time and can be restyled without touching the job that writes it. */
+/* Entries say which team, which seed, which series, and the wording is
+   built here, so the log reads the same every time and can be restyled
+   without touching the code that finds the news. */
 function seriesLabel(id){
   if(id === "WS") return "World Series";
   const [lg, key] = String(id).split("_");
@@ -13,8 +14,10 @@ function seriesLabel(id){
   if(key.startsWith("DS")) return `${lg}DS`;
   return `${lg} Wild Card Series`;
 }
+/* Your rank chip, then the club, the way the bracket and tables show it. A
+   club outside the field has no rank, so it gets the name alone. */
 function logChip(id){
-  return TEAMS[id] ? teamTag(id, "b") : "";
+  return TEAMS[id] ? rankTag(id) + teamTag(id, "b") : "";
 }
 function score(s){ return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${s[1]}` : ""; }
 
@@ -48,9 +51,45 @@ function viaText(e, mover, other){
   }
   return parts.join(" and ");
 }
-function withVia(sentence, e, mover, other){
-  const why = viaText(e, mover, other);
-  return why ? `${sentence} &mdash; ${why}` : sentence;
+function withVia(sentence, e, mover, other, also){
+  const tail = [viaText(e, mover, other), also].filter(Boolean).join(", ");
+  return tail ? `${sentence} &mdash; ${tail}` : sentence;
+}
+
+/* Which spot a field change was about. The entry records it (`spot`, and
+   `div` for a division); an older entry without it falls back to the
+   incoming club's seed, which is 1-3 for a division leader. */
+function divisionOf(id){
+  const divs = typeof standings !== "undefined" && standings && standings.divisions;
+  if(!divs) return "";
+  return Object.keys(divs).find(d => divs[d].some(r => r.id === id)) || "";
+}
+function spotLabel(e){
+  const lg = TEAMS[e.in] ? TEAMS[e.in].league : "";
+  let spot = e.spot, div = e.div;
+  if(!spot){
+    const seed = typeof state !== "undefined" && state && state.teams && state.teams[e.in] && state.teams[e.in].seed;
+    if(!seed) return `the last ${lg} spot`;
+    spot = seed <= 3 ? "division" : "wildcard";
+    div = div || divisionOf(e.in);
+  }
+  // "an AL", "an NL": both are said letter by letter.
+  if(spot === "division") return div ? `the ${div} lead` : `an ${lg} division lead`;
+  return `an ${lg} wild card spot`;
+}
+/* How far back the club that dropped out is, on its best remaining route
+   (the entry records `outBack` and `outAlive` at the time). A club that is
+   out altogether gets its own "eliminated" entry, so it adds nothing here. */
+function gamesBack(v){
+  const n = parseFloat(v);
+  if(isNaN(n) || n <= 0) return "even, behind on the tiebreaker";
+  const whole = Math.floor(n), half = n - whole >= 0.5;
+  const num = (whole ? String(whole) : "") + (half ? "½" : "");
+  return `${num} game${n > 1 ? "s" : ""} back`;
+}
+function outBack(e){
+  if(e.outAlive === false || e.outBack == null) return "";
+  return `${teamLabel(e.out)} ${gamesBack(e.outBack)}`;
 }
 
 function entryText(e){
@@ -62,9 +101,13 @@ function entryText(e){
        Naming the spot makes it a position changing hands, which is all that
        happened. The one-sided cases below always said "the projected field";
        the swap was the only branch that dropped it. */
+    /* And naming "the last spot" still wasn't enough: the Rangers passing the
+       Astros for the AL West lead read like a wild card changing hands, and
+       said nothing of whether the Astros were done. So the line names the
+       actual spot, and says how far back the club that dropped out is. */
     case "field":
       if(e.in && e.out)
-        return withVia(`${logChip(e.in)} take the last ${lg(e.in)} spot from the ${logChip(e.out)}`, e, e.in, e.out);
+        return withVia(`${logChip(e.in)} take ${spotLabel(e)} from the ${logChip(e.out)}`, e, e.in, e.out, outBack(e));
       if(e.in) return `${logChip(e.in)} into the projected field`;
       if(e.out) return `${logChip(e.out)} out of the projected field`;
       return "";
@@ -90,10 +133,12 @@ function entryText(e){
     /* Elimination had no entry kind at all, which is why "out" got borrowed
        for a club that had merely lost a projected spot. It is its own news:
        six AL clubs went out on one September night and the log said nothing.
-       Only the word recedes -- the club keeps its normal weight, because a
-       strikethrough on six names in an evening reads like a funeral. */
+       Plain text, in the line's own color: no strikethrough, no dimming. */
     case "elim":
-      return withVia(`${logChip(e.team)} <span class="gone">eliminated</span>`, e, e.team, null);
+      /* Why: its own loss, the win by the club it was chasing, or both --
+         "Orioles eliminated — White Sox beat the Royals 9-1". */
+      return withVia(`${logChip(e.team)} eliminated`, e, e.team,
+        ((e.via || []).find(v => v && v.team !== e.team) || {}).team || null);
     /* The mirror of elim, and it was missing for the same reason: the log
        could say a club moved up a seed but not that it had actually secured
        anything. A club can clinch without its seed changing, so nothing
@@ -102,6 +147,7 @@ function entryText(e){
       const what = e.what === "division" ? `the ${e.div || (lg(e.team) + " division")}`
                  : e.what === "bye"      ? "a first-round bye"
                  : e.what === "wildcard" ? "a wild card spot"
+                 : e.what === "playoff"  ? "a playoff spot"
                  :                         "a playoff spot";
       return withVia(`${logChip(e.team)} clinch ${what}`, e, e.team, null);
     }
@@ -140,6 +186,8 @@ function sinceLabel(iso, now = new Date()){
 const MAX_SHOWN = 12;
 function renderUpdates(){
   const el = document.getElementById("updates");
+  // "Since you last looked" is about the season being played, not one looked back on.
+  if(activeYear !== seasonYear()){ el.hidden = true; el.innerHTML = ""; return; }
   const seen = state.seenAt ? Date.parse(state.seenAt) : 0;
   const fresh = (state.log || [])
     .filter(e => e && (!seen || Date.parse(e.at) > seen))

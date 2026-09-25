@@ -34,7 +34,10 @@ h1,h2,h3{ font-weight:700; margin:0; letter-spacing:.01em; }
 
 header.top{
   display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
-  border-bottom:2px solid var(--card-border); padding-bottom:14px; margin-bottom:18px;
+  /* Two pixels, dimmed toward the page: the full-strength 2px rule was heavy,
+     and 1px was too faint to hold the header together. */
+  border-bottom:2px solid color-mix(in srgb, var(--card-border) 60%, var(--bg));
+  padding-bottom:14px; margin-bottom:13px;
 }
 header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--ink); text-transform:uppercase; letter-spacing:.06em; }
 /* The stamp sits with the season picker, not in the tab bar: both are about
@@ -50,9 +53,9 @@ header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--in
   background-repeat:no-repeat; background-position:right 8px center; background-size:9px 5px;
 }
 
-nav.tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
-/* When the routine last changed anything. One green: it's background
-   information, not something to look at. */
+nav.tabs{ display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; align-items:center; }
+/* How fresh the page is, and the next first pitch. One green: it's
+   background information, not something to look at. */
 .stamp{
   display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0;
   font-size:.63rem; color:var(--ink-dim); letter-spacing:.03em;
@@ -61,6 +64,9 @@ nav.tabs{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items
 /* Two greens rather than green and cream: the emphasis is the page's own dim
    green lifted toward its cream, so nothing new joins the palette. */
 .stamp b{ font-weight:400; color:color-mix(in srgb, var(--ink-dim) 55%, var(--ink)); }
+/* The stamp's own box, so the phone layout can give it a row of its own. */
+.stamp-wrap{ display:flex; align-items:center; gap:8px; min-width:0; }
+.stamp-err{ color:var(--copper-ink); }
 nav.tabs button{
   font:inherit; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em;
   background:none; border:1px solid var(--card-border); color:var(--ink-dim);
@@ -74,7 +80,9 @@ nav.tabs button.active{ background:var(--gold); color:var(--gold-ink); border-co
 button:focus, select:focus{ outline:none; }
 body.kbd button:focus, body.kbd select:focus{ outline:2px solid var(--copper-ink); outline-offset:2px; }
 
-section.view{ display:none; }
+/* One pixel in from the tabs and the header rule, so a page's cards don't sit
+   flush on the same edge as the controls above them. */
+section.view{ display:none; padding-left:1px; }
 section.view.active{ display:block; }
 
 /* Every part centers on one axis: the rule, the label, the team name and the
@@ -82,33 +90,46 @@ section.view.active{ display:block; }
    baselines, which is what threw the label and tag low before. */
 /* Your top-ranked club still alive. It used to own a full-width row under the
    tabs, which spent about 45px of height on three words and ran most of the
-   way empty on a wide screen. It now rides the right end of the tab row --
-   the emptiest strip on the page -- separated from the buttons by a hairline
+   way empty on a wide screen. It now rides the tab row, right after the
+   buttons, separated from them by a hairline
    in the same colour the buttons are drawn with, because it is the one thing
    in that row you cannot click. */
 .banner{
-  margin-left:auto; display:flex; align-items:center; gap:9px;
-  border-left:1px solid var(--card-border); padding-left:17px;
+  margin-left:10px; display:flex; align-items:center; gap:10px;
+  position:relative; padding-left:17px;
   font-size:.85rem; line-height:1; font-weight:500; color:var(--ink);
-  /* Off the right edge, and lifted a couple of pixels: the tab buttons carry
-     6px of padding above their caps, so centring on the row leaves this
-     sitting visually low against them. */
-  margin-right:10px; position:relative; top:-5px;
+  /* Plain flex centring on the row: the old 5px lift, from when this sat at
+     the far right, left it riding above the buttons' middle once it moved
+     up against them. */
+  align-self:stretch;
 }
 .banner[hidden]{ display:none; }
+/* The hairline, drawn rather than a border so it can stop 1px short of the
+   buttons' top and bottom edges instead of matching them exactly. */
+.banner::before{
+  content:""; position:absolute; left:0; top:1px; bottom:1px;
+  border-left:1px solid var(--card-border);
+}
 .banner > *{ display:flex; align-items:center; }
 /* Bare text, so it takes --copper-ink like every other label on the page, and
    the house rule holds: --copper for strokes, fills and boxed text, --copper-ink
    for text standing on its own. The two coppers used to read as two different
    colours where the label meets the chip; that was fixed by darkening
    --copper-ink toward --copper rather than by making an exception here.
-   The extra 3px on top of the row's 9px gap holds the label off the chip
-   without loosening the chip, dot and name from each other. */
+   The row's 10px gap holds the label off the chip; the chip, dot and name
+   keep their own tighter spacing inside .banner-team. */
 .banner .banner-label{
   font-size:.6rem; text-transform:uppercase; letter-spacing:.09em;
-  color:var(--copper-ink); font-weight:400; margin-right:3px;
+  color:var(--copper-ink); font-weight:400;
 }
-.banner .banner-team{ gap:9px; }
+.banner .banner-team{ gap:9px; position:relative; top:-.5px; }
+/* That half pixel is for the chip. Centred in the 30px tab row, the 19px chip
+   started on a half pixel, and the number inside it, which snaps to whole
+   pixels, rendered high against its border. On the whole-pixel grid it draws
+   like every other chip on the page. */
+/* Optical, not geometric: the dot rides half a pixel above the chip's center
+   so it reads level beside it; the name stays where centering puts it. */
+.banner .banner-team .dot{ position:relative; top:-.5px; }
 
 /* ---------- standings: divisions above, wild card races below ---------- */
 .stand-head{
@@ -146,6 +167,22 @@ section.view.active{ display:block; }
 .div-title .AL{ color:var(--al); }
 .div-title .NL{ color:var(--nl); }
 table.st{ width:100%; border-collapse:collapse; }
+/* Fixed layout on the two-column desktop grid: every table has the same
+   width there, so the same widths put W through Next on one vertical line
+   across the division and wild card tables. The team column is a fixed width
+   so a name never clips, the numbers are percentages so they keep their
+   proportions as the window narrows, and Next takes what's left. On a phone
+   each table scrolls on its own and keeps its natural sizing. */
+@media (min-width:780px){
+  table.st{ table-layout:fixed; }
+  table.st col.c-rank{ width:44px; }
+  table.st col.c-seed{ width:38px; }
+  table.st col.c-team{ width:150px; }
+  table.st col.c-w, table.st col.c-l{ width:5%; }
+  table.st col.c-pct, table.st col.c-gb{ width:8%; }
+  table.st col.c-e{ width:5%; }
+  table.st td.next-cell{ overflow:hidden; text-overflow:ellipsis; }
+}
 table.st th{
   text-align:right; font-weight:400; font-size:.58rem; text-transform:uppercase; letter-spacing:.09em;
   color:var(--ink-dim); padding:7px 0 4px 10px; border-bottom:1px solid var(--divider); white-space:nowrap;
@@ -174,14 +211,15 @@ table.st tr.alive td{ color:var(--ink); }
 table.st tr.eliminated td{ color:var(--ink-dim); }
 table.st tr.eliminated .dot{ opacity:.55; }
 /* Extra air on the left so the column reads as its own thing rather than a
-   continuation of the elimination number, and the page's cream turned down
-   rather than the dim green, which would read as a different kind of value. */
+   continuation of the elimination number. The color is the stamp's time
+   color, the dim green lifted toward the cream: quieter than the numbers,
+   but not as far down as the labels. */
 table.st td.next-cell, table.st th.next-cell{ padding-left:24px; }
 /* Named with the row class so it outranks the row's own color rule, which is
    otherwise more specific and was repainting this cell at full strength. */
 table.st tr.alive td.next-cell, table.st tr.eliminated td.next-cell{
   text-align:left; font-size:.70rem;
-  color:color-mix(in srgb, var(--ink) 78%, transparent);
+  color:color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
 }
 /* The cut line replaces that row's own divider, so it lands exactly where the
    green line would have been. It has to be ONE element spanning the table: a
@@ -199,7 +237,6 @@ table.st tr.cutline td{
 }
 table.st .rank-cell{ width:34px; }
 table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-nums; }
-table.st .wc-num{ width:20px; }
 .elim-num.clinched{ color:var(--gold); }
 .elim-num.live{ color:var(--copper-ink); }
 /* ONE CHIP. Four labels, one geometry -- the rank tag is the single exception
@@ -223,15 +260,19 @@ table.st .wc-num{ width:20px; }
 .magic-tag{ color:var(--copper-ink); border:0; padding:0; height:auto; }
 .stand-empty{ color:var(--ink-dim); font-size:.78rem; line-height:1.6; max-width:60ch; }
 
-/* What's changed since you last looked. Sits below the views, since news
-   belongs to the season rather than to whichever tab is open. No accent rule:
+/* What's changed since you last looked. Sits under the tabs, above every
+   view, since news belongs to the season rather than to whichever tab is
+   open. No accent rule:
    the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  padding:9px 22px 10px 13px; margin:0 0 20px; max-width:900px;
+  /* Flush with the header and tabs above it, not inset like the pages: it
+     belongs to the header block. */
+  padding:9px 22px 10px 13px; margin:0 0 28px; max-width:900px;
 }
-/* The header's 18px is for the tabs; news right under the rule sits closer. */
-header.top + .updates{ margin-top:-6px; }
+/* The tabs' 28px is breathing room before a page; the news is still part of
+   the header block, so it sits closer to them (the margins collapse to 16). */
+nav.tabs + .updates{ margin-top:-12px; }
 @media (min-width:780px){
   /* As wide as its longest line, not a fixed band with a gap at the right. */
   .updates{ width:fit-content; min-width:420px; }
@@ -239,7 +280,9 @@ header.top + .updates{ margin-top:-6px; }
 .updates-head{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .updates-count{ font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--gold); }
 .updates-x{
-  flex:none; width:22px; height:22px; margin:-3px -11px -3px 0; padding:0;
+  /* Pulled right so the cross sits as far from the box's right edge as from
+     its top: 12px each, measured on the drawn lines. */
+  flex:none; width:22px; height:22px; margin:-3px -16px -3px 0; padding:0;
   display:inline-flex; align-items:center; justify-content:center;
   background:transparent; border:0; border-radius:3px;
   color:color-mix(in srgb, var(--ink-dim) 62%, transparent); cursor:pointer;
@@ -261,11 +304,12 @@ header.top + .updates{ margin-top:-6px; }
 /* A step down each, light and medium over regular and bold: the log is
    background news, and at full weight it outshouted the tabs below it. */
 .updates-list .what b{ font-weight:500; }
-/* The one word that recedes on an elimination entry. --out is the same grey
-   the standings and ranking already use for a club that is done, and only
-   the word takes it: a strikethrough on six club names in an evening reads
-   like a funeral. */
-.updates-list .what .gone{ color:var(--out); }
+/* Rank chips in running text: a smaller chip than the tables' 19px, its slot
+   shrunk to the chip since there's no column to line up, 6px to the dot and
+   7px from the dot to the name. */
+.updates .rank-slot{ width:auto; margin:0 6px 0 0; vertical-align:1px; }
+.updates .rank-tag{ height:16px; min-width:0; padding:0 4px; font-size:.62rem; line-height:12px; }
+.updates .club{ gap:7px; }
 .updates-list .more{ font-size:.7rem; color:var(--ink-dim); padding-left:72px; }
 
 .setup-card{
@@ -292,12 +336,19 @@ button.ghost{
 /* The row's own 8px gap already spaces these; the banner has no seed between
    the chip and the dot, so it keeps the extra 4. */
 .team-id .rank-slot{ margin-right:0; }
-.banner-team .rank-slot{ margin-right:0; }
+/* The banner has one chip and no column to line up with, so its slot shrinks
+   to the chip: the fixed width's empty left side read as extra space after
+   the label. */
+.banner-team .rank-slot{ margin-right:0; width:auto; }
 
 .rank-tag{
   display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:19px; padding:0 5px;
   border-radius:3px; font-size:.7rem; font-weight:700; flex:none;
   background:transparent; border:1px solid var(--copper); color:var(--copper);
+  /* A fixed line height rather than whatever the chip's surroundings pass
+     down: the banner sets line-height:1, and inheriting it squeezed the
+     number's line so it sat a pixel high inside the box there. */
+  line-height:13px;
 }
 /* Filled tag = the team you rank higher in that matchup. */
 .rank-tag.solid{ background:var(--copper); color:var(--gold-ink); }
@@ -383,8 +434,14 @@ table.ref td .team-name{ font-size:.84rem; font-weight:400; }
 .nscore.lead{ background:var(--gold); color:var(--gold-ink); }
 
 /* ---------- Ranking ---------- */
-.rank-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; user-select:none; -webkit-user-select:none; }
-.rank-item{ display:flex; align-items:stretch; gap:16px; }
+/* The numbers and the cards are two columns. The gutter's slots share its
+   height equally, with the list's own 7px gap, so each number centers on the
+   card beside it at any card height, and none of them moves in a drag. */
+.rank-body{ display:flex; gap:16px; max-width:640px; }
+.rank-gutter{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; flex:none; }
+.rank-gutter .rank-num{ flex:1 1 0; }
+.rank-list{ flex:1; min-width:0; list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; user-select:none; -webkit-user-select:none; }
+.rank-item{ display:flex; align-items:stretch; }
 /* The rank lives outside the card, so the cards themselves stay identical and
    the order reads as a column of numerals down the left. */
 .rank-num{
@@ -463,7 +520,7 @@ table.ref td .team-name{ font-size:.84rem; font-weight:400; }
 /* Narrower than the bracket on purpose: given the width, the eye had to travel
    most of the page between a club and its numbers. The ranking cards carry
    less than the All Teams table, so they go narrower still. */
-.rank-list, .rank-hint, .rank-head{ max-width:640px; }
+.rank-hint, .rank-head{ max-width:640px; }
 table.ref{ max-width:800px; }
 
 /* ---------- Reference table ---------- */
@@ -563,7 +620,7 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
   .rank-num{ width:22px; }
   /* The numerals run 8px into the page gutter, the way .tree-scroll lets the
      bracket use it, so the column costs the cards less of the screen. */
-  .rank-list{ margin-left:-8px; }
+  .rank-body{ margin-left:-8px; }
   /* The column headings sit over .rank-cols, which is gone here, so the row
      they're in would only be an empty strip between the hint and the list. */
   #rankHead{ display:none; }
@@ -589,7 +646,8 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      above it. The lines get air of their own, since either can wrap and two
      wrapped lines otherwise read as one paragraph. */
   header.top{ row-gap:10px; }
-  .stamp{ order:3; flex-basis:100%; align-items:flex-start; text-align:left; gap:3px; }
+  .stamp-wrap{ order:3; flex-basis:100%; }
+  .stamp{ flex:1 1 auto; align-items:flex-start; text-align:left; gap:3px; }
 
   /* Four tabs onto one row. They share the width rather than sizing to their
      labels, so the row fills the screen and nothing wraps to a second line. */
@@ -602,7 +660,8 @@ table.ref th.seed-col, table.ref th.lg-col, table.ref th.won-col{ padding-right:
      them. The hairline would be pointing at nothing once it does, so it goes
      and the copper label does the separating on its own. */
   nav.tabs{ flex-wrap:wrap; }
-  .banner{ margin-left:0; margin-right:0; top:0; flex-basis:100%; border-left:0; padding-left:0; margin-top:11px; }
+  .banner{ margin-left:0; margin-right:0; top:0; flex-basis:100%; padding-left:0; margin-top:11px; }
+  .banner::before{ display:none; }
   /* Below about 360 the two nine-letter labels stop fitting even shared
      equally, so the tracking goes before the row does. */
   @media (max-width:359px){

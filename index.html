@@ -10,14 +10,14 @@
     <h1>MLB Postseason</h1>
   </div>
   <div class="head-right">
-    <span class="stamp" id="stamp" hidden></span>
+    <div class="stamp-wrap">
+      <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
+    </div>
     <div class="year-picker">
       <select id="yearSel" aria-label="Season"></select>
     </div>
   </div>
 </header>
-
-<div id="updates" class="updates" hidden></div>
 
 <nav class="tabs">
   <button data-tab="bracket" class="active">Bracket</button>
@@ -26,6 +26,8 @@
   <button data-tab="reference">All Teams</button>
   <span id="banner" class="banner" hidden></span>
 </nav>
+
+<div id="updates" class="updates" hidden></div>
 
 <section id="view-bracket" class="view active">
   <div id="setupPrompt" class="setup-card" hidden>
@@ -48,7 +50,10 @@
       <span class="status-slot"></span>
     </span>
   </div>
-  <ul class="rank-list" id="rankList"></ul>
+  <div class="rank-body">
+    <ol class="rank-gutter" id="rankGutter" aria-hidden="true"></ol>
+    <ul class="rank-list" id="rankList"></ul>
+  </div>
 </section>
 
 <section id="view-standings" class="view">
@@ -81,7 +86,11 @@
 <script src="js/bracket-view.js"></script>
 <script src="js/ranking.js"></script>
 <script src="js/updates.js"></script>
+<script src="js/stamp.js"></script>
 <script src="js/standings.js"></script>
 <script src="js/setup.js"></script>
+<script src="js/snapshot.js"></script>
+<script src="js/changes.js"></script>
+<script src="js/live.js"></script>
 <!-- Last: app.js boots the page, so every view has to be defined by now. -->
 <script src="js/app.js"></script>
