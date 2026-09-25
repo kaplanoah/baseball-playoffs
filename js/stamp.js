@@ -1,14 +1,11 @@
-/* The two freshness lines under the title, built from the facts the routine
-   records rather than from sentences it writes.
+/* The freshness lines under the title, built from the day's games rather
+   than from sentences anyone writes: `slate` holds the games with their
+   state, score, inning, first pitch and end, and every sentence is built
+   here, where the rules are code and tests/stamp.test.js pins each shape
+   down.
 
-   The routine used to write both lines freehand, following several pages of
-   wording rules, and every run could invent a new shape: a bare "White Sox @
-   Royals", a slate clause dropped from one line, "under way" for a game hours
-   away. Now it writes `slate` -- the day's games with their state, score,
-   inning, first pitch and end -- and every sentence is built here, where the
-   rules are code and tests/stamp.test.js pins each shape down.
-
-   Pure functions: no DOM, no globals but TEAMS, DAYS and dayDiff. The caller
+   The first line is what has happened, the second what comes next. Pure
+   functions: no DOM, no globals but TEAMS, DAYS and dayDiff. The caller
    passes a context with the user's ranking and who is still alive. */
 
 /* ---------- pieces ---------- */
@@ -109,48 +106,40 @@ function lastStampText(slate, ctx){
   return withClause(gamePhrase(g) + note(g), slateClause(games));
 }
 
-/* What the next check is for: judged at the check, not now. */
-function nextStampText(slate, nextAt, ctx){
-  if(!nextAt) return "";
-  const slot = stampMs(nextAt);
-  /* nextDay only counts when it really is a later day than today: a stale
-     one left behind by a partial write must not describe tonight. */
-  const later = slate.nextDay && slate.today && slate.nextDay.date > slate.today.date;
-  const day = later ? slate.nextDay : slate.today;
-  const games = (day && day.games) || [];
-  if(!games.length) return "routine check, no games today";
-  const open = games.filter(g => g.state !== "final");
-  const onAtSlot = open.filter(g => stampMs(g.start) <= slot);
-  const ahead = open.filter(g => stampMs(g.start) > slot);
-  const begun = games.some(g => g.state !== "pre");
-  const n = games.length;
-  const names = list => list.slice().sort((x, y) => stampMs(x.start) - stampMs(y.start)).map(firstPitchPhrase).join(", ");
-
-  if(onAtSlot.length){
-    /* Nothing has started as this is written: the line is read from now
-       until the check, often for hours, so it names the day's first pitch
-       rather than saying "under way" about a game that isn't yet. */
-    if(!begun) return n >= 3 ? `slate of ${n} starts with ${firstPitchPhrase(pick(open, ctx, PICK_STARTS))}` : names(open);
-    if(n <= 2) return names(open);
-    return `${firstPitchPhrase(pick(onAtSlot, ctx, PICK_UNDER_WAY))}, slate of ${n} under way`;
-  }
-  /* The check lands where there is nothing to find yet: say so, then give
-     the baseball it is waiting on in full. */
-  if(ahead.length){
-    if(n <= 2) return `routine check, ${names(ahead)}`;
+/* The second line, while nothing is on: the next first pitch, and the game
+   it belongs to. `at` is that first pitch, and `tbd` says MLB hasn't set its
+   time yet. Null while a game is live -- the first line is about that game
+   -- and when nothing is scheduled at all. */
+function upNextText(slate, ctx){
+  const days = [slate.today, slate.nextDay].filter(Boolean);
+  if(days.some(d => (d.games || []).some(g => g.state === "live"))) return null;
+  for(const day of days){
+    const games = day.games || [];
+    const ahead = games.filter(g => g.state === "pre");
+    if(!ahead.length) continue;
     const g = pick(ahead, ctx, PICK_STARTS);
-    return begun
-      ? `routine check, ${firstPitchPhrase(g)}, slate of ${n} under way`
-      : `routine check, slate of ${n} starts with ${firstPitchPhrase(g)}`;
+    const what = `${stampName(g.away)} @ ${stampName(g.home)}`;
+    const begun = games.some(x => x.state !== "pre");
+    return { at: g.start, tbd: !!g.tbd, text: !begun && games.length >= 3 ? `${what}, first of ${games.length}` : what };
   }
-  return "routine check, nothing left tonight";
+  return null;
 }
 
-/* Both lines often close on the same slate clause. Said twice it is noise,
-   so it stays on the second line only, which is where the day is still
-   going. When the two clauses differ, both keep theirs. */
-function dedupeSlate(last, next){
-  const SLATE = /, (slate of .+)$/;
-  const a = last && last.match(SLATE), b = next && next.match(SLATE);
-  return a && b && a[1] === b[1] ? last.replace(SLATE, "") : last;
+/* ---------- when ----------
+   The stamp points both ways, so unlike the log -- where every entry is in
+   the past and the day alone is enough -- a time here keeps its clock and
+   names its day when that isn't today. */
+function stampWhen(d, now = new Date()){
+  const time = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  const day = stampDay(d, now);
+  return day === "today" ? time : `${day} ${time}`;
+}
+/* The day alone, for a first pitch MLB hasn't put a time on yet. */
+function stampDay(d, now = new Date()){
+  const days = dayDiff(d, now);          // positive in the past, negative ahead
+  if(days === 0) return "today";
+  if(days === 1) return "yesterday";
+  if(days === -1) return "tomorrow";
+  if(Math.abs(days) < 7) return DAYS[d.getDay()];
+  return d.toLocaleDateString([], {month:"short", day:"numeric"});
 }

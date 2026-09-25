@@ -129,9 +129,10 @@ test("September: the standings table the page draws", () => {
   assert.equal(east[0].wcrank, null);
   assert.equal(east[1].id, "NYY");
   assert.equal(east[1].clinched, false);   // clinched a wild card, not the division
+  assert.equal(east[1].clinch, "w");
   assert.equal(east[1].wcrank, "1");
   assert.deepEqual(Object.keys(east[1]).sort(),
-    ["clinched", "elim", "gb", "id", "l", "lead", "magic", "next", "pct", "w", "wce", "wcgb", "wcrank"]);
+    ["clinch", "clinched", "elim", "gb", "id", "l", "lead", "magic", "next", "pct", "w", "wce", "wcgb", "wcrank"]);
   assert.deepEqual(east[1].next, { at: "2026-09-24T23:05:00Z", opp: "TB", home: true, tbd: false });
 });
 

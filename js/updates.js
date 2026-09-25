@@ -1,10 +1,11 @@
-/* The change log: what moved since you last looked. The routine appends
-   structured entries; all of the wording is built here. */
+/* The change log: what moved since you last looked. Entries are data --
+   from MLB's postseason schedule (snapshot.js) and from what moved in the
+   standings (changes.js) -- and all of the wording is built here. */
 
 /* ---------- what's changed since you last looked ---------- */
-/* The routine appends structured entries — which team, which seed, which
-   series — and the wording is built here, so the log reads the same every
-   time and can be restyled without touching the job that writes it. */
+/* Entries say which team, which seed, which series, and the wording is
+   built here, so the log reads the same every time and can be restyled
+   without touching the code that finds the news. */
 function seriesLabel(id){
   if(id === "WS") return "World Series";
   const [lg, key] = String(id).split("_");
@@ -55,8 +56,8 @@ function withVia(sentence, e, mover, other, also){
   return tail ? `${sentence} &mdash; ${tail}` : sentence;
 }
 
-/* Which spot a field change was about. The routine records it (`spot`, and
-   `div` for a division); an entry from before it did falls back to the
+/* Which spot a field change was about. The entry records it (`spot`, and
+   `div` for a division); an older entry without it falls back to the
    incoming club's seed, which is 1-3 for a division leader. */
 function divisionOf(id){
   const divs = typeof standings !== "undefined" && standings && standings.divisions;
@@ -77,7 +78,7 @@ function spotLabel(e){
   return `an ${lg} wild card spot`;
 }
 /* How far back the club that dropped out is, on its best remaining route
-   (the routine records `outBack` and `outAlive` at the time). A club that is
+   (the entry records `outBack` and `outAlive` at the time). A club that is
    out altogether gets its own "eliminated" entry, so it adds nothing here. */
 function gamesBack(v){
   const n = parseFloat(v);
@@ -185,6 +186,8 @@ function sinceLabel(iso, now = new Date()){
 const MAX_SHOWN = 12;
 function renderUpdates(){
   const el = document.getElementById("updates");
+  // "Since you last looked" is about the season being played, not one looked back on.
+  if(activeYear !== seasonYear()){ el.hidden = true; el.innerHTML = ""; return; }
   const seen = state.seenAt ? Date.parse(state.seenAt) : 0;
   const fresh = (state.log || [])
     .filter(e => e && (!seen || Date.parse(e.at) > seen))

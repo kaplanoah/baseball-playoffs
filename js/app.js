@@ -1,21 +1,28 @@
 /* UI core: the season document, the artifact store it lives in, the small
    render helpers every view shares, and the boot sequence. The views
    themselves are in bracket-view.js, ranking.js, updates.js, standings.js
-   and setup.js; this file loads last, because it is the one that starts
-   everything once they have all defined their renderers.
-   Series results are written by the scheduled routine, not from here. */
+   and setup.js, and live data in live.js; this file loads last, because it
+   is the one that starts everything once they have all defined their
+   renderers.
+
+   Two copies of each document: `seasonDoc` and `storedStandings` as the
+   store holds them, and `state` and `standings`, which are what the views
+   read -- the stored ones with the latest live snapshot laid over them
+   (composeState in live.js). */
 
 const CURRENT_YEAR = new Date().getFullYear();
 const seasonYear = () => (new Date().getMonth() >= 8 ? CURRENT_YEAR : CURRENT_YEAR - 1);
 
 let db = null;
+let seasonDoc = null;      // seasons/<year> as stored
+let storedStandings = null; // standings/<year> as stored
 let state = null;
 let years = [];
 let activeYear = seasonYear();
 let trackedTitles = {}; // team id -> most recent year it won a tracked World Series
 let unwatchSeason = null;
 let unwatchStandings = null;
-let standings = null; // regular-season table for the active year, or null
+let standings = null; // regular-season table the views read, or null
 let reordering = false; // true mid-drag, so a live update can't yank the list
 
 function emptySeason(year){
@@ -75,19 +82,22 @@ function normalize(doc, year){
 
 async function loadSeason(year){
   const snap = await db.doc(`seasons/${year}`).get();
-  state = normalize(snap.exists ? snap.data() : null, year);
+  seasonDoc = normalize(snap.exists ? snap.data() : null, year);
+  composeState();
 }
 
-/* The 30-club regular-season table, written by the same routine. It lives in
-   its own document because it's five times the size of the season doc and
-   stops changing entirely once October starts. */
+/* The 30-club regular-season table. It lives in its own document because
+   it's five times the size of the season doc and stops changing entirely
+   once October starts. */
 async function loadStandings(year){
-  standings = null;
-  if(!db) return;
-  try{
-    const snap = await db.doc(`standings/${year}`).get();
-    if(snap.exists) standings = snap.data();
-  }catch(e){ standings = null; }
+  storedStandings = null;
+  if(db){
+    try{
+      const snap = await db.doc(`standings/${year}`).get();
+      if(snap.exists) storedStandings = snap.data();
+    }catch(e){ storedStandings = null; }
+  }
+  composeState();
 }
 function watchStandings(year){
   if(unwatchStandings){ unwatchStandings(); unwatchStandings = null; }
@@ -95,29 +105,31 @@ function watchStandings(year){
   unwatchStandings = db.doc(`standings/${year}`).onSnapshot(snap => {
     if(!snap.exists) return;
     const incoming = snap.data();
-    if(JSON.stringify(incoming) === JSON.stringify(standings)) return;
-    standings = incoming;
+    if(sameJson(incoming, storedStandings)) return;
+    storedStandings = incoming;
+    composeState();
     renderStandings();
     renderStamp();
   }, () => {});
 }
 
-/* Stay subscribed so the routine's scores and field changes land without a
-   reload, instead of this page holding a copy that drifts for hours. */
+/* Stay subscribed so a ranking dragged on your phone, or a dismissal on
+   your laptop, lands here without a reload. */
 function watchSeason(year){
   if(unwatchSeason){ unwatchSeason(); unwatchSeason = null; }
   if(!db) return;
   unwatchSeason = db.doc(`seasons/${year}`).onSnapshot(snap => {
     if(!snap.exists || reordering) return;
     const incoming = normalize(snap.data(), year);
-    if(JSON.stringify(incoming) === JSON.stringify(state)) return;
-    state = incoming;
+    if(sameJson(incoming, seasonDoc)) return;
+    seasonDoc = incoming;
+    composeState();
     renderAll();
   }, () => {});
 }
 /* Write only the fields this page owns. Writing the whole document would send
    our in-memory copy of everything else back too, and that copy goes stale the
-   moment the routine updates the field — which is how a saved ranking gets
+   moment another open view writes — which is how a saved ranking gets
    overwritten by a reload of an older one. */
 async function writeSeason(fields){
   if(!db) return;
@@ -131,12 +143,13 @@ async function writeSeason(fields){
 }
 
 async function saveTeams(teamsMap){
-  state.teams = teamsMap;
-  state.ranking = Object.keys(teamsMap).sort((a,b) => teamsMap[a].seed - teamsMap[b].seed);
-  state.series = {};
-  await writeSeason({ teams: state.teams, series: {}, ranking: state.ranking });
+  const ranking = Object.keys(teamsMap).sort((a,b) => teamsMap[a].seed - teamsMap[b].seed);
+  Object.assign(seasonDoc, { teams: teamsMap, series: {}, ranking });
+  composeState();
+  await writeSeason({ teams: teamsMap, series: {}, ranking });
 }
 async function saveRanking(order){
+  seasonDoc.ranking = order;
   state.ranking = order;
   await writeSeason({ ranking: order });
 }
@@ -146,6 +159,7 @@ async function saveRanking(order){
    it on a phone — "since I last looked" is about you, not about a device. */
 async function dismissUpdates(){
   const at = new Date().toISOString();
+  seasonDoc.seenAt = at;
   state.seenAt = at;
   renderUpdates();
   await writeSeason({ seenAt: at });
@@ -180,14 +194,12 @@ function teamTag(id, tag = "span"){
 }
 /* EVERY CLUB IN THE FIELD HAS TO APPEAR IN THE RANKING. One that is missing is
    invisible on the Ranking tab -- you cannot drag what is not drawn -- and can
-   never be the highest still in. The routine appends new clubs at the bottom
-   when the field changes, but the page writes `ranking` straight from the
-   browser with no version pin, so a drag that lands across a field change
-   saves back a list that predates the swap: the club that left is still in it,
-   the club that arrived never made it. This puts the order right at render
-   time whatever the document holds, unranked clubs last, exactly where the
-   routine would have put them. The next drag saves the correction back, so it
-   heals rather than papering over. */
+   never be the highest still in. The field changes under the ranking --
+   projected clubs come and go all September -- and `ranking` is only ever
+   written by a drag, so it can name a club that left and miss one that
+   arrived. This puts the order right at render time whatever the document
+   holds: clubs that left dropped, new ones last. The next drag saves the
+   correction back, so it heals rather than papering over. */
 function rankedOrder(){
   if(!state || !state.teams) return [];
   const ranked = (state.ranking || []).filter(id => state.teams[id]);
@@ -238,6 +250,7 @@ async function switchYear(year){
   renderAll();
   watchSeason(year);
   watchStandings(year);
+  startLive();
 }
 
 async function boot(){
@@ -267,13 +280,13 @@ async function boot(){
 
   try{
     if(db){ await loadSeason(activeYear); await loadStandings(activeYear); }
-    else { state = emptySeason(activeYear); }
-  }catch(e){ db = null; state = emptySeason(activeYear); }
+    else { seasonDoc = emptySeason(activeYear); composeState(); }
+  }catch(e){ db = null; seasonDoc = emptySeason(activeYear); composeState(); }
 
   renderAll();
   watchSeason(activeYear);
   watchStandings(activeYear);
-  initRefresh();
+  startLive();
 }
 
 if(window.claude?.hot){

@@ -54,8 +54,8 @@ header.top h1{ font-size:1.15rem; font-weight:400; line-height:1; color:var(--in
 }
 
 nav.tabs{ display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; align-items:center; }
-/* When the routine last changed anything. One green: it's background
-   information, not something to look at. */
+/* How fresh the page is, and the next first pitch. One green: it's
+   background information, not something to look at. */
 .stamp{
   display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0;
   font-size:.63rem; color:var(--ink-dim); letter-spacing:.03em;
@@ -64,22 +64,8 @@ nav.tabs{ display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; align-items
 /* Two greens rather than green and cream: the emphasis is the page's own dim
    green lifted toward its cream, so nothing new joins the palette. */
 .stamp b{ font-weight:400; color:color-mix(in srgb, var(--ink-dim) 55%, var(--ink)); }
-/* Update now: beside both stamp lines, centred on them, in their own green.
-   It turns while the run it started is under way. */
+/* The stamp's own box, so the phone layout can give it a row of its own. */
 .stamp-wrap{ display:flex; align-items:center; gap:8px; min-width:0; }
-/* The update box's close cross, a size up and round: the same green and the
-   same hover fill, in a circle. */
-.stamp-refresh{
-  display:inline-flex; align-items:center; justify-content:center; flex:none;
-  width:26px; height:26px; padding:0; border:0; border-radius:50%;
-  background:transparent; color:color-mix(in srgb, var(--ink-dim) 62%, transparent); cursor:pointer;
-}
-.stamp-refresh svg{ width:14px; height:14px; display:block; }
-.stamp-refresh:hover{ color:var(--ink-dim); background:var(--divider); }
-.stamp-refresh:disabled{ cursor:default; background:transparent; color:color-mix(in srgb, var(--ink-dim) 62%, transparent); }
-.stamp-refresh.busy svg{ animation:stamp-spin 1.1s linear infinite; }
-@keyframes stamp-spin{ to{ transform:rotate(360deg); } }
-@media (prefers-reduced-motion: reduce){ .stamp-refresh.busy svg{ animation:none; } }
 .stamp-err{ color:var(--copper-ink); }
 nav.tabs button{
   font:inherit; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em;

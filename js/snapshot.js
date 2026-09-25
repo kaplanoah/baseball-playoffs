@@ -47,7 +47,7 @@ const MLBSnapshot = (() => {
     "records", "division", "id", "teamRecords", "team", "wins", "losses",
     "winningPercentage", "divisionGamesBack", "wildCardGamesBack",
     "eliminationNumber", "wildCardEliminationNumber", "magicNumber",
-    "divisionChamp", "divisionLeader", "divisionRank", "wildCardRank", "leagueRank"
+    "divisionChamp", "divisionLeader", "divisionRank", "wildCardRank", "leagueRank", "clinchIndicator"
   ].join(",");
 
   /* Each game type in the postseason is one round. */
@@ -234,6 +234,8 @@ const MLBSnapshot = (() => {
         /* divisionChamp, not the clinch indicator: "x" and "w" also mean
            clinched, but a playoff spot, not the division this tag is for. */
         clinched: !!r.divisionChamp, lead: !!r.divisionLeader,
+        // MLB's own marker: x a playoff spot, w a wild card, y the division, z a bye.
+        clinch: r.clinchIndicator || null,
         wcrank: r.divisionLeader ? null : (r.wildCardRank || null),
         rank: Number(r.divisionRank) || 99
       };

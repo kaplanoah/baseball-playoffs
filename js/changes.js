@@ -46,14 +46,14 @@ const LogChanges = (() => {
   }
 
   /* Build an entry: `via` lists the finals behind it, and `at` is when the
-     latest of them ended, so two views that notice the same change a minute
-     apart still log it at the same moment. With no game behind it, now. */
+     change was noticed. Not when its game ended: the log shows what is newer
+     than your last dismissal, and a change noticed after you dismissed --
+     the page was closed when it happened -- is news you haven't seen. */
   function entry(fields, via, now){
     const games = via.filter(Boolean);
     const e = { ...fields };
     if(games.length) e.via = games.map(({ end, ...v }) => v);
-    const ends = games.map(v => Date.parse(v.end)).filter(n => !isNaN(n));
-    e.at = new Date(ends.length ? Math.max(...ends) : now).toISOString().replace(".000Z", "Z");
+    e.at = new Date(now).toISOString().replace(".000Z", "Z");
     return e;
   }
 
@@ -108,26 +108,45 @@ const LogChanges = (() => {
     return out;
   }
 
-  /* Division titles and eliminations that happened since the old table. An
-     elimination's `via` is the club's own loss and the win by the club it
-     was chasing on the route that just closed. */
+  /* MLB's clinch marker, in the order a club climbs it: a playoff spot, a
+     wild card, the division, a first-round bye. Each step up is its own news:
+     the White Sox clinching a spot and, later, a wild card are two entries. */
+  const CLINCH = { x: ["playoff", 1], w: ["wildcard", 2], y: ["division", 3], z: ["bye", 4] };
+
+  /* What a club secured since the old table. A table saved before the marker
+     was recorded has nothing to compare it with, so then only a division
+     title (from `clinched`) can be found. */
+  function berthWon(old, r){
+    if("clinch" in old){
+      const now = CLINCH[r.clinch], was = CLINCH[old.clinch];
+      return now && now[1] > (was ? was[1] : 0) ? now[0] : null;
+    }
+    return r.clinched && !old.clinched ? "division" : null;
+  }
+
+  /* Clinches, then eliminations, since the old table. An elimination's
+     `via` is the club's own loss and the win by the club it was chasing on
+     the route that just closed. */
   function standingsChanges(before, after, games, now){
     const out = [];
-    for(const [id, r] of Object.entries(after)){
-      const old = before[id] || {};
-      if(r.clinched && !old.clinched){
-        const own = result(games, id);
-        out.push(entry({ kind: "berth", team: id, what: "division", div: r.div }, [own && own.won ? own : null], now));
-      }
-      if(outOfIt(r) && before[id] && !outOfIt(old)){
-        const lg = r.div.slice(0, 2);
-        const chasing = old.wce !== "E" ? lastWildCard(after, lg)
-          : old.elim !== "E" ? (Object.values(after).find(x => x.div === r.div && x.lead) || {}).id
-          : null;
-        const own = result(games, id), them = result(games, chasing);
-        out.push(entry({ kind: "elim", team: id },
-          [own && !own.won ? own : null, them && them.won ? them : null], now));
-      }
+    const clubs = Object.entries(after).filter(([id]) => before[id]);
+    for(const [id, r] of clubs){
+      const what = berthWon(before[id], r);
+      if(!what) continue;
+      const fields = { kind: "berth", team: id, what };
+      if(what === "division") fields.div = r.div;
+      const own = result(games, id);
+      out.push(entry(fields, [own && own.won ? own : null], now));
+    }
+    for(const [id, r] of clubs){
+      const old = before[id];
+      if(!outOfIt(r) || outOfIt(old)) continue;
+      const chasing = old.wce !== "E" ? lastWildCard(after, r.div.slice(0, 2))
+        : old.elim !== "E" ? (Object.values(after).find(x => x.div === r.div && x.lead) || {}).id
+        : null;
+      const own = result(games, id), them = result(games, chasing);
+      out.push(entry({ kind: "elim", team: id },
+        [own && !own.won ? own : null, them && them.won ? them : null], now));
     }
     return out;
   }
@@ -141,7 +160,7 @@ const LogChanges = (() => {
     const oldTeams = before.teams || {}, newTeams = after.teams || {};
     const out = [];
 
-    const hadField = Object.keys(oldTeams).length === 12;
+    const hadField = Object.keys(oldTeams).length > 0;
     const locked = before.projected !== false && after.projected === false;
     if(locked && hadField) out.push(entry({ kind: "lock" }, [], now));
     if(hadField && (after.projected !== false || locked)){
@@ -156,7 +175,8 @@ const LogChanges = (() => {
   /* One identity per piece of news, so the same change noticed twice -- by
      two open views, or by the page and the retired routine -- is kept once.
      A field or seed change can happen again on a later day, so its identity
-     carries the day; a clinch or an elimination happens once a season. */
+     carries the day it was noticed; a clinch or an elimination happens once
+     a season. */
   function key(e){
     switch(e.kind){
       case "game":   return `game:${e.series}:${e.game}`;
