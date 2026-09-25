@@ -67,11 +67,17 @@ export async function deploy({ fetchImpl = fetch, env = process.env, script = re
 
   async function call(what, url, init){
     const res = await fetchImpl(url, { ...init, headers: { ...auth, ...(init.headers || {}) } });
+    const text = await res.text();
     let body = {};
-    try{ body = await res.json(); }catch(e){}
+    try{ body = JSON.parse(text); }catch(e){}
     if(!res.ok || body.success === false){
       const errors = body.errors || [];
-      const why = errors.map(e => `${e.code}: ${e.message}`).join("; ") || `HTTP ${res.status}`;
+      /* A refusal that isn't Cloudflare's JSON (a proxy's, a firewall's)
+         says why only in its raw body, so show that. */
+      const raw = text.trim()
+        ? `HTTP ${res.status} (server: ${res.headers.get("server") || "?"}): ${text.trim().slice(0, 500)}`
+        : `HTTP ${res.status}`;
+      const why = errors.map(e => `${e.code}: ${e.message}`).join("; ") || raw;
       const hint = !env.CLOUDFLARE_API_TOKEN && errors.some(e => NO_CREDENTIALS.has(e.code))
         ? `\nNo token reached Cloudflare. In a cloud session the proxy adds it, but only to requests sent through the proxy: `
           + `run \`npm run deploy:api\`, which sets NODE_USE_ENV_PROXY=1 (needs Node 22.21 or later; this is ${process.version}). `
