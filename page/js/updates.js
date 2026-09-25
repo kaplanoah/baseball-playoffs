@@ -186,18 +186,22 @@ function formatSince(iso, now = new Date()) {
   return `since ${date.toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
+// Freshness goes by when a change was noticed; the list shows when it happened.
+const findHappenedAt = (entry) => entry.ended || entry.at;
+
 function listFreshEntries() {
   const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
   return (session.state.log || [])
     .filter((entry) => entry && (!seen || Date.parse(entry.at) > seen))
-    .sort((first, second) => Date.parse(second.at) - Date.parse(first.at));
+    .sort(
+      (first, second) => Date.parse(findHappenedAt(second)) - Date.parse(findHappenedAt(first)),
+    );
 }
 
 function renderEntry(entry) {
   const text = entryText(entry);
-  return text
-    ? `<li><span class="when">${formatWhen(entry.at)}</span><span class="what">${text}</span></li>`
-    : "";
+  const when = formatWhen(findHappenedAt(entry));
+  return text ? `<li><span class="when">${when}</span><span class="what">${text}</span></li>` : "";
 }
 
 function hideUpdates(panel) {
