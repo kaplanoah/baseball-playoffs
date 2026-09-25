@@ -136,6 +136,13 @@ function stampWhen(d, now = new Date()){
   const day = stampDay(d, now);
   return day === "today" ? time : `${day} ${time}`;
 }
+/* The same time as markup, its AM/PM in a span of its own so the stamp can
+   set it a little smaller and closer to the minutes (.ap in styles.css). The
+   space before it goes, since the span's margin is the gap. A clock with no
+   AM/PM, or one that puts it first, ends in a digit and comes back as is. */
+function stampWhenHtml(d, now = new Date()){
+  return stampWhen(d, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
+}
 /* The day alone, for a first pitch MLB hasn't put a time on yet. */
 function stampDay(d, now = new Date()){
   const days = dayDiff(d, now);          // positive in the past, negative ahead

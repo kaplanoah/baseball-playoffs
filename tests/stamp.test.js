@@ -187,3 +187,10 @@ test("no sentence is ever a bare matchup or 'under way with'", () => {
     }
   }
 });
+
+test("the time as markup sets its AM/PM apart and leaves the rest alone", () => {
+  const now = new Date(et(DAY, "12:00"));
+  const html = iso => plain(page.run("stampWhenHtml(new Date(I), N)", { I: iso, N: now }));
+  assert.equal(html(et(DAY, "22:19")), '10:19<span class="ap">PM</span>');
+  assert.equal(html(et("2026-09-25", "13:08")), 'tomorrow 1:08<span class="ap">PM</span>');
+});
