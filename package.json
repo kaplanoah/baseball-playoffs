@@ -6,6 +6,6 @@
     "test": "node worker/build.mjs --check && TZ=America/New_York node --test tests/*.test.js",
     "build": "node worker/build.mjs",
     "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml",
-    "deploy:api": "npm test && node worker/deploy.mjs"
+    "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs"
   }
 }

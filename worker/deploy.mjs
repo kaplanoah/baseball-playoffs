@@ -4,14 +4,17 @@
    token as an API credential: the agent proxy adds the token to requests
    for api.cloudflare.com, so the session never sees it -- and wrangler,
    which looks for the token in an environment variable, refuses to start.
+   Node's fetch ignores HTTPS_PROXY unless NODE_USE_ENV_PROXY=1 (Node 22.21
+   or later), so deploy:api sets it; without it no token reaches Cloudflare.
    Anywhere else, set CLOUDFLARE_API_TOKEN and this sends it itself.
 
      npm run deploy:api     (runs npm test first, then this)
 
-   It deploys only a release: the checkout must be main, with nothing
-   uncommitted, and exactly what GitHub has as main. It uploads the
-   committed worker/dist/worker.mjs as it is -- it never rebuilds, and the
-   tests have already failed if that file is stale. Anything else is refused
+   It deploys only a release: the checked-out commit must be exactly what
+   GitHub has as main, with nothing uncommitted. The branch name doesn't
+   matter, so a cloud session's own branch deploys once it matches main. It
+   uploads the committed worker/dist/worker.mjs as it is -- it never
+   rebuilds, and the tests have already failed if that file is stale. Anything else is refused
    with the reason, before Cloudflare is contacted.
 
    Then three calls: upload the script, switch on its workers.dev route,
@@ -36,17 +39,22 @@ export function workerConfig(toml = read("worker/wrangler.toml")){
 
 const RELEASE_BRANCH = "main";
 
-/* Refuses unless this checkout is exactly main as GitHub has it. `git` runs
-   one git command and returns its output; the tests pass a stand-in. */
+/* Refuses unless the checked-out commit is exactly main as GitHub has it,
+   on whatever branch. `git` runs one git command and returns its output;
+   the tests pass a stand-in. */
 export function checkRelease(git = args => execFileSync("git", args, { cwd: fileURLToPath(root), encoding: "utf8" }).trim()){
-  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
-  if(branch !== RELEASE_BRANCH) throw new Error(`Deploys come from ${RELEASE_BRANCH} only; this checkout is on ${branch}. Merge through a pull request first.`);
   if(git(["status", "--porcelain"])) throw new Error("There are uncommitted changes. Deploy only what has been merged.");
   git(["fetch", "--quiet", "origin", RELEASE_BRANCH]);
   const local = git(["rev-parse", "HEAD"]), remote = git(["rev-parse", `origin/${RELEASE_BRANCH}`]);
-  if(local !== remote) throw new Error(`This checkout (${local.slice(0, 7)}) isn't ${RELEASE_BRANCH} as GitHub has it (${remote.slice(0, 7)}). Pull ${RELEASE_BRANCH} and try again.`);
+  if(local !== remote){
+    const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+    throw new Error(`This checkout (${branch} at ${local.slice(0, 7)}) isn't ${RELEASE_BRANCH} as GitHub has it (${remote.slice(0, 7)}). Merge through a pull request, or check out origin/${RELEASE_BRANCH}, and try again.`);
+  }
   return local;
 }
+
+/* Cloudflare's codes for a request that carried no credentials at all. */
+const NO_CREDENTIALS = new Set([9106, 1001]);
 
 /* Upload, route, report. Returns the connector's URL. `fetchImpl` and `env`
    are parameters so the tests can run it against a stand-in API. */
@@ -62,8 +70,14 @@ export async function deploy({ fetchImpl = fetch, env = process.env, script = re
     let body = {};
     try{ body = await res.json(); }catch(e){}
     if(!res.ok || body.success === false){
-      const why = (body.errors || []).map(e => `${e.code}: ${e.message}`).join("; ") || `HTTP ${res.status}`;
-      throw new Error(`${what} failed: ${why}`);
+      const errors = body.errors || [];
+      const why = errors.map(e => `${e.code}: ${e.message}`).join("; ") || `HTTP ${res.status}`;
+      const hint = !env.CLOUDFLARE_API_TOKEN && errors.some(e => NO_CREDENTIALS.has(e.code))
+        ? `\nNo token reached Cloudflare. In a cloud session the proxy adds it, but only to requests sent through the proxy: `
+          + `run \`npm run deploy:api\`, which sets NODE_USE_ENV_PROXY=1 (needs Node 22.21 or later; this is ${process.version}). `
+          + `Anywhere else, set CLOUDFLARE_API_TOKEN.`
+        : "";
+      throw new Error(`${what} failed: ${why}${hint}`);
     }
     log(`${what}: ok`);
     return body.result;

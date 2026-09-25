@@ -71,8 +71,11 @@ returns `"success":true`, skip to step 3. Otherwise walk the user through this:
    `Continue setting up the MLB postseason tracker: README "Setup, for Claude", step 3. The page is at <artifact URL>.`
 
 **3. Deploy the connector.** Run `npm run deploy:api`: it runs the tests,
-deploys only a clean checkout of `main` as GitHub has it, and prints the
-connector URL, `https://mlb-live.<subdomain>.workers.dev/mcp`. The repo's
+deploys only a clean checkout of `main`'s commit as GitHub has it (on any
+branch, so the session's own branch works once it matches `main`), and prints
+the connector URL, `https://mlb-live.<subdomain>.workers.dev/mcp`. It sets
+`NODE_USE_ENV_PROXY=1` so Node sends its calls through the session's proxy,
+which adds the token; that needs Node 22.21 or later. The repo's
 `.claude/settings.json` lets Claude run exactly that command without asking,
 and blocks the unchecked ways to deploy.
 Check it answers: a POST of a JSON-RPC `initialize` to that URL returns the
