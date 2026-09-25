@@ -82,7 +82,7 @@ themselves" below.
    `create_session` tool if you have it. Otherwise have the user start it.
    `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 3. The page is at <artifact URL>.`
 
-**3. Deploy the connector.** Run `npm run deploy:api`. It runs the tests,
+**3. Deploy the connector.** Run `npm ci`, then `npm run deploy:api`. It runs the tests,
 deploys `main` exactly as it is on GitHub, and prints the connector URL,
 `https://mlb-live.<subdomain>.workers.dev/mcp`. It refuses uncommitted
 changes and anything that isn't `main`'s latest commit. The session's own
