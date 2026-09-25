@@ -9,68 +9,77 @@
    passes a context with the user's ranking and who is still alive. */
 
 /* ---------- pieces ---------- */
-function stampClock(iso){
-  return new Date(iso).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+function stampClock(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
-function stampName(id){ return TEAMS[id] ? TEAMS[id].name : id; }
-function ordinal(n){
-  const s = ["th","st","nd","rd"], v = n % 100;
+function stampName(id) {
+  return TEAMS[id] ? TEAMS[id].name : id;
+}
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"],
+    v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 /* Every game carries its state, and the state carries its clock. A final
    from an earlier day keeps its clock and adds the day: "final at 1:30 AM
    last night". */
-function finalPhrase(g, day){
+function finalPhrase(g, day) {
   const [a, h] = g.score || [0, 0];
   const [w, wr, l, lr] = a > h ? [g.away, a, g.home, h] : [g.home, h, g.away, a];
   return `${stampName(w)} ${wr} ${stampName(l)} ${lr} final at ${stampClock(g.end)}${day ? " " + day : ""}`;
 }
-function livePhrase(g){
+function livePhrase(g) {
   const [a, h] = g.score || [0, 0];
   return `${stampName(g.away)} @ ${stampName(g.home)} ${a}-${h} in the ${ordinal(g.inning || 1)}`;
 }
 /* A game that is on, or will be on, at the next check is named by its first
    pitch: its inning isn't known ahead of time, and the first pitch says what
    the check is for whether the game has started yet or not. */
-function firstPitchPhrase(g){
+function firstPitchPhrase(g) {
   return `${stampName(g.away)} @ ${stampName(g.home)} first pitch at ${stampClock(g.start)}`;
 }
-function gamePhrase(g){
-  return g.state === "final" ? finalPhrase(g) : g.state === "live" ? livePhrase(g) : firstPitchPhrase(g);
+function gamePhrase(g) {
+  return g.state === "final"
+    ? finalPhrase(g)
+    : g.state === "live"
+      ? livePhrase(g)
+      : firstPitchPhrase(g);
 }
 
 /* THE NUMBER IS THE WHOLE DAY, and the clause has two states and no more. */
-function slateClause(games){
-  if(games.length < 3) return "";
-  return games.every(g => g.state === "final")
+function slateClause(games) {
+  if (games.length < 3) return "";
+  return games.every((g) => g.state === "final")
     ? `slate of ${games.length} over`
     : `slate of ${games.length} under way`;
 }
-const withClause = (phrase, clause) => clause ? `${phrase}, ${clause}` : phrase;
+const withClause = (phrase, clause) => (clause ? `${phrase}, ${clause}` : phrase);
 
 /* ---------- which game to name ----------
    A game counts as the better of its two clubs' places in the user's
    ranking; a game with neither club ranked loses to any game with one. A game
    whose clubs are both out loses to any game with a club still alive. */
-function gameRank(g, ctx){
-  const r = [g.away, g.home].map(id => ctx.ranking.indexOf(id)).filter(i => i >= 0);
+function gameRank(g, ctx) {
+  const r = [g.away, g.home].map((id) => ctx.ranking.indexOf(id)).filter((i) => i >= 0);
   return r.length ? Math.min(...r) : Infinity;
 }
-function gameAlive(g, ctx){ return ctx.alive(g.away) || ctx.alive(g.home) ? 0 : 1; }
-const stampMs = iso => Date.parse(iso);
-function pick(games, ctx, order){
+function gameAlive(g, ctx) {
+  return ctx.alive(g.away) || ctx.alive(g.home) ? 0 : 1;
+}
+const stampMs = (iso) => Date.parse(iso);
+function pick(games, ctx, order) {
   const keys = {
-    latestEnd:   g => -stampMs(g.end),
-    earliest:    g => stampMs(g.start),
-    latestStart: g => -stampMs(g.start),
-    rank:        g => gameRank(g, ctx),
-    alive:       g => gameAlive(g, ctx)
+    latestEnd: (g) => -stampMs(g.end),
+    earliest: (g) => stampMs(g.start),
+    latestStart: (g) => -stampMs(g.start),
+    rank: (g) => gameRank(g, ctx),
+    alive: (g) => gameAlive(g, ctx),
   };
   return games.slice().sort((x, y) => {
-    for(const k of order){
+    for (const k of order) {
       const d = keys[k](x) - keys[k](y);
-      if(d) return d;
+      if (d) return d;
     }
     return 0;
   })[0];
@@ -83,28 +92,33 @@ const PICK_STARTS = ["earliest", "rank", "alive"];
 
 /* What the last run found: written from then, looking back, so it names only
    baseball that has happened, and never an absence. */
-function lastStampText(slate, ctx){
+function lastStampText(slate, ctx) {
   const games = (slate.today && slate.today.games) || [];
-  const started = games.filter(g => g.state !== "pre");
-  if(!started.length){
+  const started = games.filter((g) => g.state !== "pre");
+  if (!started.length) {
     const lf = slate.lastFinal;
-    if(!lf || !lf.end) return "";
+    if (!lf || !lf.end) return "";
     const days = dayDiff(new Date(lf.end), ctx.now);
     const when = days <= 1 ? "last night" : DAYS[new Date(lf.start || lf.end).getDay()];
     return `No games since ${finalPhrase(lf, when)}`;
   }
-  const note = g => (g.state === "final" && ctx.seriesNote && ctx.seriesNote(g)) || "";
-  if(games.length <= 2){
-    return started.slice().sort((x, y) => stampMs(x.start) - stampMs(y.start))
-      .map(g => gamePhrase(g) + note(g)).join(", ");
+  const note = (g) => (g.state === "final" && ctx.seriesNote && ctx.seriesNote(g)) || "";
+  if (games.length <= 2) {
+    return started
+      .slice()
+      .sort((x, y) => stampMs(x.start) - stampMs(y.start))
+      .map((g) => gamePhrase(g) + note(g))
+      .join(", ");
   }
   const since = slate.since ? stampMs(slate.since) : -Infinity;
-  const finals = started.filter(g => g.state === "final");
-  const fresh = finals.filter(g => stampMs(g.end) > since);
-  const live = started.filter(g => g.state === "live");
-  const g = fresh.length ? pick(fresh, ctx, PICK_ENDED)
-          : live.length  ? pick(live, ctx, PICK_UNDER_WAY)
-          :                pick(finals, ctx, PICK_ENDED);
+  const finals = started.filter((g) => g.state === "final");
+  const fresh = finals.filter((g) => stampMs(g.end) > since);
+  const live = started.filter((g) => g.state === "live");
+  const g = fresh.length
+    ? pick(fresh, ctx, PICK_ENDED)
+    : live.length
+      ? pick(live, ctx, PICK_UNDER_WAY)
+      : pick(finals, ctx, PICK_ENDED);
   return withClause(gamePhrase(g) + note(g), slateClause(games));
 }
 
@@ -112,17 +126,21 @@ function lastStampText(slate, ctx){
    it belongs to. `at` is that first pitch, and `tbd` says MLB hasn't set its
    time yet. Null while a game is live -- the first line is about that game
    -- and when nothing is scheduled at all. */
-function upNextText(slate, ctx){
+function upNextText(slate, ctx) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
-  if(days.some(d => (d.games || []).some(g => g.state === "live"))) return null;
-  for(const day of days){
+  if (days.some((d) => (d.games || []).some((g) => g.state === "live"))) return null;
+  for (const day of days) {
     const games = day.games || [];
-    const ahead = games.filter(g => g.state === "pre");
-    if(!ahead.length) continue;
+    const ahead = games.filter((g) => g.state === "pre");
+    if (!ahead.length) continue;
     const g = pick(ahead, ctx, PICK_STARTS);
     const what = `${stampName(g.away)} @ ${stampName(g.home)}`;
-    const begun = games.some(x => x.state !== "pre");
-    return { at: g.start, tbd: !!g.tbd, text: !begun && games.length >= 3 ? `${what}, first of ${games.length}` : what };
+    const begun = games.some((x) => x.state !== "pre");
+    return {
+      at: g.start,
+      tbd: !!g.tbd,
+      text: !begun && games.length >= 3 ? `${what}, first of ${games.length}` : what,
+    };
   }
   return null;
 }
@@ -131,8 +149,8 @@ function upNextText(slate, ctx){
    The stamp points both ways, so unlike the log -- where every entry is in
    the past and the day alone is enough -- a time here keeps its clock and
    names its day when that isn't today. */
-function stampWhen(d, now = new Date()){
-  const time = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+function stampWhen(d, now = new Date()) {
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const day = stampDay(d, now);
   return day === "today" ? time : `${day} ${time}`;
 }
@@ -140,15 +158,15 @@ function stampWhen(d, now = new Date()){
    set it a little smaller and closer to the minutes (.ap in styles.css). The
    space before it goes, since the span's margin is the gap. A clock with no
    AM/PM, or one that puts it first, ends in a digit and comes back as is. */
-function stampWhenHtml(d, now = new Date()){
+function stampWhenHtml(d, now = new Date()) {
   return stampWhen(d, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
 }
 /* The day alone, for a first pitch MLB hasn't put a time on yet. */
-function stampDay(d, now = new Date()){
-  const days = dayDiff(d, now);          // positive in the past, negative ahead
-  if(days === 0) return "today";
-  if(days === 1) return "yesterday";
-  if(days === -1) return "tomorrow";
-  if(Math.abs(days) < 7) return DAYS[d.getDay()];
-  return d.toLocaleDateString([], {month:"short", day:"numeric"});
+function stampDay(d, now = new Date()) {
+  const days = dayDiff(d, now); // positive in the past, negative ahead
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days === -1) return "tomorrow";
+  if (Math.abs(days) < 7) return DAYS[d.getDay()];
+  return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }

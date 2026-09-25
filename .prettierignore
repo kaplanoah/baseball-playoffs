@@ -1,0 +1,5 @@
+# Generated, recorded, or vendored: not ours to format.
+worker/dist/
+tests/fixtures/
+js/sortable.min.js
+package-lock.json

@@ -1,9 +1,15 @@
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <title>MLB Postseason</title>
-<meta name="description" content="Track the MLB postseason bracket and rank who you want to win the World Series, synced across devices.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<meta
+  name="description"
+  content="Track the MLB postseason bracket and rank who you want to win the World Series, synced across devices."
+/>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+  href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;400;500;700&display=swap"
+  rel="stylesheet"
+/>
+<link rel="stylesheet" href="styles.css" />
 
 <header class="top">
   <div>
@@ -32,14 +38,20 @@
 <section id="view-bracket" class="view active">
   <div id="setupPrompt" class="setup-card" hidden>
     <h2>Set this year's playoff field</h2>
-    <p>Pick the 12 teams that made it and assign seeds 1&ndash;6 in each league. You can change this later.</p>
+    <p>
+      Pick the 12 teams that made it and assign seeds 1&ndash;6 in each league. You can change this
+      later.
+    </p>
     <button class="primary" id="openSetupBtn">Set the field</button>
   </div>
   <div id="bracketWrap"></div>
 </section>
 
 <section id="view-ranking" class="view">
-  <p class="rank-hint">Drag a card by its handle to order the field by who you want to win the World Series. Order saves automatically and shows as a rank tag on the bracket.</p>
+  <p class="rank-hint">
+    Drag a card by its handle to order the field by who you want to win the World Series. Order
+    saves automatically and shows as a rank tag on the bracket.
+  </p>
   <div class="rank-head" id="rankHead" hidden>
     <span class="rank-num">0</span>
     <span class="rank-head-card">
@@ -62,7 +74,16 @@
 
 <section id="view-reference" class="view">
   <table class="ref">
-    <thead><tr><th>Rank</th><th class="seed-col">Seed</th><th>Team</th><th class="lg-col">Lg</th><th class="won-col">Last WS Win</th><th>Drought</th></tr></thead>
+    <thead>
+      <tr>
+        <th>Rank</th>
+        <th class="seed-col">Seed</th>
+        <th>Team</th>
+        <th class="lg-col">Lg</th>
+        <th class="won-col">Last WS Win</th>
+        <th>Drought</th>
+      </tr>
+    </thead>
     <tbody id="refBody"></tbody>
   </table>
 </section>
