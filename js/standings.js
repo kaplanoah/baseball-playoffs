@@ -22,9 +22,9 @@ function elimCell(v){
 /* "Today 8:05 vs HOU" — short enough for a column, and the opponent as an id
    rather than a name, since the club's own name is two cells to the left. */
 function nextCell(t, now = Date.now()){
-  /* A game that has started isn't next any more, even before the routine's
-     next run replaces it: switch to the one after it (`then`), and show
-     nothing rather than a game already under way or over. */
+  /* A game that has started isn't next any more, even before the standings
+     are refreshed: switch to the one after it (`then`), and show nothing
+     rather than a game already under way or over. */
   let n = t.next;
   const started = g => g && g.at && !g.tbd && Date.parse(g.at) <= now;
   if(started(n)) n = started(t.then) ? null : t.then;
