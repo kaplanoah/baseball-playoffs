@@ -5,7 +5,7 @@ import { loadSeason, saveRanking } from "../page/js/season-store.js";
 
 function createStore(documents, { failUpdates = false } = {}) {
   const writes = [];
-  const db = {
+  const database = {
     doc: (path) => ({
       get: async () => ({
         id: path.split("/").pop(),
@@ -23,7 +23,7 @@ function createStore(documents, { failUpdates = false } = {}) {
       },
     }),
   };
-  return { db, writes };
+  return { database, writes };
 }
 
 const STORED = {
@@ -41,8 +41,8 @@ beforeEach(() => {
 
 test("a ranking saved to an existing season only updates the ranking", async () => {
   const documents = { "seasons/2026": structuredClone(STORED) };
-  const { db, writes } = createStore(documents);
-  session.db = db;
+  const { database, writes } = createStore(documents);
+  session.db = database;
   await loadSeason(2026);
   await saveRanking(["NYY"]);
   assert.deepEqual(writes, [
@@ -53,8 +53,8 @@ test("a ranking saved to an existing season only updates the ranking", async () 
 
 test("a failed save says so and never falls back to overwriting the season", async () => {
   const documents = { "seasons/2026": structuredClone(STORED) };
-  const { db, writes } = createStore(documents, { failUpdates: true });
-  session.db = db;
+  const { database, writes } = createStore(documents, { failUpdates: true });
+  session.db = database;
   await loadSeason(2026);
   await assert.rejects(saveRanking(["NYY"]), /try later/);
   assert.deepEqual(
@@ -67,8 +67,8 @@ test("a failed save says so and never falls back to overwriting the season", asy
 
 test("a season saved for the first time is created whole", async () => {
   const documents = {};
-  const { db, writes } = createStore(documents);
-  session.db = db;
+  const { database, writes } = createStore(documents);
+  session.db = database;
   await loadSeason(2026);
   await saveRanking(["NYY"]);
   assert.equal(writes[0].kind, "set");
@@ -85,7 +85,7 @@ test("stored clubs the page doesn't know are dropped on load", async () => {
   const documents = {
     "seasons/2026": { ...structuredClone(STORED), teams: { NYY: STORED.teams.NYY, "<b>": {} } },
   };
-  session.db = createStore(documents).db;
+  session.db = createStore(documents).database;
   await loadSeason(2026);
   assert.deepEqual(Object.keys(session.seasonDoc.teams), ["NYY"]);
 });

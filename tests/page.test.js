@@ -8,8 +8,8 @@ import { stampName } from "../page/js/stamp.js";
 import { entryText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
 
-function withNow(iso, check) {
-  mock.timers.enable({ apis: ["Date"], now: Date.parse(iso) });
+function checkAt(isoTime, check) {
+  mock.timers.enable({ apis: ["Date"], now: Date.parse(isoTime) });
   try {
     return check();
   } finally {
@@ -28,17 +28,17 @@ beforeEach(() => {
 const NOON = "2026-09-24T16:00:00Z"; // Thursday, 12:00 PM ET
 
 test("Next column: today, another day, home and away", () =>
-  withNow(NOON, () => {
-    const cell = (next) => normalizeSpaces(renderNextCell({ next }));
+  checkAt(NOON, () => {
+    const renderCell = (next) => normalizeSpaces(renderNextCell({ next }));
     assert.equal(
-      cell({ at: "2026-09-25T01:40:00Z", home: false, opp: "ATH" }),
+      renderCell({ at: "2026-09-25T01:40:00Z", home: false, opp: "ATH" }),
       '<td class="next-cell">Today 9:40 @ ATH</td>',
     );
     assert.equal(
-      cell({ at: "2026-09-25T23:05:00Z", home: true, opp: "NYY" }),
+      renderCell({ at: "2026-09-25T23:05:00Z", home: true, opp: "NYY" }),
       '<td class="next-cell">Fri 7:05 vs NYY</td>',
     );
-    assert.equal(cell(null), '<td class="next-cell"></td>');
+    assert.equal(renderCell(null), '<td class="next-cell"></td>');
   }));
 
 test("update log: a seed pass, with the game behind it", () => {
@@ -67,9 +67,9 @@ test("update log: a field change names the spot and how far back the club that d
   session.standings = {
     divisions: { "AL West": [{ id: "TEX" }, { id: "HOU" }], "AL East": [{ id: "BAL" }] },
   };
-  const say = (entry) => describeEntry({ kind: "field", ...entry });
+  const describeFieldChange = (entry) => describeEntry({ kind: "field", ...entry });
   assert.equal(
-    say({
+    describeFieldChange({
       in: "TEX",
       out: "HOU",
       spot: "division",
@@ -80,7 +80,7 @@ test("update log: a field change names the spot and how far back the club that d
     "Rangers take the AL West lead from the Astros &mdash; Astros \u00bd game back",
   );
   assert.equal(
-    say({
+    describeFieldChange({
       in: "DET",
       out: "BAL",
       spot: "wildcard",
@@ -92,7 +92,7 @@ test("update log: a field change names the spot and how far back the club that d
   );
   // Out altogether: its own "eliminated" entry says so.
   assert.equal(
-    say({
+    describeFieldChange({
       in: "TEX",
       out: "HOU",
       spot: "division",
@@ -103,7 +103,7 @@ test("update log: a field change names the spot and how far back the club that d
     "Rangers take the AL West lead from the Astros",
   );
   assert.equal(
-    say({
+    describeFieldChange({
       in: "TEX",
       out: "HOU",
       spot: "division",
@@ -113,9 +113,12 @@ test("update log: a field change names the spot and how far back the club that d
     }),
     "Rangers take the AL West lead from the Astros &mdash; Astros even, behind on the tiebreaker",
   );
-  assert.equal(say({ in: "TEX", out: "HOU" }), "Rangers take the AL West lead from the Astros");
   assert.equal(
-    say({ in: "BAL", out: "TOR" }),
+    describeFieldChange({ in: "TEX", out: "HOU" }),
+    "Rangers take the AL West lead from the Astros",
+  );
+  assert.equal(
+    describeFieldChange({ in: "BAL", out: "TOR" }),
     "Orioles take an AL wild card spot from the Blue Jays",
   );
 });
@@ -144,36 +147,42 @@ test("update log: an elimination is plain words", () => {
 });
 
 test("update log: clinches", () => {
-  const say = (entry) => describeEntry({ kind: "berth", ...entry });
+  const describeBerth = (entry) => describeEntry({ kind: "berth", ...entry });
   assert.equal(
-    say({
+    describeBerth({
       team: "CWS",
       what: "playoff",
       via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }],
     }),
     "White Sox clinch a playoff spot &mdash; beat the Royals 9-1",
   );
-  assert.equal(say({ team: "NYY", what: "wildcard" }), "Yankees clinch a wild card spot");
-  assert.equal(say({ team: "TB", what: "division", div: "AL East" }), "Rays clinch the AL East");
-  assert.equal(say({ team: "TB", what: "bye" }), "Rays clinch a first-round bye");
+  assert.equal(describeBerth({ team: "NYY", what: "wildcard" }), "Yankees clinch a wild card spot");
+  assert.equal(
+    describeBerth({ team: "TB", what: "division", div: "AL East" }),
+    "Rays clinch the AL East",
+  );
+  assert.equal(describeBerth({ team: "TB", what: "bye" }), "Rays clinch a first-round bye");
 });
 
 test("Next column: a game that has started gives way to the one after it", () =>
-  withNow(NOON, () => {
-    const cell = (row) => normalizeSpaces(renderNextCell(row));
+  checkAt(NOON, () => {
+    const renderCell = (row) => normalizeSpaces(renderNextCell(row));
     const today = { at: "2026-09-24T14:05:00Z", home: true, opp: "MIL" }; // 10:05 AM ET
-    const fri = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
-    assert.equal(cell({ next: today, then: fri }), '<td class="next-cell">Fri 1:05 @ BOS</td>');
-    assert.equal(cell({ next: today }), '<td class="next-cell"></td>');
+    const friday = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
+    assert.equal(
+      renderCell({ next: today, then: friday }),
+      '<td class="next-cell">Fri 1:05 @ BOS</td>',
+    );
+    assert.equal(renderCell({ next: today }), '<td class="next-cell"></td>');
   }));
 
 test("division header: a magic number only when there is a number", () => {
-  const head = (leader) =>
+  const renderHead = (leader) =>
     renderDivisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]);
-  assert.match(head({ magic: "3" }), /magic 3/);
-  assert.doesNotMatch(head({ magic: "-" }), /magic/);
-  assert.doesNotMatch(head({ magic: null }), /magic/);
-  assert.match(head({ clinched: true, magic: "3" }), /clinched/);
+  assert.match(renderHead({ magic: "3" }), /magic 3/);
+  assert.doesNotMatch(renderHead({ magic: "-" }), /magic/);
+  assert.doesNotMatch(renderHead({ magic: null }), /magic/);
+  assert.match(renderHead({ clinched: true, magic: "3" }), /clinched/);
 });
 
 test("text from the shared store or MLB is shown as text, never as markup", () => {

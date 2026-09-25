@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const load = () => import("../worker/deploy.mjs");
+const loadDeployModule = () => import("../worker/deploy.mjs");
 const ENV = { CLOUDFLARE_ACCOUNT_ID: "acct123" };
 
 /** @param {{ refuse?: string }} [options] */
-function fakeCloudflare({ refuse } = {}) {
+function createFakeCloudflare({ refuse } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ url, init });
@@ -26,24 +26,25 @@ function fakeCloudflare({ refuse } = {}) {
 }
 
 test("the name and compatibility date come from wrangler.toml", async () => {
-  const { readWorkerConfig } = await load();
+  const { readWorkerConfig } = await loadDeployModule();
   assert.deepEqual(readWorkerConfig(), { name: "mlb-live", compatibilityDate: "2026-09-01" });
   assert.throws(() => readWorkerConfig('name = "x"'), /compatibility_date/);
 });
 
 test("upload, route, and the connector URL", async () => {
-  const { deploy } = await load();
-  const cf = fakeCloudflare();
+  const { deploy } = await loadDeployModule();
+  const cloudflare = createFakeCloudflare();
   const url = await deploy({
-    fetchImpl: cf.fetchImpl,
+    fetchImpl: cloudflare.fetchImpl,
     env: ENV,
     script: "export default {}",
     log: () => {},
   });
   assert.equal(url, "https://mlb-live.nokap.workers.dev/mcp");
   assert.deepEqual(
-    cf.calls.map(
-      (c) => `${c.init.method} ${c.url.replace("https://api.cloudflare.com/client/v4", "")}`,
+    cloudflare.calls.map(
+      (request) =>
+        `${request.init.method} ${request.url.replace("https://api.cloudflare.com/client/v4", "")}`,
     ),
     [
       "PUT /accounts/acct123/workers/scripts/mlb-live",
@@ -52,7 +53,7 @@ test("upload, route, and the connector URL", async () => {
     ],
   );
 
-  const form = cf.calls[0].init.body;
+  const form = cloudflare.calls[0].init.body;
   const metadata = JSON.parse(await form.get("metadata").text());
   assert.deepEqual(metadata, {
     main_module: "worker.mjs",
@@ -62,57 +63,60 @@ test("upload, route, and the connector URL", async () => {
   const file = form.get("worker.mjs");
   assert.equal(file.type, "application/javascript+module");
   assert.equal(await file.text(), "export default {}");
-  assert.deepEqual(JSON.parse(cf.calls[1].init.body), { enabled: true, previews_enabled: false });
+  assert.deepEqual(JSON.parse(cloudflare.calls[1].init.body), {
+    enabled: true,
+    previews_enabled: false,
+  });
 });
 
 test("a token is sent only when one is in the environment", async () => {
-  const { deploy } = await load();
+  const { deploy } = await loadDeployModule();
   // In a cloud session the proxy adds the token; the script must not send its own.
-  const proxied = fakeCloudflare();
+  const proxied = createFakeCloudflare();
   await deploy({ fetchImpl: proxied.fetchImpl, env: ENV, script: "", log: () => {} });
-  assert.ok(proxied.calls.every((c) => !c.init.headers.authorization));
+  assert.ok(proxied.calls.every((request) => !request.init.headers.authorization));
 
-  const local = fakeCloudflare();
+  const local = createFakeCloudflare();
   await deploy({
     fetchImpl: local.fetchImpl,
     env: { ...ENV, CLOUDFLARE_API_TOKEN: "t0k" },
     script: "",
     log: () => {},
   });
-  assert.ok(local.calls.every((c) => c.init.headers.authorization === "Bearer t0k"));
+  assert.ok(local.calls.every((request) => request.init.headers.authorization === "Bearer t0k"));
 });
 
 test("a refusal names the step and Cloudflare's reason; no account ID is caught first", async () => {
-  const { deploy } = await load();
-  const cf = fakeCloudflare({ refuse: "/scripts/mlb-live/subdomain" });
+  const { deploy } = await loadDeployModule();
+  const cloudflare = createFakeCloudflare({ refuse: "/scripts/mlb-live/subdomain" });
   await assert.rejects(
-    deploy({ fetchImpl: cf.fetchImpl, env: ENV, script: "", log: () => {} }),
+    deploy({ fetchImpl: cloudflare.fetchImpl, env: ENV, script: "", log: () => {} }),
     /workers\.dev route failed: 10000: Authentication error/,
   );
   await assert.rejects(
-    deploy({ fetchImpl: cf.fetchImpl, env: {}, script: "", log: () => {} }),
+    deploy({ fetchImpl: cloudflare.fetchImpl, env: {}, script: "", log: () => {} }),
     /CLOUDFLARE_ACCOUNT_ID/,
   );
 });
 
 test("a refusal that isn't Cloudflare's shows its status, server, and raw body", async () => {
-  const { deploy } = await load();
-  const proxy = async () =>
+  const { deploy } = await loadDeployModule();
+  const refuseAsProxy = async () =>
     new Response("Forbidden by policy\n", { status: 403, headers: { server: "envoy" } });
   await assert.rejects(
-    deploy({ fetchImpl: proxy, env: ENV, script: "", log: () => {} }),
+    deploy({ fetchImpl: refuseAsProxy, env: ENV, script: "", log: () => {} }),
     /^Error: upload failed: HTTP 403 \(server: envoy\): Forbidden by policy$/,
   );
-  const empty = async () => new Response("", { status: 502 });
+  const answerEmpty = async () => new Response("", { status: 502 });
   await assert.rejects(
-    deploy({ fetchImpl: empty, env: ENV, script: "", log: () => {} }),
+    deploy({ fetchImpl: answerEmpty, env: ENV, script: "", log: () => {} }),
     /^Error: upload failed: HTTP 502$/,
   );
 });
 
 test("a request that carried no token says why, unless the script sent one itself", async () => {
-  const { deploy } = await load();
-  const bare = async () =>
+  const { deploy } = await loadDeployModule();
+  const refuseWithoutToken = async () =>
     new Response(
       JSON.stringify({
         success: false,
@@ -123,7 +127,7 @@ test("a request that carried no token says why, unless the script sent one itsel
       { status: 400 },
     );
   await assert.rejects(
-    deploy({ fetchImpl: bare, env: ENV, script: "", log: () => {} }),
+    deploy({ fetchImpl: refuseWithoutToken, env: ENV, script: "", log: () => {} }),
     (/** @type {Error} */ error) =>
       /upload failed: 9106/.test(error.message) &&
       /No token reached Cloudflare/.test(error.message) &&
@@ -131,7 +135,7 @@ test("a request that carried no token says why, unless the script sent one itsel
   );
   await assert.rejects(
     deploy({
-      fetchImpl: bare,
+      fetchImpl: refuseWithoutToken,
       env: { ...ENV, CLOUDFLARE_API_TOKEN: "t0k" },
       script: "",
       log: () => {},
@@ -139,22 +143,22 @@ test("a request that carried no token says why, unless the script sent one itsel
     (/** @type {Error} */ error) =>
       /upload failed: 9106/.test(error.message) && !/No token reached/.test(error.message),
   );
-  const cf = fakeCloudflare({ refuse: "/scripts/mlb-live" });
+  const cloudflare = createFakeCloudflare({ refuse: "/scripts/mlb-live" });
   await assert.rejects(
-    deploy({ fetchImpl: cf.fetchImpl, env: ENV, script: "", log: () => {} }),
+    deploy({ fetchImpl: cloudflare.fetchImpl, env: ENV, script: "", log: () => {} }),
     (/** @type {Error} */ error) =>
       /Authentication error/.test(error.message) && !/No token reached/.test(error.message),
   );
 });
 
-function fakeGit({
+function createFakeGit({
   branch = "main",
   dirty = "",
   head = "a".repeat(40),
   origin = "a".repeat(40),
 } = {}) {
   const asked = [];
-  const git = (args) => {
+  const answerGitCommand = (args) => {
     asked.push(args.join(" "));
     if (args[0] === "rev-parse" && args[1] === "--abbrev-ref") return branch;
     if (args[0] === "status") return dirty;
@@ -162,31 +166,34 @@ function fakeGit({
     if (args[0] === "rev-parse") return args[1] === "HEAD" ? head : origin;
     throw new Error(`unexpected git ${args.join(" ")}`);
   };
-  return { git, asked };
+  return { git: answerGitCommand, asked };
 }
 
 test("a release is clean and exactly what GitHub has as main, on any branch", async () => {
-  const { checkRelease } = await load();
-  const ok = fakeGit();
-  assert.equal(checkRelease(ok.git), "a".repeat(40));
-  assert.ok(ok.asked.includes("fetch --quiet origin main"), "compares against a fresh fetch");
+  const { checkRelease } = await loadDeployModule();
+  const cleanMain = createFakeGit();
+  assert.equal(checkRelease(cleanMain.git), "a".repeat(40));
+  assert.ok(
+    cleanMain.asked.includes("fetch --quiet origin main"),
+    "compares against a fresh fetch",
+  );
   // A detached checkout reports its branch as HEAD.
-  assert.equal(checkRelease(fakeGit({ branch: "claude/some-branch" }).git), "a".repeat(40));
-  assert.equal(checkRelease(fakeGit({ branch: "HEAD" }).git), "a".repeat(40));
+  assert.equal(checkRelease(createFakeGit({ branch: "claude/some-branch" }).git), "a".repeat(40));
+  assert.equal(checkRelease(createFakeGit({ branch: "HEAD" }).git), "a".repeat(40));
 });
 
 test("anything else is refused, with the reason", async () => {
-  const { checkRelease } = await load();
+  const { checkRelease } = await loadDeployModule();
   assert.throws(
-    () => checkRelease(fakeGit({ dirty: " M page/js/snapshot.js" }).git),
+    () => checkRelease(createFakeGit({ dirty: " M page/js/snapshot.js" }).git),
     /uncommitted changes/,
   );
   assert.throws(
-    () => checkRelease(fakeGit({ head: "b".repeat(40) }).git),
+    () => checkRelease(createFakeGit({ head: "b".repeat(40) }).git),
     /isn't main as GitHub has it/,
   );
   assert.throws(
-    () => checkRelease(fakeGit({ branch: "claude/some-branch", head: "b".repeat(40) }).git),
+    () => checkRelease(createFakeGit({ branch: "claude/some-branch", head: "b".repeat(40) }).git),
     /claude\/some-branch at bbbbbbb\) isn't main as GitHub has it \(aaaaaaa\)/,
   );
 });
