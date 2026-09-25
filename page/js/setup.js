@@ -30,7 +30,7 @@ function renderPickGrid() {
     </label>`,
     )
     .join("");
-  grid.querySelectorAll(".pick-team").forEach((el) => {
+  /** @type {NodeListOf<HTMLElement>} */ (grid.querySelectorAll(".pick-team")).forEach((el) => {
     el.addEventListener("click", (e) => {
       e.preventDefault();
       const id = el.dataset.id;

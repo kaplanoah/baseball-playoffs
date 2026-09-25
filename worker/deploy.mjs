@@ -119,8 +119,8 @@ export async function deploy({
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     console.log(`Deploying ${RELEASE_BRANCH} at ${checkRelease().slice(0, 7)}`);
-  } catch (e) {
-    console.error(`Not deploying: ${e.message}`);
+  } catch (error) {
+    console.error(`Not deploying: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
   deploy().catch((e) => {

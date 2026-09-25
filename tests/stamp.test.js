@@ -6,11 +6,10 @@ import { lastStampText, upNextText, stampWhen, stampWhenHtml, stampDay } from ".
 import { normalizeSpaces } from "./text.js";
 
 // September and early October are EDT, UTC-4.
-const et = (date, hm) => {
-  const [h, m] = hm.split(":").map(Number);
-  return new Date(
-    Date.UTC(...date.split("-").map((v, i) => (i === 1 ? v - 1 : +v)), h + 4, m),
-  ).toISOString();
+const et = (date, time) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hour + 4, minute)).toISOString();
 };
 const DAY = "2026-09-24",
   PREV = "2026-09-23";

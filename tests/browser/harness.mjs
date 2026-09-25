@@ -17,7 +17,8 @@ export const buildFixtureSnapshot = (fixture) =>
     now: Date.parse(fixture.now),
   });
 
-export const test = base.extend({
+/** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
+const failOnPageErrors = {
   pageErrors: [
     async ({ page }, use) => {
       const errors = [];
@@ -27,7 +28,9 @@ export const test = base.extend({
     },
     { auto: true },
   ],
-});
+};
+
+export const test = base.extend(failOnPageErrors);
 export { expect };
 
 function findRecordedResponse(url) {

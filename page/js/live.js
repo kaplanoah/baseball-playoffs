@@ -13,7 +13,7 @@ const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 
 let liveError = null;
 let liveWarning = null;
-let liveTimer = 0;
+let liveTimer;
 let liveDueAt = Infinity;
 let liveSeq = 0;
 let liveFailures = 0;
@@ -56,10 +56,11 @@ async function fetchViaConnector(season) {
       { season },
       { cache: { staleTime: LIVE_CACHE_MS } },
     );
-  } catch (e) {
+  } catch (error) {
+    const code = /** @type {{ code?: string } | undefined} */ (error)?.code;
     throw (await connectorMissing())
-      ? new LiveError("server_not_connected", `${e && e.code}: not added`)
-      : e;
+      ? new LiveError("server_not_connected", `${code}: not added`)
+      : error;
   }
   const snap = result && result.payload;
   if (!snap || snap.version !== 1 || snap.season !== season)
@@ -272,7 +273,7 @@ function losesKeys(was, now) {
   return Object.keys(was).some((k) => !(k in now) || losesKeys(was[k], now[k]));
 }
 
-// Season before standings: if the session.standings write fails, the old baseline finds the same changes
+// Season before standings: if the standings write fails, the old baseline finds the same changes
 // again next time, and the log's keys keep them single.
 async function writeLive(snap) {
   if (snap.season !== session.activeYear) return;

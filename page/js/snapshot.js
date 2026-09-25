@@ -106,6 +106,12 @@ const isFinal = (game) => gameState(game.status || {}) === "final";
 const hasStarted = (game) => ["live", "final"].includes(gameState(game.status || {}));
 
 // With `onSome`, a field is only missing when no item it applies to has it.
+/**
+ * @param {string} path
+ * @param {(value: any) => boolean} isValid
+ * @param {(item: any) => boolean} [appliesTo]
+ * @param {boolean} [onSome]
+ */
 const requireField = (path, isValid, appliesTo = () => true, onSome = false) => ({
   path,
   isValid,

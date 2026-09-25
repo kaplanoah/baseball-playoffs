@@ -158,7 +158,7 @@ export function entryText(e) {
 
 function whenLabel(iso, now = new Date()) {
   const d = new Date(iso);
-  if (isNaN(d)) return "";
+  if (Number.isNaN(d.getTime())) return "";
   const days = countDaysBetween(d, now);
   if (days <= 0) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   if (days === 1) return "Yesterday";
@@ -167,7 +167,7 @@ function whenLabel(iso, now = new Date()) {
 }
 function sinceLabel(iso, now = new Date()) {
   const d = new Date(iso);
-  if (isNaN(d)) return "";
+  if (Number.isNaN(d.getTime())) return "";
   const days = countDaysBetween(d, now);
   if (days <= 0) return "since earlier today";
   if (days === 1) return "since yesterday";

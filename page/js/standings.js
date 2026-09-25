@@ -20,13 +20,13 @@ function elimCell(v) {
 }
 
 export function nextCell(t, now = Date.now()) {
-  // A game that has started isn't next, even before the session.standings refresh.
+  // A game that has started isn't next, even before the standings refresh.
   let n = t.next;
   const started = (g) => g && g.at && !g.tbd && Date.parse(g.at) <= now;
   if (started(n)) n = started(t.then) ? null : t.then;
   if (!n || !n.at) return `<td class="next-cell"></td>`;
   const d = new Date(n.at);
-  if (isNaN(d)) return `<td class="next-cell"></td>`;
+  if (Number.isNaN(d.getTime())) return `<td class="next-cell"></td>`;
   const days = countDaysBetween(d, new Date());
   const day = days === 0 ? "Today" : DAYS[d.getDay()].slice(0, 3);
   const time = n.tbd
