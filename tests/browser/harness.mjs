@@ -33,7 +33,11 @@ const failOnPageErrors = {
 export const test = base.extend(failOnPageErrors);
 export { expect };
 
+const SEASON_PATH = /^\/api\/v1\/seasons\/(\d{4})$/;
+
 function findRecordedResponse(url) {
+  const seasonPath = SEASON_PATH.exec(url.pathname);
+  if (seasonPath) return FIXTURES[seasonPath[1]].responses.season;
   const season = url.searchParams.get("season") || url.searchParams.get("startDate").slice(0, 4);
   const { responses } = FIXTURES[season];
   const name = {
@@ -47,7 +51,14 @@ function findRecordedResponse(url) {
 // Refused hosts reach the page as a TypeError from fetch, as in the artifact sandbox.
 export async function openApp(
   page,
-  { store = {}, connectorAdded = true, directAllowed = false, dbAvailable = true } = {},
+  {
+    store = {},
+    connectorAdded = true,
+    directAllowed = false,
+    dbAvailable = true,
+    now = EVENING.now,
+    extraSnapshots = {},
+  } = {},
 ) {
   let mlbRequests = 0;
   await page.route(
@@ -60,12 +71,18 @@ export async function openApp(
       return route.fulfill({ json: findRecordedResponse(url) });
     },
   );
-  await page.clock.install({ time: new Date(EVENING.now) });
+  await page.clock.install({ time: new Date(now) });
   await page.addInitScript((config) => (window.__runtimeConfig = config), {
     store,
-    snapshots: Object.fromEntries(
-      Object.entries(FIXTURES).map(([season, fixture]) => [season, buildFixtureSnapshot(fixture)]),
-    ),
+    snapshots: {
+      ...Object.fromEntries(
+        Object.entries(FIXTURES).map(([season, fixture]) => [
+          season,
+          buildFixtureSnapshot(fixture),
+        ]),
+      ),
+      ...extraSnapshots,
+    },
     connectorAdded,
     dbAvailable,
   });

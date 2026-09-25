@@ -1,17 +1,23 @@
 import * as LogChanges from "./changes.js";
+import { easternDay } from "./snapshot.js";
 
 const FRESH_FINAL_MS = 10 * 60 * 1000;
-const SEPTEMBER = 8;
+const APRIL = 4;
 
-// Until September the latest postseason is last year's.
-export function seasonYear(now = new Date()) {
-  const year = now.getFullYear();
-  return now.getMonth() >= SEPTEMBER ? year : year - 1;
+// A season starts on the day spring training does, which is always before April, so the
+// first guess is only in doubt from January through March.
+export function guessSeasonYear(now = Date.now()) {
+  const { date, year } = easternDay(now);
+  return Number(date.slice(5, 7)) >= APRIL ? year : year - 1;
 }
+
+export const hasSpringStarted = (springStart, now = Date.now()) =>
+  !!springStart && easternDay(now).date >= springStart;
 
 export const session = {
   db: null,
-  activeYear: seasonYear(),
+  currentSeason: guessSeasonYear(),
+  activeYear: guessSeasonYear(),
   seasonDoc: null,
   storedStandings: null,
   live: null,
@@ -22,6 +28,8 @@ export const session = {
   trackedTitles: {},
   isReordering: false,
 };
+
+export const seasonYear = () => session.currentSeason;
 
 function overlayLiveSnapshot(doc) {
   const { live } = session;

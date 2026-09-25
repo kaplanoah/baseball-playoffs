@@ -255,3 +255,35 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(times.nth(0)).toHaveText(/^8:30\sPM$/);
   await expect(times.nth(1)).toHaveText(/^7:23\sPM$/);
 });
+
+const buildEmptySeason = (season, springStart) => ({
+  ...buildFixtureSnapshot(EVENING),
+  season,
+  springStart,
+  projected: true,
+  teams: {},
+  series: {},
+  log: [],
+  standings: { divisions: {} },
+  slate: null,
+});
+
+test("the new season starts on the day spring training does", async ({ page }) => {
+  await openApp(page, {
+    now: "2027-02-19T15:00:00Z",
+    extraSnapshots: { 2027: buildEmptySeason(2027, "2027-02-19") },
+  });
+
+  await expect(page.locator("#yearSel")).toHaveValue("2027");
+  await expect(page.getByRole("button", { name: "Set the field" })).toBeVisible();
+});
+
+test("until spring training starts, the latest season is last year's", async ({ page }) => {
+  const app = await openApp(page, {
+    now: "2027-02-18T15:00:00Z",
+    extraSnapshots: { 2027: buildEmptySeason(2027, "2027-02-19") },
+  });
+
+  await expect.poll(() => app.countToolCalls()).toBeGreaterThanOrEqual(2);
+  await expect(page.locator("#yearSel")).toHaveValue("2026");
+});

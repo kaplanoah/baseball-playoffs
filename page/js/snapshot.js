@@ -72,6 +72,7 @@ const GAME_FIELDS = [
   "firstPitch",
   "gameDurationMinutes",
 ].join(",");
+const SEASON_FIELDS = ["seasons", "springStartDate"].join(",");
 const STANDINGS_FIELDS = [
   "records",
   "division",
@@ -141,6 +142,7 @@ const FIELD_RULES = {
     requireField("clinchIndicator", isText, (record) => record.divisionChamp === true),
   ],
   date: [requireField("date", isDay), requireField("games", Array.isArray)],
+  season: [requireField("springStartDate", isDay)],
   game: [
     requireField("gamePk", isNumber),
     requireField("gameType", isText),
@@ -176,6 +178,7 @@ export const CHECKED_FIELDS = [
   ),
   "records",
   "dates",
+  "seasons",
 ];
 
 const readPath = (object, path) =>
@@ -209,8 +212,14 @@ function findMissingGameFields(schedule, extraRules) {
   ];
 }
 
+function findMissingSeasonFields(season) {
+  if (!Array.isArray(season?.seasons) || !season.seasons.length) return ["seasons"];
+  return findInvalidFields(season.seasons, FIELD_RULES.season);
+}
+
 export function findMissingFields(responses) {
   const missing = [
+    ...findMissingSeasonFields(responses.season),
     ...findMissingStandingsFields(responses.standings),
     ...findMissingGameFields(responses.postseason, FIELD_RULES.postseasonGame),
     ...(responses.schedule
@@ -302,6 +311,7 @@ function addDays(date, days) {
 export function mlbRequests(season, now) {
   const today = easternDay(now);
   const requests = {
+    season: `/api/v1/seasons/${season}?sportId=1&fields=${SEASON_FIELDS}`,
     standings:
       `/api/v1/standings?leagueId=103,104&season=${season}` +
       `&standingsTypes=regularSeason&fields=${STANDINGS_FIELDS}`,
@@ -319,12 +329,13 @@ export function mlbRequests(season, now) {
 
 export async function fetchSnapshot(getJson, season, now = Date.now()) {
   const requests = mlbRequests(season, now);
-  const [standings, postseason, schedule] = await Promise.all([
+  const [seasonDates, standings, postseason, schedule] = await Promise.all([
+    getJson(requests.season),
     getJson(requests.standings),
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null,
   ]);
-  return buildSnapshot({ standings, postseason, schedule }, { season, now });
+  return buildSnapshot({ season: seasonDates, standings, postseason, schedule }, { season, now });
 }
 
 // Postponed and cancelled games read "Final" in abstractGameState, so check the coded state first.
@@ -474,6 +485,17 @@ function buildStandingsRow(id, record) {
   };
 }
 
+const SEASON_GAMES = 162;
+
+// MLB gives a club tied for the lead "-" instead of an elimination number, so a tie is
+// counted the way MLB counts the rest: a tie at the end doesn't clinch.
+function countEliminationNumber(leader, chaser) {
+  const given = Number(chaser.elim);
+  if (Number.isFinite(given)) return given;
+  if (chaser.elim !== "-") return null;
+  return SEASON_GAMES + 1 - leader.w - chaser.l;
+}
+
 // The division magic number is the closest chaser's elimination number; MLB's
 // `magicNumber` counts toward a playoff spot instead.
 function setMagicNumber(rows) {
@@ -481,7 +503,7 @@ function setMagicNumber(rows) {
   if (!leader || leader.clinched) return;
   const chasers = rows
     .filter((row) => row !== leader)
-    .map((row) => Number(row.elim))
+    .map((row) => countEliminationNumber(leader, row))
     .filter(Number.isFinite);
   if (chasers.length) leader.magic = String(Math.min(...chasers));
 }
@@ -684,6 +706,8 @@ function buildSeries(teams, gamesBySeries, today) {
   return { series, log };
 }
 
+const readSpringStart = (seasonDates) => seasonDates?.seasons?.[0]?.springStartDate || null;
+
 function readRecords(standings) {
   const records = {};
   const champions = new Set();
@@ -709,6 +733,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     season,
     asOf: new Date(now).toISOString(),
     projected: !official,
+    springStart: readSpringStart(responses.season),
     teams,
     series,
     log,

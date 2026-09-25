@@ -1,4 +1,5 @@
 import { rankedOrder } from "./clubs.js";
+import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
@@ -12,7 +13,8 @@ import {
   watchSeason,
   watchStandings,
 } from "./season-store.js";
-import { session, seasonYear } from "./session.js";
+import { hasSpringStarted, session, seasonYear } from "./session.js";
+import { easternDay } from "./snapshot.js";
 import { openSetup, saveSetup } from "./setup.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
@@ -32,6 +34,8 @@ function trackKeyboardFocus() {
   );
   addEventListener("pointerdown", () => document.body.classList.remove("kbd"), true);
 }
+
+const findYearPicker = () => /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
 
 const findTabButtons = () =>
   /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("nav.tabs [role=tab]")]);
@@ -105,14 +109,29 @@ async function listYears() {
 }
 
 function fillYearPicker(years) {
-  const picker = /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
-  picker.innerHTML = years
+  findYearPicker().innerHTML = years
     .map(
       (year) =>
         `<option value="${year}" ${Number(year) === session.activeYear ? "selected" : ""}>${year}</option>`,
     )
     .join("");
-  picker.addEventListener("change", () => switchYear(Number(picker.value)));
+}
+
+// Before April the new season starts on the day MLB says spring training does.
+async function followSpringTraining() {
+  const year = easternDay(Date.now()).year;
+  if (session.currentSeason === year) return;
+  let springStart;
+  try {
+    ({ springStart } = (await fetchLive(year)).snapshot);
+  } catch {
+    return;
+  }
+  if (!hasSpringStarted(springStart)) return;
+  const wasShowingLatest = session.activeYear === session.currentSeason;
+  session.currentSeason = year;
+  if (wasShowingLatest) await switchYear(year);
+  fillYearPicker(await listYears());
 }
 
 // Sortable has already moved the dragged card, so redrawing the list keeps it where it was dropped.
@@ -128,6 +147,8 @@ function wireControls() {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
     button.addEventListener("keydown", moveBetweenTabs);
   }
+  const picker = findYearPicker();
+  picker.addEventListener("change", () => switchYear(Number(picker.value)));
   document.getElementById("openSetupBtn").addEventListener("click", openSetup);
   document.getElementById("saveSetupBtn").addEventListener("click", saveSetup);
   document
@@ -158,6 +179,7 @@ async function boot() {
   refreshStampEveryMinute();
   watchPageVisibility();
   startLive();
+  await followSpringTraining();
 }
 
 if (window.claude?.hot) {

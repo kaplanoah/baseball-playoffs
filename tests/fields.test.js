@@ -60,10 +60,15 @@ test("a postseason series that stops naming its league is flagged", () => {
 });
 
 test("no games or standings yet is fine; no dates or records at all is not", () => {
-  const empty = { standings: { records: [] }, postseason: { dates: [] }, schedule: { dates: [] } };
+  const empty = {
+    season: { seasons: [{ springStartDate: "2026-02-20" }] },
+    standings: { records: [] },
+    postseason: { dates: [] },
+    schedule: { dates: [] },
+  };
   assert.deepEqual(MLBSnapshot.findMissingFields(empty), []);
   assert.deepEqual(
-    MLBSnapshot.findMissingFields({ standings: {}, postseason: {}, schedule: null }),
-    ["records", "dates"],
+    MLBSnapshot.findMissingFields({ season: {}, standings: {}, postseason: {}, schedule: null }),
+    ["seasons", "records", "dates"],
   );
 });

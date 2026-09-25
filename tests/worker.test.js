@@ -14,11 +14,13 @@ function fakeMlb({ status = 200 } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ url, init });
-    const kind = url.includes("/standings")
-      ? "standings"
-      : url.includes("/postseason")
-        ? "postseason"
-        : "schedule";
+    const kind = url.includes("/seasons/")
+      ? "season"
+      : url.includes("/standings")
+        ? "standings"
+        : url.includes("/postseason")
+          ? "postseason"
+          : "schedule";
     return new Response(JSON.stringify(EVENING.responses[kind]), { status });
   };
   return { fetchImpl, calls };
@@ -103,7 +105,7 @@ test("get_snapshot answers with the snapshot, structured and as text", async () 
   const expected = MLBSnapshot.buildSnapshot(EVENING.responses, { season: 2026, now: NOW });
   assert.deepEqual(result.structuredContent, expected);
   assert.deepEqual(JSON.parse(result.content[0].text), expected);
-  assert.equal(mlb.calls.length, 3);
+  assert.equal(mlb.calls.length, 4);
   assert.equal(mlb.calls[0].init.cf.cacheTtl, 15);
   assert.ok(mlb.calls[0].init.signal);
 });
@@ -117,10 +119,10 @@ test("season defaults to this year", async () => {
 test("callers polling together share one trip to MLB", async () => {
   const { w, mlb, tick } = worker();
   await Promise.all([1, 2, 3].map((i) => rpc(w, call(i, "get_snapshot", { season: 2026 }))));
-  assert.equal(mlb.calls.length, 3);
+  assert.equal(mlb.calls.length, 4);
   tick(11000);
   await rpc(w, call(4, "get_snapshot", { season: 2026 }));
-  assert.equal(mlb.calls.length, 6);
+  assert.equal(mlb.calls.length, 8);
 });
 
 test("bad arguments are refused before anything is fetched", async () => {

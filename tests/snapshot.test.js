@@ -307,7 +307,7 @@ test("fetchSnapshot asks for exactly the requests it builds", async () => {
     2026,
     Date.parse(f.now),
   );
-  assert.equal(asked.length, 3);
+  assert.equal(asked.length, 4);
   assert.deepEqual(snap, build(f));
 });
 
@@ -341,4 +341,20 @@ test("the bracket walk seats seeds and advances winners, 1 against the 4/5 winne
   assert.equal(MLBSnapshot.findFeederSeries("NL_DS1", 1), "NL_WC2");
   assert.equal(MLBSnapshot.findFeederSeries("NL_DS1", 0), null);
   assert.equal(MLBSnapshot.findFeederSeries("WS", 1), "NL_CS");
+});
+
+test("a snapshot carries the day spring training starts", () => {
+  assert.equal(build(EVENING).springStart, "2026-02-20");
+  assert.equal(build(SEASON_2025).springStart, "2025-02-20");
+});
+
+test("a division tied at the top still has a magic number: a tie at the end doesn't clinch", () => {
+  const tied = JSON.parse(JSON.stringify(EVENING));
+  const alWest = tied.responses.standings.records.find((record) => record.division.id === 200);
+  const astros = alWest.teamRecords.find((record) => record.team.id === 117);
+  Object.assign(astros, { wins: 79, losses: 80, eliminationNumber: "-", divisionGamesBack: "-" });
+  const [leader, chaser] = build(tied).standings.divisions["AL West"];
+  assert.deepEqual([leader.id, chaser.id, chaser.elim], ["TEX", "HOU", "-"]);
+  assert.equal(leader.magic, "4");
+  assert.equal(build(EVENING).standings.divisions["AL West"][0].magic, "4");
 });
