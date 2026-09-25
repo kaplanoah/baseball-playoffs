@@ -61,7 +61,7 @@ test("update log: a field change names the spot and how far back the club that d
     "Rangers take the AL West lead from the Astros &mdash; Astros ½ game back");
   assert.equal(say({ in: "DET", out: "BAL", spot: "wildcard", outBack: "2.0", outAlive: true,
     via: [{ team: "DET", won: true, opp: "KC", score: [5, 3] }] }),
-    "Tigers take an AL wild card spot from the Orioles &mdash; beat the Royals 5-3; Orioles 2 games back");
+    "Tigers take an AL wild card spot from the Orioles &mdash; beat the Royals 5-3, Orioles 2 games back");
   // Out altogether: its own "eliminated" entry says so.
   assert.equal(say({ in: "TEX", out: "HOU", spot: "division", div: "AL West", outBack: "0.5", outAlive: false }),
     "Rangers take the AL West lead from the Astros");
@@ -83,4 +83,14 @@ test("update log: an elimination is plain words", () => {
   assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL",
     via: [{ team: "BAL", won: false, opp: "NYY", score: [2, 4] }, { team: "CWS", won: true, opp: "KC", score: [9, 1] }] } }),
     "Orioles eliminated &mdash; lost to the Yankees 4-2 and White Sox beat the Royals 9-1");
+});
+
+test("update log: clinches", () => {
+  page.run("0", { logChip: id => page.run(`TEAMS["${id}"].name`) });
+  const say = e => run("entryText(E)", { E: { kind: "berth", ...e } });
+  assert.equal(say({ team: "CWS", what: "playoff", via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }] }),
+    "White Sox clinch a playoff spot &mdash; beat the Royals 9-1");
+  assert.equal(say({ team: "NYY", what: "wildcard" }), "Yankees clinch a wild card spot");
+  assert.equal(say({ team: "TB", what: "division", div: "AL East" }), "Rays clinch the AL East");
+  assert.equal(say({ team: "TB", what: "bye" }), "Rays clinch a first-round bye");
 });
