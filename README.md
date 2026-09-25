@@ -20,7 +20,8 @@ takes about ten minutes.
 
 **You'll need** a Claude plan that includes Claude Code on the web and a free
 [Cloudflare](https://dash.cloudflare.com/sign-up) account. Claude walks you
-through the Cloudflare part.
+through the Cloudflare part. If you'd rather deploy the connector yourself
+from a terminal, tell Claude.
 
 Running the site doesn't cost anything. Scores come from MLB's free public API
 through a connector on Cloudflare's free tier. Keeping the page updated
@@ -28,8 +29,9 @@ doesn't use Claude.
 
 ## Setup (for Claude Code)
 
-Guide the user one step at a time. Tell them what to do, wait until they say
-it's done, then go on. Never ask for the Cloudflare token in the chat.
+Guide the user one step at a time. Tell them the one thing to do next, wait
+until they say it's done, then go on. Don't ask them to make choices you can
+make for them. Never ask for the Cloudflare token in the chat.
 
 **1. Publish the page.** Use the Artifact tool to publish `index.html` from
 `main` with every file it references, `icon: "baseball"`, and these
@@ -42,25 +44,12 @@ capabilities:
 Give the user the link. The page will say the connector is missing until
 step 4. That's expected.
 
-**2. Choose how to deploy the connector.** If `CLOUDFLARE_ACCOUNT_ID` is set
+**2. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
 and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
-returns `"success":true`, this session can already deploy. Go to step 3.
-
-Otherwise, offer the user two ways:
-
-- **You deploy it.** This is the default. They add a Cloudflare token to this
-  session's environment and you deploy from a new session. After that,
-  updates are one command. The steps are below.
-- **They deploy it themselves** with Cloudflare's command-line tool, wrangler.
-  Assume they're comfortable in a terminal. In their own clone of `main` they
-  run `npx wrangler login` and then `npm run deploy`. It prints the Worker's
-  address, and the connector URL is that address plus `/mcp`. Go to step 4.
-  They redeploy the same way when the connector's code changes. Cloudflare's
-  tools change over time, so if something doesn't match, point them to
-  Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
-
-If you're deploying it:
+returns `"success":true`, go to step 3. Otherwise walk the user through the
+steps below. Don't offer other ways to deploy unless they ask. If they do, see
+"If they deploy it themselves" below.
 
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
@@ -114,6 +103,16 @@ the save that failed.
 Finish by telling the user they can set their ranking on the Ranking tab. If
 they made a Cloudflare token, tell them they can delete it now, or remove the
 environment credential. The connector keeps running without it.
+
+### If they deploy it themselves
+
+Only if the user asks. Assume they're comfortable in a terminal. In their own
+clone of `main` they run `npx wrangler login` and then `npm run deploy`. It
+prints the Worker's address, and the connector URL is that address plus
+`/mcp`. Then go on from step 4. They redeploy the same way when the
+connector's code changes. Cloudflare's tools change over time, so if something
+doesn't match, point them to Cloudflare's
+[Workers docs](https://developers.cloudflare.com/workers/).
 
 ## Making changes
 
