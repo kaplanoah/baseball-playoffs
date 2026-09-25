@@ -1,2 +1,5 @@
 _harness.html
 design-options.html
+node_modules/
+.wrangler/
+.dev.vars

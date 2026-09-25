@@ -1,0 +1,13 @@
+# The MLB Live connector. Deploy with `npm run deploy` from the repo root,
+# which rebuilds dist/worker.mjs first. See README.md, "The live connector".
+name = "mlb-live"
+main = "dist/worker.mjs"
+compatibility_date = "2026-09-01"
+# dist/worker.mjs is already one self-contained module; upload it as tested.
+no_bundle = true
+
+[observability]
+enabled = true
+
+# Optional: `npx wrangler secret put CONNECTOR_KEY` moves the endpoint to
+# /mcp/<key>, so only someone with the URL can spend your requests.
