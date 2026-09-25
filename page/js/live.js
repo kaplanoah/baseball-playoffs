@@ -1,7 +1,7 @@
 import * as MLBSnapshot from "./snapshot.js";
 import { sameJson } from "./compare.js";
 import { describeLiveError } from "./live-errors.js";
-import { fetchLive, isDirectBlocked } from "./live-fetch.js";
+import { fetchLive, findLiveSource } from "./live-fetch.js";
 import { reportStatus, saveLive } from "./live-store.js";
 import { renderAll } from "./render.js";
 import { session, composeState } from "./session.js";
@@ -79,7 +79,7 @@ function handleLiveFailure(error) {
     renderStamp();
   }
   reportStatus({
-    source: isDirectBlocked() ? "connector" : "direct",
+    source: findLiveSource(),
     error: liveError.code,
     detail: liveError.detail,
   });

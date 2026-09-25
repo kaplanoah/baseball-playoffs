@@ -83,3 +83,10 @@ test("the connector still answers alongside the page", async () => {
   );
   assert.deepEqual(await response.json(), { jsonrpc: "2.0", id: 1, result: {} });
 });
+
+test("the page's own snapshot route reaches the connector's snapshot", async () => {
+  const response = await requestPage("/k3y/snapshot?season=1800");
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /season must be a whole year/);
+  assert.equal((await requestPage("/k3y/snapshot", { method: "POST" })).status, 405);
+});

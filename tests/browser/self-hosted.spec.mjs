@@ -4,7 +4,7 @@ test("the self-hosted page saves to the Worker's store, and loads from it", asyn
   const app = await openSelfHostedApp(page);
   await expect
     .poll(() => app.readDocument("live/status"))
-    .toMatchObject({ source: "direct", error: "", write: "" });
+    .toMatchObject({ source: "worker", error: "", write: "" });
   const season = await app.readDocument("seasons/2026");
   expect(Object.keys(season.teams)).toHaveLength(12);
   expect(await app.readDocument("standings/2026")).toHaveProperty("divisions");

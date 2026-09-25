@@ -22,6 +22,7 @@ export default {
     if (appPath === null) return connector.fetch(request, env);
     if (appPath === "") return redirectToFolder(url);
     if (isStorePath(appPath)) return forwardToStore(request, env, appPath);
+    if (appPath === "/snapshot" && request.method === "GET") return connector.serveSnapshot(url);
     return servePageFile(request, appPath);
   },
 };

@@ -235,5 +235,5 @@ export function createWorker({
     return respondText("Not found\n", 404);
   }
 
-  return { fetch: routeRequest };
+  return { fetch: routeRequest, serveSnapshot };
 }
