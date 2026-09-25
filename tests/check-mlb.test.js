@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
-const MLBSnapshot = require("../js/snapshot.js");
+const MLBSnapshot = require("../page/js/snapshot.js");
 
 const loadChecker = import("../scripts/check-mlb.mjs");
 const readFixture = (name) =>

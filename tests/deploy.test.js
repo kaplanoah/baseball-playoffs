@@ -174,7 +174,7 @@ test("a release is clean and exactly what GitHub has as main, on any branch", as
 test("anything else is refused, with the reason", async () => {
   const { checkRelease } = await load();
   assert.throws(
-    () => checkRelease(fakeGit({ dirty: " M js/snapshot.js" }).git),
+    () => checkRelease(fakeGit({ dirty: " M page/js/snapshot.js" }).git),
     /uncommitted changes/,
   );
   assert.throws(

@@ -19,7 +19,7 @@ const ctx = vm.createContext({
   URL,
   console,
 });
-for (const file of ["js/snapshot.js", "worker/src/mcp.js"]) {
+for (const file of ["page/js/snapshot.js", "worker/src/mcp.js"]) {
   vm.runInContext(fs.readFileSync(path.join(__dirname, "..", file), "utf8"), ctx, {
     filename: file,
   });

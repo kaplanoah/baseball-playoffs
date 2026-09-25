@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { test as base, expect } from "@playwright/test";
 
 const require = createRequire(import.meta.url);
-const MLBSnapshot = require("../../js/snapshot.js");
+const MLBSnapshot = require("../../page/js/snapshot.js");
 
 const loadFixture = (name) => require(`../fixtures/${name}.json`);
 export const EVENING = loadFixture("2026-09-24-evening");

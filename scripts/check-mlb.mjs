@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
-const MLBSnapshot = require("../js/snapshot.js");
+const MLBSnapshot = require("../page/js/snapshot.js");
 
 const KNOWN_TEAMS = new Set(Object.values(MLBSnapshot.MLB_TEAM));
 const POSTSEASON_GAME_TYPES = ["F", "D", "L", "W"];
@@ -21,7 +21,7 @@ const isTime = (value) => isText(value) && !Number.isNaN(Date.parse(value));
 const isPresent = (value) => value !== undefined && value !== null && value !== "";
 const formatGameCount = (count) => `${count} game${count === 1 ? "" : "s"}`;
 
-// Matches gameState in js/snapshot.js: a postponed game also reads "Final", with no score.
+// Matches gameState in page/js/snapshot.js: a postponed game also reads "Final", with no score.
 function readGameState(status = {}) {
   const isOff =
     /^[CDTU]$/.test(status.codedGameState) ||

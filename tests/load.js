@@ -5,7 +5,7 @@ const vm = require("vm");
 function loadPage(files) {
   const ctx = vm.createContext({ console, setInterval: () => 0, Date, Math, JSON });
   for (const f of files) {
-    const src = fs.readFileSync(path.join(__dirname, "..", "js", f), "utf8");
+    const src = fs.readFileSync(path.join(__dirname, "..", "page", "js", f), "utf8");
     vm.runInContext(src, ctx, { filename: f });
   }
   return {

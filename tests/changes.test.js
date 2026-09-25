@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const S = require("../js/snapshot.js");
-const C = require("../js/changes.js");
+const S = require("../page/js/snapshot.js");
+const C = require("../page/js/changes.js");
 
 const NOW = Date.parse("2026-09-25T02:00:00Z");
 
