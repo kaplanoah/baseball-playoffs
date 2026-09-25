@@ -172,7 +172,7 @@ section.view.active {
   margin-left: 10px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   position: relative;
   padding-left: 17px;
   font-size: 0.85rem;
@@ -511,7 +511,7 @@ nav.tabs + .updates {
 .updates-list li {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 12px;
   font-size: 0.82rem;
   padding: 5px 0;
 }
@@ -552,11 +552,11 @@ nav.tabs + .updates {
 .updates .club {
   gap: 7px;
 }
-/* The .when column's 62px plus the row's 4px gap. */
+/* The .when column's 62px plus the row's 12px gap. */
 .updates-list .more {
   font-size: 0.7rem;
   color: var(--ink-dim);
-  padding-left: 66px;
+  padding-left: 74px;
 }
 
 .setup-card {

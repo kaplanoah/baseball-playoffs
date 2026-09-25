@@ -111,7 +111,7 @@ test("the night's last final, with the day's clause", () => {
   assert.deepEqual(describeUpNext(slate), {
     at: toEasternIso(TODAY, "12:35"),
     tbd: false,
-    text: "Cardinals @ Pirates, first of 12",
+    text: "Cardinals @ Pirates, starts slate of 12",
   });
 });
 
@@ -135,7 +135,7 @@ test("a morning with nothing on: last night's final", () => {
   assert.deepEqual(describeUpNext(slate), {
     at: toEasternIso(TODAY, "16:05"),
     tbd: false,
-    text: "Padres @ Giants, first of 6",
+    text: "Padres @ Giants, starts slate of 6",
   });
 });
 
@@ -204,7 +204,7 @@ test("between the afternoon and the evening: the newest final, then the next fir
     },
   };
   assert.equal(describeLast(slate), "Tigers 7 Twins 1 final at 4:02 PM, slate of 12 under way");
-  // Every late game starts at 7:05, so the ranking picks the Cubs. No "first of"
+  // Every late game starts at 7:05, so the ranking picks the Cubs. No "starts slate of"
   // once the day's first game has started.
   assert.deepEqual(describeUpNext(slate), {
     at: toEasternIso(TODAY, "19:05"),
@@ -226,6 +226,23 @@ test("ties go to your ranking, then to a club still alive", () => {
     describeLast(slate, createContext({ ranking: ["DET"], out: ["WSH", "DET"] })),
     "Nationals @ Tigers 2-2 in the 4th, slate of 3 under way",
   );
+});
+
+test("when several games start first, the next line still names your club's", () => {
+  const firstPitches = [
+    createPregame("TOR", "BAL", "15:05"),
+    createPregame("MIA", "CHC", "15:05"),
+    createPregame("SEA", "TEX", "15:05"),
+    createPregame("PIT", "DET", "15:05"),
+  ];
+  const slate = {
+    today: { date: TODAY, games: [...firstPitches, ...listLaterGames(10, "15:10")] },
+  };
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso(TODAY, "15:05"),
+    tbd: false,
+    text: "Marlins @ Cubs, starts slate of 14",
+  });
 });
 
 test("every game final: the slate is over, and the next line looks to tomorrow", () => {
