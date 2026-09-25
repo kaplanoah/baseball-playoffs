@@ -84,3 +84,13 @@ test("update log: an elimination is plain words", () => {
     via: [{ team: "BAL", won: false, opp: "NYY", score: [2, 4] }, { team: "CWS", won: true, opp: "KC", score: [9, 1] }] } }),
     "Orioles eliminated &mdash; lost to the Yankees 4-2 and White Sox beat the Royals 9-1");
 });
+
+test("update log: clinches", () => {
+  page.run("0", { logChip: id => page.run(`TEAMS["${id}"].name`) });
+  const say = e => run("entryText(E)", { E: { kind: "berth", ...e } });
+  assert.equal(say({ team: "CWS", what: "playoff", via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }] }),
+    "White Sox clinch a playoff spot &mdash; beat the Royals 9-1");
+  assert.equal(say({ team: "NYY", what: "wildcard" }), "Yankees clinch a wild card spot");
+  assert.equal(say({ team: "TB", what: "division", div: "AL East" }), "Rays clinch the AL East");
+  assert.equal(say({ team: "TB", what: "bye" }), "Rays clinch a first-round bye");
+});

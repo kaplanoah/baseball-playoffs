@@ -146,6 +146,7 @@ function entryText(e){
       const what = e.what === "division" ? `the ${e.div || (lg(e.team) + " division")}`
                  : e.what === "bye"      ? "a first-round bye"
                  : e.what === "wildcard" ? "a wild card spot"
+                 : e.what === "playoff"  ? "a playoff spot"
                  :                         "a playoff spot";
       return withVia(`${logChip(e.team)} clinch ${what}`, e, e.team, null);
     }

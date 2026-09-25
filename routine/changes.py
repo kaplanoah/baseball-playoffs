@@ -5,7 +5,11 @@ Orioles' elimination went unlogged. It reads five JSON files and prints a
 JSON list of log entries WITHOUT `at`; the routine adds that and appends
 every entry, in order, in the same write as the change itself.
 
-  python3 changes.py OLD_STANDINGS NEW_STANDINGS OLD_TEAMS NEW_TEAMS GAMES
+  python3 changes.py project NEW_STANDINGS
+  python3 changes.py OLD_STANDINGS NEW_STANDINGS OLD_TEAMS NEW_TEAMS GAMES LOG BASELINE
+
+The first form prints the projected field (`teams`) from the table you built,
+so the projection is computed, not judged. The second prints the log entries.
 
 OLD_STANDINGS / NEW_STANDINGS: the standings document as read and as built
 ({divisions: {...}}). OLD_TEAMS / NEW_TEAMS: the season document's `teams`
@@ -13,7 +17,16 @@ as read and as it will be written. Pass the same file twice for the teams
 when the field did not change. GAMES: the `games` list the routine writes
 to `slate.today` (away, home, state, score), from which each entry gets its
 `via` -- the finals behind it -- so the log says WHY: "Orioles eliminated —
-White Sox beat the Royals 9-1".
+White Sox beat the Royals 9-1". LOG: the season document's `log` as read.
+BASELINE: the `routine/baseline` document -- what was already clinched or
+eliminated when the log began.
+
+Comparing the two tables catches what changed on this run. The last part,
+the CATCH-UP, catches what an earlier run missed, whatever the reason: every
+club MLB currently marks as eliminated or clinched must have a log entry (or
+be in the baseline), and any that doesn't gets one now, marked `late`. That
+is the check that would have caught the White Sox, the Blue Jays and the
+wild card clinches that went unlogged for days.
 """
 import json
 import sys
@@ -73,7 +86,51 @@ def last_wild_card(after, league_of, lg):
     return holders[2]["id"] if len(holders) >= 3 else None
 
 
-def main(old_st, new_st, old_teams, new_teams, games):
+CLINCH_WHAT = {"x": "playoff", "w": "wildcard", "y": "division", "z": "bye"}
+CLINCH_STEP = {"x": 1, "w": 2, "y": 3, "z": 4}
+STEP_OF_WHAT = {w: CLINCH_STEP[c] for c, w in CLINCH_WHAT.items()}
+
+
+def catch_up(after, entries, log, baseline):
+    """Entries for anything MLB shows that neither the log, the baseline, nor
+    this run's entries account for."""
+    seen = list(log) + list(entries)
+    out_logged = set(baseline.get("out", [])) | {e.get("team") for e in seen if e.get("kind") == "elim"}
+    step = {i: CLINCH_STEP.get(c, 0) for i, c in (baseline.get("clinch") or {}).items()}
+    for e in seen:
+        if e.get("kind") == "berth":
+            step[e["team"]] = max(step.get(e["team"], 0), STEP_OF_WHAT.get(e.get("what"), 0))
+    late = []
+    for i, r in after.items():
+        c = r.get("clinch")
+        if c in CLINCH_STEP and CLINCH_STEP[c] > step.get(i, 0):
+            e = {"kind": "berth", "team": i, "what": CLINCH_WHAT[c], "late": True}
+            if e["what"] == "division":
+                e["div"] = r["div"]
+            late.append(e)
+    for i, r in after.items():
+        if out_of_it(r) and i not in out_logged:
+            late.append({"kind": "elim", "team": i, "late": True})
+    return late
+
+
+def project(st):
+    """The field if the season ended today, per league: the three division
+    leaders seeded 1-3 by win percentage, then the top three by wild card
+    rank seeded 4-6. Ties keep MLB's own order (the table is in it)."""
+    teams = {}
+    for lg in ("AL", "NL"):
+        divs = [d for d in st["divisions"] if d.startswith(lg)]
+        leaders = [next(r for r in st["divisions"][d] if r.get("lead")) for d in divs]
+        leaders.sort(key=lambda r: -float(r["pct"]))
+        wild = sorted((r for d in divs for r in st["divisions"][d] if r.get("wcrank") and not r.get("lead")),
+                      key=lambda r: int(r["wcrank"]))[:3]
+        for seed, r in enumerate(leaders + wild, 1):
+            teams[r["id"]] = {"league": lg, "seed": seed, "w": r["w"], "l": r["l"]}
+    return teams
+
+
+def main(old_st, new_st, old_teams, new_teams, games, log=None, baseline=None):
     before, after = rows(old_st), rows(new_st)
     entries = []
     league_of = lambda i: after[i]["div"][:2] if i in after else ""
@@ -105,14 +162,48 @@ def main(old_st, new_st, old_teams, new_teams, games):
         for o in outs[len(ins):]:
             entries.append({"kind": "field", "out": o})
 
-    # Division titles clinched on this run.
-    for i, r in after.items():
-        if r.get("clinched") and not before.get(i, {}).get("clinched"):
-            e = {"kind": "berth", "team": i, "what": "division", "div": r["div"]}
-            own = result(games, i)
-            if own and own["won"]:
-                e["via"] = [own]
+    # Seed moves among clubs that stayed in the field: only moves UP, since
+    # every move up implies one down. `over` names the club passed when the
+    # two simply swapped seeds.
+    for lg in ("AL", "NL"):
+        stayed = [i for i, t in new_teams.items() if t["league"] == lg and i in old_teams]
+        for i in sorted(stayed, key=lambda i: new_teams[i]["seed"]):
+            was, now = old_teams[i]["seed"], new_teams[i]["seed"]
+            if now >= was:
+                continue
+            e = {"kind": "seed", "team": i, "from": was, "to": now}
+            swap = [j for j in stayed if old_teams[j]["seed"] == now and new_teams[j]["seed"] == was]
+            if swap:
+                e["over"] = swap[0]
+            v = via(result(games, i), result(games, e["over"]) if swap else None)
+            if v:
+                e["via"] = v
             entries.append(e)
+
+    # Clinches on this run, from MLB's clinchIndicator (`clinch` in the table):
+    # x a playoff spot, w a wild card, y the division, z a first-round bye.
+    # Each step up is its own news -- the White Sox clinching a spot and,
+    # later, a wild card are two entries. A table read before `clinch` was
+    # recorded has nothing to compare against, so only division titles (from
+    # `clinched`) can be found then.
+    WHAT, STEP = CLINCH_WHAT, CLINCH_STEP
+    for i, r in after.items():
+        old = before.get(i, {})
+        if "clinch" in old:
+            new_c, old_c = r.get("clinch"), old.get("clinch")
+            if new_c not in WHAT or STEP[new_c] <= STEP.get(old_c, 0):
+                continue
+            e = {"kind": "berth", "team": i, "what": WHAT[new_c]}
+        elif r.get("clinched") and not old.get("clinched"):
+            e = {"kind": "berth", "team": i, "what": "division"}
+        else:
+            continue
+        if e["what"] == "division":
+            e["div"] = r["div"]
+        own = result(games, i)
+        if own and own["won"]:
+            e["via"] = [own]
+        entries.append(e)
 
     # Clubs whose season ended on this run: out of the division AND the wild card.
     # Why: its own loss, and the win by the club it was chasing on the route
@@ -133,9 +224,18 @@ def main(old_st, new_st, old_teams, new_teams, games):
                 e["via"] = v
             entries.append(e)
 
+    if log is not None:
+        entries += catch_up(after, entries, log, baseline or {})
     return entries
 
 
 if __name__ == "__main__":
-    docs = [json.load(open(p)) for p in sys.argv[1:6]]
+    if sys.argv[1] == "project":
+        # python3 changes.py project NEW_STANDINGS: the projected `teams`.
+        print(json.dumps(project(json.load(open(sys.argv[2]))), indent=1))
+        sys.exit()
+    docs = [json.load(open(p)) for p in sys.argv[1:8]]
+    if len(docs) > 5:
+        # The season document as read: its log. The baseline document as read.
+        docs[5] = docs[5].get("log", docs[5]) if isinstance(docs[5], dict) else docs[5]
     print(json.dumps(main(*docs), indent=1))
