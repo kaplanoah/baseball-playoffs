@@ -268,14 +268,16 @@ function stampLine(label, when, why){
   return `<span>${label} <b>${when}</b>${why ? ` &mdash; ${why}` : ""}</span>`;
 }
 
-/* Two lines: when the data is from and the newest baseball in it, then --
-   while nothing is on -- the next first pitch. A season that is over has
-   neither. Without live data, the saved copy's time and games instead. */
+/* Two lines: the newest baseball there is, then -- while nothing is on --
+   the next first pitch. The first carries only the time of the data: live
+   data is always current, so "Updated" said nothing. A season that is over
+   has neither line. Without live data, the saved copy, labelled as such. */
 function stampLines(){
   const ctx = stampContext();
   if(live && live.season === activeYear){
     if(!state.slate) return [];
-    const lines = [stampLine("Updated", stampWhen(new Date(live.asOf)), lastStampText(state.slate, ctx))];
+    const latest = lastStampText(state.slate, ctx);
+    const lines = latest ? [`<span><b>${stampWhen(new Date(live.asOf))}</b> ${latest}</span>`] : [];
     const next = upNextText(state.slate, ctx);
     if(next){
       const at = new Date(next.at);

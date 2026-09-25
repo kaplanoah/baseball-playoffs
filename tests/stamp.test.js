@@ -1,4 +1,4 @@
-/* The freshness stamp: "Updated ... — <the newest baseball there is>" and,
+/* The freshness stamp: "<time> <the newest baseball there is>" and,
    while nothing is on, "Next first pitch ... — <the game>". Each case is a
    real situation from the season, with the exact sentence the page must show.
 
@@ -64,7 +64,7 @@ test("a morning with nothing on: last night's final", () => {
     today: { date: DAY, games: [pre("SD", "SF", "16:05"), pre("STL", "PIT", "18:35"), ...later(4)] },
     lastFinal: final("HOU", "SEA", "21:40", [5, 6], "01:30", PREV, DAY)
   };
-  assert.equal(last(slate, ctx({ now: et(DAY, "13:17") })), "No games since Mariners 6 Astros 5 final last night");
+  assert.equal(last(slate, ctx({ now: et(DAY, "13:17") })), "No games since Mariners 6 Astros 5 final at 1:30 AM last night");
   assert.deepEqual(upNext(slate), { at: et(DAY, "16:05"), tbd: false, text: "Padres @ Giants, first of 6" });
 });
 
@@ -144,7 +144,7 @@ test("one or two games: named, with no slate", () => {
 test("an off day, and a final from days back", () => {
   const slate = { since: et(DAY, "12:15"), today: { date: DAY, games: [] },
     lastFinal: final("TOR", "BAL", "19:05", [3, 4], "22:01", "2026-09-21") };
-  assert.equal(last(slate, ctx({ now: et(DAY, "13:15") })), "No games since Orioles 4 Blue Jays 3 final Monday");
+  assert.equal(last(slate, ctx({ now: et(DAY, "13:15") })), "No games since Orioles 4 Blue Jays 3 final at 10:01 PM Monday");
   assert.equal(upNext(slate), null);
 });
 
