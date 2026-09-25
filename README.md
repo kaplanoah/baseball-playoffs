@@ -11,8 +11,8 @@ Claude's instructions:
 
 ```
 Set up the MLB postseason tracker from https://github.com/kaplanoah/baseball-playoffs
-for me. Clone it (branch main), read the "Setup, for Claude" section of its
-README, and guide me through it one step at a time.
+for me. Clone it (branch main), read the "Setup (instructions for Claude)"
+section of its README, and guide me through it one step at a time.
 ```
 
 Claude publishes your page, then walks you through connecting it to live
@@ -22,11 +22,11 @@ scores, one step at a time. About ten minutes.
 the setup runs, and a free [Cloudflare](https://dash.cloudflare.com/sign-up)
 account (Claude will show you what to click there).
 
-Running it doesn't cost anything. Scores come from MLB's free public API
-through a small connector on Cloudflare's free tier, and nothing runs on a
-schedule or counts against your Claude usage.
+Running the site doesn't cost anything. Scores come from MLB's free public
+API through a small connector on Cloudflare's free tier, and keeping the page
+current doesn't use Claude.
 
-## Setup, for Claude
+## Setup (instructions for Claude)
 
 Guide the user one step at a time: say what to do, wait until they say it's
 done, then go on. Never ask for the Cloudflare token in the chat.
@@ -42,21 +42,39 @@ capabilities:
 Give the user the link. It will say the connector is missing until step 4;
 that's expected.
 
-**2. Check whether this session can already deploy.** If `CLOUDFLARE_ACCOUNT_ID`
-is set and
+**2. Choose how to deploy the connector.** If `CLOUDFLARE_ACCOUNT_ID` is set
+and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
-returns `"success":true`, skip to step 3. Otherwise walk the user through this:
+returns `"success":true`, this session can already deploy it: go to step 3.
 
-1. Sign in at [dash.cloudflare.com](https://dash.cloudflare.com) (a free
-   account is fine). Open **Workers & Pages**; if it asks for a workers.dev
-   subdomain, have them choose one and tell you what it is.
-2. Create a token: **Manage Account → API Tokens → Create Token**, template
-   **Edit Cloudflare Workers**, scoped to their account. No IP filtering (cloud
-   sessions have no fixed address); an expiry of a week is plenty. They copy
-   the token but keep it to themselves.
-3. Find the **Account ID**: Workers & Pages overview, right-hand column.
-4. In Claude Code, open this session's cloud environment (the environment
-   menu in the title bar → **Edit**) and set:
+Otherwise, have the user sign in at
+[dash.cloudflare.com](https://dash.cloudflare.com) (a free account is fine)
+and open **Workers & Pages**. If it asks for a workers.dev subdomain, have them
+choose one and tell you what it is. Then offer two ways to deploy:
+
+- **You deploy it** (the default). They give this session's environment a
+  Cloudflare token, and you deploy from a new session. Later updates are one
+  command. Steps below.
+- **They deploy it themselves**, with no token. In **Workers & Pages** they
+  create a Worker named `mlb-live` from the Hello World template and deploy
+  it. Then they open **Edit code**, replace all of its code with
+  `worker/dist/worker.mjs` from `main` on GitHub (that file's **Copy raw file**
+  button copies it), and deploy again. The connector URL is
+  `https://mlb-live.<subdomain>.workers.dev/mcp`; go to step 4. They'll need to
+  paste the file again whenever it changes. If they have Node and a copy of
+  the repo on their own computer, `npx wrangler login` and then
+  `npm run deploy` there does the same.
+
+If you're deploying it:
+
+1. Have them create a token: **Manage Account → API Tokens → Create Token**,
+   template **Edit Cloudflare Workers**, scoped to their account. No IP
+   filtering (cloud sessions have no fixed address); an expiry of a week is
+   plenty. They copy the token but keep it to themselves.
+2. Have them find the **Account ID**: Workers & Pages overview, right-hand
+   column.
+3. In Claude Code, they open this session's cloud environment (the
+   environment menu in the title bar → **Edit**) and set:
    - **API credentials → Add credential**: type Bearer, allowed website
      `api.cloudflare.com`, header `Authorization`, prefix `Bearer`, and the
      token as the value, then **Connect**. Sessions use it without seeing it.
@@ -65,10 +83,10 @@ returns `"success":true`, skip to step 3. Otherwise walk the user through this:
      with the default package managers still included.
 
    Then **Save changes**.
-5. Environment settings reach new sessions only. Start one in the same
+4. Environment settings reach new sessions only. Start one in the same
    environment on this repo's `main` (with the `create_session` tool if you
    have it; otherwise have the user start it) with this prompt:
-   `Continue setting up the MLB postseason tracker: README "Setup, for Claude", step 3. The page is at <artifact URL>.`
+   `Continue setting up the MLB postseason tracker: README "Setup (instructions for Claude)", step 3. The page is at <artifact URL>.`
 
 **3. Deploy the connector.** Run `npm run deploy:api`: it runs the tests,
 deploys only a clean checkout of `main`'s commit as GitHub has it (on any
@@ -84,7 +102,7 @@ server info.
 **4. Add it to claude.ai.** The user opens
 [claude.ai/customize/connectors](https://claude.ai/customize/connectors) and
 adds a custom connector named exactly **MLB Live** (the page asks for it by
-that name), with the URL from step 3 and no sign-in.
+that name), with the connector URL and no sign-in.
 
 **5. Check the page.** Have the user open the page and allow MLB Live if
 asked. Then read collection `live`, doc `status` with the ArtifactData tool:
@@ -92,16 +110,9 @@ asked. Then read collection `live`, doc `status` with the ArtifactData tool:
 the page explains `error` under its title, and `write` names a save that
 failed.
 
-Finish by telling the user their ranking is theirs to set on the Ranking tab,
-and that they can now delete the Cloudflare token (or the environment
-credential): the connector keeps running without it.
-
-### Other ways to deploy
-
-To deploy the connector yourself instead: `npx wrangler login`, then
-`npm run deploy`; or paste `worker/dist/worker.mjs` into a new Worker named
-`mlb-live` in the Cloudflare dashboard. See Cloudflare's
-[Workers docs](https://developers.cloudflare.com/workers/) for either.
+Finish by telling the user their ranking is theirs to set on the Ranking tab.
+If they made a Cloudflare token, tell them they can now delete it (or the
+environment credential): the connector keeps running without it.
 
 ## Making changes
 
