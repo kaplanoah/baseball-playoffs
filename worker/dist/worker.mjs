@@ -280,10 +280,7 @@ async function fetchSnapshot(getJson, season, now = Date.now()) {
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null
   ]);
-  return buildSnapshot(
-    { season: seasonDates, standings, postseason, schedule },
-    { season, now }
-  );
+  return buildSnapshot({ season: seasonDates, standings, postseason, schedule }, { season, now });
 }
 function readGameState(status) {
   const isCalledOff = ["C", "D", "T", "U"].includes(status.codedGameState) || /postpon|cancel|suspend/i.test(status.detailedState || "");
