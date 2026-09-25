@@ -788,7 +788,11 @@ all 30 clubs for the Standings tab. Everything but `next` comes from the
         opp: "<TEAM_ID>",          //   the other club
         home: true|false,          //   true when this club is hosting
         tbd: true|false            //   its status.startTimeTBD
-      }
+      },
+      then: { at, opp, home, tbd } // the game after `next`, same shape, or
+                                   // null. The page shows it the moment
+                                   // `next` has started, so the column never
+                                   // shows a game already under way or over.
     }, ... ],
     "AL Central": [...], "AL West": [...],
     "NL East": [...], "NL Central": [...], "NL West": [...]
@@ -815,9 +819,10 @@ all 30 clubs for the Standings tab. Everything but `next` comes from the
   rather than rewriting identical numbers — the page keeps showing the final
   table all postseason.
 - `next` needs one more request: `/api/v1/schedule?sportId=1&startDate=<today>
-  &endDate=<today + 4 days>`. Take each club's earliest game that isn't Final.
+  &endDate=<today + 4 days>`. Take each club's earliest regular-season game
+  (`gameType` "R") that isn't Final as `next`, and the one after it as `then`.
   It's the only extra call in the run, and only while the regular season is on.
-- Once every club is out of games, drop `next` entirely rather than leaving
+- Once every club is out of games, drop `next` and `then` entirely rather than leaving
   last week's matchup sitting in the table.
 - Do not log standings changes. The update log is for the bracket; standings
   move every day and would bury it.
