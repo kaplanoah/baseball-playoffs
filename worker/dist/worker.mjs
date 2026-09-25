@@ -70,6 +70,7 @@ var GAME_FIELDS = [
   "firstPitch",
   "gameDurationMinutes"
 ].join(",");
+var SEASON_FIELDS = ["seasons", "springStartDate"].join(",");
 var STANDINGS_FIELDS = [
   "records",
   "division",
@@ -129,6 +130,7 @@ var FIELD_RULES = {
     requireField("clinchIndicator", isText, (record) => record.divisionChamp === true)
   ],
   date: [requireField("date", isDay), requireField("games", Array.isArray)],
+  season: [requireField("springStartDate", isDay)],
   game: [
     requireField("gamePk", isNumber),
     requireField("gameType", isText),
@@ -163,7 +165,8 @@ var CHECKED_FIELDS = [
     Object.values(FIELD_RULES).flatMap((rules) => rules.flatMap((rule) => rule.path.split(".")))
   ),
   "records",
-  "dates"
+  "dates",
+  "seasons"
 ];
 var readPath = (object, path) => path.split(".").reduce((value, key) => value == null ? void 0 : value[key], object);
 function findInvalidFields(items, rules) {
@@ -189,8 +192,13 @@ function findMissingGameFields(schedule, extraRules) {
     ...findInvalidFields(games, [...FIELD_RULES.game, ...extraRules])
   ];
 }
+function findMissingSeasonFields(season) {
+  if (!Array.isArray(season?.seasons) || !season.seasons.length) return ["seasons"];
+  return findInvalidFields(season.seasons, FIELD_RULES.season);
+}
 function findMissingFields(responses) {
   const missing = [
+    ...findMissingSeasonFields(responses.season),
     ...findMissingStandingsFields(responses.standings),
     ...findMissingGameFields(responses.postseason, FIELD_RULES.postseasonGame),
     ...responses.schedule ? findMissingGameFields(responses.schedule, FIELD_RULES.scheduleGame) : []
@@ -254,6 +262,7 @@ function addDays(date, days) {
 function mlbRequests(season, now) {
   const today = easternDay(now);
   const requests = {
+    season: `/api/v1/seasons/${season}?sportId=1&fields=${SEASON_FIELDS}`,
     standings: `/api/v1/standings?leagueId=103,104&season=${season}&standingsTypes=regularSeason&fields=${STANDINGS_FIELDS}`,
     postseason: `/api/v1/schedule/postseason?season=${season}&hydrate=gameInfo&fields=${GAME_FIELDS}`,
     schedule: null
@@ -265,12 +274,13 @@ function mlbRequests(season, now) {
 }
 async function fetchSnapshot(getJson, season, now = Date.now()) {
   const requests = mlbRequests(season, now);
-  const [standings, postseason, schedule] = await Promise.all([
+  const [seasonDates, standings, postseason, schedule] = await Promise.all([
+    getJson(requests.season),
     getJson(requests.standings),
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null
   ]);
-  return buildSnapshot({ standings, postseason, schedule }, { season, now });
+  return buildSnapshot({ season: seasonDates, standings, postseason, schedule }, { season, now });
 }
 function readGameState(status) {
   const isCalledOff = ["C", "D", "T", "U"].includes(status.codedGameState) || /postpon|cancel|suspend/i.test(status.detailedState || "");
@@ -394,10 +404,17 @@ function buildStandingsRow(id, record) {
     rank: readRank(record.divisionRank)
   };
 }
+var SEASON_GAMES = 162;
+function countEliminationNumber(leader, chaser) {
+  const given = Number(chaser.elim);
+  if (Number.isFinite(given)) return given;
+  if (chaser.elim !== "-") return null;
+  return SEASON_GAMES + 1 - leader.w - chaser.l;
+}
 function setMagicNumber(rows) {
   const leader = rows.find((row) => row.lead);
   if (!leader || leader.clinched) return;
-  const chasers = rows.filter((row) => row !== leader).map((row) => Number(row.elim)).filter(Number.isFinite);
+  const chasers = rows.filter((row) => row !== leader).map((row) => countEliminationNumber(leader, row)).filter(Number.isFinite);
   if (chasers.length) leader.magic = String(Math.min(...chasers));
 }
 function buildStandings(response, games) {
@@ -557,6 +574,7 @@ function buildSeries(teams, gamesBySeries, today) {
   log.sort((first, second) => Date.parse(first.at) - Date.parse(second.at));
   return { series, log };
 }
+var readSpringStart = (seasonDates) => seasonDates?.seasons?.[0]?.springStartDate || null;
 function readRecords(standings) {
   const records = {};
   const champions = /* @__PURE__ */ new Set();
@@ -580,6 +598,7 @@ function buildSnapshot(responses, { season, now = Date.now() }) {
     season,
     asOf: new Date(now).toISOString(),
     projected: !official,
+    springStart: readSpringStart(responses.season),
     teams,
     series,
     log,

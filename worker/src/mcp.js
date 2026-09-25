@@ -43,7 +43,7 @@ const UPSTREAM_TIMEOUT_MS = 8000;
 const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
 const SNAPSHOT_REUSE_MS = 10000;
 const MAX_BODY_BYTES = 64 * 1024;
-// Each tool call can cost three MLB requests, and a Worker may make only so many per request.
+// Each tool call can cost four MLB requests, and a Worker may make only so many per request.
 const MAX_BATCH = 10;
 
 const describeError = (error) => (error instanceof Error ? error.message : String(error));

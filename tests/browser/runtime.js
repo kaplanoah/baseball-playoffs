@@ -1,11 +1,11 @@
 // A stand-in for the claude.ai artifact runtime, installed before the page's scripts run.
 (() => {
   const { store: initialStore, snapshots, connectorAdded, dbAvailable } = window.__runtimeConfig;
-  const SERVER = "MLB Live";
-  const TOOL = "get_snapshot";
+  const SERVER_NAME = "MLB Live";
+  const TOOL_NAME = "get_snapshot";
 
   const copy = (value) => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
-  const isObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
+  const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
   const createError = (code, message) => Object.assign(new Error(message), { code });
 
   const documents = new Map(Object.entries(copy(initialStore)));
@@ -15,7 +15,7 @@
   // The real store hands documents back read-only, with their keys sorted.
   function freezeSorted(value) {
     if (Array.isArray(value)) return Object.freeze(value.map(freezeSorted));
-    if (isObject(value)) {
+    if (isPlainObject(value)) {
       const keys = Object.keys(value).sort();
       return Object.freeze(Object.fromEntries(keys.map((key) => [key, freezeSorted(value[key])])));
     }
@@ -38,12 +38,12 @@
 
   function mergeFields(target, fields) {
     for (const [key, value] of Object.entries(fields)) {
-      if (isObject(value) && isObject(target[key])) mergeFields(target[key], value);
+      if (isPlainObject(value) && isPlainObject(target[key])) mergeFields(target[key], value);
       else target[key] = copy(value);
     }
   }
 
-  const db = {
+  const database = {
     doc: (path) => ({
       get: async () => readDocumentSnapshot(path),
       set: async (data) => {
@@ -57,11 +57,11 @@
         mergeFields(documents.get(path), fields);
         notifyListeners(path);
       },
-      onSnapshot: (onNext) => {
+      onSnapshot: (listener) => {
         if (!listeners.has(path)) listeners.set(path, new Set());
-        listeners.get(path).add(onNext);
-        setTimeout(() => onNext(readDocumentSnapshot(path)));
-        return () => listeners.get(path).delete(onNext);
+        listeners.get(path).add(listener);
+        setTimeout(() => listener(readDocumentSnapshot(path)));
+        return () => listeners.get(path).delete(listener);
       },
     }),
     collection: (name) => ({
@@ -85,14 +85,16 @@
 
   const mcp = {
     listTools: async (server) => ({
-      servers: [{ server, tools: connectorAdded && server === SERVER ? [{ name: TOOL }] : [] }],
+      servers: [
+        { server, tools: connectorAdded && server === SERVER_NAME ? [{ name: TOOL_NAME }] : [] },
+      ],
     }),
     callTool: async (server, tool, input) => {
       toolCalls.push({ server, tool, input: copy(input) });
       // A connector that was never added fails with a vague code, as the real one does.
       if (!connectorAdded) throw createError("upstream_error", "consent could not be asked");
       const snapshot = copy(snapshots[input.season]);
-      if (server !== SERVER || tool !== TOOL || !snapshot)
+      if (server !== SERVER_NAME || tool !== TOOL_NAME || !snapshot)
         throw createError("tool_error", "no answer");
       return {
         payload: runtime.transformSnapshot ? runtime.transformSnapshot(snapshot) : snapshot,
@@ -101,6 +103,6 @@
   };
 
   window.__runtime = runtime;
-  const capabilities = dbAvailable ? { db, mcp } : { mcp };
+  const capabilities = dbAvailable ? { db: database, mcp } : { mcp };
   window.claude = { use: async (name) => capabilities[name] ?? null };
 })();

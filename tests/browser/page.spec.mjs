@@ -1,6 +1,6 @@
-import { test, expect, openApp, buildFixtureSnapshot, EVENING } from "./harness.mjs";
+import { test, expect, openApp, buildFixtureSnapshot, EVENING_FIXTURE } from "./harness.mjs";
 
-const FIELD_2026 = [
+const PLAYOFF_FIELD_2026 = [
   "Rays",
   "Guardians",
   "Rangers",
@@ -21,13 +21,13 @@ test("falls back to the connector and renders the bracket, standings and stamp",
   const app = await openApp(page);
 
   await expect
-    .poll(() => app.read("live/status"))
+    .poll(() => app.readDocument("live/status"))
     .toMatchObject({ source: "connector", error: "", write: "" });
   expect(app.countMlbRequests()).toBeGreaterThan(0);
   expect(await app.countToolCalls()).toBe(1);
 
   const bracket = page.locator("#bracketWrap");
-  for (const club of FIELD_2026) await expect(bracket).toContainText(club);
+  for (const club of PLAYOFF_FIELD_2026) await expect(bracket).toContainText(club);
   await expect(page.locator("#banner")).toContainText("Highest still in");
   await expect(page.locator("#stamp")).toContainText("Reds @ Braves 5-5 in the 5th");
 
@@ -35,15 +35,17 @@ test("falls back to the connector and renders the bracket, standings and stamp",
   await expect(page.locator("#standingsWrap .div-block")).toHaveCount(8);
   await expect(page.locator("#standingsWrap")).toContainText("AL East");
 
-  const season = await app.read("seasons/2026");
+  const season = await app.readDocument("seasons/2026");
   expect(Object.keys(season.teams)).toHaveLength(12);
-  expect(await app.read("standings/2026")).toHaveProperty("divisions");
+  expect(await app.readDocument("standings/2026")).toHaveProperty("divisions");
 });
 
 test("fetches MLB directly when the page is allowed to", async ({ page }) => {
   const app = await openApp(page, { directAllowed: true });
 
-  await expect.poll(() => app.read("live/status")).toMatchObject({ source: "direct", error: "" });
+  await expect
+    .poll(() => app.readDocument("live/status"))
+    .toMatchObject({ source: "direct", error: "" });
   expect(await app.countToolCalls()).toBe(0);
   await expect(page.locator("#stamp")).toContainText("Reds @ Braves 5-5 in the 5th");
 });
@@ -57,7 +59,7 @@ test("says how to add the connector when it isn't added, and doesn't retry by it
     "Live scores need the MLB Live connector: add it in claude.ai's connector settings.",
   );
   await expect
-    .poll(() => app.read("live/status"))
+    .poll(() => app.readDocument("live/status"))
     .toMatchObject({ source: "connector", error: "server_not_connected" });
 
   await page.clock.fastForward("10:00");
@@ -65,20 +67,20 @@ test("says how to add the connector when it isn't added, and doesn't retry by it
 });
 
 test("logs changes against the stored documents across snapshots", async ({ page }) => {
-  const current = buildFixtureSnapshot(EVENING);
-  const earlier = structuredClone(current.teams);
-  [earlier.NYY.seed, earlier.BOS.seed] = [earlier.BOS.seed, earlier.NYY.seed];
+  const currentSnapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const earlierTeams = structuredClone(currentSnapshot.teams);
+  [earlierTeams.NYY.seed, earlierTeams.BOS.seed] = [earlierTeams.BOS.seed, earlierTeams.NYY.seed];
   const app = await openApp(page, {
     store: {
       "seasons/2026": {
         year: 2026,
-        teams: earlier,
-        series: current.series,
+        teams: earlierTeams,
+        series: currentSnapshot.series,
         projected: true,
         ranking: ["NYY", "LAD", "MIL"],
         log: [],
       },
-      "standings/2026": { ...current.standings, updatedAt: "2026-09-24T20:00:00Z" },
+      "standings/2026": { ...currentSnapshot.standings, updatedAt: "2026-09-24T20:00:00Z" },
     },
   });
 
@@ -96,13 +98,13 @@ test("logs changes against the stored documents across snapshots", async ({ page
 
   await expect(updates).toContainText(/Mets .*Phillies/);
   await expect
-    .poll(async () => (await app.read("seasons/2026")).log.map((entry) => entry.kind))
+    .poll(async () => (await app.readDocument("seasons/2026")).log.map((entry) => entry.kind))
     .toEqual(["seed", "field"]);
-  const season = await app.read("seasons/2026");
+  const season = await app.readDocument("seasons/2026");
   expect(season.teams).toHaveProperty("NYM");
   expect(season.teams).not.toHaveProperty("PHI");
   expect(season.ranking).toEqual(["NYY", "LAD", "MIL"]);
-  expect(await app.read("live/status")).toMatchObject({ error: "", write: "" });
+  expect(await app.readDocument("live/status")).toMatchObject({ error: "", write: "" });
 });
 
 test("switching to 2025 shows the finished bracket and its champion, and stops polling", async ({
@@ -111,7 +113,7 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   const app = await openApp(page, {
     store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
   });
-  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
 
   await page.locator("#yearSel").selectOption("2025");
 
@@ -119,16 +121,16 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   await expect(page.locator("#banner")).toContainText("Dodgers");
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers win the World Series");
   await expect(page.locator("#updates")).toBeHidden();
-  await expect.poll(() => app.read("seasons/2025")).toMatchObject({ projected: false });
+  await expect.poll(() => app.readDocument("seasons/2025")).toMatchObject({ projected: false });
 
-  const calls = await app.countToolCalls();
+  const toolCallCount = await app.countToolCalls();
   await page.clock.fastForward("02:00:00");
-  expect(await app.countToolCalls()).toBe(calls);
+  expect(await app.countToolCalls()).toBe(toolCallCount);
 });
 
 test("warns under the title when MLB stops sending a field", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
 
   await page.evaluate(() => {
     window.__runtime.transformSnapshot = (snapshot) => ({ ...snapshot, missing: ["wildCardRank"] });
@@ -140,7 +142,7 @@ test("warns under the title when MLB stops sending a field", async ({ page }) =>
   );
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers");
   await expect
-    .poll(() => app.read("live/status"))
+    .poll(() => app.readDocument("live/status"))
     .toMatchObject({ error: "mlb_fields_missing", detail: "wildCardRank" });
 });
 
@@ -167,22 +169,24 @@ test("switching years works without a store", async ({ page }) => {
 
 test("the ranking can be reordered from the keyboard, and saves", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
   await page.getByRole("tab", { name: "Ranking" }).click();
 
-  const first = page.locator("#rankList .rank-item").first();
-  const club = await first.getAttribute("data-id");
-  await first.locator(".grip").focus();
+  const firstItem = page.locator("#rankList .rank-item").first();
+  const movedClubId = await firstItem.getAttribute("data-id");
+  await firstItem.locator(".grip").focus();
   await page.keyboard.press("ArrowDown");
 
-  await expect(page.locator("#rankList .rank-item").nth(1)).toHaveAttribute("data-id", club);
+  await expect(page.locator("#rankList .rank-item").nth(1)).toHaveAttribute("data-id", movedClubId);
   await expect(page.locator("#rankList .rank-item").nth(1).locator(".grip")).toBeFocused();
-  await expect.poll(async () => (await app.read("seasons/2026")).ranking[1]).toBe(club);
+  await expect
+    .poll(async () => (await app.readDocument("seasons/2026")).ranking[1])
+    .toBe(movedClubId);
 });
 
 test("a save that fails says so under the title", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.read("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
   await page.evaluate(() => (window.__runtime.failWrites = true));
   await page.getByRole("tab", { name: "Ranking" }).click();
 
@@ -250,8 +254,40 @@ test("the update list shows when a change happened, not when the page noticed it
     },
   });
 
-  const times = page.locator("#updates .when");
-  await expect(times).toHaveCount(2);
-  await expect(times.nth(0)).toHaveText(/^8:30\sPM$/);
-  await expect(times.nth(1)).toHaveText(/^7:23\sPM$/);
+  const updateTimes = page.locator("#updates .when");
+  await expect(updateTimes).toHaveCount(2);
+  await expect(updateTimes.nth(0)).toHaveText(/^8:30\sPM$/);
+  await expect(updateTimes.nth(1)).toHaveText(/^7:23\sPM$/);
+});
+
+const buildEmptySeasonSnapshot = (season, springStart) => ({
+  ...buildFixtureSnapshot(EVENING_FIXTURE),
+  season,
+  springStart,
+  projected: true,
+  teams: {},
+  series: {},
+  log: [],
+  standings: { divisions: {} },
+  slate: null,
+});
+
+test("the new season starts on the day spring training does", async ({ page }) => {
+  await openApp(page, {
+    now: "2027-02-19T15:00:00Z",
+    extraSnapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
+  });
+
+  await expect(page.locator("#yearSel")).toHaveValue("2027");
+  await expect(page.getByRole("button", { name: "Set the field" })).toBeVisible();
+});
+
+test("until spring training starts, the latest season is last year's", async ({ page }) => {
+  const app = await openApp(page, {
+    now: "2027-02-18T15:00:00Z",
+    extraSnapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
+  });
+
+  await expect.poll(() => app.countToolCalls()).toBeGreaterThanOrEqual(2);
+  await expect(page.locator("#yearSel")).toHaveValue("2026");
 });
