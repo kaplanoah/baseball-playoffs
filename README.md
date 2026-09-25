@@ -35,23 +35,28 @@ day, at hundreds of thousands of tokens a run, with updates up to an hour old.
 
 ## Setup
 
-Two parts: the connector (a one-file Cloudflare Worker you deploy once), and
-the page. Paste this into Claude Code:
+You need a claude.ai plan that can add custom connectors (Pro, Max, Team or
+Enterprise) and a free Cloudflare account. It takes about ten minutes, most
+of it clicking through Cloudflare once.
+
+Paste this into Claude Code:
 
 ```
 Set up the MLB postseason tracker from
-https://github.com/kaplanoah/baseball-playoffs for me. Clone it, read the
-"Setup, for Claude" section of its README, and do everything in it.
+https://github.com/kaplanoah/baseball-playoffs for me. Clone it (branch main),
+read the "Setup, for Claude" section of its README, and do everything in it.
 ```
 
-Claude publishes the page. Deploying the Worker and adding it as a connector
-are yours, because they happen in your Cloudflare and claude.ai accounts; the
-steps are below and take about five minutes.
+Claude publishes the page and walks you through the rest: deploying the
+connector to your Cloudflare account (or letting Claude deploy it, see
+[Deploy](#deploy)) and adding it to claude.ai. The page is private to you and
+keeps its own data -- your ranking and what you've dismissed -- so two people
+who set this up each get their own.
 
 ## Setup, for Claude
 
-**1. Publish the page.** With the Artifact tool, publish `index.html` with
-`icon: "baseball"`, these capabilities:
+**1. Publish the page.** With the Artifact tool, publish `index.html` from
+`main` with `icon: "baseball"`, these capabilities:
 
 ```
 { "db": {},
@@ -81,19 +86,27 @@ files: {
 ```
 
 The page seeds itself: the first time it reaches MLB it writes the season,
-the standings and the field. There is nothing to write by hand.
+the standings and the field. There is nothing to write by hand. Until the
+connector exists it says so under the title and shows the "Set this year's
+playoff field" card; that's expected.
 
-**2. Hand the connector to the user.** Give them the steps under
-[The live connector](#the-live-connector): deploy, then add it in claude.ai
-under the name **MLB Live**, exactly (the page asks for it by that name). If
-the user has Cloudflare credentials in this environment
-(`CLOUDFLARE_API_TOKEN`), you can run `npm run deploy` for them instead.
+**2. Deploy the connector.** If this session can reach `api.cloudflare.com`
+with a credential and has `CLOUDFLARE_ACCOUNT_ID` set, run
+`npm run deploy:api` and give the user the URL it prints. Otherwise walk the
+user through [Deploy](#deploy): either the one-time environment setup that
+lets a new session run `npm run deploy:api`, or deploying it themselves. Never
+ask for the token in the chat.
 
-**3. Check it.** Once they have opened the page, read collection `live`, doc
-`status` with the ArtifactData tool. `source` says how the page got its data
-(`direct` or `connector`) and `error` is empty when it worked; otherwise it is
-the connector's error code, which the page also explains in words under the
-title.
+**3. Have the user add it to claude.ai** at
+[claude.ai/customize/connectors](https://claude.ai/customize/connectors): a
+custom connector named **MLB Live**, exactly (the page asks for it by that
+name), with the URL from step 2 and no sign-in.
+
+**4. Check it.** Once they have reopened the page, read collection `live`,
+doc `status` with the ArtifactData tool. `source: "connector"` with an empty
+`error` and `write` means it works. Otherwise `error` is the connector's
+error code (the page explains it in words under the title) and `write` names
+a save that failed.
 
 Then give the user the link, and mention that their ranking is theirs to set
 on the Ranking tab.
@@ -108,27 +121,59 @@ no dependencies: `npm run build` concatenates `js/snapshot.js` and
 `worker/src/mcp.js` into one file, `worker/dist/worker.mjs`, so the page and
 the connector can never disagree about what a snapshot is.
 
-**Deploy**, either way:
+### Deploy
 
-- From a terminal: `npx wrangler login`, then `npm run deploy` in this repo.
-- Or in the Cloudflare dashboard: Workers & Pages → Create → Worker, name it
-  `mlb-live`, and replace its code with the contents of
-  `worker/dist/worker.mjs`.
+Any of three ways; each deploys the same file, `worker/dist/worker.mjs`, as a
+Worker named `mlb-live`, reachable at
+`https://mlb-live.<your-subdomain>.workers.dev`. The subdomain is the one you
+chose for workers.dev in Cloudflare (Workers & Pages asks the first time).
 
-It is then at `https://mlb-live.<your-subdomain>.workers.dev`. Opening that
-URL in a browser should say "MLB Live connector", and
-`/snapshot?season=2026` shows a snapshot as plain JSON.
+**Let Claude deploy it (Claude Code cloud sessions).** One-time setup, so a
+session can deploy without ever seeing your token:
+
+1. In Cloudflare: Manage Account → API Tokens → Create Token, from the
+   **Edit Cloudflare Workers** template, scoped to your account. An account
+   token is fine. Leave IP filtering off (cloud sessions have no fixed
+   address) and set an expiry if you like.
+2. Note your **Account ID** (Workers & Pages overview, right-hand column).
+3. In Claude Code, edit the cloud environment (the environment menu in the
+   session's title bar → Edit):
+   - **API credentials → Add credential**: type Bearer, allowed website
+     `api.cloudflare.com`, header `Authorization` with prefix `Bearer` and
+     the token as the value. The agent proxy adds it to requests for that
+     host; sessions never see it. (Pro and Max plans; see
+     [API credentials](https://code.claude.com/docs/en/cloud-environments#add-api-credentials).)
+   - **Environment variables**: `CLOUDFLARE_ACCOUNT_ID=<your account id>`.
+     Not a secret, and never put the token here: variables are visible to
+     anyone using the environment.
+   - **Network access → Custom**, allowing `mlb-live.<your-subdomain>.workers.dev`
+     so a session can test the deployed Worker.
+4. Start a new session in that environment (settings are read when a
+   session starts) and ask it to run `npm run deploy:api`.
+
+**From your own terminal:** `npx wrangler login`, then `npm run deploy`.
+
+**From the Cloudflare dashboard:** Workers & Pages → Create → Worker, name it
+`mlb-live`, and replace its code with the contents of `worker/dist/worker.mjs`.
+
+To check a deploy, open `https://mlb-live.<your-subdomain>.workers.dev/` in a
+browser: it should say "MLB Live connector" (`/mcp` says it takes POST only,
+which is also right), and `/snapshot?season=2026` shows a snapshot as JSON.
 
 **Add it to claude.ai** at
 [claude.ai/customize/connectors](https://claude.ai/customize/connectors):
 add a custom connector named **MLB Live** with the URL
-`https://mlb-live.<your-subdomain>.workers.dev/mcp`. The first time the page
-uses it, claude.ai asks you to allow it for the page.
+`https://mlb-live.<your-subdomain>.workers.dev/mcp` and no sign-in -- it
+serves public data and holds nothing to protect. The first time the page
+uses it, claude.ai asks you to allow it for the page. Once it works, you can
+delete the Cloudflare token or its environment credential; the Worker keeps
+running without them.
 
 **Optional: keep it to yourself.** The data is public, but anyone with the
 URL could spend your free-tier requests. Set a secret with
 `npx wrangler secret put CONNECTOR_KEY` (or under the Worker's Settings →
-Variables), and the endpoint moves to `/mcp/<key>`; use that URL in claude.ai.
+Variables in the dashboard), and the endpoint moves to `/mcp/<key>`; use that
+URL in claude.ai.
 
 Endpoints: `POST /mcp` (MCP, JSON-RPC over plain JSON responses; no sessions
 or streaming, since the one tool is a pure read), `GET /snapshot?season=`
@@ -158,16 +203,35 @@ several open views cost MLB no more than one.
 | `js/sortable.min.js` | SortableJS 1.15.6, vendored, for drag-to-rank |
 | `worker/src/mcp.js` | The MLB Live connector's MCP server |
 | `worker/build.mjs`, `worker/dist/worker.mjs` | The build, and the one deployable file it writes |
-| `worker/wrangler.toml` | Cloudflare config for `npm run deploy` |
+| `worker/deploy.mjs` | `npm run deploy:api`: deploys through Cloudflare's REST API, for sessions that hold the token as an API credential |
+| `worker/wrangler.toml` | The Worker's name and settings, for both ways of deploying |
 | `tests/` | `npm test`: plain `node --test`, no dependencies, no network |
 
 ## Development
 
 ```
-npm test        # checks the Worker build is current, then runs every test
-npm run build   # rebuild worker/dist/worker.mjs after changing snapshot.js or mcp.js
-npm run deploy  # build and deploy the Worker (needs wrangler login)
+npm test            # checks the Worker build is current, then runs every test
+npm run build       # rebuild worker/dist/worker.mjs after changing snapshot.js or mcp.js
+npm run deploy      # build and deploy the Worker with wrangler (needs wrangler login)
+npm run deploy:api  # build and deploy through the API (CLOUDFLARE_ACCOUNT_ID, and a token or proxy credential)
 ```
+
+### Changes and releases
+
+`main` is the source of truth, and what is published is always `main`:
+
+- Make each change on its own branch from the latest `main`, and bring it in
+  with a pull request. `npm test` passes before it merges; a change to
+  `js/snapshot.js` or `worker/src/mcp.js` includes the rebuilt
+  `worker/dist/worker.mjs` (the tests fail if it's stale).
+- After merging, publish from `main`: the page (the files under
+  [Setup, for Claude](#setup-for-claude), to the existing artifact URL) and,
+  when `snapshot.js` or `mcp.js` changed, the Worker (see [Deploy](#deploy)).
+  Don't publish from a branch that hasn't merged: the next person to publish
+  from `main` would silently undo it.
+- Start from `main` again before the next change: pull it rather than
+  building on an old branch, so two people's work meets in git and not on
+  the page.
 
 The tests run against real MLB responses recorded in `tests/fixtures/`: the
 whole 2025 postseason, where every seed and every series result has to come
