@@ -415,16 +415,17 @@ test("deploy:api runs the tests before it deploys, and sends its calls through a
   assert.equal(scripts["deploy:api"], "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs");
 });
 
-test("project settings allow only the checked deploy, and deny the unchecked ones", () => {
+test("project settings allow only the checked scripts, and deny running them any other way", () => {
   const { permissions } = JSON.parse(
     readFileSync(`${import.meta.dirname}/../.claude/settings.json`, "utf8"),
   );
-  assert.deepEqual(permissions.allow, ["Bash(npm run deploy:api)"]);
+  assert.deepEqual(permissions.allow, ["Bash(npm run deploy:api)", "Bash(npm run set-app-key)"]);
   for (const rule of [
     "Bash(npm run deploy)",
     "Bash(npx wrangler *)",
     "Bash(wrangler *)",
     "Bash(node worker/deploy.mjs)",
+    "Bash(node worker/set-app-key.mjs)",
   ]) {
     assert.ok(permissions.deny.includes(rule), rule);
   }

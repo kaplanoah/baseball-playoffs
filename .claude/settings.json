@@ -1,13 +1,15 @@
 {
   "permissions": {
-    "allow": ["Bash(npm run deploy:api)"],
+    "allow": ["Bash(npm run deploy:api)", "Bash(npm run set-app-key)"],
     "deny": [
       "Bash(npm run deploy)",
       "Bash(npm run deploy *)",
       "Bash(wrangler *)",
       "Bash(npx wrangler *)",
       "Bash(node worker/deploy.mjs *)",
-      "Bash(node worker/deploy.mjs)"
+      "Bash(node worker/deploy.mjs)",
+      "Bash(node worker/set-app-key.mjs *)",
+      "Bash(node worker/set-app-key.mjs)"
     ]
   }
 }

@@ -131,6 +131,18 @@ guess, give the Worker a secret named `CONNECTOR_KEY`, with
 dashboard. It then answers only at `/mcp/<key>`, so use that as the connector
 URL in step 4.
 
+### Serving the page from the Worker
+
+The Worker can also serve the page itself, so it opens full screen from an
+iPhone's home screen with its own icon. It saves to a Durable Object in the
+same Worker instead of the claude.ai store, and changes reach other open
+devices within a second or two.
+
+The page answers only under a long random key. After the Worker is deployed,
+run `npm run set-app-key` in a cloud session to create the key. It prints the
+page's address. Anyone with the address can see and change the page, so keep
+it private. Open it in Safari, then choose **Share > Add to Home Screen**.
+
 ## Making changes
 
 `main` is what's published. Work on a branch and open a pull request into

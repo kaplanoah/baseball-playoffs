@@ -15,9 +15,9 @@
 
 - Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
 - Build page markup with the `html` template from `page/js/html.js` and write it with `setHtml`. Both escape stored and fetched text, and lint rejects any other `innerHTML` write.
-- Connector: `worker/`, bundled with `page/js/snapshot.js` into `worker/dist/` by `npm run build`.
+- Worker: `worker/`. It is the connector, and with an `APP_KEY` secret it also serves the page and its store at `/<APP_KEY>/`. `npm run build` bundles it with all of `page/` into `worker/dist/`.
 - Tests: `tests/`.
-- Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript. `npm run build` after changing `page/js/snapshot.js` or `worker/src/`.
+- Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript. `npm run build` after changing anything in `page/` or `worker/src/`.
 - The artifact store returns documents frozen, with sorted keys. `update()` merges, so to remove a key, set it to `null`.
 
 ## Workflow
@@ -27,6 +27,7 @@
 - Refer to PRs by number, not branch.
 - Merges to `main` deploy the connector: CI runs `npm run deploy:api` once every check passes. To redeploy by hand, use `npm run deploy:api` and no other way.
 - Republish the page only when the user asks, from `main` to its existing link. Never publish from an unmerged branch.
+- `npm run set-app-key` gives the Worker its `APP_KEY` and prints the self-hosted page's address. `--rotate` replaces the key, which changes the address; do that only when the user asks.
 - The Cloudflare token lives only in the cloud environment's API credentials and the repo's `production` GitHub environment. Never ask for it in chat or put it in environment variables, code, or commits.
 - Keep scratch work (design playgrounds, test harnesses) out of git, and never publish tests to the real page.
 - Ask when unsure.

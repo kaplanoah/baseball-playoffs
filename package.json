@@ -2,6 +2,9 @@
   "name": "baseball-playoffs",
   "private": true,
   "type": "module",
+  "imports": {
+    "#page-files": "./worker/page-files.mjs"
+  },
   "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies; dev tools only.",
   "license": "MIT",
   "engines": {
@@ -17,7 +20,8 @@
     "test:browser": "playwright test",
     "build": "node worker/build.mjs",
     "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml",
-    "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs"
+    "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs",
+    "set-app-key": "NODE_USE_ENV_PROXY=1 node worker/set-app-key.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

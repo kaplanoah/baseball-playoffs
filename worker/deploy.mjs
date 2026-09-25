@@ -56,25 +56,22 @@ export function listPendingMigrations(appliedTag) {
   };
 }
 
-export async function deploy({
-  fetchImpl = fetch,
-  env = process.env,
-  script = readRepoFile("worker/dist/worker.mjs"),
-  log = console.log,
-  pause = waitFor,
-} = {}) {
-  const account = env.CLOUDFLARE_ACCOUNT_ID;
-  if (!account)
+export function readAccount(env) {
+  if (!env.CLOUDFLARE_ACCOUNT_ID)
     throw new Error(
       "Set CLOUDFLARE_ACCOUNT_ID (Cloudflare dashboard > Workers & Pages > Account ID).",
     );
-  const { name, compatibilityDate } = readWorkerConfig();
+  return env.CLOUDFLARE_ACCOUNT_ID;
+}
+
+export const findWorkersApi = (account) => `${API}/accounts/${account}/workers`;
+
+export function createCloudflareCaller({ fetchImpl, env, log }) {
   const auth = env.CLOUDFLARE_API_TOKEN
     ? { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` }
     : {};
-  const base = `${API}/accounts/${account}/workers`;
 
-  async function callCloudflare(what, url, init, { isMissingAllowed = false } = {}) {
+  return async function callCloudflare(what, url, init, { isMissingAllowed = false } = {}) {
     const response = await fetchImpl(url, {
       ...init,
       headers: { ...auth, ...(init.headers || {}) },
@@ -100,14 +97,27 @@ export async function deploy({
       const hint =
         !env.CLOUDFLARE_API_TOKEN && errors.some((error) => NO_CREDENTIALS.has(error.code))
           ? `\nNo token reached Cloudflare. In a cloud session the proxy adds it, but only to requests sent through the proxy: ` +
-            `run \`npm run deploy:api\`, which sets NODE_USE_ENV_PROXY=1 (needs Node 22.21 or later; this is ${process.version}). ` +
+            `run this through its npm script, which sets NODE_USE_ENV_PROXY=1 (needs Node 22.21 or later; this is ${process.version}). ` +
             `Anywhere else, set CLOUDFLARE_API_TOKEN.`
           : "";
       throw new Error(`${what} failed: ${why}${hint}`);
     }
     log(`${what}: ok`);
     return body.result;
-  }
+  };
+}
+
+export async function deploy({
+  fetchImpl = fetch,
+  env = process.env,
+  script = readRepoFile("worker/dist/worker.mjs"),
+  log = console.log,
+  pause = waitFor,
+} = {}) {
+  const account = readAccount(env);
+  const { name, compatibilityDate } = readWorkerConfig();
+  const base = findWorkersApi(account);
+  const callCloudflare = createCloudflareCaller({ fetchImpl, env, log });
 
   async function findLiveVersions() {
     const result = await callCloudflare(
