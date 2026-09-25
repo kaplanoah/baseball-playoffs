@@ -6,38 +6,38 @@ import { lastStampText, upNextText, stampWhen, stampWhenHtml, stampDay } from ".
 import { normalizeSpaces } from "./text.js";
 
 // September and early October are EDT, UTC-4.
-const et = (date, time) => {
+const toEasternIso = (date, time) => {
   const [year, month, day] = date.split("-").map(Number);
   const [hour, minute] = time.split(":").map(Number);
   return new Date(Date.UTC(year, month - 1, day, hour + 4, minute)).toISOString();
 };
-const DAY = "2026-09-24",
-  PREV = "2026-09-23";
+const TODAY = "2026-09-24",
+  YESTERDAY = "2026-09-23";
 
-const pre = (away, home, start, date = DAY) => ({
+const createPregame = (away, home, start, date = TODAY) => ({
   away,
   home,
-  start: et(date, start),
+  start: toEasternIso(date, start),
   state: "pre",
 });
-const live = (away, home, start, score, inning, date = DAY) => ({
+const createLiveGame = (away, home, start, score, inning, date = TODAY) => ({
   away,
   home,
-  start: et(date, start),
+  start: toEasternIso(date, start),
   state: "live",
   score,
   inning,
 });
-const final = (away, home, start, score, end, date = DAY, endDate = date) => ({
+const createFinal = (away, home, start, score, end, date = TODAY, endDate = date) => ({
   away,
   home,
-  start: et(date, start),
+  start: toEasternIso(date, start),
   state: "final",
   score,
-  end: et(endDate, end),
+  end: toEasternIso(endDate, end),
 });
 
-const LATE = [
+const LATE_MATCHUPS = [
   ["NYM", "TEX"],
   ["MIA", "CHC"],
   ["CIN", "ATL"],
@@ -55,12 +55,12 @@ const LATE = [
   ["KC", "MIN"],
   ["STL", "MIL"],
 ];
-const later = (n, from = "19:05", date = DAY) =>
-  LATE.slice(0, n).map(([a, h]) => pre(a, h, from, date));
+const listLaterGames = (count, start = "19:05", date = TODAY) =>
+  LATE_MATCHUPS.slice(0, count).map(([away, home]) => createPregame(away, home, start, date));
 
-function ctx(opts = {}) {
+function createContext(options = {}) {
   return {
-    ranking: opts.ranking || [
+    ranking: options.ranking || [
       "CWS",
       "MIL",
       "CHC",
@@ -74,37 +74,42 @@ function ctx(opts = {}) {
       "NYY",
       "PHI",
     ],
-    alive: opts.out ? (id) => !opts.out.includes(id) : () => true,
-    seriesNote: opts.seriesNote || (() => ""),
-    now: new Date(opts.now || et(DAY, "12:00")),
+    alive: options.out ? (id) => !options.out.includes(id) : () => true,
+    seriesNote: options.seriesNote || (() => ""),
+    now: new Date(options.now || toEasternIso(TODAY, "12:00")),
   };
 }
-const last = (slate, c = ctx()) => normalizeSpaces(lastStampText(slate, c));
-const upNext = (slate, c = ctx()) => upNextText(slate, c);
+const describeLast = (slate, context = createContext()) =>
+  normalizeSpaces(lastStampText(slate, context));
+const describeUpNext = (slate, context = createContext()) => upNextText(slate, context);
 
 test("the night's last final, with the day's clause", () => {
   const slate = {
-    since: et(DAY, "01:21"),
+    since: toEasternIso(TODAY, "01:21"),
     today: {
-      date: PREV,
+      date: YESTERDAY,
       games: [
-        final("HOU", "SEA", "21:40", [5, 6], "01:30", PREV, DAY),
-        ...later(15, "19:05", PREV).map((g) => ({
-          ...g,
+        createFinal("HOU", "SEA", "21:40", [5, 6], "01:30", YESTERDAY, TODAY),
+        ...listLaterGames(15, "19:05", YESTERDAY).map((game) => ({
+          ...game,
           state: "final",
           score: [2, 1],
-          end: et(PREV, "22:00"),
+          end: toEasternIso(YESTERDAY, "22:00"),
         })),
       ],
     },
     nextDay: {
-      date: DAY,
-      games: [pre("STL", "PIT", "12:35"), pre("CWS", "KC", "14:10"), ...later(10)],
+      date: TODAY,
+      games: [
+        createPregame("STL", "PIT", "12:35"),
+        createPregame("CWS", "KC", "14:10"),
+        ...listLaterGames(10),
+      ],
     },
   };
-  assert.equal(last(slate), "Mariners 6 Astros 5 final at 1:30 AM, slate of 16 over");
-  assert.deepEqual(upNext(slate), {
-    at: et(DAY, "12:35"),
+  assert.equal(describeLast(slate), "Mariners 6 Astros 5 final at 1:30 AM, slate of 16 over");
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso(TODAY, "12:35"),
     tbd: false,
     text: "Cardinals @ Pirates, first of 12",
   });
@@ -112,19 +117,23 @@ test("the night's last final, with the day's clause", () => {
 
 test("a morning with nothing on: last night's final", () => {
   const slate = {
-    since: et(DAY, "02:21"),
+    since: toEasternIso(TODAY, "02:21"),
     today: {
-      date: DAY,
-      games: [pre("SD", "SF", "16:05"), pre("STL", "PIT", "18:35"), ...later(4)],
+      date: TODAY,
+      games: [
+        createPregame("SD", "SF", "16:05"),
+        createPregame("STL", "PIT", "18:35"),
+        ...listLaterGames(4),
+      ],
     },
-    lastFinal: final("HOU", "SEA", "21:40", [5, 6], "01:30", PREV, DAY),
+    lastFinal: createFinal("HOU", "SEA", "21:40", [5, 6], "01:30", YESTERDAY, TODAY),
   };
   assert.equal(
-    last(slate, ctx({ now: et(DAY, "13:17") })),
+    describeLast(slate, createContext({ now: toEasternIso(TODAY, "13:17") })),
     "No games since Mariners 6 Astros 5 final at 1:30 AM last night",
   );
-  assert.deepEqual(upNext(slate), {
-    at: et(DAY, "16:05"),
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso(TODAY, "16:05"),
     tbd: false,
     text: "Padres @ Giants, first of 6",
   });
@@ -132,96 +141,117 @@ test("a morning with nothing on: last night's final", () => {
 
 test("early afternoon: one game on, and no next line while it is", () => {
   const slate = {
-    since: et(DAY, "02:21"),
+    since: toEasternIso(TODAY, "02:21"),
     today: {
-      date: DAY,
-      games: [live("STL", "PIT", "12:35", [1, 1], 3), pre("CWS", "KC", "14:10"), ...later(10)],
+      date: TODAY,
+      games: [
+        createLiveGame("STL", "PIT", "12:35", [1, 1], 3),
+        createPregame("CWS", "KC", "14:10"),
+        ...listLaterGames(10),
+      ],
     },
   };
-  assert.equal(last(slate), "Cardinals @ Pirates 1-1 in the 3rd, slate of 12 under way");
-  assert.equal(upNext(slate), null);
+  assert.equal(describeLast(slate), "Cardinals @ Pirates 1-1 in the 3rd, slate of 12 under way");
+  assert.equal(describeUpNext(slate), null);
 });
 
 test("your club's game leads while games are on", () => {
   const slate = {
-    since: et(DAY, "13:17"),
+    since: toEasternIso(TODAY, "13:17"),
     today: {
-      date: DAY,
+      date: TODAY,
       games: [
-        live("STL", "PIT", "12:35", [3, 2], 6),
-        live("CWS", "KC", "14:10", [2, 0], 1),
-        ...later(10),
+        createLiveGame("STL", "PIT", "12:35", [3, 2], 6),
+        createLiveGame("CWS", "KC", "14:10", [2, 0], 1),
+        ...listLaterGames(10),
       ],
     },
   };
-  assert.equal(last(slate), "White Sox @ Royals 2-0 in the 1st, slate of 12 under way");
+  assert.equal(describeLast(slate), "White Sox @ Royals 2-0 in the 1st, slate of 12 under way");
 });
 
 test("a fresh final outranks the games still going", () => {
   const slate = {
-    since: et(DAY, "21:00"),
+    since: toEasternIso(TODAY, "21:00"),
     today: {
-      date: DAY,
+      date: TODAY,
       games: [
-        final("TB", "NYY", "19:05", [2, 5], "21:14"),
-        live("CWS", "KC", "19:40", [4, 4], 7),
-        final("STL", "PIT", "12:35", [3, 2], "15:40"),
-        ...later(9, "19:10").map((g) => ({ ...g, state: "live", score: [0, 0], inning: 5 })),
+        createFinal("TB", "NYY", "19:05", [2, 5], "21:14"),
+        createLiveGame("CWS", "KC", "19:40", [4, 4], 7),
+        createFinal("STL", "PIT", "12:35", [3, 2], "15:40"),
+        ...listLaterGames(9, "19:10").map((game) => ({
+          ...game,
+          state: "live",
+          score: [0, 0],
+          inning: 5,
+        })),
       ],
     },
   };
-  assert.equal(last(slate), "Yankees 5 Rays 2 final at 9:14 PM, slate of 12 under way");
+  assert.equal(describeLast(slate), "Yankees 5 Rays 2 final at 9:14 PM, slate of 12 under way");
 });
 
 test("between the afternoon and the evening: the newest final, then the next first pitch", () => {
   const slate = {
-    since: et(DAY, "16:15"),
+    since: toEasternIso(TODAY, "16:15"),
     today: {
-      date: DAY,
+      date: TODAY,
       games: [
-        final("STL", "PIT", "12:35", [3, 2], "15:40"),
-        final("MIN", "DET", "13:10", [1, 7], "16:02"),
-        ...later(10),
+        createFinal("STL", "PIT", "12:35", [3, 2], "15:40"),
+        createFinal("MIN", "DET", "13:10", [1, 7], "16:02"),
+        ...listLaterGames(10),
       ],
     },
   };
-  assert.equal(last(slate), "Tigers 7 Twins 1 final at 4:02 PM, slate of 12 under way");
+  assert.equal(describeLast(slate), "Tigers 7 Twins 1 final at 4:02 PM, slate of 12 under way");
   // Every late game starts at 7:05, so the ranking picks the Cubs. No "first of"
   // once the day's first game has started.
-  assert.deepEqual(upNext(slate), { at: et(DAY, "19:05"), tbd: false, text: "Marlins @ Cubs" });
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso(TODAY, "19:05"),
+    tbd: false,
+    text: "Marlins @ Cubs",
+  });
 });
 
 test("ties go to your ranking, then to a club still alive", () => {
-  const g1 = live("TOR", "BAL", "19:05", [1, 0], 4),
-    g2 = live("WSH", "DET", "19:05", [2, 2], 4);
-  const games = [g1, g2, pre("SD", "LAD", "22:10")];
-  const slate = { since: et(DAY, "19:15"), today: { date: DAY, games } };
+  const firstGame = createLiveGame("TOR", "BAL", "19:05", [1, 0], 4),
+    secondGame = createLiveGame("WSH", "DET", "19:05", [2, 2], 4);
+  const games = [firstGame, secondGame, createPregame("SD", "LAD", "22:10")];
+  const slate = { since: toEasternIso(TODAY, "19:15"), today: { date: TODAY, games } };
   assert.equal(
-    last(slate, ctx({ ranking: [], out: ["WSH", "DET"] })),
+    describeLast(slate, createContext({ ranking: [], out: ["WSH", "DET"] })),
     "Blue Jays @ Orioles 1-0 in the 4th, slate of 3 under way",
   );
   assert.equal(
-    last(slate, ctx({ ranking: ["DET"], out: ["WSH", "DET"] })),
+    describeLast(slate, createContext({ ranking: ["DET"], out: ["WSH", "DET"] })),
     "Nationals @ Tigers 2-2 in the 4th, slate of 3 under way",
   );
 });
 
 test("every game final: the slate is over, and the next line looks to tomorrow", () => {
   const games = [
-    final("SD", "LAD", "22:10", [4, 1], "01:02", DAY, "2026-09-25"),
-    ...later(15).map((g) => ({ ...g, state: "final", score: [3, 1], end: et(DAY, "22:05") })),
+    createFinal("SD", "LAD", "22:10", [4, 1], "01:02", TODAY, "2026-09-25"),
+    ...listLaterGames(15).map((game) => ({
+      ...game,
+      state: "final",
+      score: [3, 1],
+      end: toEasternIso(TODAY, "22:05"),
+    })),
   ];
   const slate = {
-    since: et(DAY, "23:15"),
-    today: { date: DAY, games },
+    since: toEasternIso(TODAY, "23:15"),
+    today: { date: TODAY, games },
     nextDay: {
       date: "2026-09-25",
-      games: [pre("NYY", "BAL", "13:05", "2026-09-25"), pre("TB", "TOR", "19:07", "2026-09-25")],
+      games: [
+        createPregame("NYY", "BAL", "13:05", "2026-09-25"),
+        createPregame("TB", "TOR", "19:07", "2026-09-25"),
+      ],
     },
   };
-  assert.equal(last(slate), "Padres 4 Dodgers 1 final at 1:02 AM, slate of 16 over");
-  assert.deepEqual(upNext(slate), {
-    at: et("2026-09-25", "13:05"),
+  assert.equal(describeLast(slate), "Padres 4 Dodgers 1 final at 1:02 AM, slate of 16 over");
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso("2026-09-25", "13:05"),
     tbd: false,
     text: "Yankees @ Orioles",
   });
@@ -229,43 +259,53 @@ test("every game final: the slate is over, and the next line looks to tomorrow",
 
 test("one or two games: named, with no slate", () => {
   const two = {
-    since: et(DAY, "19:15"),
+    since: toEasternIso(TODAY, "19:15"),
     today: {
-      date: DAY,
-      games: [live("CWS", "KC", "19:40", [1, 0], 2), live("TB", "NYY", "19:05", [3, 3], 5)],
+      date: TODAY,
+      games: [
+        createLiveGame("CWS", "KC", "19:40", [1, 0], 2),
+        createLiveGame("TB", "NYY", "19:05", [3, 3], 5),
+      ],
     },
   };
-  assert.equal(last(two), "Rays @ Yankees 3-3 in the 5th, White Sox @ Royals 1-0 in the 2nd");
+  assert.equal(
+    describeLast(two),
+    "Rays @ Yankees 3-3 in the 5th, White Sox @ Royals 1-0 in the 2nd",
+  );
   const one = {
-    since: et(DAY, "12:15"),
-    today: { date: DAY, games: [pre("HOU", "SEA", "21:40")] },
+    since: toEasternIso(TODAY, "12:15"),
+    today: { date: TODAY, games: [createPregame("HOU", "SEA", "21:40")] },
   };
-  assert.deepEqual(upNext(one), { at: et(DAY, "21:40"), tbd: false, text: "Astros @ Mariners" });
+  assert.deepEqual(describeUpNext(one), {
+    at: toEasternIso(TODAY, "21:40"),
+    tbd: false,
+    text: "Astros @ Mariners",
+  });
 });
 
 test("an off day, and a final from days back", () => {
   const slate = {
-    since: et(DAY, "12:15"),
-    today: { date: DAY, games: [] },
-    lastFinal: final("TOR", "BAL", "19:05", [3, 4], "22:01", "2026-09-21"),
+    since: toEasternIso(TODAY, "12:15"),
+    today: { date: TODAY, games: [] },
+    lastFinal: createFinal("TOR", "BAL", "19:05", [3, 4], "22:01", "2026-09-21"),
   };
   assert.equal(
-    last(slate, ctx({ now: et(DAY, "13:15") })),
+    describeLast(slate, createContext({ now: toEasternIso(TODAY, "13:15") })),
     "No games since Orioles 4 Blue Jays 3 final at 10:01 PM Monday",
   );
-  assert.equal(upNext(slate), null);
+  assert.equal(describeUpNext(slate), null);
 });
 
 test("a first pitch MLB hasn't timed yet says so", () => {
   const slate = {
-    today: { date: DAY, games: [] },
+    today: { date: TODAY, games: [] },
     nextDay: {
       date: "2026-09-29",
-      games: [{ ...pre("DET", "CLE", "03:33", "2026-09-29"), tbd: true }],
+      games: [{ ...createPregame("DET", "CLE", "03:33", "2026-09-29"), tbd: true }],
     },
   };
-  assert.deepEqual(upNext(slate), {
-    at: et("2026-09-29", "03:33"),
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso("2026-09-29", "03:33"),
     tbd: true,
     text: "Tigers @ Guardians",
   });
@@ -273,43 +313,62 @@ test("a first pitch MLB hasn't timed yet says so", () => {
 
 test("in October a final says what it did to the series", () => {
   const slate = {
-    since: et(DAY, "23:15"),
-    today: { date: DAY, games: [final("CHC", "MIL", "20:08", [1, 4], "23:41")] },
+    since: toEasternIso(TODAY, "23:15"),
+    today: { date: TODAY, games: [createFinal("CHC", "MIL", "20:08", [1, 4], "23:41")] },
   };
-  const c = ctx({ seriesNote: (g) => (g.home === "MIL" ? " \u2014 Brewers now lead 2-0" : "") });
-  assert.equal(last(slate, c), "Brewers 4 Cubs 1 final at 11:41 PM \u2014 Brewers now lead 2-0");
+  const context = createContext({
+    seriesNote: (game) => (game.home === "MIL" ? " \u2014 Brewers now lead 2-0" : ""),
+  });
+  assert.equal(
+    describeLast(slate, context),
+    "Brewers 4 Cubs 1 final at 11:41 PM \u2014 Brewers now lead 2-0",
+  );
 });
 
 test("the day words beside a time", () => {
-  const now = new Date(et(DAY, "12:00"));
-  const when = (iso) => normalizeSpaces(stampWhen(new Date(iso), now));
-  const day = (iso) => stampDay(new Date(iso), now);
-  assert.equal(when(et(DAY, "13:15")), "1:15 PM");
-  assert.equal(when(et(PREV, "13:15")), "yesterday 1:15 PM");
-  assert.equal(when(et("2026-09-25", "13:15")), "tomorrow 1:15 PM");
-  assert.equal(when(et("2026-09-27", "13:15")), "Sunday 1:15 PM");
-  assert.equal(day(et("2026-09-29", "13:15")), "Tuesday");
+  const now = new Date(toEasternIso(TODAY, "12:00"));
+  const describeWhen = (iso) => normalizeSpaces(stampWhen(new Date(iso), now));
+  const describeDay = (iso) => stampDay(new Date(iso), now);
+  assert.equal(describeWhen(toEasternIso(TODAY, "13:15")), "1:15 PM");
+  assert.equal(describeWhen(toEasternIso(YESTERDAY, "13:15")), "yesterday 1:15 PM");
+  assert.equal(describeWhen(toEasternIso("2026-09-25", "13:15")), "tomorrow 1:15 PM");
+  assert.equal(describeWhen(toEasternIso("2026-09-27", "13:15")), "Sunday 1:15 PM");
+  assert.equal(describeDay(toEasternIso("2026-09-29", "13:15")), "Tuesday");
 });
 
 test("no sentence is ever a bare matchup or 'under way with'", () => {
   const days = [
-    [live("STL", "PIT", "12:35", [1, 1], 3), pre("CWS", "KC", "14:10"), ...later(10)],
-    [final("STL", "PIT", "12:35", [4, 1], "15:30"), pre("CWS", "KC", "14:10"), ...later(10)],
-    [live("CWS", "KC", "14:10", [2, 0], 1), ...later(11)],
+    [
+      createLiveGame("STL", "PIT", "12:35", [1, 1], 3),
+      createPregame("CWS", "KC", "14:10"),
+      ...listLaterGames(10),
+    ],
+    [
+      createFinal("STL", "PIT", "12:35", [4, 1], "15:30"),
+      createPregame("CWS", "KC", "14:10"),
+      ...listLaterGames(10),
+    ],
+    [createLiveGame("CWS", "KC", "14:10", [2, 0], 1), ...listLaterGames(11)],
   ];
   for (const games of days) {
-    const line = last({ since: et(DAY, "02:21"), today: { date: DAY, games } });
+    const line = describeLast({
+      since: toEasternIso(TODAY, "02:21"),
+      today: { date: TODAY, games },
+    });
     assert.doesNotMatch(line, /under way with/, line);
-    for (const m of line.matchAll(/@ [A-Z][a-zA-Z ]+?(?=,|$| \d| first)/g)) {
-      const after = line.slice(m.index + m[0].length);
+    for (const match of line.matchAll(/@ [A-Z][a-zA-Z ]+?(?=,|$| \d| first)/g)) {
+      const after = line.slice(match.index + match[0].length);
       assert.match(after, /^( \d+-\d+ in the| first pitch at)/, line);
     }
   }
 });
 
 test("the time as markup sets its AM/PM apart and leaves the rest alone", () => {
-  const now = new Date(et(DAY, "12:00"));
-  const html = (iso) => normalizeSpaces(stampWhenHtml(new Date(iso), now));
-  assert.equal(html(et(DAY, "22:19")), '10:19<span class="ap">PM</span>');
-  assert.equal(html(et("2026-09-25", "13:08")), 'tomorrow 1:08<span class="ap">PM</span>');
+  const now = new Date(toEasternIso(TODAY, "12:00"));
+  const renderHtml = (iso) => normalizeSpaces(stampWhenHtml(new Date(iso), now));
+  assert.equal(renderHtml(toEasternIso(TODAY, "22:19")), '10:19<span class="ap">PM</span>');
+  assert.equal(
+    renderHtml(toEasternIso("2026-09-25", "13:08")),
+    'tomorrow 1:08<span class="ap">PM</span>',
+  );
 });
