@@ -1,5 +1,3 @@
-/* Smaller pure helpers the page leans on: the Next column in the standings
-   and the update log's sentences. */
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { loadPage, plain } = require("./load");
@@ -7,7 +5,6 @@ const { loadPage, plain } = require("./load");
 const page = loadPage(["teams.js", "bracket.js", "updates.js", "stamp.js", "standings.js"]);
 const run = (code, vars) => plain(page.run(code, vars));
 
-// A fixed "now" so Today / Fri come out the same on every run.
 const withNow = (iso, fn) => {
   const RealDate = Date;
   const fixed = new RealDate(iso).getTime();
@@ -43,7 +40,7 @@ test("Next column: today, another day, home and away", () =>
   }));
 
 test("update log: a seed pass, with the game behind it", () => {
-  // logChip adds rank chips and team tags, which need the page; here only the words matter.
+  // The real logChip and teamLabel need the full page.
   const name = (id) => page.run(`TEAMS["${id}"].name`);
   page.run("0", { logChip: name, teamLabel: name });
   const text = run("entryText(E)", {
@@ -113,7 +110,6 @@ test("update log: a field change names the spot and how far back the club that d
     }),
     "Rangers take the AL West lead from the Astros",
   );
-  // Level on record, behind on the tiebreaker.
   assert.equal(
     say({
       in: "TEX",
@@ -125,7 +121,6 @@ test("update log: a field change names the spot and how far back the club that d
     }),
     "Rangers take the AL West lead from the Astros &mdash; Astros even, behind on the tiebreaker",
   );
-  // An entry from before the routine recorded the spot: worked out from the seed.
   assert.equal(say({ in: "TEX", out: "HOU" }), "Rangers take the AL West lead from the Astros");
   assert.equal(
     say({ in: "BAL", out: "TOR" }),
@@ -136,7 +131,6 @@ test("update log: a field change names the spot and how far back the club that d
 test("update log: an elimination is plain words", () => {
   page.run("0", { logChip: (id) => page.run(`TEAMS["${id}"].name`) });
   assert.equal(run("entryText(E)", { E: { kind: "elim", team: "BAL" } }), "Orioles eliminated");
-  // Why: the club it was chasing won, it lost, or both.
   assert.equal(
     run("entryText(E)", {
       E: { kind: "elim", team: "BAL", via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }] },
@@ -177,10 +171,9 @@ test("update log: clinches", () => {
 test("Next column: a game that has started gives way to the one after it", () =>
   withNow(NOON, () => {
     const cell = (t) => run("nextCell(T)", { T: t });
-    const today = { at: "2026-09-24T14:05:00Z", home: true, opp: "MIL" }; // 10:05 AM, started
+    const today = { at: "2026-09-24T14:05:00Z", home: true, opp: "MIL" }; // 10:05 AM ET
     const fri = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
     assert.equal(cell({ next: today, then: fri }), '<td class="next-cell">Fri 1:05 @ BOS</td>');
-    // Nothing after it recorded yet: blank, not a game that's already on.
     assert.equal(cell({ next: today }), '<td class="next-cell"></td>');
   }));
 

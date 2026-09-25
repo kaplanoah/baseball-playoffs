@@ -1,14 +1,3 @@
-/* The freshness lines under the title, built from the day's games rather
-   than from sentences anyone writes: `slate` holds the games with their
-   state, score, inning, first pitch and end, and every sentence is built
-   here, where the rules are code and tests/stamp.test.js pins each shape
-   down.
-
-   The first line is what has happened, the second what comes next. Pure
-   functions: no DOM, no globals but TEAMS, DAYS and dayDiff. The caller
-   passes a context with the user's ranking and who is still alive. */
-
-/* ---------- pieces ---------- */
 function stampClock(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
@@ -21,9 +10,6 @@ function ordinal(n) {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-/* Every game carries its state, and the state carries its clock. A final
-   from an earlier day keeps its clock and adds the day: "final at 1:30 AM
-   last night". */
 function finalPhrase(g, day) {
   const [a, h] = g.score || [0, 0];
   const [w, wr, l, lr] = a > h ? [g.away, a, g.home, h] : [g.home, h, g.away, a];
@@ -33,9 +19,6 @@ function livePhrase(g) {
   const [a, h] = g.score || [0, 0];
   return `${stampName(g.away)} @ ${stampName(g.home)} ${a}-${h} in the ${ordinal(g.inning || 1)}`;
 }
-/* A game that is on, or will be on, at the next check is named by its first
-   pitch: its inning isn't known ahead of time, and the first pitch says what
-   the check is for whether the game has started yet or not. */
 function firstPitchPhrase(g) {
   return `${stampName(g.away)} @ ${stampName(g.home)} first pitch at ${stampClock(g.start)}`;
 }
@@ -47,7 +30,6 @@ function gamePhrase(g) {
       : firstPitchPhrase(g);
 }
 
-/* THE NUMBER IS THE WHOLE DAY, and the clause has two states and no more. */
 function slateClause(games) {
   if (games.length < 3) return "";
   return games.every((g) => g.state === "final")
@@ -56,10 +38,6 @@ function slateClause(games) {
 }
 const withClause = (phrase, clause) => (clause ? `${phrase}, ${clause}` : phrase);
 
-/* ---------- which game to name ----------
-   A game counts as the better of its two clubs' places in the user's
-   ranking; a game with neither club ranked loses to any game with one. A game
-   whose clubs are both out loses to any game with a club still alive. */
 function gameRank(g, ctx) {
   const r = [g.away, g.home].map((id) => ctx.ranking.indexOf(id)).filter((i) => i >= 0);
   return r.length ? Math.min(...r) : Infinity;
@@ -88,10 +66,6 @@ const PICK_ENDED = ["latestEnd", "rank", "alive"];
 const PICK_UNDER_WAY = ["rank", "alive", "latestStart"];
 const PICK_STARTS = ["earliest", "rank", "alive"];
 
-/* ---------- the two lines ---------- */
-
-/* What the last run found: written from then, looking back, so it names only
-   baseball that has happened, and never an absence. */
 function lastStampText(slate, ctx) {
   const games = (slate.today && slate.today.games) || [];
   const started = games.filter((g) => g.state !== "pre");
@@ -122,10 +96,6 @@ function lastStampText(slate, ctx) {
   return withClause(gamePhrase(g) + note(g), slateClause(games));
 }
 
-/* The second line, while nothing is on: the next first pitch, and the game
-   it belongs to. `at` is that first pitch, and `tbd` says MLB hasn't set its
-   time yet. Null while a game is live -- the first line is about that game
-   -- and when nothing is scheduled at all. */
 function upNextText(slate, ctx) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
   if (days.some((d) => (d.games || []).some((g) => g.state === "live"))) return null;
@@ -145,25 +115,16 @@ function upNextText(slate, ctx) {
   return null;
 }
 
-/* ---------- when ----------
-   The stamp points both ways, so unlike the log -- where every entry is in
-   the past and the day alone is enough -- a time here keeps its clock and
-   names its day when that isn't today. */
 function stampWhen(d, now = new Date()) {
   const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const day = stampDay(d, now);
   return day === "today" ? time : `${day} ${time}`;
 }
-/* The same time as markup, its AM/PM in a span of its own so the stamp can
-   set it a little smaller and closer to the minutes (.ap in styles.css). The
-   space before it goes, since the span's margin is the gap. A clock with no
-   AM/PM, or one that puts it first, ends in a digit and comes back as is. */
 function stampWhenHtml(d, now = new Date()) {
   return stampWhen(d, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
 }
-/* The day alone, for a first pitch MLB hasn't put a time on yet. */
 function stampDay(d, now = new Date()) {
-  const days = dayDiff(d, now); // positive in the past, negative ahead
+  const days = dayDiff(d, now);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days === -1) return "tomorrow";

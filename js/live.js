@@ -1,46 +1,21 @@
-/* Live data: the page keeps itself current from MLB, and says how current
-   it is in the stamp under the title.
-
-   Where it comes from. A snapshot (js/snapshot.js) is built from three MLB
-   Stats API responses. The page tries to fetch them itself first; an
-   artifact is normally not allowed to reach other sites, so when that fails
-   it asks the MLB Live connector (worker/) instead, through the artifact's
-   `mcp` capability. Either way no model runs: a snapshot costs one request.
-
-   When. Only baseball moves this data, so the page asks every 30 seconds
-   while a game is on, sleeps until the next first pitch otherwise, and looks
-   at the schedule at least hourly in case it changed (MLBSnapshot.pollDelay).
-   Nothing is fetched while the tab is hidden; on return, a check that fell
-   due in the meantime runs at once.
-
-   What it touches. The snapshot supplies the field, the series, the
-   standings and the day's games -- everything MLB decides. Your ranking and
-   what you have dismissed stay in the season document, which is yours. The
-   page also writes MLB's side back to the store, for three reasons: the
-   next snapshot is compared against it to find what moved (js/changes.js);
-   a view that can't reach MLB still shows the last known state; and a past
-   season's champion is remembered (lastTitle in app.js). */
-
-const LIVE_SERVER = "MLB Live"; // the connector's name in claude.ai
+const LIVE_SERVER = "MLB Live";
 const LIVE_TOOL = "get_snapshot";
-const LIVE_CACHE_MS = 15 * 1000; // two calls this close share one answer
-const FRESH_FINAL_MS = 10 * 60 * 1000; // a final this new leads the stamp
+const LIVE_CACHE_MS = 15 * 1000;
+const FRESH_FINAL_MS = 10 * 60 * 1000;
 const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 
-let live = null; // the latest snapshot for the season on screen
-let liveError = null; // why the last attempt failed: { code, message, retry }
+let live = null;
+let liveError = null;
 let liveTimer = 0;
-let liveDueAt = Infinity; // when the next check is due; Infinity = none
-let liveSeq = 0; // bumped per attempt, so a stale answer is dropped
+let liveDueAt = Infinity;
+let liveSeq = 0;
 let liveFailures = 0;
-let directBlocked = false; // this page can't fetch MLB itself; use the connector
-let mcp; // the mcp namespace; undefined until first asked
-let writesBlocked = false; // this viewer can't write the store
+let directBlocked = false;
+let mcp;
+let writesBlocked = false;
 let writing = Promise.resolve();
-let reported = ""; // the status last written to live/status
+let reported = "";
 let liveStatus = { source: "", error: "", detail: "", write: "" };
-
-/* ---------- getting a snapshot ---------- */
 
 class LiveError extends Error {
   constructor(code, message) {
@@ -85,10 +60,7 @@ async function fetchViaConnector(season) {
   return snap;
 }
 
-/* Whether the viewer has no MLB Live connector at all. A call can fail with
-   a vague code (`upstream_error`) when the connector was never added, and
-   "add it" is the one instruction that fixes that, so ask: a connector the
-   viewer hasn't connected lists with no tools, or not at all. */
+// A never-added connector fails calls with a vague code, and lists with no tools or not at all.
 async function connectorMissing() {
   try {
     const { servers } = await mcp.listTools(LIVE_SERVER);
@@ -99,10 +71,7 @@ async function connectorMissing() {
   }
 }
 
-/* The page's own fetch first: it needs nothing set up. A TypeError while
-   the browser is online is the request being refused -- the artifact isn't
-   allowed to reach MLB -- so from then on this page load goes straight to
-   the connector. Offline, it's just offline, and the next try is direct. */
+// A TypeError while online means the sandbox refused the request, so use the connector from then on.
 async function fetchLive(season) {
   if (!directBlocked) {
     try {
@@ -115,8 +84,6 @@ async function fetchLive(season) {
   return { snap: await fetchViaConnector(season), source: "connector" };
 }
 
-/* What to tell the viewer, and whether trying again by itself can help.
-   Codes are the mcp capability's; each one that has a fix names it. */
 function describeLiveError(e) {
   const code = (e && e.code) || "upstream_error";
   const where = "claude.ai's connector settings";
@@ -146,7 +113,6 @@ function describeLiveError(e) {
     "bad_payload",
     "bad_request",
   ];
-  /* Access withdrawn: what the connector showed before goes too. */
   const denied = [
     "server_not_connected",
     "needs_reauth",
@@ -163,8 +129,6 @@ function describeLiveError(e) {
   };
 }
 
-/* ---------- when ---------- */
-
 function scheduleLive(ms) {
   clearTimeout(liveTimer);
   liveDueAt = ms == null ? Infinity : Date.now() + ms;
@@ -173,7 +137,6 @@ function scheduleLive(ms) {
 
 async function refreshLive() {
   clearTimeout(liveTimer);
-  // Hidden: leave the check due, and run it when the page is looked at again.
   if (document.hidden) {
     liveDueAt = Math.min(liveDueAt, Date.now());
     return;
@@ -206,15 +169,13 @@ async function refreshLive() {
     if (liveError.retry) {
       scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
     } else {
-      /* Nothing will change by itself -- the fix is in claude.ai, usually in
-         another tab -- so try again when the viewer comes back to this one. */
+      // The fix is in claude.ai, usually in another tab, so retry when this one is shown again.
       clearTimeout(liveTimer);
       liveDueAt = Date.now();
     }
   }
 }
 
-/* A new season on screen: forget the old one's snapshot and start again. */
 function startLive() {
   live = null;
   liveError = null;
@@ -229,11 +190,6 @@ addEventListener("online", () => {
   if (liveDueAt !== Infinity) refreshLive();
 });
 
-/* ---------- showing it ---------- */
-
-/* The season document as the views see it: yours (ranking, dismissals) as
-   stored, MLB's (field, series, the day's games) from the latest snapshot,
-   and the log with this snapshot's postseason games added. */
 function withLive(doc) {
   if (!live || live.season !== activeYear) return doc;
   const slate = live.slate && {
@@ -250,15 +206,12 @@ function withLive(doc) {
   };
 }
 
-/* Rebuild what the views read from the stored documents and the snapshot. */
 function composeState() {
   state = withLive(seasonDoc);
   standings = (live && live.season === activeYear && live.standings) || storedStandings;
 }
 
-/* Equal as data, whatever order the keys are in: the store hands documents
-   back with their keys sorted, so a plain JSON comparison would call every
-   stored copy changed and rewrite it on every poll. */
+// The store hands documents back with their keys sorted, so key order must not count as a change.
 function canonical(x) {
   if (Array.isArray(x)) return `[${x.map(canonical).join(",")}]`;
   if (x && typeof x === "object") {
@@ -276,7 +229,6 @@ function applyLive(snap) {
   if (snap.season !== activeYear) return;
   const was = live;
   live = snap;
-  // Every answer moves the stamp's clock; only a changed one redraws the rest.
   const { asOf: _a, ...now } = snap,
     { asOf: _b, ...before } = was || {};
   composeState();
@@ -285,13 +237,6 @@ function applyLive(snap) {
   saveLive(snap);
 }
 
-/* ---------- the stamp ---------- */
-
-/* What stamp.js needs to choose which game to name: the user's ranking, and
-   whether a club is still alive. In September a club is out only when it is
-   eliminated from both its division and the wild card; in October, once it
-   has lost a series (or never made the field). In October a final also says
-   what it did to its series. */
 function stampContext() {
   const projected = !state || state.projected !== false;
   const rows = standings && standings.divisions ? Object.values(standings.divisions).flat() : [];
@@ -322,15 +267,10 @@ function stampContext() {
   return { ranking: (state && state.ranking) || [], alive, seriesNote, now: new Date() };
 }
 
-/* .stamp is a flex column, so each line is an element of its own. */
 function stampLine(label, when, why) {
   return `<span>${label} <b>${when}</b>${why ? ` &mdash; ${why}` : ""}</span>`;
 }
 
-/* Two lines: the newest baseball there is, then -- while nothing is on --
-   the next first pitch. The first carries only the time of the data: live
-   data is always current, so "Updated" said nothing. A season that is over
-   has neither line. Without live data, the saved copy, labelled as such. */
 function stampLines() {
   const ctx = stampContext();
   if (live && live.season === activeYear) {
@@ -369,7 +309,6 @@ function renderStamp() {
   el.innerHTML = lines.join("");
 }
 
-/* Day words and "Updated" times turn over on the clock, not on new data. */
 setInterval(() => {
   try {
     renderStamp();
@@ -378,9 +317,6 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
-/* ---------- writing MLB's side back ---------- */
-
-/* One write at a time, in order; a viewer who can't write stops trying. */
 function saveLive(snap) {
   if (!db || writesBlocked) return;
   writing = writing
@@ -408,7 +344,6 @@ function saveLive(snap) {
     );
 }
 
-/* Which save a failure came from, for live/status. */
 async function step(name, write) {
   try {
     return await write();
@@ -417,18 +352,15 @@ async function step(name, write) {
   }
 }
 
-/* Does `now` lack a key that `was` has, at any depth? update() merges
-   objects key by key, so a key can't be removed by leaving it out. */
+// update() merges objects key by key, so a key can't be removed by leaving it out.
 function losesKeys(was, now) {
   if (!was || typeof was !== "object" || Array.isArray(was)) return false;
   if (!now || typeof now !== "object" || Array.isArray(now)) return true;
   return Object.keys(was).some((k) => !(k in now) || losesKeys(was[k], now[k]));
 }
 
-/* The season document first, with the log entries for what moved, then the
-   standings -- the baseline those entries were found against. In that order,
-   a write that fails between the two leaves the old baseline in place, the
-   same change is found again next time, and the log's keys keep it single. */
+// Season before standings: if the standings write fails, the old baseline finds the same changes
+// again next time, and the log's keys keep them single.
 async function writeLive(snap) {
   if (snap.season !== activeYear) return;
   const year = snap.season;
@@ -451,7 +383,6 @@ async function writeLive(snap) {
     if (!exists) {
       await step("season create", () => ref.set({ year, ranking: [], ...fields }));
     } else {
-      // A club that left the field would otherwise stay in `teams`.
       const cleared = Object.keys(fields).filter((k) => losesKeys(doc[k], fields[k]));
       if (cleared.length)
         await step("season clear", () =>
@@ -459,9 +390,7 @@ async function writeLive(snap) {
         );
       await step("season", () => ref.update(fields));
     }
-    /* Ahead of the store's echo, so the next snapshot compares against what
-       was just written. The echo then matches and redraws nothing, so the
-       one view the log feeds is redrawn here. */
+    // Applied before the store echoes it back; the echo then redraws nothing, so the log is redrawn here.
     Object.assign(seasonDoc, fields);
     if (fields.log) {
       composeState();
@@ -479,12 +408,7 @@ async function writeLive(snap) {
   }
 }
 
-/* Where live data came from on this view, what went wrong fetching it,
-   and the last save that failed, kept in the store so the owner (or
-   Claude, with the ArtifactData tool) can see why a page isn't updating
-   without opening a browser console. Written only when it changes, never
-   on a timer, and even after saves are blocked: it may be the only thing
-   that says why. */
+// Stored so a page that stops updating can be diagnosed without its browser console.
 function report(change) {
   Object.assign(liveStatus, change);
   const key = [liveStatus.source, liveStatus.error, liveStatus.write].join("|");

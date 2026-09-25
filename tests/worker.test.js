@@ -1,14 +1,10 @@
-/* The MLB Live connector, driven the way claude.ai drives it: JSON-RPC over
-   POST. Upstream MLB is served from the recorded fixtures, so these tests
-   never touch the network, and the clock is pinned to when they were
-   recorded. */
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-// Loaded as the build concatenates them, into one shared scope.
+// One shared scope, as the build concatenates these files.
 const ctx = vm.createContext({
   AbortSignal,
   Date,
@@ -36,7 +32,6 @@ const EVENING = JSON.parse(
 );
 const NOW = Date.parse(EVENING.now);
 
-/* A stand-in for MLB: answers by endpoint, counts requests, and can fail. */
 function fakeMlb({ status = 200 } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -127,14 +122,13 @@ test("one tool, marked read-only so the page may watch it", async () => {
 test("get_snapshot answers with the snapshot, structured and as text", async () => {
   const { w, mlb } = worker();
   const { result } = await (await rpc(w, call(3, "get_snapshot", { season: 2026 }))).json();
-  // Built inside the sandbox; a JSON round trip brings it into this realm to compare.
+  // Objects from the sandbox's realm only deepEqual after a JSON round trip.
   const expected = JSON.parse(
     JSON.stringify(MLBSnapshot.buildSnapshot(EVENING.responses, { season: 2026, now: NOW })),
   );
   assert.deepEqual(JSON.parse(JSON.stringify(result.structuredContent)), expected);
   assert.deepEqual(JSON.parse(result.content[0].text), expected);
   assert.equal(mlb.calls.length, 3);
-  // Through Cloudflare's cache, with a deadline.
   assert.equal(mlb.calls[0].init.cf.cacheTtl, 15);
   assert.ok(mlb.calls[0].init.signal);
 });

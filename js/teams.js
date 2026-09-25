@@ -1,13 +1,5 @@
-/* Every club: league, the year of its last World Series win (null = never),
-   and its two official colors, which the split-circle team dot uses.
-
-   This is a script rather than a JSON file on purpose — a published artifact
-   can't fetch() its own data, so the table has to arrive as a global.
-
-   `lastWS` is only a starting point. Once a season is tracked here, that
-   season's World Series result supersedes this table (see lastTitle in
-   app.js), so these values never need editing again — they only cover titles
-   won before the tracker existed. */
+/* A script, not JSON: a published artifact can't fetch() its own data.
+   lastWS (null = never) is overridden by any tracked season's result; see lastTitle in app.js. */
 const TEAMS = {
   ARI: { name: "Diamondbacks", league: "NL", lastWS: 2001, color: "#A71930", color2: "#E3D4AD" },
   ATL: { name: "Braves", league: "NL", lastWS: 2021, color: "#CE1141", color2: "#13274F" },

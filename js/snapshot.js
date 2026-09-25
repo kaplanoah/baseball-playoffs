@@ -1,25 +1,9 @@
-/* The live snapshot: everything the page shows that comes from MLB -- the
-   field and its seeds, every series record, the standings table and the
-   day's games -- built from three Stats API responses by pure functions.
-
-   This replaced a scheduled Claude run that read the same three responses
-   and wrote the same fields by following several pages of instructions.
-   Every rule it followed is here as code instead, so the page can ask for a
-   snapshot as often as it likes: the answer costs one HTTP round trip, not a
-   model run.
-
-   It runs in two places and must stay plain enough for both:
-   - the MLB Live connector (worker/), which fetches for the page, and
-   - the page itself, when the artifact is allowed to fetch MLB directly.
-   So: no DOM, no globals, nothing but the language. A snapshot is plain JSON,
-   the same shape wherever it was built. */
+// Runs in both the browser page and the Worker, so it uses no DOM and no globals.
 
 const MLBSnapshot = (() => {
   const MLB_API = "https://statsapi.mlb.com";
 
-  /* MLB's numeric team ids, to the ids the page uses everywhere else. The
-     Stats API also uses made-up ids for postseason placeholders ("AL #3
-     Seed"), which is why a lookup miss means "not a real club yet". */
+  // Postseason placeholders ("AL #3 Seed") have made-up ids, so a miss means no real club yet.
   const MLB_TEAM = {
     108: "LAA",
     109: "ARI",
@@ -61,9 +45,6 @@ const MLBSnapshot = (() => {
     205: "NL Central",
   };
 
-  /* Ask only for the fields used below. The standings response is 80KB whole
-     and 31KB filtered; nine days of games with line scores drop from about
-     130KB to 43KB. Less to send, and less to parse on every poll. */
   const GAME_FIELDS = [
     "dates",
     "date",
@@ -116,16 +97,12 @@ const MLBSnapshot = (() => {
   const WINS_TO_TAKE = { WC: 2, DS: 3, CS: 4, WS: 4 };
   const GAME_TYPES = new Set(["R", "F", "D", "L", "W"]);
 
-  /* When the page should ask again -- see pollDelay. Thirty seconds is as
-     fast as the connector polls, and MLB caches its own responses for twenty,
-     so asking faster would only fetch the same answer twice. */
+  // MLB caches its responses for 20 seconds, so polling faster only refetches the same answer.
   const POLL_LIVE_MS = 30 * 1000;
-  const POLL_LEAD_MS = 15 * 60 * 1000; // start watching this long before a first pitch
-  const POLL_CHECK_MS = 60 * 60 * 1000; // and look at the schedule at least this often
+  const POLL_LEAD_MS = 15 * 60 * 1000;
+  const POLL_CHECK_MS = 60 * 60 * 1000;
 
-  /* ---------- dates ----------
-     Baseball's day is Eastern: `officialDate` is an Eastern calendar date, and
-     a west coast game that ends at 1am still belongs to the night before. */
+  // Baseball's day is Eastern: a game ending after midnight belongs to the night before.
   const EASTERN = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
@@ -144,10 +121,6 @@ const MLBSnapshot = (() => {
     return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
   }
 
-  /* ---------- what to fetch ----------
-     Paths only; the caller supplies the host, so the Worker can route through
-     its cache and tests can serve fixtures. A past season has nothing left to
-     play, so it skips the schedule: its standings and bracket are final. */
   function mlbRequests(season, now) {
     const today = easternDay(now);
     const req = {
@@ -158,8 +131,7 @@ const MLBSnapshot = (() => {
       schedule: null,
     };
     if (season === today.year) {
-      /* Four days back finds the last final across a postseason off day;
-         four ahead gives every club its next game. */
+      // Four days each way spans a postseason off day back and every club's next game ahead.
       req.schedule =
         `/api/v1/schedule?sportId=1&startDate=${addDays(today.date, -4)}` +
         `&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo&fields=${GAME_FIELDS}`;
@@ -167,7 +139,6 @@ const MLBSnapshot = (() => {
     return req;
   }
 
-  /* getJson(path) resolves the parsed body of one request. */
   async function fetchSnapshot(getJson, season, now = Date.now()) {
     const req = mlbRequests(season, now);
     const [standings, postseason, schedule] = await Promise.all([
@@ -178,11 +149,7 @@ const MLBSnapshot = (() => {
     return buildSnapshot({ standings, postseason, schedule }, { season, now });
   }
 
-  /* ---------- games ---------- */
-
-  /* A postponed or cancelled game reads "Final" in abstractGameState, so the
-     coded state has to be checked first or a rainout shows up as a final with
-     no score. Suspended games resume on a later date under the same gamePk. */
+  // Postponed and cancelled games read "Final" in abstractGameState, so check the coded state first.
   function gameState(status) {
     const coded = status.codedGameState;
     if (
@@ -204,8 +171,7 @@ const MLBSnapshot = (() => {
     const status = g.status || {};
     const state = gameState(status);
     const info = g.gameInfo || {};
-    /* A final's end is its first pitch plus its length. Without gameInfo,
-       three hours past the scheduled start is close enough to order finals. */
+    // Without gameInfo, three hours past the scheduled start is close enough to order finals.
     let end = null;
     if (state === "final") {
       const first = Date.parse(info.firstPitch || g.gameDate);
@@ -230,8 +196,7 @@ const MLBSnapshot = (() => {
     };
   }
 
-  /* Every game in a schedule response, once each. A suspended game is listed
-     again on the day it resumes; the later listing is the one that counts. */
+  // A suspended game is listed again on the day it resumes; the later listing counts.
   function scheduleGames(resp) {
     const byPk = new Map();
     for (const day of (resp && resp.dates) || []) {
@@ -246,8 +211,6 @@ const MLBSnapshot = (() => {
   const byStart = (a, b) => Date.parse(a.start) - Date.parse(b.start);
   const byEnd = (a, b) => Date.parse(a.end) - Date.parse(b.end);
 
-  /* The shape stamp.js reads: each game with its state, and the score, inning
-     and end time only where the state has one. */
   function stampGame(g) {
     const out = { away: g.away.id, home: g.home.id, state: g.state, start: g.start };
     if (g.tbd) out.tbd = true;
@@ -257,9 +220,7 @@ const MLBSnapshot = (() => {
     return out;
   }
 
-  /* ---------- the day's games ----------
-     `today` is the day being played. Until 6am Eastern that is still last
-     night: at 1am the news is "slate of 15 over", not an empty morning. */
+  // Before 6am Eastern, today is still last night.
   function buildSlate(games, now) {
     const clock = easternDay(now);
     const playable = games.filter((g) => g.state !== "off" && real(g));
@@ -279,8 +240,6 @@ const MLBSnapshot = (() => {
     };
   }
 
-  /* ---------- standings ---------- */
-
   function standingsRows(resp) {
     const rows = [];
     for (const rec of (resp && resp.records) || []) {
@@ -294,11 +253,7 @@ const MLBSnapshot = (() => {
     return rows;
   }
 
-  /* The Standings tab's table, one row per club in division order. `next` is
-     the club's next regular-season game that hasn't started, and `then` the
-     one after it: a copy saved before a first pitch still knows what comes
-     next once that game is under way (see nextCell in standings.js). Once
-     the season is over no club has either, and the column drops off. */
+  // `then` lets a copy saved before `next` starts still show what follows once it is under way.
   function buildStandings(resp, season, games) {
     const upcoming = {};
     games
@@ -325,8 +280,7 @@ const MLBSnapshot = (() => {
         elim: r.eliminationNumber,
         wce: r.wildCardEliminationNumber,
         magic: null,
-        /* divisionChamp, not the clinch indicator: "x" and "w" also mean
-           clinched, but a playoff spot, not the division this tag is for. */
+        // Not clinchIndicator: its "x" and "w" mean a playoff spot, not the division.
         clinched: !!r.divisionChamp,
         lead: !!r.divisionLeader,
         // MLB's own marker: x a playoff spot, w a wild card, y the division, z a bye.
@@ -341,11 +295,8 @@ const MLBSnapshot = (() => {
     }
     for (const rows of Object.values(divisions)) {
       rows.sort((a, b) => a.rank - b.rank).forEach((row) => delete row.rank);
-      /* The leader's magic number for the division is the closest chaser's
-         elimination number: wins by the leader plus losses by that club that
-         end it. Not MLB's `magicNumber`, which counts toward clinching a
-         playoff spot -- a leader that already has one gets "-" there while
-         the division is still open. None left to chase, or already won: none. */
+      // The division magic number is the closest chaser's elimination number; MLB's
+      // `magicNumber` counts toward a playoff spot instead.
       const leader = rows.find((r) => r.lead);
       const chasing = rows
         .filter((r) => r !== leader)
@@ -356,17 +307,13 @@ const MLBSnapshot = (() => {
     return { year: season, divisions };
   }
 
-  /* The field as it would stand if the season ended today: per league, the
-     three division leaders seeded 1-3 by record, then the top three wild
-     cards seeded 4-6 in MLB's own wild card order. League rank breaks a tie on
-     record, because it already carries MLB's tiebreakers. */
+  // League rank breaks ties on record because it already carries MLB's tiebreakers.
   function projectedField(resp) {
     const rows = standingsRows(resp);
     const teams = {};
     for (const lg of ["AL", "NL"]) {
       const mine = rows.filter((x) => x.div.startsWith(lg));
       const leagueRank = (x) => Number(x.r.leagueRank) || 99;
-      // One leader per division: its top-ranked club.
       const leaders = [...new Set(mine.map((x) => x.div))].map(
         (div) =>
           mine
@@ -393,18 +340,8 @@ const MLBSnapshot = (() => {
     return teams;
   }
 
-  /* ---------- the postseason ----------
-     MLB publishes every possible postseason game in advance, with placeholder
-     clubs ("AL #3 Seed", "AL 4/5 Winner") that turn into real ones as seeds
-     clinch and series end. A game belongs to a series by those placeholder
-     names while they last, and by the clubs that replaced them after. */
-
-  /* Which series a postseason game belongs to. `wildCard` holds the real
-     clubs already known in each wild card series, which is how a division
-     series game tells DS1 (the 4/5 winner's) from DS2 once its placeholder is
-     gone. `champs` is the division winners: in a wild card series between two
-     real clubs, the host is the 3 seed if it won its division and the 4 seed
-     if it didn't. */
+  // MLB lists every possible postseason game in advance under placeholders ("AL 4/5 Winner").
+  // A wild card host is the 3 seed if it won its division, else the 4.
   function seriesOf(g, wildCard, champs) {
     if (g.type === "W") return "WS";
     const lg = g.league;
@@ -434,7 +371,7 @@ const MLBSnapshot = (() => {
     const add = (sid, g) => {
       if (sid) (bySeries[sid] = bySeries[sid] || []).push(g);
     };
-    // The wild card round first: the division round is told apart by who came out of it.
+    // Division series are told apart by which wild card series their clubs came from.
     for (const g of games.filter((g) => g.type === "F")) {
       const sid = seriesOf(g, wildCard, champs);
       add(sid, g);
@@ -444,10 +381,7 @@ const MLBSnapshot = (() => {
     return { bySeries, wildCard };
   }
 
-  /* The official field, once MLB has named all twelve clubs: the wild card
-     hosts are the 3 and 4 seeds (every wild card game is at the higher seed),
-     their opponents the 6 and 5, and the 1 and 2 seeds are the division
-     series clubs that played no wild card game. Null until all twelve are in. */
+  // Every wild card game is at the higher seed; the 1 and 2 seeds play no wild card game.
   function officialField(grouped, records) {
     const teams = {};
     const seat = (id, league, seed) => {
@@ -485,10 +419,7 @@ const MLBSnapshot = (() => {
     return complete && Object.keys(teams).length === 12 ? teams : null;
   }
 
-  /* Walk the bracket in order -- each round's clubs are the winners of the
-     one before -- counting finals for each series, and log every game as it
-     went: a `game` entry, or a `clinch` for the one that ended the series.
-     The bracket is fixed, not reseeded: 1 draws the 4/5 winner, 2 the 3/6. */
+  // The bracket is fixed, not reseeded: 1 draws the 4/5 winner, 2 the 3/6.
   function buildSeries(teams, bySeries, today) {
     const seed = {};
     Object.entries(teams).forEach(([id, t]) => {
@@ -556,7 +487,6 @@ const MLBSnapshot = (() => {
     return { series, log };
   }
 
-  /* ---------- the whole snapshot ---------- */
   function buildSnapshot(raw, { season, now = Date.now() }) {
     const games = raw.schedule ? scheduleGames(raw.schedule) : [];
     const post = scheduleGames(raw.postseason);
@@ -585,17 +515,8 @@ const MLBSnapshot = (() => {
     };
   }
 
-  /* How long the page should wait before asking again, in ms, or null for
-     never. Only baseball moves this data, so the page watches closely while
-     a game is on and otherwise sleeps until the next one:
-     - a game live, or a first pitch within fifteen minutes: thirty seconds.
-       A start time that has passed with no first pitch is a delay, and a
-       rain delay mid-game still reads as live, so both keep the fast rate.
-     - otherwise, until fifteen minutes before the next first pitch -- but
-       never more than an hour, because the schedule itself changes with no
-       game on: a rainout is rescheduled, a postseason start time is set.
-       A first pitch MLB hasn't set yet (`tbd`) is no time to wake for.
-     - a season with nothing left to play (no slate): never. */
+  // A start time passed with no first pitch is a delay, so it keeps the fast rate. The hourly
+  // cap catches schedule changes made with no game on, like a rainout being rescheduled.
   function pollDelay(snapshot, now = Date.now()) {
     const slate = snapshot && snapshot.slate;
     if (!slate) return null;

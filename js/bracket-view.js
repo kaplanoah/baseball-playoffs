@@ -1,11 +1,3 @@
-/* The bracket: both leagues converging on the World Series, the connector
-   geometry that joins the cards, and the highest-remaining-pick banner.
-   Card metrics here mirror styles.css -- see LAY. */
-
-/* Which side of this matchup you rank higher. A slot that's still TBD doesn't
-   stop this: if you rank the known team above — or below — everyone who could
-   still arrive, the answer can't change once they do, so say so now. Unranked
-   teams sort last, which is what an empty ranking slot means. */
 function preferredSide(s) {
   const rank = (id) => {
     const i = rankedOrder().indexOf(id);
@@ -33,16 +25,8 @@ function matchupRow(s, side) {
   </div>`;
 }
 
-/* Bracket geometry, in card-top coordinates. Card metrics mirror styles.css:
-   a card is 90px tall, its top row centered 41px down, the divider between its
-   two teams at 57px, its bottom row at 73px.
-
-   Both division cards keep the host at the bottom and the incoming wild-card
-   slot on top, so both wild card cards sit 16px above their partner (57 - 41)
-   and their connectors run dead straight into that slot. Division and
-   championship lines converge on the next card's divider instead of a
-   particular row, which is what lets those rows reorder by host without the
-   lines crossing. */
+/* Card metrics must match styles.css. Each wild card card sits rowDivY - rowTopY
+   above its division card, so its connector runs straight into the top slot. */
 const LAY = {
   colW: 209,
   gap: 20,
@@ -59,18 +43,15 @@ const LAY = {
 };
 const colX = (i) => i * (LAY.colW + LAY.gap);
 const colR = (i) => colX(i) + LAY.colW;
-const crisp = (n) => Math.round(n) + 0.5; // keep 1px strokes off half-pixels
+const crisp = (n) => Math.round(n) + 0.5; // a 1px stroke centered on .5 fills one pixel row
 
-// Renders straight when y1 === y2, jogged at the midpoint otherwise.
 function connector(x1, y1, x2, y2) {
   const xm = (x1 + x2) / 2;
   return `M ${crisp(x1)} ${crisp(y1)} H ${crisp(xm)} V ${crisp(y2)} H ${crisp(x2)}`;
 }
 
-/* When the next game is scheduled. MLB publishes postseason dates long before
-   first pitch and fills `at` with a placeholder until the time is set, so
-   while it's TBD read the plain calendar date instead — converting a
-   placeholder through local time can land on the wrong day out west. */
+// Until the time is set MLB's `at` is a placeholder, so the day comes from `date`:
+// converting the placeholder to local time can land on the wrong day out west.
 function nextGameNote(s) {
   const next = (state.series[s.id] || {}).next;
   if (s.winner || !next) return "";
@@ -106,11 +87,7 @@ function nextGameNote(s) {
   return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} &bull; ${days} days`;
 }
 
-/* Which side hosts. Inside a league the higher seed hosts every round — the
-   wild card round outright, later rounds by the extra home game — so the seed
-   settles it. The World Series is the exception: the two teams come from
-   different leagues, where seeds don't compare, and it goes to the better
-   regular-season record instead. */
+// The higher seed hosts within a league; the World Series goes to the better record.
 function homeSide(s) {
   if (!s.teamA || !s.teamB) return null;
   const a = state.teams[s.teamA],
@@ -121,15 +98,13 @@ function homeSide(s) {
     const pct = (t) => (t.w != null && t.l != null && t.w + t.l > 0 ? t.w / (t.w + t.l) : null);
     const pa = pct(a),
       pb = pct(b);
-    if (pa == null || pb == null) return null; // records not recorded yet
+    if (pa == null || pb == null) return null;
     return pa >= pb ? "A" : "B";
   }
   return a.seed <= b.seed ? "A" : "B";
 }
 
-// Host on the bottom, the way a line score puts the team batting last there.
-// Until a matchup is settled, fall back to the structural order — which for
-// the wild card and division rounds already has the host at the bottom.
+// The host goes on the bottom, as in a line score. In the WC and DS, teamA is the higher seed.
 function rowOrder(s) {
   const home = homeSide(s);
   if (home) return home === "A" ? ["B", "A"] : ["A", "B"];
@@ -151,7 +126,6 @@ function box(s, top, col, opts = {}) {
   </div>`;
 }
 
-/* ---------- bracket: AL converges from the left, NL from the right ---------- */
 function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
   const setupPrompt = document.getElementById("setupPrompt");
@@ -184,14 +158,11 @@ function renderBracket() {
     )
     .join("");
 
-  // Lines leave a card at the divider between its two teams and land on the
-  // slot the winner will fill.
   const wc1Out = LAY.yWc1 + LAY.rowDivY,
     wc2Out = LAY.yWc2 + LAY.rowDivY;
   const ds1Out = LAY.yDs1 + LAY.rowDivY,
     ds2Out = LAY.yDs2 + LAY.rowDivY;
   const midOut = LAY.yMid + LAY.rowDivY;
-  // Both division cards take their wild-card winner in the top slot.
   const ds1Slot = LAY.yDs1 + LAY.rowTopY,
     ds2Slot = LAY.yDs2 + LAY.rowTopY;
 
@@ -210,9 +181,7 @@ function renderBracket() {
     .map((d) => `<path d="${d}"/>`)
     .join("");
 
-  // wc[1] is the 4/5 series and feeds the #1 seed, so it takes the top slot
-  // beside DS1; wc[0] (3/6) sits below beside DS2. Keeps the lines from
-  // crossing now that the bracket is fixed rather than reseeded.
+  // wc[1] (4/5) feeds DS1 and wc[0] (3/6) feeds DS2, so each sits beside the card it feeds.
   const boxes = [
     box(br.al.wc[1], LAY.yWc1, 0),
     box(br.al.wc[0], LAY.yWc2, 0),

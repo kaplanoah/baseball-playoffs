@@ -1,17 +1,3 @@
-/* What changed between the table the page last recorded and the one MLB
-   shows now, as update-log entries: clubs taking a spot in the projected
-   field, clubs moving up a seed, division titles, eliminations, and the
-   official bracket replacing the projection.
-
-   The postseason needs none of this -- every game and clinch is in MLB's own
-   schedule, and snapshot.js reads them straight off it. The regular season is
-   different: "the Padres passed the Cubs" is a difference between two tables,
-   so it can only be found by keeping the older one. The season and standings
-   documents are that older table: the page compares each new snapshot with
-   them, logs what moved, and writes the new table back as the next baseline.
-
-   Pure functions. Entries are data; updates.js writes the sentences. */
-
 const LogChanges = (() => {
   const MAX_LOG = 50;
 
@@ -29,8 +15,6 @@ const LogChanges = (() => {
     return isNaN(n) ? 0 : n;
   };
 
-  /* Games back on the club's best remaining route: its division, or the wild
-     card, whichever it is still alive for and closer in. */
   function bestBack(r) {
     const routes = [];
     if (r.elim !== "E") routes.push(gamesBack(r.gb));
@@ -38,7 +22,6 @@ const LogChanges = (() => {
     return routes.length ? Math.min(...routes).toFixed(1) : null;
   }
 
-  /* A club's final today as a `via` item, its own runs first. */
   function result(games, club) {
     const g = games.find(
       (x) => x.state === "final" && club && (x.away === club || x.home === club),
@@ -49,10 +32,8 @@ const LogChanges = (() => {
     return { team: club, won: own > theirs, opp, score: [own, theirs], end: g.end };
   }
 
-  /* Build an entry: `via` lists the finals behind it, and `at` is when the
-     change was noticed. Not when its game ended: the log shows what is newer
-     than your last dismissal, and a change noticed after you dismissed --
-     the page was closed when it happened -- is news you haven't seen. */
+  // `at` is when the change was noticed, not when its game ended, so a change found after
+  // the last dismissal still shows as new.
   function entry(fields, via, now) {
     const games = via.filter(Boolean);
     const e = { ...fields };
@@ -68,12 +49,8 @@ const LogChanges = (() => {
     return holders.length >= 3 ? holders[2].id : null;
   }
 
-  /* The field: who came in and who went out, per league, paired in seed
-     order. A club that stayed but moved up a seed gets its own entry, only
-     when the field itself didn't change -- a swap moves seeds too, and the
-     field entry already says why -- and not when the official bracket
-     arrives, which the lock entry covers. Only moves UP are logged: every
-     move up implies someone moved down. */
+  // Seed moves are logged only when the field is unchanged, since a swap moves seeds too,
+  // and only upward, since every rise implies a fall.
   function fieldChanges(oldTeams, newTeams, after, games, now, logSeeds) {
     const out = [];
     for (const lg of ["AL", "NL"]) {
@@ -130,14 +107,10 @@ const LogChanges = (() => {
     return out;
   }
 
-  /* MLB's clinch marker, in the order a club climbs it: a playoff spot, a
-     wild card, the division, a first-round bye. Each step up is its own news:
-     the White Sox clinching a spot and, later, a wild card are two entries. */
+  // Each step up MLB's clinch marker is its own news.
   const CLINCH = { x: ["playoff", 1], w: ["wildcard", 2], y: ["division", 3], z: ["bye", 4] };
 
-  /* What a club secured since the old table. A table saved before the marker
-     was recorded has nothing to compare it with, so then only a division
-     title (from `clinched`) can be found. */
+  // A stored table without `clinch` can only reveal a division title.
   function berthWon(old, r) {
     if ("clinch" in old) {
       const now = CLINCH[r.clinch],
@@ -147,9 +120,6 @@ const LogChanges = (() => {
     return r.clinched && !old.clinched ? "division" : null;
   }
 
-  /* Clinches, then eliminations, since the old table. An elimination's
-     `via` is the club's own loss and the win by the club it was chasing on
-     the route that just closed. */
   function standingsChanges(before, after, games, now) {
     const out = [];
     const clubs = Object.entries(after).filter(([id]) => before[id]);
@@ -183,9 +153,6 @@ const LogChanges = (() => {
     return out;
   }
 
-  /* Everything that changed from `before` (the documents as stored) to
-     `after` (a new snapshot). Nothing is logged against an empty baseline:
-     the first snapshot a season sees is the starting point, not news. */
   function between(before, after, now = Date.now()) {
     if (!before || !after) return [];
     const games = (after.slate && after.slate.today && after.slate.today.games) || [];
@@ -207,11 +174,7 @@ const LogChanges = (() => {
     return out;
   }
 
-  /* One identity per piece of news, so the same change noticed twice -- by
-     two open views, or by the page and the retired routine -- is kept once.
-     A field or seed change can happen again on a later day, so its identity
-     carries the day it was noticed; a clinch or an elimination happens once
-     a season. */
+  // A field or seed change can recur on a later day, so its key carries the day.
   function key(e) {
     switch (e.kind) {
       case "game":
@@ -233,7 +196,6 @@ const LogChanges = (() => {
     }
   }
 
-  /* The log with `entries` added: once each, oldest first, the newest 50. */
   function merge(log, entries) {
     const seen = new Set();
     const all = [...(log || []), ...entries].filter((e) => {

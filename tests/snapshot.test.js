@@ -1,8 +1,3 @@
-/* The live snapshot, built from real Stats API responses recorded in
-   tests/fixtures: the finished 2025 postseason, and the evening of 24
-   September 2026 with games in progress. States in between -- a bracket
-   just set, a postseason half played -- are made from the 2025 responses
-   by winding the clock back, the way MLB's own schedule looked then. */
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const S = require("../js/snapshot.js");
@@ -14,8 +9,7 @@ const EVENING = fixture("2026-09-24-evening");
 const build = (f, now = Date.parse(f.now)) =>
   S.buildSnapshot(f.responses, { season: f.season, now });
 
-/* The 2025 postseason as it stood at `cutoff`: later games not yet played,
-   and clubs not yet decided back to MLB's placeholder names. */
+// Games from `cutoff` on become unplayed, with undecided clubs under MLB's placeholder names.
 const PLACEHOLDER = {
   CS: ["Lower Seed", "Higher Seed"],
   WS: ["Lower Seed League Champion", "Higher Seed League Champion"],
@@ -72,8 +66,8 @@ test("2025: the official field comes from the postseason schedule, seeded", () =
 test("2025: every series record, and no next game once decided", () => {
   const { series } = build(SEASON_2025);
   const rec = (id) => [series[id].winsA, series[id].winsB];
-  assert.deepEqual(rec("AL_WC1"), [1, 2]); // Tigers over the Guardians
-  assert.deepEqual(rec("AL_WC2"), [2, 1]); // Yankees over the Red Sox
+  assert.deepEqual(rec("AL_WC1"), [1, 2]);
+  assert.deepEqual(rec("AL_WC2"), [2, 1]);
   assert.deepEqual(rec("AL_DS1"), [3, 1]);
   assert.deepEqual(rec("AL_DS2"), [3, 2]);
   assert.deepEqual(rec("AL_CS"), [4, 3]);
@@ -131,7 +125,6 @@ test("halfway: division series under way, the next game named, later rounds wait
   const { series } = snap;
   assert.deepEqual([series.AL_WC1.winsA, series.AL_WC1.winsB], [1, 2]);
   assert.equal(series.AL_WC1.next, undefined);
-  // Toronto led the Yankees 2-1 going into Game 4 on 8 October.
   assert.deepEqual([series.AL_DS1.winsA, series.AL_DS1.winsB], [2, 1]);
   assert.equal(series.AL_DS1.next.game, 4);
   assert.deepEqual([series.AL_CS.winsA, series.AL_CS.winsB], [0, 0]);
@@ -142,11 +135,10 @@ test("September: seeds projected from the standings, placeholders ignored", () =
   const snap = build(EVENING);
   assert.equal(snap.projected, true);
   assert.deepEqual(snap.teams.TB, { league: "AL", seed: 1, w: 96, l: 62 });
-  assert.equal(snap.teams.TEX.seed, 3); // led the AL West by half a game
+  assert.equal(snap.teams.TEX.seed, 3);
   assert.equal(snap.teams.CWS.seed, 6);
   assert.equal(Object.keys(snap.teams).length, 12);
   assert.deepEqual(snap.log, []);
-  // Wild card Game 1 is on the calendar before anyone knows who plays it.
   assert.deepEqual(snap.series.AL_WC1.next, {
     at: "2026-09-29T07:33:00Z",
     date: "2026-09-29",
@@ -170,18 +162,16 @@ test("September: the standings table the page draws", () => {
   assert.equal(east[0].clinched, true);
   assert.equal(east[0].wcrank, null);
   assert.equal(east[1].id, "NYY");
-  assert.equal(east[1].clinched, false); // clinched a wild card, not the division
+  assert.equal(east[1].clinched, false);
   assert.equal(east[1].clinch, "w");
 
-  // A division's magic number is its closest chaser's elimination number.
-  // Cleveland had already clinched a playoff spot, so MLB's own magicNumber
-  // read "-" while the White Sox (E# 4 when this was recorded) could still
-  // catch them.
+  // MLB's magicNumber reads "-" once a leader clinches a playoff spot, so the
+  // magic number comes from the closest chaser's elimination number instead.
   const central = divisions["AL Central"];
   assert.equal(central[0].id, "CLE");
   assert.equal(central[0].magic, "4");
   assert.equal(divisions["AL West"][0].magic, "4");
-  assert.equal(east[0].magic, null); // Tampa Bay has won the East
+  assert.equal(east[0].magic, null);
   assert.ok(
     Object.values(divisions)
       .flat()
@@ -205,9 +195,8 @@ test("September: the standings table the page draws", () => {
     "wcgb",
     "wcrank",
   ]);
-  // The Yankees were playing the Rays when this was recorded: that game isn't
-  // next any more. Next is Friday's doubleheader with Baltimore, and `then`
-  // its second game, whose start MLB leaves open.
+  // The in-progress Rays game isn't next. MLB leaves the start of a
+  // doubleheader's second game open.
   assert.deepEqual(east[1].next, {
     at: "2026-09-25T20:05:00Z",
     opp: "BAL",
@@ -267,21 +256,17 @@ test("when to ask again: closely during games, otherwise sleep until the next", 
     at([{ state: "live" }, { state: "pre", start: "2026-09-25T02:10:00Z" }]),
     S.POLL_LIVE_MS,
   );
-  // First pitch in ten minutes: already inside the fifteen-minute lead.
   assert.equal(at([{ state: "pre", start: "2026-09-24T22:10:00Z" }]), S.POLL_LIVE_MS);
-  // Past its start and still "pre": a delay, so keep watching.
+  // Past its start and still "pre" means a delay.
   assert.equal(at([{ state: "pre", start: "2026-09-24T21:05:00Z" }]), S.POLL_LIVE_MS);
-  // Between the afternoon finals and a 6:40 first pitch: wake at 6:25.
+  // 6:00 PM ET now, 6:40 first pitch: wake fifteen minutes early, at 6:25.
   assert.equal(at([{ state: "final" }, { state: "pre", start: "2026-09-24T22:40:00Z" }]), 25 * MIN);
-  // Hours to the next game: check the schedule hourly in the meantime.
   assert.equal(
     at([{ state: "final" }, { state: "pre", start: "2026-09-25T17:05:00Z" }]),
     S.POLL_CHECK_MS,
   );
-  // An off day, or a first pitch not yet set: hourly.
   assert.equal(at([]), S.POLL_CHECK_MS);
   assert.equal(at([{ state: "pre", start: "2026-09-24T22:05:00Z", tbd: true }]), S.POLL_CHECK_MS);
-  // A finished season: never.
   assert.equal(S.pollDelay({ slate: null }), null);
 });
 
@@ -290,7 +275,6 @@ test("an off day with the page open: one look an hour, not a poll", () => {
     season: 2026,
     now: Date.parse("2026-09-25T11:00:00Z"),
   });
-  // The morning after: first pitch is hours away.
   assert.equal(S.pollDelay(snap, Date.parse("2026-09-25T11:00:00Z")), S.POLL_CHECK_MS);
 });
 

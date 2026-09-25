@@ -1,24 +1,4 @@
-/* The MLB Live connector: a Cloudflare Worker that speaks just enough MCP
-   for claude.ai to add it as a custom connector, with one read-only tool,
-   `get_snapshot`, that returns what js/snapshot.js builds.
-
-   The page calls that tool through the artifact's `mcp` capability; claude.ai
-   relays the call here and the answer back. No model runs anywhere in that
-   loop, so a poll costs no tokens -- only one Worker request.
-
-   Deliberately small:
-   - Stateless Streamable HTTP. Every request is a POST carrying JSON-RPC and
-     gets a plain JSON reply; there are no sessions, no server-sent events
-     and nothing to notify, because the tool is a pure read.
-   - No dependencies. The build (worker/build.mjs) concatenates
-     js/snapshot.js ahead of this file, so the page and the connector run
-     the same code and can never disagree about what a snapshot is.
-   - No secrets. MLB's API is public. The one setting, CONNECTOR_KEY, is an
-     optional path secret that keeps strangers from spending your free-tier
-     requests: set it, and the connector lives at /mcp/<key> instead of /mcp.
-
-   This file is a plain script, not a module, so the tests can load it the
-   way the page's own scripts are loaded. The build adds the export. */
+// A plain script, not a module, so tests load it like the page's scripts; the build adds the export.
 
 const SERVER_INFO = { name: "mlb-live", title: "MLB Live", version: "1.0.0" };
 const PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
@@ -51,21 +31,17 @@ const TOOL = {
   },
 };
 
-/* JSON-RPC's own error codes. */
 const PARSE_ERROR = -32700,
   INVALID_REQUEST = -32600,
   METHOD_NOT_FOUND = -32601,
   INVALID_PARAMS = -32602;
 
 const UPSTREAM_TIMEOUT_MS = 8000;
-const EDGE_CACHE_SECONDS = 15; // MLB caches for 20; this keeps us inside that
-const SNAPSHOT_REUSE_MS = 10000; // concurrent and back-to-back calls share one build
+const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
+const SNAPSHOT_REUSE_MS = 10000;
 const MAX_BODY_BYTES = 64 * 1024;
 
 function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now() } = {}) {
-  /* One snapshot per season at a time, reused for a few seconds, so a phone
-     and a laptop polling together (or a burst of retries) cost one set of
-     upstream requests, not one per caller. A failed build is not reused. */
   const recent = new Map();
 
   async function getJson(path) {
@@ -99,7 +75,6 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
     return s;
   }
 
-  /* ---------- JSON-RPC ---------- */
   const reply = (id, result) => ({ jsonrpc: "2.0", id, result });
   const failure = (id, code, message) => ({
     jsonrpc: "2.0",
@@ -112,7 +87,7 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
       return failure(msg && msg.id, INVALID_REQUEST, "Not a JSON-RPC 2.0 request");
     }
     const isNotification = !("id" in msg);
-    if (isNotification) return null; // initialized, cancelled: nothing to do or say
+    if (isNotification) return null;
     const { id, method, params = {} } = msg;
 
     switch (method) {
@@ -142,8 +117,7 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
             "season must be a whole year between 1995 and 2100, and nothing else is accepted",
           );
         }
-        /* A failure upstream is the tool's result, not a protocol error:
-           the caller asked correctly, and MLB didn't answer. */
+        // An upstream failure is a tool error, not a protocol error: the request itself was valid.
         try {
           const snapshot = await snapshotFor(season);
           return reply(id, {
@@ -162,7 +136,6 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
     }
   }
 
-  /* ---------- HTTP ---------- */
   const CORS = {
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -189,7 +162,7 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
       return json(failure(null, PARSE_ERROR, "Body is not valid JSON"), 400);
     }
 
-    // Older clients may batch; answer each request, skip each notification.
+    // Older MCP protocol versions allow JSON-RPC batches.
     if (Array.isArray(body)) {
       if (!body.length) return json(failure(null, INVALID_REQUEST, "Empty batch"), 400);
       const out = (await Promise.all(body.map(call))).filter(Boolean);
@@ -209,7 +182,6 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
 
     if (url.pathname === mcpPath) return handleMcp(request);
     if (url.pathname === snapshotPath && request.method === "GET") {
-      // The same answer over plain HTTP, for a browser tab or curl.
       const season = seasonArg({
         season: url.searchParams.has("season") ? Number(url.searchParams.get("season")) : null,
       });

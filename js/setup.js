@@ -1,7 +1,3 @@
-/* Manual field setup: the fallback for setting the 12 teams and their seeds
-   by hand, for when the page can't reach MLB to find them. */
-
-/* ---------- manual field setup (fallback when there's no live data) ---------- */
 let picked = new Set();
 let seeds = { AL: {}, NL: {} };
 
