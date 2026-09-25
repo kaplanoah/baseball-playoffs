@@ -4,14 +4,14 @@ A private page on claude.ai that tracks the MLB postseason. It shows the
 bracket, your ranking of who you want to win the World Series, the standings,
 and scores that update automatically.
 
-## Set it up
+## Setup (for humans)
 
 Open [Claude Code on the web](https://claude.ai/code), paste this prompt, and
 follow Claude's instructions.
 
 ```
 Set up the MLB postseason tracker from https://github.com/kaplanoah/baseball-playoffs
-for me. Clone it (branch main), read the "Setup (instructions for Claude)"
+for me. Clone it (branch main), read the "Setup (for Claude Code)"
 section of its README, and guide me through it one step at a time.
 ```
 
@@ -26,7 +26,7 @@ Running the site doesn't cost anything. Scores come from MLB's free public API
 through a connector on Cloudflare's free tier. Keeping the page updated
 doesn't use Claude.
 
-## Setup (instructions for Claude)
+## Setup (for Claude Code)
 
 Guide the user one step at a time. Tell them what to do, wait until they say
 it's done, then go on. Never ask for the Cloudflare token in the chat.
@@ -86,7 +86,7 @@ If you're deploying it:
 5. Environment settings only apply to new sessions. Start one in the same
    environment on this repo's `main` with this prompt. Use the
    `create_session` tool if you have it. Otherwise have the user start it.
-   `Continue setting up the MLB postseason tracker: README "Setup (instructions for Claude)", step 3. The page is at <artifact URL>.`
+   `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 3. The page is at <artifact URL>.`
 
 **3. Deploy the connector.** Run `npm run deploy:api`. It runs the tests,
 deploys `main` exactly as it is on GitHub, and prints the connector URL,
