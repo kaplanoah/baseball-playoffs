@@ -38,6 +38,7 @@ let mcp;                    // the mcp namespace; undefined until first asked
 let writesBlocked = false;  // this viewer can't write the store
 let writing = Promise.resolve();
 let reported = "";          // the status last written to live/status
+let status = { source: "", error: "", detail: "", write: "" };
 
 /* ---------- getting a snapshot ---------- */
 
@@ -148,7 +149,7 @@ async function refreshLive(){
     liveError = null;
     liveFailures = 0;
     applyLive(snap);
-    report(source, "", "");
+    report({ source, error: "", detail: "" });
     scheduleLive(MLBSnapshot.pollDelay(snap));
   }catch(e){
     if(seq !== liveSeq) return;
@@ -160,7 +161,7 @@ async function refreshLive(){
     } else {
       renderStamp();
     }
-    report(directBlocked ? "connector" : "direct", liveError.code, liveError.detail);
+    report({ source: directBlocked ? "connector" : "direct", error: liveError.code, detail: liveError.detail });
     if(liveError.retry){
       scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
     } else {
@@ -304,10 +305,21 @@ setInterval(() => { try{ renderStamp(); }catch(e){} }, 60 * 1000);
 /* One write at a time, in order; a viewer who can't write stops trying. */
 function saveLive(snap){
   if(!db || writesBlocked) return;
-  writing = writing.then(() => writeLive(snap)).catch(e => {
-    const code = e && e.code;
+  writing = writing.then(() => writeLive(snap)).then(() => {
+    report({ write: "" });
+  }, e => {
+    const code = (e && e.code) || "error";
     if(["not_granted", "capability_disabled", "revoked", "invalid_argument", "quota_exceeded"].includes(code)) writesBlocked = true;
+    report({ write: `${(e && e.step) || "write"}: ${code}: ${String((e && e.message) || "").slice(0, 160)}` });
   });
+}
+
+/* Which save a failure came from, for live/status. */
+async function step(name, write){
+  try{ return await write(); }
+  catch(e){
+    throw Object.assign(e && typeof e === "object" ? e : new Error(String(e)), { step: name });
+  }
 }
 
 /* Does `now` lack a key that `was` has, at any depth? update() merges
@@ -337,14 +349,14 @@ async function writeLive(snap){
 
   if(Object.keys(fields).length){
     const ref = db.doc(`seasons/${year}`);
-    const exists = (await ref.get()).exists;
+    const exists = (await step("season read", () => ref.get())).exists;
     if(!exists){
-      await ref.set({ year, ranking: [], ...fields });
+      await step("season create", () => ref.set({ year, ranking: [], ...fields }));
     } else {
       // A club that left the field would otherwise stay in `teams`.
       const cleared = Object.keys(fields).filter(k => losesKeys(doc[k], fields[k]));
-      if(cleared.length) await ref.update(Object.fromEntries(cleared.map(k => [k, null])));
-      await ref.update(fields);
+      if(cleared.length) await step("season clear", () => ref.update(Object.fromEntries(cleared.map(k => [k, null]))));
+      await step("season", () => ref.update(fields));
     }
     /* Ahead of the store's echo, so the next snapshot compares against what
        was just written. The echo then matches and redraws nothing, so the
@@ -358,19 +370,22 @@ async function writeLive(snap){
 
   if(snap.standings && !sameJson(storedStandings && storedStandings.divisions, snap.standings.divisions)){
     const table = { ...snap.standings, updatedAt: snap.asOf };
-    await db.doc(`standings/${year}`).set(table);
+    await step("standings", () => db.doc(`standings/${year}`).set(table));
     storedStandings = table;
   }
 }
 
-/* Where live data came from on this view, and what went wrong, kept in the
-   store so the owner (or Claude, with the ArtifactData tool) can see why a
-   page isn't updating without opening a browser console. Written only when
-   it changes, never on a timer. */
-function report(source, error, detail){
-  const key = `${source}|${error}`;
-  if(!db || writesBlocked || key === reported) return;
+/* Where live data came from on this view, what went wrong fetching it,
+   and the last save that failed, kept in the store so the owner (or
+   Claude, with the ArtifactData tool) can see why a page isn't updating
+   without opening a browser console. Written only when it changes, never
+   on a timer, and even after saves are blocked: it may be the only thing
+   that says why. */
+function report(change){
+  Object.assign(status, change);
+  const key = [status.source, status.error, status.write].join("|");
+  if(!db || key === reported) return;
   reported = key;
-  const status = { source, error, detail, at: new Date().toISOString() };
-  writing = writing.then(() => db.doc("live/status").set(status)).catch(() => {});
+  const doc = { ...status, at: new Date().toISOString() };
+  writing = writing.then(() => db.doc("live/status").set(doc)).catch(() => {});
 }
