@@ -65,3 +65,45 @@ test("a refusal names the step and Cloudflare's reason; no account ID is caught 
     /workers\.dev route failed: 10000: Authentication error/);
   await assert.rejects(deploy({ fetchImpl: cf.fetchImpl, env: {}, script: "", log: () => {} }), /CLOUDFLARE_ACCOUNT_ID/);
 });
+
+/* A stand-in git: answers the questions checkRelease asks. */
+function fakeGit({ branch = "main", dirty = "", head = "a".repeat(40), origin = "a".repeat(40) } = {}){
+  const asked = [];
+  const git = args => {
+    asked.push(args.join(" "));
+    if(args[0] === "rev-parse" && args[1] === "--abbrev-ref") return branch;
+    if(args[0] === "status") return dirty;
+    if(args[0] === "fetch") return "";
+    if(args[0] === "rev-parse") return args[1] === "HEAD" ? head : origin;
+    throw new Error(`unexpected git ${args.join(" ")}`);
+  };
+  return { git, asked };
+}
+
+test("a release is main, clean, and exactly what GitHub has", async () => {
+  const { checkRelease } = await load();
+  const ok = fakeGit();
+  assert.equal(checkRelease(ok.git), "a".repeat(40));
+  assert.ok(ok.asked.includes("fetch --quiet origin main"), "compares against a fresh fetch");
+});
+
+test("anything else is refused, with the reason", async () => {
+  const { checkRelease } = await load();
+  assert.throws(() => checkRelease(fakeGit({ branch: "claude/some-branch" }).git), /from main only; this checkout is on claude\/some-branch/);
+  assert.throws(() => checkRelease(fakeGit({ branch: "HEAD" }).git), /on HEAD/);
+  assert.throws(() => checkRelease(fakeGit({ dirty: " M js/snapshot.js" }).git), /uncommitted changes/);
+  assert.throws(() => checkRelease(fakeGit({ head: "b".repeat(40) }).git), /isn't main as GitHub has it/);
+});
+
+test("deploy:api runs the tests before it deploys", () => {
+  const scripts = require("../package.json").scripts;
+  assert.equal(scripts["deploy:api"], "npm test && node worker/deploy.mjs");
+});
+
+test("project settings allow only the checked deploy, and deny the unchecked ones", () => {
+  const { permissions } = JSON.parse(require("fs").readFileSync(`${__dirname}/../.claude/settings.json`, "utf8"));
+  assert.deepEqual(permissions.allow, ["Bash(npm run deploy:api)"]);
+  for(const rule of ["Bash(npm run deploy)", "Bash(npx wrangler *)", "Bash(wrangler *)", "Bash(node worker/deploy.mjs)"]){
+    assert.ok(permissions.deny.includes(rule), rule);
+  }
+});
