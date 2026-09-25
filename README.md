@@ -28,8 +28,9 @@ doesn't use Claude.
 
 ## Setup (for Claude Code)
 
-Guide the user one step at a time. Tell them what to do, wait until they say
-it's done, then go on. Never ask for the Cloudflare token in the chat.
+Guide the user one step at a time. Tell them the one thing to do next, wait
+until they say it's done, then go on. Don't ask them to make choices you can
+make for them. Never ask for the Cloudflare token in the chat.
 
 **1. Publish the page.** Use the Artifact tool to publish `index.html` from
 `main` with every file it references, `icon: "baseball"`, and these
@@ -42,25 +43,15 @@ capabilities:
 Give the user the link. The page will say the connector is missing until
 step 4. That's expected.
 
-**2. Choose how to deploy the connector.** If `CLOUDFLARE_ACCOUNT_ID` is set
+**2. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
 and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
-returns `"success":true`, this session can already deploy. Go to step 3.
-
-Otherwise, offer the user two ways:
-
-- **You deploy it.** This is the default. They add a Cloudflare token to this
-  session's environment and you deploy from a new session. After that,
-  updates are one command. The steps are below.
-- **They deploy it themselves** with Cloudflare's command-line tool, wrangler.
-  Assume they're comfortable in a terminal. In their own clone of `main` they
-  run `npx wrangler login` and then `npm run deploy`. It prints the Worker's
-  address, and the connector URL is that address plus `/mcp`. Go to step 4.
-  They redeploy the same way when the connector's code changes. Cloudflare's
-  tools change over time, so if something doesn't match, point them to
-  Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
-
-If you're deploying it:
+returns `"success":true`, go to step 3. Otherwise start with something like:
+"I'll walk you through adding a few things to this cloud environment so I can
+deploy the connector for you. If you'd rather deploy it yourself from a
+terminal or Cloudflare's dashboard, just let me know." Then go through the
+steps below. If they want to deploy it themselves, see "If they deploy it
+themselves" below.
 
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
@@ -115,10 +106,27 @@ Finish by telling the user they can set their ranking on the Ranking tab. If
 they made a Cloudflare token, tell them they can delete it now, or remove the
 environment credential. The connector keeps running without it.
 
+### If they deploy it themselves
+
+- **From a terminal.** Assume they're comfortable in one. In their own clone
+  of `main` they run `npx wrangler login` and then `npm run deploy`, which
+  prints the Worker's address.
+- **From the dashboard.** They create a Worker named `mlb-live`, replace its
+  code with `worker/dist/worker.mjs` from `main` on GitHub, and deploy it.
+  The dashboard shows the Worker's address.
+
+Either way, the connector URL is the Worker's address plus `/mcp`. Then go on
+from step 4. They redeploy the same way when the connector's code changes.
+Cloudflare's tools change over time, so if something doesn't match, point them
+to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
+
 ## Making changes
 
-`main` is what's published. Work on a branch, run `npm test`, and merge with a
-pull request. After merging, republish the page from `main` to its existing
-link. Redeploy the connector if anything in `worker/` or `js/snapshot.js`
-changed. Don't publish from a branch that hasn't been merged, because the next
-publish from `main` will overwrite it.
+`main` is what's published. Work on a branch and open a pull request into
+`main`. GitHub runs the tests on every pull request, so merge once they pass.
+To run them yourself first, use `npm test`.
+
+After merging, republish the page from `main` to its existing link. Redeploy
+the connector if anything in `worker/` or `js/snapshot.js` changed. Don't
+publish from a branch that hasn't been merged, because the next publish from
+`main` will overwrite it.
