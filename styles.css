@@ -280,9 +280,9 @@ table.st .seed-cell{ width:28px; font-size:.75rem; font-variant-numeric:tabular-
    the only color is the count, which is the line meant to catch the eye. */
 .updates{
   border:1px solid var(--card-border); background:var(--card); border-radius:6px;
-  /* The same 1px inset as the pages below it (section.view), since it sits
-     outside them. */
-  padding:9px 22px 10px 13px; margin:0 0 28px 1px; max-width:900px;
+  /* Flush with the header and tabs above it, not inset like the pages: it
+     belongs to the header block. */
+  padding:9px 22px 10px 13px; margin:0 0 28px; max-width:900px;
 }
 /* The tabs' 28px is breathing room before a page; the news is still part of
    the header block, so it sits closer to them (the margins collapse to 16). */
