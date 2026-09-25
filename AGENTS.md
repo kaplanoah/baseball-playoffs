@@ -25,8 +25,9 @@
 - `main` is the source of truth. Work on a branch, open a PR, and squash-merge once CI is green. Never push to another session's branch.
 - Don't spend time curating commit history. Squash merges make it irrelevant.
 - Refer to PRs by number, not branch.
-- After a merge, republish the page from `main` to its existing link. If `worker/` or `page/js/snapshot.js` changed, redeploy the connector with `npm run deploy:api` and no other way. Never publish from an unmerged branch.
-- The Cloudflare token lives only in the cloud environment's API credentials. Never ask for it in chat or put it in environment variables, code, or commits.
+- Merges to `main` deploy the connector: CI runs `npm run deploy:api` once every check passes. To redeploy by hand, use `npm run deploy:api` and no other way.
+- Republish the page only when the user asks, from `main` to its existing link. Never publish from an unmerged branch.
+- The Cloudflare token lives only in the cloud environment's API credentials and the repo's `production` GitHub environment. Never ask for it in chat or put it in environment variables, code, or commits.
 - Keep scratch work (design playgrounds, test harnesses) out of git, and never publish tests to the real page.
 - Ask when unsure.
 
