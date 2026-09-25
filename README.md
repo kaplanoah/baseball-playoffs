@@ -1,19 +1,13 @@
 # MLB Postseason
 
-A private page on claude.ai that tracks the MLB postseason: the full bracket,
-your ranking of who you want to win it all, division and wild card standings,
-and what changed since you last looked. Scores and standings update on the
-page by themselves while it's open, every 30 seconds during games.
+A private page on claude.ai that tracks the MLB postseason: the bracket, your
+ranking of who you want to win it all, the standings, and scores that update
+by themselves while you watch.
 
-It costs nothing to run: the page gets its data from MLB's free public API
-through a small connector you deploy once to your own free Cloudflare account.
-No scheduled jobs, no tokens spent.
+## Set it up
 
-## Setup
-
-You need a claude.ai plan that can add custom connectors (Pro or Max) and a
-free Cloudflare account. Paste this into Claude Code on the web
-([claude.ai/code](https://claude.ai/code)):
+Open [Claude Code on the web](https://claude.ai/code), paste this, and follow
+Claude's instructions:
 
 ```
 Set up the MLB postseason tracker from https://github.com/kaplanoah/baseball-playoffs
@@ -21,8 +15,16 @@ for me. Clone it (branch main), read the "Setup, for Claude" section of its
 README, and guide me through it one step at a time.
 ```
 
-Claude publishes your page and walks you through the rest. It takes about ten
-minutes, most of it in Cloudflare's dashboard.
+Claude publishes your page, then walks you through connecting it to live
+scores, one step at a time. About ten minutes.
+
+**You'll need:** a claude.ai Pro or Max plan, and a free
+[Cloudflare](https://dash.cloudflare.com/sign-up) account (Claude will show
+you what to click there).
+
+**What it costs:** nothing. Scores come from MLB's free public API through a
+small connector on your Cloudflare account's free tier. No scheduled jobs, no
+tokens spent.
 
 ## Setup, for Claude
 
