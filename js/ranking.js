@@ -30,7 +30,7 @@ function renderRanking(){
      the list. A phone has no room for the columns, so it gets them as a third
      line instead. */
   gutter.innerHTML = rankedOrder().map((_, i) => `<li class="rank-num tabular">${i + 1}</li>`).join("");
-  list.innerHTML = rankedOrder().map((id, i) => {
+  list.innerHTML = rankedOrder().map(id => {
     const t = state.teams[id];
     const st = teamStatusLabel(state, id);
     const won = lastTitle(id);
@@ -88,7 +88,6 @@ function wireDrag(list){
 
 function renderReference(){
   const body = document.getElementById("refBody");
-  const inField = new Set(Object.keys(state.teams || {}));
   const rows = Object.entries(TEAMS).sort((a,b) => a[1].name.localeCompare(b[1].name));
   body.innerHTML = rows.map(([id,t]) => {
     const won = lastTitle(id);

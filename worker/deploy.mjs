@@ -69,7 +69,7 @@ export async function deploy({ fetchImpl = fetch, env = process.env, script = re
     const res = await fetchImpl(url, { ...init, headers: { ...auth, ...(init.headers || {}) } });
     const text = await res.text();
     let body = {};
-    try{ body = JSON.parse(text); }catch(e){}
+    try{ body = JSON.parse(text); }catch{ /* not JSON: shown raw below */ }
     if(!res.ok || body.success === false){
       const errors = body.errors || [];
       /* A refusal that isn't Cloudflare's JSON (a proxy's, a firewall's)

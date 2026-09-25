@@ -30,7 +30,7 @@ if(process.argv[1] === fileURLToPath(import.meta.url)){
   const built = buildWorker();
   if(process.argv.includes("--check")){
     let current = "";
-    try{ current = readFileSync(OUTPUT, "utf8"); }catch(e){}
+    try{ current = readFileSync(OUTPUT, "utf8"); }catch{ /* not built yet */ }
     if(current !== built){
       console.error("worker/dist/worker.mjs is out of date. Run: npm run build");
       process.exit(1);

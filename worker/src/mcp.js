@@ -148,7 +148,7 @@ function createWorker({ fetchImpl = (...a) => fetch(...a), now = () => Date.now(
     if(raw.length > MAX_BODY_BYTES) return json(failure(null, INVALID_REQUEST, "Request too large"), 413);
     let body;
     try{ body = JSON.parse(raw); }
-    catch(e){ return json(failure(null, PARSE_ERROR, "Body is not valid JSON"), 400); }
+    catch{ return json(failure(null, PARSE_ERROR, "Body is not valid JSON"), 400); }
 
     // Older clients may batch; answer each request, skip each notification.
     if(Array.isArray(body)){

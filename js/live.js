@@ -38,7 +38,7 @@ let mcp;                    // the mcp namespace; undefined until first asked
 let writesBlocked = false;  // this viewer can't write the store
 let writing = Promise.resolve();
 let reported = "";          // the status last written to live/status
-let status = { source: "", error: "", detail: "", write: "" };
+let liveStatus = { source: "", error: "", detail: "", write: "" };
 
 /* ---------- getting a snapshot ---------- */
 
@@ -56,7 +56,7 @@ async function fetchDirect(season){
 
 async function fetchViaConnector(season){
   if(mcp === undefined){
-    try{ mcp = await window.claude?.use?.("mcp"); }catch(e){ mcp = null; }
+    try{ mcp = await window.claude?.use?.("mcp"); }catch{ mcp = null; }
   }
   if(!mcp) throw new LiveError("no_mcp", "no connector access in this view");
   let result;
@@ -79,7 +79,7 @@ async function connectorMissing(){
     const { servers } = await mcp.listTools(LIVE_SERVER);
     const mine = (servers || []).find(x => x.server === LIVE_SERVER);
     return !mine || !(mine.tools || []).length;
-  }catch(e){
+  }catch{
     return false;
   }
 }
@@ -300,7 +300,7 @@ function renderStamp(){
 }
 
 /* Day words and "Updated" times turn over on the clock, not on new data. */
-setInterval(() => { try{ renderStamp(); }catch(e){} }, 60 * 1000);
+setInterval(() => { try{ renderStamp(); }catch{ /* try again next minute */ } }, 60 * 1000);
 
 /* ---------- writing MLB's side back ---------- */
 
@@ -384,10 +384,10 @@ async function writeLive(snap){
    on a timer, and even after saves are blocked: it may be the only thing
    that says why. */
 function report(change){
-  Object.assign(status, change);
-  const key = [status.source, status.error, status.write].join("|");
+  Object.assign(liveStatus, change);
+  const key = [liveStatus.source, liveStatus.error, liveStatus.write].join("|");
   if(!db || key === reported) return;
   reported = key;
-  const doc = { ...status, at: new Date().toISOString() };
+  const doc = { ...liveStatus, at: new Date().toISOString() };
   writing = writing.then(() => db.doc("live/status").set(doc)).catch(() => {});
 }

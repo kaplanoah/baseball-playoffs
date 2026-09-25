@@ -123,8 +123,9 @@ to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
 ## Making changes
 
 `main` is what's published. Work on a branch and open a pull request into
-`main`. GitHub runs the tests on every pull request, so merge once they pass.
-To run them yourself first, use `npm test`.
+`main`. GitHub lints, checks formatting, and runs the tests on every pull
+request, so merge once those pass. To run the same checks yourself, run
+`npm install` once, then `npm run check`. `npm run format` fixes formatting.
 
 After merging, republish the page from `main` to its existing link. Redeploy
 the connector if anything in `worker/` or `js/snapshot.js` changed. Don't

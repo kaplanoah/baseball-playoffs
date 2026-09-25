@@ -21,6 +21,6 @@ function loadPage(files){
 
 /* toLocaleTimeString puts a narrow no-break space before AM/PM. Tests
    compare against a plain space, which is what anyone would type. */
-const plain = s => typeof s === "string" ? s.replace(/ /g, " ") : s;
+const plain = s => typeof s === "string" ? s.replace(/\u202f/g, " ") : s;
 
 module.exports = { loadPage, plain };

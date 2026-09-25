@@ -100,7 +100,7 @@ async function loadStandings(year){
     try{
       const snap = await db.doc(`standings/${year}`).get();
       storedStandings = readDoc(snap);
-    }catch(e){ storedStandings = null; }
+    }catch{ storedStandings = null; }
   }
   composeState();
 }
@@ -141,7 +141,7 @@ async function writeSeason(fields){
   const ref = db.doc(`seasons/${activeYear}`);
   try{
     await ref.update(fields);
-  }catch(e){
+  }catch{
     // update() rejects when the document doesn't exist yet; create it once.
     await ref.set({ year: activeYear, teams:{}, series:{}, ranking:[], log:[], ...fields });
   }
@@ -269,7 +269,7 @@ async function boot(){
 
   try{
     db = await window.claude?.use?.("db");
-  }catch(e){ db = null; }
+  }catch{ db = null; }
 
   try{
     if(db){
@@ -278,7 +278,7 @@ async function boot(){
     } else {
       years = fallbackYears.map(String);
     }
-  }catch(e){ db = null; years = fallbackYears.map(String); }
+  }catch{ db = null; years = fallbackYears.map(String); }
 
   yearSel.innerHTML = years.map(y => `<option value="${y}" ${Number(y) === activeYear ? 'selected' : ''}>${y}</option>`).join("");
   yearSel.addEventListener("change", () => switchYear(Number(yearSel.value)));
@@ -286,7 +286,7 @@ async function boot(){
   try{
     if(db){ await loadSeason(activeYear); await loadStandings(activeYear); }
     else { seasonDoc = emptySeason(activeYear); composeState(); }
-  }catch(e){ db = null; seasonDoc = emptySeason(activeYear); composeState(); }
+  }catch{ db = null; seasonDoc = emptySeason(activeYear); composeState(); }
 
   renderAll();
   watchSeason(activeYear);

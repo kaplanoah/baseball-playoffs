@@ -50,8 +50,6 @@ const MLBSnapshot = (() => {
     "divisionChamp", "divisionLeader", "divisionRank", "wildCardRank", "leagueRank", "clinchIndicator"
   ].join(",");
 
-  /* Each game type in the postseason is one round. */
-  const ROUND_OF_TYPE = { F:"WC", D:"DS", L:"CS", W:"WS" };
   const WINS_TO_TAKE = { WC:2, DS:3, CS:4, WS:4 };
   const GAME_TYPES = new Set(["R", "F", "D", "L", "W"]);
 
