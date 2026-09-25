@@ -130,6 +130,17 @@ test("September: the standings table the page draws", () => {
   assert.equal(east[1].id, "NYY");
   assert.equal(east[1].clinched, false);   // clinched a wild card, not the division
   assert.equal(east[1].clinch, "w");
+
+  // A division's magic number is its closest chaser's elimination number.
+  // Cleveland had already clinched a playoff spot, so MLB's own magicNumber
+  // read "-" while the White Sox (E# 4 when this was recorded) could still
+  // catch them.
+  const central = divisions["AL Central"];
+  assert.equal(central[0].id, "CLE");
+  assert.equal(central[0].magic, "4");
+  assert.equal(divisions["AL West"][0].magic, "4");
+  assert.equal(east[0].magic, null);      // Tampa Bay has won the East
+  assert.ok(Object.values(divisions).flat().every(r => r.lead || r.magic === null));
   assert.equal(east[1].wcrank, "1");
   assert.deepEqual(Object.keys(east[1]).sort(),
     ["clinch", "clinched", "elim", "gb", "id", "l", "lead", "magic", "next", "pct", "then", "w", "wce", "wcgb", "wcrank"]);
