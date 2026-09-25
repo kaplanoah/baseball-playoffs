@@ -20,8 +20,7 @@ takes about ten minutes.
 
 **You'll need** a Claude plan that includes Claude Code on the web and a free
 [Cloudflare](https://dash.cloudflare.com/sign-up) account. Claude walks you
-through the Cloudflare part. If you'd rather deploy the connector yourself
-from a terminal, tell Claude.
+through the Cloudflare part.
 
 Running the site doesn't cost anything. Scores come from MLB's free public API
 through a connector on Cloudflare's free tier. Keeping the page updated
@@ -48,8 +47,9 @@ step 4. That's expected.
 and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
 returns `"success":true`, go to step 3. Otherwise walk the user through the
-steps below. Don't offer other ways to deploy unless they ask. If they do, see
-"If they deploy it themselves" below.
+steps below. Before the first one, mention in one sentence that they could
+instead deploy it themselves from a terminal, then carry on unless they say
+they want to. If they do, see "If they deploy it themselves" below.
 
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
@@ -106,13 +106,12 @@ environment credential. The connector keeps running without it.
 
 ### If they deploy it themselves
 
-Only if the user asks. Assume they're comfortable in a terminal. In their own
-clone of `main` they run `npx wrangler login` and then `npm run deploy`. It
-prints the Worker's address, and the connector URL is that address plus
-`/mcp`. Then go on from step 4. They redeploy the same way when the
-connector's code changes. Cloudflare's tools change over time, so if something
-doesn't match, point them to Cloudflare's
-[Workers docs](https://developers.cloudflare.com/workers/).
+Assume they're comfortable in a terminal. In their own clone of `main` they
+run `npx wrangler login` and then `npm run deploy`. It prints the Worker's
+address, and the connector URL is that address plus `/mcp`. Then go on from
+step 4. They redeploy the same way when the connector's code changes.
+Cloudflare's tools change over time, so if something doesn't match, point them
+to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
 
 ## Making changes
 
