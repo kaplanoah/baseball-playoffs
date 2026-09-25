@@ -245,7 +245,7 @@ test("the update list shows when a change happened, not when the page noticed it
             kind: "elim",
             team: "SEA",
             via: [{ team: "TEX", won: true, opp: "NYM", score: [3, 1] }],
-            ended: "2026-09-24T23:23:00Z",
+            ended: "2026-09-24T00:55:00Z",
             at: "2026-09-25T00:40:00Z",
           },
           { kind: "lock", at: "2026-09-25T00:30:00Z" },
@@ -257,7 +257,8 @@ test("the update list shows when a change happened, not when the page noticed it
   const updateTimes = page.locator("#updates .when");
   await expect(updateTimes).toHaveCount(2);
   await expect(updateTimes.nth(0)).toHaveText(/^8:30\sPM$/);
-  await expect(updateTimes.nth(1)).toHaveText(/^7:23\sPM$/);
+  await expect(updateTimes.nth(1)).toHaveText(/^Yesterday$/);
+  await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
 });
 
 const buildEmptySeasonSnapshot = (season, springStart) => ({

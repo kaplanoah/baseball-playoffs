@@ -192,7 +192,7 @@ const findHappenedAt = (entry) => entry.ended || entry.at;
 function listFreshEntries() {
   const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
   return (session.state.log || [])
-    .filter((entry) => entry && (!seen || Date.parse(entry.at) > seen))
+    .filter((entry) => entry && (!seen || Date.parse(entry.at) > seen) && entryText(entry))
     .sort(
       (first, second) => Date.parse(findHappenedAt(second)) - Date.parse(findHappenedAt(first)),
     );
@@ -220,8 +220,10 @@ export function renderUpdates() {
 
   const shown = fresh.slice(0, MAX_SHOWN);
   const extra = fresh.length - shown.length;
-  const since = session.state.seenAt ? ` ${formatSince(session.state.seenAt)}` : "";
-  const head = `${fresh.length} update${fresh.length === 1 ? "" : "s"}${since}`;
+  // The oldest update listed, not the last dismissal: a change can be found after a dismissal
+  // but have happened before it.
+  const since = formatSince(findHappenedAt(fresh[fresh.length - 1]));
+  const head = `${fresh.length} update${fresh.length === 1 ? "" : "s"} ${since}`;
 
   panel.innerHTML = `
     <div class="updates-head">
