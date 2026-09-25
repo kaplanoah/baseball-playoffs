@@ -108,11 +108,6 @@ environment credential. The connector keeps running without it.
 
 ### If they deploy it themselves
 
-Either way, the connector URL is the Worker's address plus `/mcp`. Then go on
-from step 4. They redeploy the same way when the connector's code changes.
-Cloudflare's tools change over time, so if something doesn't match, point them
-to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
-
 - **From a terminal.** Assume they're comfortable in one. In their own clone
   of `main` they run `npx wrangler login` and then `npm run deploy`, which
   prints the Worker's address.
@@ -120,10 +115,18 @@ to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
   code with `worker/dist/worker.mjs` from `main` on GitHub, and deploy it.
   The dashboard shows the Worker's address.
 
+Either way, the connector URL is the Worker's address plus `/mcp`. Then go on
+from step 4. They redeploy the same way when the connector's code changes.
+Cloudflare's tools change over time, so if something doesn't match, point them
+to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
+
 ## Making changes
 
-`main` is what's published. Work on a branch, run `npm test`, and merge with a
-pull request. After merging, republish the page from `main` to its existing
-link. Redeploy the connector if anything in `worker/` or `js/snapshot.js`
-changed. Don't publish from a branch that hasn't been merged, because the next
-publish from `main` will overwrite it.
+`main` is what's published. Work on a branch and open a pull request into
+`main`. GitHub runs the tests on every pull request, so merge once they pass.
+To run them yourself first, use `npm test`.
+
+After merging, republish the page from `main` to its existing link. Redeploy
+the connector if anything in `worker/` or `js/snapshot.js` changed. Don't
+publish from a branch that hasn't been merged, because the next publish from
+`main` will overwrite it.
