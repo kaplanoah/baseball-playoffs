@@ -1,5 +1,6 @@
 import { TEAMS } from "./teams.js";
 import { fullBracket } from "./bracket.js";
+import { escapeHtml } from "./html.js";
 import { session, seasonYear } from "./session.js";
 
 export function lastTitle(id) {
@@ -11,7 +12,7 @@ export function lastTitle(id) {
 
 export function droughtLabel(id) {
   const won = lastTitle(id);
-  if (!won) return "Since 1969";
+  if (!won) return `Since ${TEAMS[id].firstSeason}`;
   const year = seasonYear();
   if (won >= year) return "Reigning";
   const { state } = session;
@@ -28,11 +29,17 @@ const perceivedLightness = (hex) => {
 
 // Split vertically so the inner shadow shades both halves alike; a much lighter half reads larger,
 // so it gets slightly less room.
+function chooseDotSplit(team) {
+  const contrastGap = perceivedLightness(team.color2) - perceivedLightness(team.color);
+  if (contrastGap > 90) return 52;
+  if (contrastGap < -90) return 48;
+  return 50;
+}
+
 function teamDot(id) {
   const team = TEAMS[id];
   if (!team) return `<span class="dot" style="background:#999"></span>`;
-  const contrastGap = perceivedLightness(team.color2) - perceivedLightness(team.color);
-  const split = contrastGap > 90 ? 52 : contrastGap < -90 ? 48 : 50;
+  const split = chooseDotSplit(team);
   return `<span class="dot" style="background:linear-gradient(90deg, ${team.color} ${split}%, ${team.color2} ${split}%)"></span>`;
 }
 
@@ -54,7 +61,7 @@ export function rankedOrder() {
 }
 
 export function seedMark(seed) {
-  return seed ? `<span class="seed-pre tabular">${seed}</span>` : "";
+  return seed ? `<span class="seed-pre tabular">${escapeHtml(seed)}</span>` : "";
 }
 
 export function rankTag(id, solid) {

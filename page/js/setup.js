@@ -7,7 +7,11 @@ import { TEAMS } from "./teams.js";
 let picked = new Set();
 let seeds = { AL: {}, NL: {} };
 
+const SEED_NUMBERS = [1, 2, 3, 4, 5, 6];
 const SEEDS_INCOMPLETE = "Assign all 6 seeds in both the AL and the NL before saving.";
+const SAVE_FAILED = "Couldn't save the field. Try again in a moment.";
+
+const findDialog = () => /** @type {HTMLDialogElement} */ (document.getElementById("setupDialog"));
 
 function showSetupError(message) {
   const error = document.getElementById("setupError");
@@ -19,88 +23,114 @@ export function openSetup() {
   showSetupError("");
   picked = new Set(Object.keys(session.state.teams));
   seeds = { AL: {}, NL: {} };
-  Object.entries(session.state.teams).forEach(([id, t]) => (seeds[t.league][t.seed] = id));
+  for (const [id, team] of Object.entries(session.state.teams)) seeds[team.league][team.seed] = id;
   renderPickGrid();
-  document.getElementById("setupModalBg").style.display = "flex";
+  findDialog().showModal();
 }
-export function closeSetup() {
-  document.getElementById("setupModalBg").style.display = "none";
+
+function togglePick(id) {
+  if (picked.has(id)) picked.delete(id);
+  else picked.add(id);
+  renderPickGrid();
 }
 
 function renderPickGrid() {
   const grid = document.getElementById("pickGrid");
   grid.innerHTML = Object.entries(TEAMS)
-    .sort((a, b) => a[1].name.localeCompare(b[1].name))
+    .sort((first, second) => first[1].name.localeCompare(second[1].name))
     .map(
-      ([id, t]) => `
+      ([id, team]) => `
     <label class="pick-team ${picked.has(id) ? "selected" : ""}" data-id="${id}">
       <input type="checkbox" ${picked.has(id) ? "checked" : ""}>
-      ${teamTag(id)} <span style="color:var(--ink-dim); font-size:.72rem;">(${t.league})</span>
+      ${teamTag(id)} <span style="color:var(--ink-dim); font-size:.72rem;">(${team.league})</span>
     </label>`,
     )
     .join("");
-  /** @type {NodeListOf<HTMLElement>} */ (grid.querySelectorAll(".pick-team")).forEach((el) => {
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      const id = el.dataset.id;
-      if (picked.has(id)) picked.delete(id);
-      else picked.add(id);
-      renderPickGrid();
+  /** @type {NodeListOf<HTMLElement>} */ (grid.querySelectorAll(".pick-team")).forEach((label) => {
+    label.addEventListener("click", (event) => {
+      event.preventDefault();
+      togglePick(label.dataset.id);
     });
   });
   renderSeedArea();
 }
 
-function renderSeedArea() {
-  const area = document.getElementById("seedArea");
-  ["AL", "NL"].forEach((lg) => {
-    const ids = [...picked].filter((id) => TEAMS[id].league === lg);
-    Object.keys(seeds[lg]).forEach((s) => {
-      if (!ids.includes(seeds[lg][s])) delete seeds[lg][s];
-    });
-  });
-  area.innerHTML = ["AL", "NL"]
-    .map((lg) => {
-      const ids = [...picked].filter((id) => TEAMS[id].league === lg);
-      return `<div>
-      <h3 style="color:var(--${lg.toLowerCase()});">${lg} seeds (${ids.length}/6)</h3>
-      ${[1, 2, 3, 4, 5, 6]
-        .map(
-          (seed) => `
+const listPickedIn = (league) => [...picked].filter((id) => TEAMS[id].league === league);
+
+function dropUnpickedSeeds() {
+  for (const league of ["AL", "NL"]) {
+    const ids = listPickedIn(league);
+    for (const seed of Object.keys(seeds[league])) {
+      if (!ids.includes(seeds[league][seed])) delete seeds[league][seed];
+    }
+  }
+}
+
+function renderSeedPicker(league, seed, ids) {
+  const options = ids
+    .map(
+      (id) =>
+        `<option value="${id}" ${seeds[league][seed] === id ? "selected" : ""}>${TEAMS[id].name}</option>`,
+    )
+    .join("");
+  return `
         <div class="seed-row">
           <span>Seed ${seed}</span>
-          <select data-lg="${lg}" data-seed="${seed}">
+          <select data-league="${league}" data-seed="${seed}" aria-label="${league} seed ${seed}">
             <option value="">&mdash;</option>
-            ${ids.map((id) => `<option value="${id}" ${seeds[lg][seed] === id ? "selected" : ""}>${TEAMS[id].name}</option>`).join("")}
+            ${options}
           </select>
-        </div>`,
-        )
-        .join("")}
+        </div>`;
+}
+
+function renderSeedArea() {
+  dropUnpickedSeeds();
+  const area = document.getElementById("seedArea");
+  area.innerHTML = ["AL", "NL"]
+    .map((league) => {
+      const ids = listPickedIn(league);
+      return `<div>
+      <h3 style="color:var(--${league.toLowerCase()});">${league} seeds (${ids.length}/6)</h3>
+      ${SEED_NUMBERS.map((seed) => renderSeedPicker(league, seed, ids)).join("")}
     </div>`;
     })
     .join("");
-  area.querySelectorAll("select").forEach((sel) => {
-    sel.addEventListener("change", () => {
-      seeds[sel.dataset.lg][sel.dataset.seed] = sel.value || null;
+  area.querySelectorAll("select").forEach((select) => {
+    select.addEventListener("change", () => {
+      seeds[select.dataset.league][select.dataset.seed] = select.value || null;
     });
   });
 }
 
+function collectSeededTeams() {
+  const teams = {};
+  for (const league of ["AL", "NL"]) {
+    for (const seed of SEED_NUMBERS) {
+      const id = seeds[league][seed];
+      if (id) teams[id] = { league, seed };
+    }
+  }
+  return teams;
+}
+
+// A club picked for two seeds keeps only the last, so a league can come up short.
+const isFieldComplete = (teams) =>
+  ["AL", "NL"].every(
+    (league) => Object.values(teams).filter((team) => team.league === league).length === 6,
+  );
+
 export async function saveSetup() {
-  const teamsMap = {};
-  ["AL", "NL"].forEach((lg) => {
-    [1, 2, 3, 4, 5, 6].forEach((seed) => {
-      const id = seeds[lg][seed];
-      if (id) teamsMap[id] = { league: lg, seed: Number(seed) };
-    });
-  });
-  const alCount = Object.values(teamsMap).filter((t) => t.league === "AL").length;
-  const nlCount = Object.values(teamsMap).filter((t) => t.league === "NL").length;
-  if (alCount !== 6 || nlCount !== 6) {
+  const teams = collectSeededTeams();
+  if (!isFieldComplete(teams)) {
     showSetupError(SEEDS_INCOMPLETE);
     return;
   }
-  await saveTeams(teamsMap);
-  closeSetup();
+  try {
+    await saveTeams(teams);
+  } catch {
+    showSetupError(SAVE_FAILED);
+    return;
+  }
+  findDialog().close();
   renderAll();
 }

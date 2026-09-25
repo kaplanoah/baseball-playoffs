@@ -1,9 +1,13 @@
 import * as LogChanges from "./changes.js";
 
-const CURRENT_YEAR = new Date().getFullYear();
 const FRESH_FINAL_MS = 10 * 60 * 1000;
+const SEPTEMBER = 8;
 
-export const seasonYear = () => (new Date().getMonth() >= 8 ? CURRENT_YEAR : CURRENT_YEAR - 1);
+// Until September the latest postseason is last year's.
+export function seasonYear(now = new Date()) {
+  const year = now.getFullYear();
+  return now.getMonth() >= SEPTEMBER ? year : year - 1;
+}
 
 export const session = {
   db: null,
@@ -12,6 +16,7 @@ export const session = {
   storedStandings: null,
   live: null,
   liveProblem: null,
+  saveProblem: null,
   state: null,
   standings: null,
   trackedTitles: {},
@@ -31,7 +36,7 @@ function overlayLiveSnapshot(doc) {
     series: live.series,
     projected: live.projected,
     slate,
-    log: LogChanges.merge(doc.log, live.log),
+    log: LogChanges.mergeLog(doc.log, live.log),
   };
 }
 

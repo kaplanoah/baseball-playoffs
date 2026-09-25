@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import globals from "globals";
 
 export default [
-  { ignores: [".claude/worktrees/", "worker/dist/", "tests/fixtures/", "page/js/sortable.min.js"] },
+  { ignores: [".claude/worktrees/", "worker/dist/", "page/js/sortable.min.js"] },
   js.configs.recommended,
   { rules: { "no-unused-vars": ["error", { ignoreRestSiblings: true }] } },
   { files: ["**/*.{js,mjs}"], languageOptions: { sourceType: "module", globals: globals.node } },

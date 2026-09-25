@@ -1,6 +1,6 @@
 // A stand-in for the claude.ai artifact runtime, installed before the page's scripts run.
 (() => {
-  const { store: initialStore, snapshots, connectorAdded } = window.__runtimeConfig;
+  const { store: initialStore, snapshots, connectorAdded, dbAvailable } = window.__runtimeConfig;
   const SERVER = "MLB Live";
   const TOOL = "get_snapshot";
 
@@ -47,10 +47,12 @@
     doc: (path) => ({
       get: async () => readDocumentSnapshot(path),
       set: async (data) => {
+        if (runtime.failWrites) throw createError("unavailable", "try again later");
         documents.set(path, copy(data));
         notifyListeners(path);
       },
       update: async (fields) => {
+        if (runtime.failWrites) throw createError("unavailable", "try again later");
         if (!documents.has(path)) throw createError("not_found", `${path} does not exist`);
         mergeFields(documents.get(path), fields);
         notifyListeners(path);
@@ -76,6 +78,7 @@
 
   const runtime = {
     transformSnapshot: null,
+    failWrites: false,
     toolCalls,
     read: (path) => (documents.has(path) ? copy(documents.get(path)) : null),
   };
@@ -98,5 +101,6 @@
   };
 
   window.__runtime = runtime;
-  window.claude = { use: async (name) => ({ db, mcp })[name] ?? null };
+  const capabilities = dbAvailable ? { db, mcp } : { mcp };
+  window.claude = { use: async (name) => capabilities[name] ?? null };
 })();

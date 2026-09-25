@@ -7,4 +7,4 @@ no_bundle = true
 [observability]
 enabled = true
 
-# Optional: `npx wrangler secret put CONNECTOR_KEY` moves the endpoint to /mcp/<key>.
+# Optional: `npx wrangler secret put CONNECTOR_KEY` moves the endpoint to /mcp/<key>. See the README.

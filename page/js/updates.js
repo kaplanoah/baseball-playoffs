@@ -1,220 +1,231 @@
+import { seriesLabel } from "./bracket.js";
 import { rankTag, teamLabel, teamTag } from "./clubs.js";
 import { DAYS, countDaysBetween } from "./dates.js";
+import { escapeHtml } from "./html.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, seasonYear } from "./session.js";
+import { showSaveResult } from "./stamp-view.js";
 import { TEAMS } from "./teams.js";
 
-export function seriesLabel(id) {
-  if (id === "WS") return "World Series";
-  const [lg, key] = String(id).split("_");
-  if (!key) return id;
-  if (key === "CS") return `${lg}CS`;
-  if (key.startsWith("DS")) return `${lg}DS`;
-  return `${lg} Wild Card Series`;
-}
-function logChip(id) {
+const MAX_SHOWN = 12;
+const BERTHS = {
+  bye: "a first-round bye",
+  wildcard: "a wild card spot",
+  playoff: "a playoff spot",
+};
+
+const leagueOf = (id) => (TEAMS[id] ? TEAMS[id].league : "");
+
+function renderClubChip(id) {
   return TEAMS[id] ? rankTag(id) + teamTag(id, "b") : "";
 }
-function score(s) {
-  return Array.isArray(s) && s.length === 2 ? `${s[0]}&ndash;${s[1]}` : "";
+const isPair = (value) => Array.isArray(value) && value.length === 2;
+function formatSeriesScore(score) {
+  return isPair(score) ? `${escapeHtml(score[0])}&ndash;${escapeHtml(score[1])}` : "";
+}
+function formatGameScore(score) {
+  return isPair(score) ? `${escapeHtml(score[0])}-${escapeHtml(score[1])}` : "";
 }
 
 // `via` entries are { team, won, opp, score: [own, opp] }, own score first even in a loss.
-function pair(n) {
-  return Array.isArray(n) && n.length === 2 ? `${n[0]}-${n[1]}` : "";
+function describeResult(result) {
+  const opponent = teamLabel(result.opp);
+  return result.won
+    ? `beat the ${opponent} ${formatGameScore(result.score)}`
+    : `lost to the ${opponent} ${formatGameScore([result.score[1], result.score[0]])}`;
 }
-function viaText(e, mover, other) {
-  const v = Array.isArray(e.via) ? e.via : [];
-  const mine = v.find((x) => x && x.team === mover);
-  const theirs = v.find((x) => x && x.team === other);
-  if (mine && mine.won && mine.opp === other) return `beat them ${pair(mine.score)}`;
+
+function describeVia(entry, mover, other) {
+  const results = Array.isArray(entry.via) ? entry.via : [];
+  const own = results.find((result) => result && result.team === mover);
+  const theirs = results.find((result) => result && result.team === other);
+  if (own && own.won && own.opp === other) return `beat them ${formatGameScore(own.score)}`;
   const parts = [];
-  if (mine && TEAMS[mine.opp]) {
-    parts.push(
-      mine.won
-        ? `beat the ${teamLabel(mine.opp)} ${pair(mine.score)}`
-        : `lost to the ${teamLabel(mine.opp)} ${pair([mine.score[1], mine.score[0]])}`,
-    );
-  }
-  if (theirs && TEAMS[theirs.opp] && TEAMS[other]) {
-    parts.push(
-      `${teamLabel(other)} ${
-        theirs.won
-          ? `beat the ${teamLabel(theirs.opp)} ${pair(theirs.score)}`
-          : `lost to the ${teamLabel(theirs.opp)} ${pair([theirs.score[1], theirs.score[0]])}`
-      }`,
-    );
-  }
+  if (own && TEAMS[own.opp]) parts.push(describeResult(own));
+  if (theirs && TEAMS[theirs.opp] && TEAMS[other])
+    parts.push(`${teamLabel(other)} ${describeResult(theirs)}`);
   return parts.join(" and ");
 }
-function withVia(sentence, e, mover, other, also) {
-  const tail = [viaText(e, mover, other), also].filter(Boolean).join(", ");
+
+function appendVia(sentence, entry, mover, other, also = "") {
+  const tail = [describeVia(entry, mover, other), also].filter(Boolean).join(", ");
   return tail ? `${sentence} &mdash; ${tail}` : sentence;
 }
 
-function divisionOf(id) {
-  const divs = session.standings && session.standings.divisions;
-  if (!divs) return "";
-  return Object.keys(divs).find((d) => divs[d].some((r) => r.id === id)) || "";
+function findDivision(id) {
+  const divisions = session.standings && session.standings.divisions;
+  if (!divisions) return "";
+  return (
+    Object.keys(divisions).find((division) => divisions[division].some((row) => row.id === id)) ||
+    ""
+  );
 }
-function spotLabel(e) {
-  const lg = TEAMS[e.in] ? TEAMS[e.in].league : "";
-  let spot = e.spot,
-    div = e.div;
+
+function describeSpot(entry) {
+  const league = leagueOf(entry.in);
+  let spot = entry.spot;
+  let division = entry.div;
   if (!spot) {
-    const seed = session.state?.teams?.[e.in]?.seed;
-    if (!seed) return `the last ${lg} spot`;
+    const seed = session.state?.teams?.[entry.in]?.seed;
+    if (!seed) return `the last ${league} spot`;
     spot = seed <= 3 ? "division" : "wildcard";
-    div = div || divisionOf(e.in);
+    division = division || findDivision(entry.in);
   }
   // "an AL", "an NL": both are said letter by letter.
-  if (spot === "division") return div ? `the ${div} lead` : `an ${lg} division lead`;
-  return `an ${lg} wild card spot`;
-}
-function gamesBack(v) {
-  const n = parseFloat(v);
-  if (isNaN(n) || n <= 0) return "even, behind on the tiebreaker";
-  const whole = Math.floor(n),
-    half = n - whole >= 0.5;
-  const num = (whole ? String(whole) : "") + (half ? "\u00bd" : "");
-  return `${num} game${n > 1 ? "s" : ""} back`;
-}
-function outBack(e) {
-  if (e.outAlive === false || e.outBack == null) return "";
-  return `${teamLabel(e.out)} ${gamesBack(e.outBack)}`;
+  if (spot === "division")
+    return division ? `the ${escapeHtml(division)} lead` : `an ${league} division lead`;
+  return `an ${league} wild card spot`;
 }
 
-export function entryText(e) {
-  const lg = (id) => (TEAMS[id] ? TEAMS[id].league : "");
-  switch (e.kind) {
-    case "field":
-      if (e.in && e.out)
-        return withVia(
-          `${logChip(e.in)} take ${spotLabel(e)} from the ${logChip(e.out)}`,
-          e,
-          e.in,
-          e.out,
-          outBack(e),
-        );
-      if (e.in) return `${logChip(e.in)} into the projected field`;
-      if (e.out) return `${logChip(e.out)} out of the projected field`;
-      return "";
-    case "seed": {
-      const where = `the ${lg(e.team)} ${e.to} seed`;
-      return e.over
-        ? withVia(
-            `${logChip(e.team)} passed the ${logChip(e.over)} for ${where}`,
-            e,
-            e.team,
-            e.over,
-          )
-        : withVia(`${logChip(e.team)} up to ${where}, from ${e.from}`, e, e.team, null);
-    }
-    case "game": {
-      const g = e.game ? `Game ${e.game}` : "a game";
-      const st = Array.isArray(e.score)
-        ? e.score[0] > e.score[1]
-          ? "lead"
-          : e.score[0] === e.score[1]
-            ? "even"
-            : "trail"
-        : "";
-      const tail = st
-        ? ` &mdash; ${st} the ${seriesLabel(e.series)} ${score(e.score)}`
-        : ` of the ${seriesLabel(e.series)}`;
-      return `${logChip(e.won)} took ${g}${tail}`;
-    }
-    case "clinch": {
-      const over = e.over ? ` over the ${logChip(e.over)}` : "";
-      const sc = score(e.score) ? `, ${score(e.score)}` : "";
-      return `${logChip(e.team)} win the ${seriesLabel(e.series)}${sc}${over}`;
-    }
-    case "elim":
-      return withVia(
-        `${logChip(e.team)} eliminated`,
-        e,
-        e.team,
-        ((e.via || []).find((v) => v && v.team !== e.team) || {}).team || null,
-      );
-    case "berth": {
-      const what =
-        e.what === "division"
-          ? `the ${e.div || lg(e.team) + " division"}`
-          : e.what === "bye"
-            ? "a first-round bye"
-            : e.what === "wildcard"
-              ? "a wild card spot"
-              : e.what === "playoff"
-                ? "a playoff spot"
-                : "a playoff spot";
-      return withVia(`${logChip(e.team)} clinch ${what}`, e, e.team, null);
-    }
-    case "lock":
-      return "The official bracket is set";
-    default:
-      return e.text || "";
+function describeGamesBack(value) {
+  const games = parseFloat(value);
+  if (isNaN(games) || games <= 0) return "even, behind on the tiebreaker";
+  const whole = Math.floor(games);
+  const hasHalf = games - whole >= 0.5;
+  const count = (whole ? String(whole) : "") + (hasHalf ? "\u00bd" : "");
+  return `${count} game${games > 1 ? "s" : ""} back`;
+}
+
+function describeOutBack(entry) {
+  if (entry.outAlive === false || entry.outBack == null) return "";
+  return `${teamLabel(entry.out)} ${describeGamesBack(entry.outBack)}`;
+}
+
+function describeFieldEntry(entry) {
+  if (entry.in && entry.out) {
+    const sentence = `${renderClubChip(entry.in)} take ${describeSpot(entry)} from the ${renderClubChip(entry.out)}`;
+    return appendVia(sentence, entry, entry.in, entry.out, describeOutBack(entry));
   }
+  if (entry.in) return `${renderClubChip(entry.in)} into the projected field`;
+  if (entry.out) return `${renderClubChip(entry.out)} out of the projected field`;
+  return "";
 }
 
-function whenLabel(iso, now = new Date()) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const days = countDaysBetween(d, now);
-  if (days <= 0) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  if (days === 1) return "Yesterday";
-  if (days < 7) return DAYS[d.getDay()];
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+function describeSeedEntry(entry) {
+  const where = `the ${leagueOf(entry.team)} ${escapeHtml(entry.to)} seed`;
+  if (entry.over) {
+    const sentence = `${renderClubChip(entry.team)} passed the ${renderClubChip(entry.over)} for ${where}`;
+    return appendVia(sentence, entry, entry.team, entry.over);
+  }
+  const sentence = `${renderClubChip(entry.team)} up to ${where}, from ${escapeHtml(entry.from)}`;
+  return appendVia(sentence, entry, entry.team, null);
 }
-function sinceLabel(iso, now = new Date()) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const days = countDaysBetween(d, now);
+
+function describeSeriesStanding(score) {
+  if (!isPair(score)) return "";
+  if (score[0] > score[1]) return "lead";
+  if (score[0] === score[1]) return "even";
+  return "trail";
+}
+
+function describeGameEntry(entry) {
+  const game = entry.game ? `Game ${escapeHtml(entry.game)}` : "a game";
+  const standing = describeSeriesStanding(entry.score);
+  const series = seriesLabel(entry.series);
+  const tail = standing
+    ? ` &mdash; ${standing} the ${series} ${formatSeriesScore(entry.score)}`
+    : ` of the ${series}`;
+  return `${renderClubChip(entry.won)} took ${game}${tail}`;
+}
+
+function describeClinchEntry(entry) {
+  const over = entry.over ? ` over the ${renderClubChip(entry.over)}` : "";
+  const score = formatSeriesScore(entry.score);
+  return `${renderClubChip(entry.team)} win the ${seriesLabel(entry.series)}${score ? `, ${score}` : ""}${over}`;
+}
+
+function describeEliminationEntry(entry) {
+  const chaser = (entry.via || []).find((result) => result && result.team !== entry.team);
+  return appendVia(
+    `${renderClubChip(entry.team)} eliminated`,
+    entry,
+    entry.team,
+    chaser ? chaser.team : null,
+  );
+}
+
+function describeBerthEntry(entry) {
+  const berth =
+    entry.what === "division"
+      ? `the ${entry.div ? escapeHtml(entry.div) : `${leagueOf(entry.team)} division`}`
+      : BERTHS[entry.what] || BERTHS.playoff;
+  return appendVia(`${renderClubChip(entry.team)} clinch ${berth}`, entry, entry.team, null);
+}
+
+const DESCRIBE_ENTRY = {
+  field: describeFieldEntry,
+  seed: describeSeedEntry,
+  game: describeGameEntry,
+  clinch: describeClinchEntry,
+  elim: describeEliminationEntry,
+  berth: describeBerthEntry,
+  lock: () => "The official bracket is set",
+};
+
+export function entryText(entry) {
+  const describe = DESCRIBE_ENTRY[entry.kind];
+  return describe ? describe(entry) : "";
+}
+
+function formatWhen(iso, now = new Date()) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const days = countDaysBetween(date, now);
+  if (days <= 0) return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (days === 1) return "Yesterday";
+  if (days < 7) return DAYS[date.getDay()];
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+function formatSince(iso, now = new Date()) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const days = countDaysBetween(date, now);
   if (days <= 0) return "since earlier today";
   if (days === 1) return "since yesterday";
-  if (days < 7) return `since ${DAYS[d.getDay()]}`;
-  return `since ${d.toLocaleDateString([], { month: "short", day: "numeric" })}`;
+  if (days < 7) return `since ${DAYS[date.getDay()]}`;
+  return `since ${date.toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
-const MAX_SHOWN = 12;
-export function renderUpdates() {
-  const el = document.getElementById("updates");
-  if (session.activeYear !== seasonYear()) {
-    el.hidden = true;
-    el.innerHTML = "";
-    return;
-  }
+function listFreshEntries() {
   const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
-  const fresh = (session.state.log || [])
-    .filter((e) => e && (!seen || Date.parse(e.at) > seen))
-    .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  return (session.state.log || [])
+    .filter((entry) => entry && (!seen || Date.parse(entry.at) > seen))
+    .sort((first, second) => Date.parse(second.at) - Date.parse(first.at));
+}
 
+function renderEntry(entry) {
+  const text = entryText(entry);
+  return text
+    ? `<li><span class="when">${formatWhen(entry.at)}</span><span class="what">${text}</span></li>`
+    : "";
+}
+
+function hideUpdates(panel) {
+  panel.hidden = true;
+  panel.innerHTML = "";
+}
+
+export function renderUpdates() {
+  const panel = document.getElementById("updates");
+  const fresh = session.activeYear === seasonYear() ? listFreshEntries() : [];
   if (!fresh.length) {
-    el.hidden = true;
-    el.innerHTML = "";
+    hideUpdates(panel);
     return;
   }
-  el.hidden = false;
+  panel.hidden = false;
 
   const shown = fresh.slice(0, MAX_SHOWN);
   const extra = fresh.length - shown.length;
-  const head =
-    `${fresh.length} update${fresh.length === 1 ? "" : "s"}` +
-    (session.state.seenAt ? ` ${sinceLabel(session.state.seenAt)}` : "");
+  const since = session.state.seenAt ? ` ${formatSince(session.state.seenAt)}` : "";
+  const head = `${fresh.length} update${fresh.length === 1 ? "" : "s"}${since}`;
 
-  el.innerHTML = `
+  panel.innerHTML = `
     <div class="updates-head">
       <span class="updates-count">${head}</span>
-      <button class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
+      <button type="button" class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
     </div>
     <ul class="updates-list">
-      ${shown
-        .map((e) => {
-          const text = entryText(e);
-          return text
-            ? `<li><span class="when">${whenLabel(e.at)}</span><span class="what">${text}</span></li>`
-            : "";
-        })
-        .join("")}
+      ${shown.map(renderEntry).join("")}
       ${extra > 0 ? `<li class="more">and ${extra} more</li>` : ""}
     </ul>`;
   document.getElementById("dismissUpdates").addEventListener("click", dismissUpdates);
@@ -223,5 +234,5 @@ export function renderUpdates() {
 function dismissUpdates() {
   const saving = saveSeenAt(new Date().toISOString());
   renderUpdates();
-  return saving;
+  return showSaveResult(saving);
 }

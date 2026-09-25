@@ -26,9 +26,9 @@ function fakeCloudflare({ refuse } = {}) {
 }
 
 test("the name and compatibility date come from wrangler.toml", async () => {
-  const { workerConfig } = await load();
-  assert.deepEqual(workerConfig(), { name: "mlb-live", compatibilityDate: "2026-09-01" });
-  assert.throws(() => workerConfig('name = "x"'), /compatibility_date/);
+  const { readWorkerConfig } = await load();
+  assert.deepEqual(readWorkerConfig(), { name: "mlb-live", compatibilityDate: "2026-09-01" });
+  assert.throws(() => readWorkerConfig('name = "x"'), /compatibility_date/);
 });
 
 test("upload, route, and the connector URL", async () => {

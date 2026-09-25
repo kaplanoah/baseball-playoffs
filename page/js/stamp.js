@@ -1,66 +1,70 @@
 import { DAYS, countDaysBetween } from "./dates.js";
+import { escapeHtml } from "./html.js";
 import { TEAMS } from "./teams.js";
 
-function stampClock(iso) {
+function formatClock(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 export function stampName(id) {
-  return TEAMS[id] ? TEAMS[id].name : id;
+  return TEAMS[id] ? TEAMS[id].name : escapeHtml(id);
 }
-function ordinal(n) {
-  const s = ["th", "st", "nd", "rd"],
-    v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function finalPhrase(g, day) {
-  const [a, h] = g.score || [0, 0];
-  const [w, wr, l, lr] = a > h ? [g.away, a, g.home, h] : [g.home, h, g.away, a];
-  return `${stampName(w)} ${wr} ${stampName(l)} ${lr} final at ${stampClock(g.end)}${day ? " " + day : ""}`;
-}
-function livePhrase(g) {
-  const [a, h] = g.score || [0, 0];
-  return `${stampName(g.away)} @ ${stampName(g.home)} ${a}-${h} in the ${ordinal(g.inning || 1)}`;
-}
-function firstPitchPhrase(g) {
-  return `${stampName(g.away)} @ ${stampName(g.home)} first pitch at ${stampClock(g.start)}`;
-}
-function gamePhrase(g) {
-  return g.state === "final"
-    ? finalPhrase(g)
-    : g.state === "live"
-      ? livePhrase(g)
-      : firstPitchPhrase(g);
+function formatOrdinal(number) {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const lastTwoDigits = number % 100;
+  return number + (suffixes[(lastTwoDigits - 20) % 10] || suffixes[lastTwoDigits] || suffixes[0]);
 }
 
-function slateClause(games) {
+function describeFinal(game, day) {
+  const [awayScore, homeScore] = game.score || [0, 0];
+  const [winner, winnerScore, loser, loserScore] =
+    awayScore > homeScore
+      ? [game.away, awayScore, game.home, homeScore]
+      : [game.home, homeScore, game.away, awayScore];
+  const when = `final at ${formatClock(game.end)}${day ? " " + day : ""}`;
+  return `${stampName(winner)} ${winnerScore} ${stampName(loser)} ${loserScore} ${when}`;
+}
+function describeLive(game) {
+  const [awayScore, homeScore] = game.score || [0, 0];
+  return `${stampName(game.away)} @ ${stampName(game.home)} ${awayScore}-${homeScore} in the ${formatOrdinal(game.inning || 1)}`;
+}
+function describeFirstPitch(game) {
+  return `${stampName(game.away)} @ ${stampName(game.home)} first pitch at ${formatClock(game.start)}`;
+}
+function describeGame(game) {
+  if (game.state === "final") return describeFinal(game);
+  if (game.state === "live") return describeLive(game);
+  return describeFirstPitch(game);
+}
+
+function describeSlate(games) {
   if (games.length < 3) return "";
-  return games.every((g) => g.state === "final")
+  return games.every((game) => game.state === "final")
     ? `slate of ${games.length} over`
     : `slate of ${games.length} under way`;
 }
-const withClause = (phrase, clause) => (clause ? `${phrase}, ${clause}` : phrase);
+const joinClause = (phrase, clause) => (clause ? `${phrase}, ${clause}` : phrase);
 
-function gameRank(g, ctx) {
-  const r = [g.away, g.home].map((id) => ctx.ranking.indexOf(id)).filter((i) => i >= 0);
-  return r.length ? Math.min(...r) : Infinity;
+function rankGame(game, context) {
+  const ranks = [game.away, game.home]
+    .map((id) => context.ranking.indexOf(id))
+    .filter((index) => index >= 0);
+  return ranks.length ? Math.min(...ranks) : Infinity;
 }
-function gameAlive(g, ctx) {
-  return ctx.alive(g.away) || ctx.alive(g.home) ? 0 : 1;
-}
-const stampMs = (iso) => Date.parse(iso);
-function pick(games, ctx, order) {
-  const keys = {
-    latestEnd: (g) => -stampMs(g.end),
-    earliest: (g) => stampMs(g.start),
-    latestStart: (g) => -stampMs(g.start),
-    rank: (g) => gameRank(g, ctx),
-    alive: (g) => gameAlive(g, ctx),
+const rankAlive = (game, context) => (context.alive(game.away) || context.alive(game.home) ? 0 : 1);
+const parseTime = (iso) => Date.parse(iso);
+
+function pickGame(games, context, order) {
+  const sortKeys = {
+    latestEnd: (game) => -parseTime(game.end),
+    earliest: (game) => parseTime(game.start),
+    latestStart: (game) => -parseTime(game.start),
+    rank: (game) => rankGame(game, context),
+    alive: (game) => rankAlive(game, context),
   };
-  return games.slice().sort((x, y) => {
-    for (const k of order) {
-      const d = keys[k](x) - keys[k](y);
-      if (d) return d;
+  return games.slice().sort((first, second) => {
+    for (const key of order) {
+      const difference = sortKeys[key](first) - sortKeys[key](second);
+      if (difference) return difference;
     }
     return 0;
   })[0];
@@ -69,68 +73,72 @@ const PICK_ENDED = ["latestEnd", "rank", "alive"];
 const PICK_UNDER_WAY = ["rank", "alive", "latestStart"];
 const PICK_STARTS = ["earliest", "rank", "alive"];
 
-export function lastStampText(slate, ctx) {
+function describeLastFinal(lastFinal, now) {
+  if (!lastFinal || !lastFinal.end) return "";
+  const days = countDaysBetween(new Date(lastFinal.end), now);
+  const when = days <= 1 ? "last night" : DAYS[new Date(lastFinal.start || lastFinal.end).getDay()];
+  return `No games since ${describeFinal(lastFinal, when)}`;
+}
+
+// With three or more games, one leads the line: a fresh final, else a live game, else the latest final.
+function pickLeadGame(slate, started, context) {
+  const since = slate.since ? parseTime(slate.since) : -Infinity;
+  const finals = started.filter((game) => game.state === "final");
+  const fresh = finals.filter((game) => parseTime(game.end) > since);
+  const live = started.filter((game) => game.state === "live");
+  if (fresh.length) return pickGame(fresh, context, PICK_ENDED);
+  if (live.length) return pickGame(live, context, PICK_UNDER_WAY);
+  return pickGame(finals, context, PICK_ENDED);
+}
+
+export function lastStampText(slate, context) {
   const games = (slate.today && slate.today.games) || [];
-  const started = games.filter((g) => g.state !== "pre");
-  if (!started.length) {
-    const lf = slate.lastFinal;
-    if (!lf || !lf.end) return "";
-    const days = countDaysBetween(new Date(lf.end), ctx.now);
-    const when = days <= 1 ? "last night" : DAYS[new Date(lf.start || lf.end).getDay()];
-    return `No games since ${finalPhrase(lf, when)}`;
-  }
-  const note = (g) => (g.state === "final" && ctx.seriesNote && ctx.seriesNote(g)) || "";
+  const started = games.filter((game) => game.state !== "pre");
+  if (!started.length) return describeLastFinal(slate.lastFinal, context.now);
+  const describeWithNote = (game) =>
+    describeGame(game) + ((game.state === "final" && context.seriesNote?.(game)) || "");
   if (games.length <= 2) {
     return started
       .slice()
-      .sort((x, y) => stampMs(x.start) - stampMs(y.start))
-      .map((g) => gamePhrase(g) + note(g))
+      .sort((first, second) => parseTime(first.start) - parseTime(second.start))
+      .map(describeWithNote)
       .join(", ");
   }
-  const since = slate.since ? stampMs(slate.since) : -Infinity;
-  const finals = started.filter((g) => g.state === "final");
-  const fresh = finals.filter((g) => stampMs(g.end) > since);
-  const live = started.filter((g) => g.state === "live");
-  const g = fresh.length
-    ? pick(fresh, ctx, PICK_ENDED)
-    : live.length
-      ? pick(live, ctx, PICK_UNDER_WAY)
-      : pick(finals, ctx, PICK_ENDED);
-  return withClause(gamePhrase(g) + note(g), slateClause(games));
+  return joinClause(describeWithNote(pickLeadGame(slate, started, context)), describeSlate(games));
 }
 
-export function upNextText(slate, ctx) {
+export function upNextText(slate, context) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
-  if (days.some((d) => (d.games || []).some((g) => g.state === "live"))) return null;
+  if (days.some((day) => (day.games || []).some((game) => game.state === "live"))) return null;
   for (const day of days) {
     const games = day.games || [];
-    const ahead = games.filter((g) => g.state === "pre");
+    const ahead = games.filter((game) => game.state === "pre");
     if (!ahead.length) continue;
-    const g = pick(ahead, ctx, PICK_STARTS);
-    const what = `${stampName(g.away)} @ ${stampName(g.home)}`;
-    const begun = games.some((x) => x.state !== "pre");
+    const game = pickGame(ahead, context, PICK_STARTS);
+    const matchup = `${stampName(game.away)} @ ${stampName(game.home)}`;
+    const hasBegun = games.some((other) => other.state !== "pre");
     return {
-      at: g.start,
-      tbd: !!g.tbd,
-      text: !begun && games.length >= 3 ? `${what}, first of ${games.length}` : what,
+      at: game.start,
+      tbd: !!game.tbd,
+      text: !hasBegun && games.length >= 3 ? `${matchup}, first of ${games.length}` : matchup,
     };
   }
   return null;
 }
 
-export function stampWhen(d, now = new Date()) {
-  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const day = stampDay(d, now);
+export function stampWhen(date, now = new Date()) {
+  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const day = stampDay(date, now);
   return day === "today" ? time : `${day} ${time}`;
 }
-export function stampWhenHtml(d, now = new Date()) {
-  return stampWhen(d, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
+export function stampWhenHtml(date, now = new Date()) {
+  return stampWhen(date, now).replace(/^(.*\d)\s*(\D+)$/, '$1<span class="ap">$2</span>');
 }
-export function stampDay(d, now = new Date()) {
-  const days = countDaysBetween(d, now);
+export function stampDay(date, now = new Date()) {
+  const days = countDaysBetween(date, now);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
   if (days === -1) return "tomorrow";
-  if (Math.abs(days) < 7) return DAYS[d.getDay()];
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  if (Math.abs(days) < 7) return DAYS[date.getDay()];
+  return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }

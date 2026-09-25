@@ -179,6 +179,58 @@ test("a batch gets one answer per request", async () => {
   );
 });
 
+test("params that aren't an object get a JSON-RPC error, not a crash", async () => {
+  const { w } = worker();
+  for (const params of [null, 5, "x", []]) {
+    const res = await rpc(w, { jsonrpc: "2.0", id: 1, method: "initialize", params });
+    assert.equal(res.status, 200, JSON.stringify(params));
+    const answer = await res.json();
+    assert.equal(answer.error?.code ?? null, params === null ? null : -32602);
+  }
+  const { error } = await (
+    await rpc(w, {
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { name: "get_snapshot", arguments: [] },
+    })
+  ).json();
+  assert.equal(error.code, -32602);
+});
+
+test("a batch is capped, so one request can't fan out into many trips to MLB", async () => {
+  const { w, mlb } = worker();
+  const seasons = Array.from({ length: 11 }, (_, index) => 2000 + index);
+  const res = await rpc(
+    w,
+    seasons.map((season, index) => call(index, "get_snapshot", { season })),
+  );
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error.code, -32600);
+  assert.equal(mlb.calls.length, 0);
+});
+
+test("the size limit counts bytes, and a declared length over it is refused unread", async () => {
+  const { w } = worker();
+  const wide = JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "ping",
+    pad: "\u00e9".repeat(40000),
+  });
+  assert.ok(wide.length < 64 * 1024);
+  assert.equal((await rpc(w, wide)).status, 413);
+  const declared = await w.fetch(
+    new Request("https://mlb-live.example/mcp", {
+      method: "POST",
+      headers: { "content-length": String(1024 * 1024) },
+      body: "{}",
+    }),
+    {},
+  );
+  assert.equal(declared.status, 413);
+});
+
 test("GET on the MCP endpoint is refused; /snapshot answers plain HTTP", async () => {
   const { w } = worker();
   const get = await w.fetch(new Request("https://mlb-live.example/mcp"), {});
