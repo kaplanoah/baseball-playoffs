@@ -18,11 +18,13 @@ function ordinal(n){
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-/* Every game carries its state, and the state carries its clock. */
-function finalPhrase(g, when){
+/* Every game carries its state, and the state carries its clock. A final
+   from an earlier day keeps its clock and adds the day: "final at 1:30 AM
+   last night". */
+function finalPhrase(g, day){
   const [a, h] = g.score || [0, 0];
   const [w, wr, l, lr] = a > h ? [g.away, a, g.home, h] : [g.home, h, g.away, a];
-  return `${stampName(w)} ${wr} ${stampName(l)} ${lr} final ${when || "at " + stampClock(g.end)}`;
+  return `${stampName(w)} ${wr} ${stampName(l)} ${lr} final at ${stampClock(g.end)}${day ? " " + day : ""}`;
 }
 function livePhrase(g){
   const [a, h] = g.score || [0, 0];
