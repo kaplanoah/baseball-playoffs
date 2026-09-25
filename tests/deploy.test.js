@@ -19,13 +19,14 @@ const ANSWER_INITIALIZE = () =>
 const skipPause = async () => {};
 
 /**
- * @param {{ refuse?: string, isNew?: boolean, answerConnector?: () => Response, refuseRollback?: boolean }} [options]
+ * @param {{ refuse?: string, isNew?: boolean, answerConnector?: () => Response, refuseRollback?: boolean, migrationTag?: string }} [options]
  */
 function createFakeCloudflare({
   refuse,
   isNew = false,
   answerConnector = ANSWER_INITIALIZE,
   refuseRollback = false,
+  migrationTag,
 } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -55,6 +56,8 @@ function createFakeCloudflare({
     }
     let result = {};
     if (url.endsWith("/workers/subdomain")) result = { subdomain: "nokap" };
+    if (url.endsWith("/workers/scripts"))
+      result = isNew ? [] : [{ id: "mlb-live", migration_tag: migrationTag }];
     if (isDeployments && init.method === "GET") result = { deployments: LIVE_DEPLOYMENTS };
     return new Response(JSON.stringify({ success: true, result }));
   };
@@ -83,27 +86,65 @@ test("upload, route, and the connector URL", async () => {
   assert.equal(url, CONNECTOR_URL);
   assert.deepEqual(describeCalls(cloudflare.calls), [
     "GET /accounts/acct123/workers/scripts/mlb-live/deployments",
+    "GET /accounts/acct123/workers/scripts",
     "PUT /accounts/acct123/workers/scripts/mlb-live",
     "POST /accounts/acct123/workers/scripts/mlb-live/subdomain",
     "GET /accounts/acct123/workers/subdomain",
     `POST ${CONNECTOR_URL}`,
   ]);
 
-  const form = cloudflare.calls[1].init.body;
+  const form = cloudflare.calls[2].init.body;
   const metadata = JSON.parse(await form.get("metadata").text());
   assert.deepEqual(metadata, {
     main_module: "worker.mjs",
     compatibility_date: "2026-09-01",
     observability: { enabled: true },
+    bindings: [{ type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" }],
+    keep_bindings: ["secret_text"],
+    migrations: { new_tag: "v1", steps: [{ new_sqlite_classes: ["SeasonStore"] }] },
   });
   const file = form.get("worker.mjs");
   assert.equal(file.type, "application/javascript+module");
   assert.equal(await file.text(), "export default {}");
-  assert.deepEqual(JSON.parse(cloudflare.calls[2].init.body), {
+  assert.deepEqual(JSON.parse(cloudflare.calls[3].init.body), {
     enabled: true,
     previews_enabled: false,
   });
-  assert.equal(JSON.parse(cloudflare.calls[4].init.body).method, "initialize");
+  assert.equal(JSON.parse(cloudflare.calls[5].init.body).method, "initialize");
+});
+
+test("a migration already applied isn't sent again", async () => {
+  const { deploy, listPendingMigrations } = await loadDeployModule();
+  assert.equal(listPendingMigrations("v1"), null);
+  assert.deepEqual(listPendingMigrations(undefined), {
+    old_tag: undefined,
+    new_tag: "v1",
+    steps: [{ new_sqlite_classes: ["SeasonStore"] }],
+  });
+
+  const cloudflare = createFakeCloudflare({ migrationTag: "v1" });
+  await deploy({
+    fetchImpl: cloudflare.fetchImpl,
+    env: ENV,
+    script: "",
+    log: () => {},
+    pause: skipPause,
+  });
+  const metadata = JSON.parse(await cloudflare.calls[2].init.body.get("metadata").text());
+  assert.equal(metadata.migrations, undefined);
+});
+
+test("wrangler.toml declares the same store binding and migrations", async () => {
+  const { MIGRATIONS } = await loadDeployModule();
+  const toml = readFileSync(`${import.meta.dirname}/../worker/wrangler.toml`, "utf8");
+  assert.match(
+    toml,
+    /\[\[durable_objects\.bindings\]\]\nname = "STORE"\nclass_name = "SeasonStore"/,
+  );
+  for (const { tag, new_sqlite_classes: classes } of MIGRATIONS) {
+    const declared = `[[migrations]]\ntag = "${tag}"\nnew_sqlite_classes = ${JSON.stringify(classes)}`;
+    assert.ok(toml.includes(declared), declared);
+  }
 });
 
 test("a token is sent only when one is in the environment", async () => {

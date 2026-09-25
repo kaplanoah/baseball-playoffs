@@ -38,6 +38,24 @@ export function checkRelease(
 
 const NO_CREDENTIALS = new Set([9106, 1001]);
 
+const STORE_BINDING = {
+  type: "durable_object_namespace",
+  name: "STORE",
+  class_name: "SeasonStore",
+};
+// Cloudflare records the last tag applied and rejects an upload that repeats one.
+export const MIGRATIONS = [{ tag: "v1", new_sqlite_classes: ["SeasonStore"] }];
+
+export function listPendingMigrations(appliedTag) {
+  const pending = MIGRATIONS.slice(MIGRATIONS.findIndex(({ tag }) => tag === appliedTag) + 1);
+  if (!pending.length) return null;
+  return {
+    old_tag: appliedTag,
+    new_tag: pending.at(-1).tag,
+    steps: pending.map(({ tag, ...step }) => step),
+  };
+}
+
 export async function deploy({
   fetchImpl = fetch,
   env = process.env,
@@ -106,7 +124,12 @@ export async function deploy({
     return newest.versions.map(({ version_id, percentage }) => ({ version_id, percentage }));
   }
 
-  async function uploadWorker() {
+  async function readMigrationTag() {
+    const scripts = await callCloudflare("migration tag", `${base}/scripts`, { method: "GET" });
+    return scripts.find((stored) => stored.id === name)?.migration_tag;
+  }
+
+  async function uploadWorker(migrations) {
     const form = new FormData();
     form.append(
       "metadata",
@@ -116,6 +139,9 @@ export async function deploy({
             main_module: "worker.mjs",
             compatibility_date: compatibilityDate,
             observability: { enabled: true },
+            bindings: [STORE_BINDING],
+            keep_bindings: ["secret_text"],
+            ...(migrations && { migrations }),
           }),
         ],
         { type: "application/json" },
@@ -169,7 +195,8 @@ export async function deploy({
   }
 
   const previousVersions = await findLiveVersions();
-  await uploadWorker();
+  const migrations = listPendingMigrations(await readMigrationTag());
+  await uploadWorker(migrations);
   await enableWorkersDevRoute();
   const url = await readConnectorUrl();
   await confirmConnectorAnswers(url, previousVersions);

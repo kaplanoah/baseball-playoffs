@@ -815,8 +815,142 @@ function createWorker({
   return { fetch: routeRequest };
 }
 
+// worker/src/store.js
+var NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+var MAX_BODY_BYTES2 = 64 * 1024;
+var MAX_LISTED = 100;
+var isPlainObject2 = (value) => !!value && typeof value === "object" && !Array.isArray(value);
+function sortKeys(value) {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!isPlainObject2(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, sortKeys(value[key])])
+  );
+}
+function mergeFields(stored, fields) {
+  const merged = { ...stored };
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === null) delete merged[key];
+    else if (isPlainObject2(value))
+      merged[key] = mergeFields(isPlainObject2(merged[key]) ? merged[key] : {}, value);
+    else merged[key] = value;
+  }
+  return merged;
+}
+var respondJson2 = (body, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { "content-type": "application/json", "cache-control": "no-store" }
+});
+var respondError = (status, code, message) => respondJson2({ error: { code, message } }, status);
+async function readObjectBody(request) {
+  const declared = Number(request.headers.get("content-length"));
+  if (declared > MAX_BODY_BYTES2) return { status: 413, message: "The document is too large." };
+  const text = await request.text();
+  if (text.length > MAX_BODY_BYTES2) return { status: 413, message: "The document is too large." };
+  try {
+    const body = JSON.parse(text);
+    if (isPlainObject2(body)) return { body };
+  } catch {
+  }
+  return { status: 400, message: "The body must be a JSON object." };
+}
+function readPath2(pathname) {
+  const [, root, collection, id, ...rest] = pathname.split("/");
+  const isValid = root === "store" && NAME_PATTERN.test(collection || "") && (id === void 0 || NAME_PATTERN.test(id)) && !rest.length;
+  return isValid ? { collection, id } : null;
+}
+function openWatchSocket(ctx) {
+  const [client, server] = Object.values(new WebSocketPair());
+  ctx.acceptWebSocket(server);
+  return new Response(null, { status: 101, webSocket: client });
+}
+var SeasonStore = class {
+  constructor(ctx, env, { openSocket = openWatchSocket } = {}) {
+    this.ctx = ctx;
+    this.openSocket = openSocket;
+  }
+  async fetch(request) {
+    const { pathname, searchParams } = new URL(request.url);
+    if (pathname === "/watch") return this.acceptWatcher(request);
+    const path = readPath2(pathname);
+    if (!path) return respondError(404, "not_found", "No such path.");
+    if (path.id === void 0) {
+      if (request.method !== "GET") return respondError(405, "method_not_allowed", "GET only.");
+      return this.listDocs(path.collection, searchParams);
+    }
+    const key = `${path.collection}/${path.id}`;
+    if (request.method === "GET") return this.readDoc(key);
+    if (request.method === "PUT") return this.replaceDoc(key, request);
+    if (request.method === "PATCH") return this.updateDoc(key, request);
+    return respondError(405, "method_not_allowed", "GET, PUT, or PATCH only.");
+  }
+  acceptWatcher(request) {
+    if (request.headers.get("upgrade") !== "websocket")
+      return respondError(426, "upgrade_required", "Open this path as a WebSocket.");
+    return this.openSocket(this.ctx);
+  }
+  async listDocs(collection, searchParams) {
+    const requested = Number(searchParams.get("limit")) || MAX_LISTED;
+    const limit = Math.min(Math.max(requested, 1), MAX_LISTED);
+    const stored = await this.ctx.storage.list({ prefix: `${collection}/`, limit });
+    const docs = [...stored].map(([key, data]) => ({ id: key.slice(collection.length + 1), data }));
+    return respondJson2({ docs });
+  }
+  async readDoc(key) {
+    const data = await this.ctx.storage.get(key);
+    return respondJson2({ data: data ?? null });
+  }
+  async replaceDoc(key, request) {
+    const { body, status, message } = await readObjectBody(request);
+    if (!body) return respondError(status, "invalid_argument", message);
+    return this.saveDoc(key, body);
+  }
+  async updateDoc(key, request) {
+    const { body, status, message } = await readObjectBody(request);
+    if (!body) return respondError(status, "invalid_argument", message);
+    const stored = await this.ctx.storage.get(key);
+    if (stored === void 0)
+      return respondError(404, "invalid_argument", "Update needs a document that exists.");
+    return this.saveDoc(key, mergeFields(stored, body));
+  }
+  async saveDoc(key, doc) {
+    const data = sortKeys(doc);
+    await this.ctx.storage.put(key, data);
+    this.announceChange(key, data);
+    return new Response(null, { status: 204 });
+  }
+  announceChange(path, data) {
+    const message = JSON.stringify({ path, data });
+    for (const socket of this.ctx.getWebSockets()) {
+      try {
+        socket.send(message);
+      } catch {
+      }
+    }
+  }
+};
+function forwardToStore(request, env, storePath) {
+  const url = new URL(request.url);
+  url.pathname = storePath;
+  const store = env.STORE.get(env.STORE.idFromName("store"));
+  return store.fetch(new Request(url, request));
+}
+
 // worker/src/index.js
-var index_default = createWorker();
+var connector = createWorker();
+function findStorePath(pathname, appKey) {
+  if (!appKey) return null;
+  const prefix = `/${appKey}`;
+  const isStorePath = pathname === `${prefix}/watch` || pathname.startsWith(`${prefix}/store/`);
+  return isStorePath ? pathname.slice(prefix.length) : null;
+}
+var index_default = {
+  fetch(request, env = {}) {
+    const storePath = findStorePath(new URL(request.url).pathname, env.APP_KEY);
+    return storePath ? forwardToStore(request, env, storePath) : connector.fetch(request, env);
+  }
+};
 export {
+  SeasonStore,
   index_default as default
 };

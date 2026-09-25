@@ -8,3 +8,12 @@ no_bundle = true
 enabled = true
 
 # Optional: `npx wrangler secret put CONNECTOR_KEY` moves the endpoint to /mcp/<key>. See the README.
+
+# worker/deploy.mjs declares the same binding and migrations for npm run deploy:api.
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "SeasonStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SeasonStore"]
