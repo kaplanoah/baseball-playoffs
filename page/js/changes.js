@@ -33,6 +33,18 @@ function findResult(games, club) {
   return { team: club, won: own > theirs, opp: opponent, score: [own, theirs], end: game.end };
 }
 
+// A game explains a change only in the direction it pushed: a win for a club that gained, a
+// loss for one that lost ground.
+function findWin(games, club) {
+  const result = findResult(games, club);
+  return result && result.won ? result : null;
+}
+
+function findLoss(games, club) {
+  const result = findResult(games, club);
+  return result && !result.won ? result : null;
+}
+
 function findLatestEnd(games) {
   const ends = games.map((game) => game.end).filter((end) => !Number.isNaN(Date.parse(end)));
   return ends.sort((first, second) => Date.parse(first) - Date.parse(second)).pop() || null;
@@ -68,7 +80,7 @@ function describeSwap(id, gone, newTeams, rows, games, now) {
     const back = findClosestRoute(goneRow);
     if (back != null) fields.outBack = back;
   }
-  return createEntry(fields, [findResult(games, id), findResult(games, gone)], now);
+  return createEntry(fields, [findWin(games, id), findLoss(games, gone)], now);
 }
 
 function findSeedRises(leagueTeams, oldTeams, games, now) {
@@ -81,8 +93,8 @@ function findSeedRises(leagueTeams, oldTeams, games, now) {
     );
     const isSwapOnly = moved.length === 1 && passed.length === 1;
     if (isSwapOnly) fields.over = passed[0][0];
-    const overResult = isSwapOnly ? findResult(games, fields.over) : null;
-    return createEntry(fields, [findResult(games, id), overResult], now);
+    const overLoss = isSwapOnly ? findLoss(games, fields.over) : null;
+    return createEntry(fields, [findWin(games, id), overLoss], now);
   });
 }
 
@@ -153,20 +165,14 @@ function findStandingsChanges(before, after, games, now) {
     if (!berth) continue;
     const fields = { kind: "berth", team: id, what: berth };
     if (berth === "division") fields.div = row.div;
-    const own = findResult(games, id);
-    changes.push(createEntry(fields, [own && own.won ? own : null], now));
+    changes.push(createEntry(fields, [findWin(games, id)], now));
   }
   for (const [id, row] of clubs) {
     const oldRow = before[id];
     if (!isOutOfIt(row) || isOutOfIt(oldRow)) continue;
-    const own = findResult(games, id);
-    const chaser = findResult(games, findChaser(oldRow, row, after));
+    const chaser = findChaser(oldRow, row, after);
     changes.push(
-      createEntry(
-        { kind: "elim", team: id },
-        [own && !own.won ? own : null, chaser && chaser.won ? chaser : null],
-        now,
-      ),
+      createEntry({ kind: "elim", team: id }, [findLoss(games, id), findWin(games, chaser)], now),
     );
   }
   return changes;

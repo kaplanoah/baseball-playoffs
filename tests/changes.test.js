@@ -206,6 +206,42 @@ test("seeds: a pass inside the field names who was passed and why", () => {
   );
 });
 
+test("a pass names only the games that helped: not the loss of the club that rose", () => {
+  const nationalLeagueTeams = {
+    PHI: { league: "NL", seed: 5 },
+    CHC: { league: "NL", seed: 6 },
+  };
+  const now = { PHI: { league: "NL", seed: 6 }, CHC: { league: "NL", seed: 5 } };
+  assert.deepEqual(
+    findTableChanges(BEFORE, BEFORE, nationalLeagueTeams, now, [
+      createFinal("CHC", "BOS", [3, 4]),
+      createFinal("PHI", "TB", [0, 2]),
+    ]),
+    [
+      {
+        kind: "seed",
+        team: "CHC",
+        from: 6,
+        to: 5,
+        over: "PHI",
+        via: [{ team: "PHI", won: false, opp: "TB", score: [0, 2] }],
+      },
+    ],
+  );
+});
+
+test("a wild card taken by a club that lost names only the loss of the club it passed", () => {
+  let after = updateRow(BEFORE, "TEX", { wcrank: "3", wcgb: "-", wce: "-" });
+  after = updateRow(after, "CWS", { wcrank: "4", wcgb: "0.5", wce: "3" });
+  const teams = { ...TEAMS, TEX: { league: "AL", seed: 6 } };
+  delete teams.CWS;
+  const [entry] = findTableChanges(BEFORE, after, TEAMS, teams, [
+    createFinal("TEX", "NYM", [1, 2]),
+    createFinal("CWS", "KC", [2, 5]),
+  ]);
+  assert.deepEqual(entry.via, [{ team: "CWS", won: false, opp: "KC", score: [2, 5] }]);
+});
+
 test("a division lead changes hands inside the field: one seed entry, the club that rose", () => {
   const now = { ...TEAMS, CWS: { league: "AL", seed: 2 }, CLE: { league: "AL", seed: 6 } };
   assert.deepEqual(
