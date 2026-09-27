@@ -42,6 +42,7 @@ function describeInning(game) {
 }
 
 function describeStatus(game) {
+  if (game.delay) return game.delay;
   if (game.state === "final") return "Final";
   if (game.state === "live") return describeInning(game);
   return "";
@@ -92,7 +93,7 @@ function renderGame(game) {
   const isFinal = game.state === "final";
   const awayLost = isFinal && awayScore < homeScore;
   const homeLost = isFinal && homeScore < awayScore;
-  return html`<li class="game-row ${game.state}">
+  return html`<li class="game-row ${game.state} ${game.delay ? "delayed" : ""}">
     ${renderSide(game.away, "away", awayLost)}
     ${renderMiddle(game, awayLost, homeLost)}
     ${renderSide(game.home, "home", homeLost)}

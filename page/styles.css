@@ -598,6 +598,9 @@ table.st .seed-cell {
 .game-row.live .game-status {
   color: var(--copper-ink);
 }
+.game-row.delayed .game-status {
+  color: var(--gold);
+}
 .game-row .lost {
   color: var(--ink-dim);
   font-weight: 400;

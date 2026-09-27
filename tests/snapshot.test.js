@@ -285,6 +285,32 @@ test("a rainout is neither a final nor on the slate", () => {
   );
 });
 
+test("a delay before or during a game carries its cause", () => {
+  const fixture = JSON.parse(JSON.stringify(EVENING));
+  const day = fixture.responses.schedule.dates.find(
+    (scheduleDate) => scheduleDate.date === "2026-09-24",
+  );
+  const [upcoming, underway] = [
+    day.games.find((game) => game.status.abstractGameState === "Preview"),
+    day.games.find((game) => game.status.abstractGameState === "Live"),
+  ];
+  upcoming.status = {
+    ...upcoming.status,
+    codedGameState: "P",
+    detailedState: "Delayed Start",
+    reason: "Rain",
+  };
+  underway.status = { ...underway.status, codedGameState: "I", detailedState: "Delayed" };
+  const { slate } = buildSnapshot(fixture);
+  const delays = slate.today.games
+    .filter((game) => game.delay)
+    .map((game) => [game.state, game.delay]);
+  assert.deepEqual(delays.sort(), [
+    ["live", "Delayed"],
+    ["pre", "Delayed: Rain"],
+  ]);
+});
+
 const listClubsIn = (games) => games.flatMap((game) => [game.away, game.home]).filter(Boolean);
 const describeGame = (game) =>
   `${game.date} ${game.away}@${game.home}` + (game.doubleheader ? ` G${game.doubleheader}` : "");
