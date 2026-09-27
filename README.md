@@ -136,7 +136,9 @@ runs the tests, in Node and in a browser, on every pull request, so merge once
 those pass and the pull request has no conflicts with `main`. If the repo has a
 `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret, Claude also reviews each
 new pull request and comments on bugs, rule breaks, security problems, and
-missing tests. Its comments are advice, not a required check. To run the
+missing tests. To have it review a pull request again after later pushes, add
+the `review` label; it takes the label off when it starts. Its comments are
+advice, not a required check. To run the
 same checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
