@@ -388,3 +388,15 @@ test("on a phone, a screen reader's bare click still switches tabs", async ({ pa
   await expect(page.getByRole("tab", { name: "Games" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#view-games")).toBeVisible();
 });
+
+test("on a phone, even a page shorter than the screen can scroll", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await expect(page.locator("#view-bracket")).toBeVisible();
+
+  const { scrollHeight, clientHeight } = await page.evaluate(() => ({
+    scrollHeight: document.scrollingElement.scrollHeight,
+    clientHeight: document.scrollingElement.clientHeight,
+  }));
+  expect(scrollHeight).toBeGreaterThan(clientHeight);
+});
