@@ -1,4 +1,5 @@
 import { canBendBackdrop, fitLens } from "./glass-lens.js";
+import { readSelectedTab } from "./tabs.js";
 
 // Matches the phone layout in styles.css, where the tabs float at the bottom as a glass bar.
 const FLOATING_QUERY = matchMedia("(max-width: 779px)");
@@ -88,8 +89,6 @@ const findPillRow = () => /** @type {HTMLElement} */ (findBar().querySelector(".
 const findTabButtons = () =>
   /** @type {HTMLButtonElement[]} */ ([...findList().querySelectorAll("[role=tab]")]);
 const readTabs = () => findTabButtons().map((button) => button.dataset.tab);
-const readSelectedTab = () =>
-  findTabButtons().find((button) => button.classList.contains("active"))?.dataset.tab;
 
 const isFloating = () => FLOATING_QUERY.matches;
 const isCalm = () => REDUCED_MOTION_QUERY.matches;
@@ -335,12 +334,14 @@ function endPress(event) {
   Object.assign(press, { isActive: false, isDragging: false, lastMoveTime: 0 });
   motion.glow.target = 0;
   if (event.type === "pointercancel") {
-    travelTo(readSelectedTab());
+    travelTo(readSelectedTab(findTabButtons()));
     return;
   }
   if (wasDragging) travelTo(tab);
   press.choseAt = performance.now();
-  chooseTab(tab);
+  // Only a tap on the selected tab asks it to scroll to the top, not a drag that wanders back.
+  const isDragBackToSelected = wasDragging && tab === readSelectedTab(findTabButtons());
+  if (!isDragBackToSelected) chooseTab(tab);
   startMotion();
 }
 
@@ -352,7 +353,7 @@ function ignorePressClicks(event) {
 }
 
 function snapPillToSelectedTab() {
-  const x = findPillX(readSelectedTab());
+  const x = findPillX(readSelectedTab(findTabButtons()));
   Object.assign(motion.x, { value: x, target: x, velocity: 0 });
   paintPill();
 }

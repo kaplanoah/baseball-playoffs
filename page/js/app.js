@@ -21,10 +21,10 @@ import { hasSpringStarted, session, seasonYear } from "./session.js";
 import { easternDay } from "./snapshot.js";
 import { openSetup, saveSetup } from "./setup.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
+import { scrollToTop } from "./scroll-to-top.js";
 import { renderStandings } from "./standings.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
-import { selectTab, wireTabs } from "./tabs.js";
-import { wireViewportReadout } from "./viewport-readout.js";
+import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
 import { createWorkerStore, isSelfHosted } from "./worker-store.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
@@ -60,6 +60,12 @@ function switchTab(tab) {
   showTab(tab);
   moveTabSelection(tab);
   saveLastTab(tab);
+}
+
+// As on iPhone, choosing the tab that's already showing scrolls it back to the top.
+function chooseTab(tab) {
+  if (tab === readSelectedTab(findTabButtons())) scrollToTop();
+  else switchTab(tab);
 }
 
 // Runs before the tab bar starts, so its pill starts on the reopened tab instead of sliding there.
@@ -172,9 +178,8 @@ function finishReordering(order) {
 
 function wireControls() {
   reopenLastTab();
-  wireTabs(findTabButtons(), switchTab);
-  startTabBar(switchTab);
-  wireViewportReadout();
+  wireTabs(findTabButtons(), chooseTab);
+  startTabBar(chooseTab);
   wireGameTabs();
   const picker = findYearPicker();
   picker.addEventListener("change", () => switchYear(Number(picker.value)));
