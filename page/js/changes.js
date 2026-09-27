@@ -1,3 +1,5 @@
+import { hasWonDivision } from "./snapshot.js";
+
 export const MAX_LOG = 50;
 
 const isOutOfIt = (row) => !!row && row.elim === "E" && row.wce === "E";
@@ -129,14 +131,23 @@ function findFieldChanges(oldTeams, newTeams, rows, games, at, logSeeds) {
   return changes;
 }
 
-// Each step up MLB's clinch marker is its own news. A wild card after a playoff spot
-// only rules out the division, so it shares the playoff spot's rank.
-const CLINCH = { x: ["playoff", 1], w: ["wildcard", 1], y: ["division", 2], z: ["bye", 3] };
+// Each step up is its own news. A wild card after a playoff spot only rules out the
+// division, so it shares the playoff spot's rank.
+const BERTH_RANKS = { playoff: 1, wildcard: 1, division: 2, bye: 3 };
+const CLINCH_MARKERS = new Set(["x", "w", "y", "z"]);
 
-function findBerthWon(oldRow, row) {
-  const now = CLINCH[row.clinch];
-  const was = CLINCH[oldRow.clinch];
-  return now && now[1] > (was ? was[1] : 0) ? now[0] : null;
+// MLB's clinch marker says a club is in, but the division comes from the standings.
+function readBerth(row, rows) {
+  const divisionRows = Object.values(rows).filter((other) => other.div === row.div);
+  if (hasWonDivision(row, divisionRows)) return row.clinch === "z" ? "bye" : "division";
+  if (row.clinch === "w") return "wildcard";
+  return CLINCH_MARKERS.has(row.clinch) ? "playoff" : null;
+}
+
+function findBerthWon(before, after, id) {
+  const now = readBerth(after[id], after);
+  const was = readBerth(before[id], before);
+  return now && BERTH_RANKS[now] > (was ? BERTH_RANKS[was] : 0) ? now : null;
 }
 
 function findChaser(oldRow, row, after) {
@@ -150,7 +161,7 @@ function findStandingsChanges(before, after, games, at) {
   const changes = [];
   const clubs = Object.entries(after).filter(([id]) => before[id]);
   for (const [id, row] of clubs) {
-    const berth = findBerthWon(before[id], row);
+    const berth = findBerthWon(before, after, id);
     if (!berth) continue;
     const fields = { kind: "berth", team: id, what: berth };
     if (berth === "division") fields.div = row.div;
