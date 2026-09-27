@@ -40,6 +40,29 @@ h3 {
   margin: 0;
   letter-spacing: 0.01em;
 }
+/* A temporary viewport readout, shown by triple-tapping the title (viewport-readout.js). */
+header.top h1 {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.viewport-readout {
+  position: fixed;
+  z-index: 40;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 8px;
+  right: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.88);
+  color: #fff;
+  font:
+    11px/1.45 ui-monospace,
+    monospace;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
 .tabular {
   font-variant-numeric: tabular-nums;
 }
