@@ -19,7 +19,6 @@ test("the page is a whole document with what an iPhone needs to save it as an ap
   assert.ok(page.startsWith("<!doctype html>\n"));
   for (const tag of [
     'content="width=device-width, initial-scale=1, viewport-fit=cover"',
-    '<meta name="store" content="worker" />',
     '<link rel="manifest" href="manifest.webmanifest" />',
     '<link rel="apple-touch-icon" href="icon-180.png" />',
     '<meta name="apple-mobile-web-app-title" content="Postseason" />',
@@ -72,19 +71,15 @@ test("without the key, or without an APP_KEY, there is no page", async () => {
   assert.equal(await head.text(), "");
 });
 
-test("the connector still answers alongside the page", async () => {
-  const response = await worker.fetch(
-    new Request(`${ORIGIN}/mcp`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
-    }),
-    ENV,
-  );
-  assert.deepEqual(await response.json(), { jsonrpc: "2.0", id: 1, result: {} });
+test("nothing but robots.txt answers outside the key", async () => {
+  for (const path of ["/", "/mcp", "/snapshot?season=2026", "/store/seasons/2026"]) {
+    const response = await requestPage(path);
+    assert.equal(response.status, 404, path);
+    assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow", path);
+  }
 });
 
-test("the page's own snapshot route reaches the connector's snapshot", async () => {
+test("the page's snapshot route checks the season before reading MLB", async () => {
   const response = await requestPage("/k3y/snapshot?season=1800");
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /season must be a whole year/);

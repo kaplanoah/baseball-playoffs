@@ -6,32 +6,30 @@ const loadDeployModule = () => import("../worker/deploy.mjs");
 const ENV = { CLOUDFLARE_ACCOUNT_ID: "acct123" };
 
 const API = "https://api.cloudflare.com/client/v4";
-const CONNECTOR_URL = "https://mlb-live.example-subdomain.workers.dev/mcp";
+const WORKER_URL = "https://mlb-live.example-subdomain.workers.dev/";
+const ROBOTS_URL = `${WORKER_URL}robots.txt`;
 const LIVE_VERSIONS = [{ version_id: "v-live", percentage: 100 }];
 const LIVE_DEPLOYMENTS = [
   { created_on: "2026-09-24T10:00:00Z", versions: [{ version_id: "v-older", percentage: 100 }] },
   { created_on: "2026-09-25T10:00:00Z", versions: LIVE_VERSIONS },
 ];
-const ANSWER_INITIALIZE = () =>
-  new Response(
-    JSON.stringify({ jsonrpc: "2.0", id: 1, result: { serverInfo: { name: "mlb-live" } } }),
-  );
+const ANSWER_ROBOTS = () => new Response("User-agent: *\nDisallow: /\n");
 const skipPause = async () => {};
 
 /**
- * @param {{ refuse?: string, isNew?: boolean, answerConnector?: () => Response, refuseRollback?: boolean, migrationTag?: string }} [options]
+ * @param {{ refuse?: string, isNew?: boolean, answerWorker?: () => Response, refuseRollback?: boolean, migrationTag?: string }} [options]
  */
 function createFakeCloudflare({
   refuse,
   isNew = false,
-  answerConnector = ANSWER_INITIALIZE,
+  answerWorker = ANSWER_ROBOTS,
   refuseRollback = false,
   migrationTag,
 } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ url, init });
-    if (!url.startsWith(API)) return answerConnector();
+    if (!url.startsWith(API)) return answerWorker();
     const isDeployments = url.endsWith("/deployments");
     const isRefused =
       (refuse && url.includes(refuse)) ||
@@ -73,7 +71,7 @@ test("the name and compatibility date come from wrangler.toml", async () => {
   assert.throws(() => readWorkerConfig('name = "x"'), /compatibility_date/);
 });
 
-test("upload, route, and the connector URL", async () => {
+test("upload, route, and the Worker URL", async () => {
   const { deploy } = await loadDeployModule();
   const cloudflare = createFakeCloudflare();
   const url = await deploy({
@@ -83,14 +81,14 @@ test("upload, route, and the connector URL", async () => {
     log: () => {},
     pause: skipPause,
   });
-  assert.equal(url, CONNECTOR_URL);
+  assert.equal(url, WORKER_URL);
   assert.deepEqual(describeCalls(cloudflare.calls), [
     "GET /accounts/acct123/workers/scripts/mlb-live/deployments",
     "GET /accounts/acct123/workers/scripts",
     "PUT /accounts/acct123/workers/scripts/mlb-live",
     "POST /accounts/acct123/workers/scripts/mlb-live/subdomain",
     "GET /accounts/acct123/workers/subdomain",
-    `POST ${CONNECTOR_URL}`,
+    `GET ${ROBOTS_URL}`,
   ]);
 
   const form = cloudflare.calls[2].init.body;
@@ -110,7 +108,6 @@ test("upload, route, and the connector URL", async () => {
     enabled: true,
     previews_enabled: false,
   });
-  assert.equal(JSON.parse(cloudflare.calls[5].init.body).method, "initialize");
 });
 
 test("a migration already applied isn't sent again", async () => {
@@ -158,7 +155,7 @@ test("a token is sent only when one is in the environment", async () => {
     log: () => {},
     pause: skipPause,
   });
-  assert.ok(proxied.calls.every((request) => !request.init.headers.authorization));
+  assert.ok(proxied.calls.every((request) => !request.init.headers?.authorization));
 
   const local = createFakeCloudflare();
   await deploy({
@@ -168,16 +165,12 @@ test("a token is sent only when one is in the environment", async () => {
     log: () => {},
     pause: skipPause,
   });
-  const [connectorCheck, ...cloudflareCalls] = local.calls.toReversed();
+  const [workerCheck, ...cloudflareCalls] = local.calls.toReversed();
   assert.ok(
     cloudflareCalls.every((request) => request.init.headers.authorization === "Bearer t0k"),
   );
-  assert.equal(connectorCheck.url, CONNECTOR_URL);
-  assert.equal(
-    connectorCheck.init.headers.authorization,
-    undefined,
-    "the token stays with Cloudflare",
-  );
+  assert.equal(workerCheck.url, ROBOTS_URL);
+  assert.equal(workerCheck.init.headers, undefined, "the token stays with Cloudflare");
 });
 
 test("a refusal names the step and Cloudflare's reason; no account ID is caught first", async () => {
@@ -280,13 +273,13 @@ test("a first deploy has no live version to look up", async () => {
     log: () => {},
     pause: skipPause,
   });
-  assert.equal(url, CONNECTOR_URL);
+  assert.equal(url, WORKER_URL);
 });
 
-test("a connector that doesn't answer puts the live version back", async () => {
+test("a Worker that doesn't answer puts the live version back", async () => {
   const { deploy } = await loadDeployModule();
   const cloudflare = createFakeCloudflare({
-    answerConnector: () => new Response("Worker threw exception", { status: 500 }),
+    answerWorker: () => new Response("Worker threw exception", { status: 500 }),
   });
   await assert.rejects(
     deploy({
@@ -299,7 +292,7 @@ test("a connector that doesn't answer puts the live version back", async () => {
     /didn't answer, so the earlier version is live again/,
   );
   const calls = describeCalls(cloudflare.calls);
-  assert.equal(calls.filter((call) => call === `POST ${CONNECTOR_URL}`).length, 6);
+  assert.equal(calls.filter((call) => call === `GET ${ROBOTS_URL}`).length, 6);
   assert.equal(calls.at(-1), "POST /accounts/acct123/workers/scripts/mlb-live/deployments");
   assert.deepEqual(JSON.parse(cloudflare.calls.at(-1).init.body), {
     strategy: "percentage",
@@ -309,8 +302,8 @@ test("a connector that doesn't answer puts the live version back", async () => {
 
 test("a failed check says so when there's nothing to go back to, or going back fails", async () => {
   const { deploy } = await loadDeployModule();
-  const answerConnector = () => new Response("", { status: 404 });
-  const brandNew = createFakeCloudflare({ isNew: true, answerConnector });
+  const answerWorker = () => new Response("", { status: 404 });
+  const brandNew = createFakeCloudflare({ isNew: true, answerWorker });
   await assert.rejects(
     deploy({
       fetchImpl: brandNew.fetchImpl,
@@ -327,38 +320,11 @@ test("a failed check says so when there's nothing to go back to, or going back f
     ),
   );
 
-  const stuck = createFakeCloudflare({ answerConnector, refuseRollback: true });
+  const stuck = createFakeCloudflare({ answerWorker, refuseRollback: true });
   await assert.rejects(
     deploy({ fetchImpl: stuck.fetchImpl, env: ENV, script: "", log: () => {}, pause: skipPause }),
     /the new version is still live: rollback failed: 10000: Authentication error/,
   );
-});
-
-test("the check uses the connector key, and never prints it", async () => {
-  const { deploy } = await loadDeployModule();
-  const answered = createFakeCloudflare();
-  await deploy({
-    fetchImpl: answered.fetchImpl,
-    env: { ...ENV, CONNECTOR_KEY: "s3cret" },
-    script: "",
-    log: () => {},
-    pause: skipPause,
-  });
-  assert.equal(answered.calls.at(-1).url, `${CONNECTOR_URL}/s3cret`);
-
-  const silent = createFakeCloudflare({ answerConnector: () => new Response("", { status: 404 }) });
-  const printed = [];
-  await assert.rejects(
-    deploy({
-      fetchImpl: silent.fetchImpl,
-      env: { ...ENV, CONNECTOR_KEY: "s3cret" },
-      script: "",
-      log: (line) => printed.push(line),
-      pause: skipPause,
-    }),
-    (/** @type {Error} */ error) => !error.message.includes("s3cret"),
-  );
-  assert.ok(printed.every((line) => !line.includes("s3cret")));
 });
 
 function createFakeGit({

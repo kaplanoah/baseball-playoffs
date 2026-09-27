@@ -15,22 +15,21 @@
 
 - Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
 - Build page markup with the `html` template from `page/js/html.js` and write it with `setHtml`. Both escape stored and fetched text, and lint rejects any other `innerHTML` write.
-- Worker: `worker/`. It is the connector, and with an `APP_KEY` secret it also serves the page and its store at `/<APP_KEY>/`. Deploys bundle it with all of `page/`; `npm run build` writes that bundle to `worker/dist/`, which git ignores.
+- Worker: `worker/`. It serves the page, its store, and the live snapshot, only under `/<APP_KEY>/`; everything but `robots.txt` is a 404 without the key. Deploys bundle it with all of `page/`; `npm run build` writes that bundle to `worker/dist/`, which git ignores.
 - Tests: `tests/`.
 - Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript.
-- The artifact store returns documents frozen, with sorted keys. `update()` merges, so to remove a key, set it to `null`.
+- The store returns documents frozen, with sorted keys. `update()` merges, so to remove a key, set it to `null`.
 
 ## Workflow
 
 - `main` is the source of truth. Work on a branch, open a PR, and squash-merge once CI is green. Never push to another session's branch.
 - Don't spend time curating commit history. Squash merges make it irrelevant.
 - Refer to PRs by number, not branch.
-- Merges to `main` deploy the connector: CI runs `npm run deploy:api` once every check passes. To redeploy by hand, use `npm run deploy:api` and no other way.
-- Republish the page only when the user asks, from `main` to its existing link. Never publish from an unmerged branch.
-- `npm run set-app-key` gives the Worker its `APP_KEY` and prints the self-hosted page's address. `--rotate` replaces the key, which changes the address; do that only when the user asks.
+- Merges to `main` deploy the Worker: CI runs `npm run deploy:api` once every check passes. To redeploy by hand, use `npm run deploy:api` and no other way.
+- `npm run set-app-key` gives the Worker its `APP_KEY` and prints the page's address. `--rotate` replaces the key, which changes the address; do that only when the user asks.
 - The repo is public. Never commit secrets, keys, account IDs, real Worker addresses or subdomains, or personal data; use placeholders in tests and docs.
 - The Cloudflare token lives only in the cloud environment's API credentials and the repo's `production` GitHub environment. Never ask for it in chat or put it in environment variables, code, or commits.
-- Keep scratch work (design playgrounds, test harnesses) out of git, and never publish tests to the real page.
+- Keep scratch work (design playgrounds, test harnesses) out of git, and never point tests at the real page.
 - Ask when unsure.
 
 ## Writing

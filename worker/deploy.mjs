@@ -182,11 +182,11 @@ export async function deploy({
     });
   }
 
-  async function readConnectorUrl() {
+  async function readWorkerUrl() {
     const { subdomain } = await callCloudflare("subdomain", `${base}/subdomain`, {
       method: "GET",
     });
-    return `https://${name}.${subdomain}.workers.dev/mcp`;
+    return `https://${name}.${subdomain}.workers.dev/`;
   }
 
   async function rollBack(versions) {
@@ -197,69 +197,55 @@ export async function deploy({
     });
   }
 
-  async function confirmConnectorAnswers(url, previousVersions) {
-    const keyedUrl = env.CONNECTOR_KEY ? `${url}/${env.CONNECTOR_KEY}` : url;
-    if (await isConnectorAnswering(keyedUrl, { fetchImpl, pause })) {
-      log("connector check: ok");
+  async function confirmWorkerAnswers(url, previousVersions) {
+    if (await isWorkerAnswering(url, { fetchImpl, pause })) {
+      log("worker check: ok");
       return;
     }
     if (!previousVersions)
-      throw new Error(`The connector at ${url} didn't answer, and no earlier version exists.`);
+      throw new Error(`The Worker at ${url} didn't answer, and no earlier version exists.`);
     await rollBack(previousVersions).catch((error) => {
       throw new Error(
-        `The connector at ${url} didn't answer, and the new version is still live: ${error.message}`,
+        `The Worker at ${url} didn't answer, and the new version is still live: ${error.message}`,
       );
     });
-    throw new Error(`The connector at ${url} didn't answer, so the earlier version is live again.`);
+    throw new Error(`The Worker at ${url} didn't answer, so the earlier version is live again.`);
   }
 
   const previousVersions = await findLiveVersions();
   const migrations = listPendingMigrations(await readMigrationTag());
   await uploadWorker(migrations);
   await enableWorkersDevRoute();
-  const url = await readConnectorUrl();
-  await confirmConnectorAnswers(url, previousVersions);
-  log(`Connector URL: ${url}`);
+  const url = await readWorkerUrl();
+  await confirmWorkerAnswers(url, previousVersions);
+  log(`Worker URL: ${url}`);
   return url;
 }
 
 const CHECK_ATTEMPTS = 6;
 const CHECK_INTERVAL_MS = 5000;
 const CHECK_TIMEOUT_MS = 10000;
-const INITIALIZE_REQUEST = JSON.stringify({
-  jsonrpc: "2.0",
-  id: 1,
-  method: "initialize",
-  params: {
-    protocolVersion: "2025-06-18",
-    capabilities: {},
-    clientInfo: { name: "deploy-check", version: "1.0.0" },
-  },
-});
 
 const waitFor = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-async function isInitializeAnswered(url, fetchImpl) {
+// robots.txt is the one path that answers without the page's key.
+async function isRobotsAnswered(url, fetchImpl) {
   try {
-    const response = await fetchImpl(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: INITIALIZE_REQUEST,
+    const response = await fetchImpl(new URL("robots.txt", url).href, {
+      method: "GET",
       signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
     });
-    if (!response.ok) return false;
-    const body = await response.json();
-    return !!body?.result?.serverInfo;
+    return response.ok;
   } catch {
     return false;
   }
 }
 
-async function isConnectorAnswering(url, { fetchImpl = fetch, pause = waitFor } = {}) {
+async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor } = {}) {
   for (let attempt = 0; attempt < CHECK_ATTEMPTS; attempt += 1) {
     // A new version takes a few seconds to reach every Cloudflare location.
     await pause(CHECK_INTERVAL_MS);
-    if (await isInitializeAnswered(url, fetchImpl)) return true;
+    if (await isRobotsAnswered(url, fetchImpl)) return true;
   }
   return false;
 }

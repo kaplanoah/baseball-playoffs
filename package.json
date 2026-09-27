@@ -5,7 +5,7 @@
   "imports": {
     "#page-files": "./worker/page-files.mjs"
   },
-  "description": "The MLB postseason tracker page and its live-data connector. No runtime dependencies; dev tools only.",
+  "description": "The MLB postseason tracker page and the Cloudflare Worker that serves it. No runtime dependencies; dev tools only.",
   "license": "MIT",
   "engines": {
     "node": ">=22.21"

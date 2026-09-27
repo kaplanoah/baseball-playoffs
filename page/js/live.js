@@ -1,7 +1,7 @@
 import * as MLBSnapshot from "./snapshot.js";
 import { sameJson } from "./compare.js";
 import { describeLiveError } from "./live-errors.js";
-import { fetchLive, findLiveSource } from "./live-fetch.js";
+import { fetchLive } from "./live-fetch.js";
 import { reportStatus, saveLive } from "./live-store.js";
 import { renderAll } from "./render.js";
 import { session, composeState } from "./session.js";
@@ -22,7 +22,7 @@ function scheduleLive(ms) {
   if (ms != null) liveTimer = setTimeout(refreshLive, ms);
 }
 
-// The fix is in claude.ai, usually in another tab, so retry when this one is shown again.
+// A page older than the Worker needs a reload, so try again only when it is shown again.
 function waitForVisibility() {
   clearTimeout(liveTimer);
   liveDueAt = Date.now();
@@ -53,7 +53,7 @@ function applyLive(snapshot) {
   saveLive(snapshot);
 }
 
-function handleLiveSnapshot(snapshot, source) {
+function handleLiveSnapshot(snapshot) {
   liveError = null;
   liveFailures = 0;
   const missing = snapshot.missing || [];
@@ -61,7 +61,6 @@ function handleLiveSnapshot(snapshot, source) {
   updateLiveProblem();
   applyLive(snapshot);
   reportStatus({
-    source,
     error: missing.length ? "mlb_fields_missing" : "",
     detail: missing.join(", "),
   });
@@ -71,18 +70,8 @@ function handleLiveSnapshot(snapshot, source) {
 function handleLiveFailure(error) {
   liveError = describeLiveError(error);
   updateLiveProblem();
-  if (liveError.retract && session.live) {
-    session.live = null;
-    composeState();
-    renderUnlessReordering();
-  } else {
-    renderStamp();
-  }
-  reportStatus({
-    source: findLiveSource(),
-    error: liveError.code,
-    detail: liveError.detail,
-  });
+  renderStamp();
+  reportStatus({ error: liveError.code, detail: liveError.detail });
   if (liveError.retry) scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
   else waitForVisibility();
 }
@@ -96,8 +85,8 @@ async function refreshLive() {
   const season = session.activeYear;
   const sequence = ++liveSequence;
   try {
-    const { snapshot, source } = await fetchLive(season);
-    if (sequence === liveSequence) handleLiveSnapshot(snapshot, source);
+    const snapshot = await fetchLive(season);
+    if (sequence === liveSequence) handleLiveSnapshot(snapshot);
   } catch (error) {
     if (sequence === liveSequence) handleLiveFailure(error);
   }

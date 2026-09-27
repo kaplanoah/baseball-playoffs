@@ -75,8 +75,7 @@ themselves, see "If they deploy it themselves" below.
 
 **2. Deploy the Worker.** Run `npm ci`, then `npm run deploy:api`. It runs the
 tests, deploys `main` exactly as it is on GitHub, checks that the Worker
-answers, and prints its connector URL, the Worker's address plus `/mcp`. It
-refuses uncommitted changes and anything that isn't `main`'s latest commit.
+answers, and prints its address. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
 The session's own branch works once it matches `main`. It sets
 `NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
 proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
@@ -90,8 +89,8 @@ private: anyone who has it can see and change the page. Never pass
 `--rotate` unless they ask. It replaces the key, which changes the address.
 
 **4. Check the page.** Have the user open the address. Then read
-`<address>store/live/status` with `curl`. If `data.source` is `"worker"` and
-`data.error` and `data.write` are empty, it works. If not, the page explains
+`<address>store/live/status` with `curl`. If `data.error` and `data.write` are
+empty, it works. If not, the page explains
 `error` under its title, and `write` names the save that failed.
 
 **5. Save it to the home screen.** On an iPhone, have them open the address
@@ -119,20 +118,6 @@ saved data needs the Durable Object binding and migration that
 something doesn't match, point them to Cloudflare's
 [Workers docs](https://developers.cloudflare.com/workers/).
 
-### Letting Claude read the scores (optional)
-
-The Worker is also an MCP connector at `/mcp`, so Claude can read the live
-season in any chat. To use it, have the user open
-[claude.ai/customize/connectors](https://claude.ai/customize/connectors) and
-add a custom connector named **MLB Live** with the Worker's address plus
-`/mcp`, and no sign-in.
-
-The connector answers anyone who has its address. To make the address hard to
-guess, give the Worker a secret named `CONNECTOR_KEY`, with
-`npx wrangler secret put CONNECTOR_KEY` or in the Worker's settings on the
-dashboard. It then answers only at `/mcp/<key>`, so use that as the connector
-URL.
-
 ## Making changes
 
 `main` is what's deployed. Work on a branch and open a pull request into
@@ -158,8 +143,7 @@ add:
 
 - a secret `CLOUDFLARE_API_TOKEN`: a Cloudflare token made from the **Edit
   Cloudflare Workers** template, with no IP filtering and a long expiry;
-- a variable `CLOUDFLARE_ACCOUNT_ID`;
-- a secret `CONNECTOR_KEY`, only if the Worker has one.
+- a variable `CLOUDFLARE_ACCOUNT_ID`.
 
 Without the token, merges deploy nothing. Redeploy by hand with
 `npm run deploy:api`.
