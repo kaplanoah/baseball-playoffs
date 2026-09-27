@@ -2,10 +2,12 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/kaplanoah/baseball-playoffs/ci.yml?branch=main&label=CI&logo=github&logoColor=white)](https://github.com/kaplanoah/baseball-playoffs/actions/workflows/ci.yml)
 
-A private page on claude.ai that tracks the MLB postseason. It shows the
-bracket, your ranking of who you want to win the World Series, the standings,
-each team's previous, current and next game, and scores that update
-automatically.
+A private web page that tracks the MLB postseason. It shows the bracket, your
+ranking of who you want to win the World Series, the standings, each team's
+previous, current and next game, and scores that update automatically.
+
+A Cloudflare Worker serves the page, saves your ranking, and reads the scores
+from MLB. Saved to an iPhone's home screen, it opens full screen like an app.
 
 ## Setup (for humans)
 
@@ -18,16 +20,16 @@ for me. Clone it (branch main), read the "Setup (for Claude Code)"
 section of its README, and guide me through it one step at a time.
 ```
 
-Claude publishes the page and then helps you connect it to live scores. It
+Claude deploys the page to Cloudflare and gives you its private address. It
 takes about ten minutes.
 
 **You'll need** a Claude plan that includes Claude Code on the web and a free
 [Cloudflare](https://dash.cloudflare.com/sign-up) account. Claude walks you
 through the Cloudflare part.
 
-Running the site doesn't cost anything. Scores come from MLB's free public API
-through a connector on Cloudflare's free tier. Keeping the page updated
-doesn't use Claude.
+Running the page doesn't cost anything. It runs on Cloudflare's free tier, and
+the scores come from MLB's free public API. Keeping it updated doesn't use
+Claude.
 
 ## Setup (for Claude Code)
 
@@ -35,26 +37,14 @@ Guide the user one step at a time. Tell them the one thing to do next, wait
 until they say it's done, then go on. Don't ask them to make choices you can
 make for them. Never ask for the Cloudflare token in the chat.
 
-**1. Publish the page.** Use the Artifact tool to publish `page/index.html` from
-`main`, with `page/styles.css` and every file in `page/js/` at their paths
-relative to `page/`, `icon: "baseball"`, and these capabilities:
-
-```
-{ "db": {}, "mcp": { "servers": [ { "server": "MLB Live", "tools": ["get_snapshot"] } ] } }
-```
-
-Give the user the link. The page will say the connector is missing until
-step 4. That's expected.
-
-**2. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
+**1. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
 and
 `curl -s https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain`
-returns `"success":true`, go to step 3. Otherwise start with something like:
+returns `"success":true`, go to step 2. Otherwise start with something like:
 "I'll walk you through adding a few things to this cloud environment so I can
-deploy the connector for you. If you'd rather deploy it yourself from a
-terminal or Cloudflare's dashboard, just let me know." Then go through the
-steps below. If they want to deploy it themselves, see "If they deploy it
-themselves" below.
+deploy the page for you. If you'd rather deploy it yourself from a terminal,
+just let me know." Then go through the steps below. If they want to deploy it
+themselves, see "If they deploy it themselves" below.
 
 1. Have them sign in at [dash.cloudflare.com](https://dash.cloudflare.com)
    and open **Workers & Pages**. A free account is fine. If it asks for a
@@ -81,89 +71,89 @@ themselves" below.
 5. Environment settings only apply to new sessions. Start one in the same
    environment on this repo's `main` with this prompt. Use the
    `create_session` tool if you have it. Otherwise have the user start it.
-   `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 3. The page is at <artifact URL>.`
+   `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 2.`
 
-**3. Deploy the connector.** Run `npm ci`, then `npm run deploy:api`. It runs the tests,
-deploys `main` exactly as it is on GitHub, and prints the connector URL,
-`https://mlb-live.<subdomain>.workers.dev/mcp`. It refuses uncommitted
-changes and anything that isn't `main`'s latest commit. The session's own
-branch works once it matches `main`. It sets `NODE_USE_ENV_PROXY=1` so Node
-sends its requests through the session's proxy, which adds the token. That
-needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run
-that command without asking and blocks the other ways to deploy.
+**2. Deploy the Worker.** Run `npm ci`, then `npm run deploy:api`. It runs the
+tests, deploys `main` exactly as it is on GitHub, checks that the Worker
+answers, and prints its connector URL, the Worker's address plus `/mcp`. It
+refuses uncommitted changes and anything that isn't `main`'s latest commit.
+The session's own branch works once it matches `main`. It sets
+`NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
+proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
+asking and blocks the other ways to deploy.
 
-Then check that it responds. A POST of a JSON-RPC `initialize` to the
-connector URL should return the server info.
+**3. Give the page its address.** Run `npm run set-app-key`. It gives the
+Worker a long random `APP_KEY` secret and prints the page's address,
+`https://mlb-live.<subdomain>.workers.dev/<key>/`. The page and its saved
+data answer only there. Give the user the address and tell them to keep it
+private: anyone who has it can see and change the page. Never pass
+`--rotate` unless they ask. It replaces the key, which changes the address.
 
-**4. Add it to claude.ai.** Have the user open
-[claude.ai/customize/connectors](https://claude.ai/customize/connectors) and
-add a custom connector named exactly **MLB Live**, with the connector URL and
-no sign-in. The page looks for it by that name.
+**4. Check the page.** Have the user open the address. Then read
+`<address>store/live/status` with `curl`. If `data.source` is `"worker"` and
+`data.error` and `data.write` are empty, it works. If not, the page explains
+`error` under its title, and `write` names the save that failed.
 
-**5. Check the page.** Have the user open the page and allow MLB Live if
-asked. Then use the ArtifactData tool to read collection `live`, doc
-`status`. If `source` is `"connector"` and `error` and `write` are empty, it
-works. If not, the page explains `error` under its title, and `write` names
-the save that failed.
+**5. Save it to the home screen.** On an iPhone, have them open the address
+in Safari and choose **Share > Add to Home Screen**. It then opens full
+screen with its own icon.
 
 Finish by telling the user they can set their ranking on the Ranking tab. If
-they made a Cloudflare token, tell them they can delete it now, or remove the
-environment credential. The connector keeps running without it.
+they made a Cloudflare token only for this setup, tell them they can delete it
+now, or remove the environment credential. The page keeps running without it.
+To deploy future changes on merge instead, see "Deploying on merge" below.
 
 ### If they deploy it themselves
 
-- **From a terminal.** Assume they're comfortable in one. In their own clone
-  of `main` they run `npx wrangler login` and then `npm run deploy`, which
-  prints the Worker's address.
-- **From the dashboard.** They create a Worker named `mlb-live`, replace its
-  code with `worker/dist/worker.mjs` from `main` on GitHub, and deploy it.
-  The dashboard shows the Worker's address.
+Assume they're comfortable in a terminal. In their own clone of `main` they
+run `npx wrangler login`, then `npm run deploy`, which prints the Worker's
+address. Then they give it a key with `npx wrangler secret put APP_KEY`,
+pasting a long random value such as the output of
+`node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`.
+The page's address is the Worker's address plus `/<key>/`. Then go on from
+step 4. They redeploy with `npm run deploy` when the code changes.
 
-Either way, the connector URL is the Worker's address plus `/mcp`. Then go on
-from step 4. They redeploy the same way when the connector's code changes.
-Cloudflare's tools change over time, so if something doesn't match, point them
-to Cloudflare's [Workers docs](https://developers.cloudflare.com/workers/).
+Deploying from Cloudflare's dashboard isn't covered here, because the page's
+saved data needs the Durable Object binding and migration that
+`worker/wrangler.toml` sets up. Cloudflare's tools change over time, so if
+something doesn't match, point them to Cloudflare's
+[Workers docs](https://developers.cloudflare.com/workers/).
 
-### Keeping the connector's address private
+### Letting Claude read the scores (optional)
+
+The Worker is also an MCP connector at `/mcp`, so Claude can read the live
+season in any chat. To use it, have the user open
+[claude.ai/customize/connectors](https://claude.ai/customize/connectors) and
+add a custom connector named **MLB Live** with the Worker's address plus
+`/mcp`, and no sign-in.
 
 The connector answers anyone who has its address. To make the address hard to
 guess, give the Worker a secret named `CONNECTOR_KEY`, with
 `npx wrangler secret put CONNECTOR_KEY` or in the Worker's settings on the
 dashboard. It then answers only at `/mcp/<key>`, so use that as the connector
-URL in step 4.
-
-### Serving the page from the Worker
-
-The Worker can also serve the page itself, so it opens full screen from an
-iPhone's home screen with its own icon. It saves to a Durable Object in the
-same Worker instead of the claude.ai store, and changes reach other open
-devices within a second or two.
-
-The page answers only under a long random key. After the Worker is deployed,
-run `npm run set-app-key` in a cloud session to create the key. It prints the
-page's address. Anyone with the address can see and change the page, so keep
-it private. Open it in Safari, then choose **Share > Add to Home Screen**.
+URL.
 
 ## Making changes
 
-`main` is what's published. Work on a branch and open a pull request into
+`main` is what's deployed. Work on a branch and open a pull request into
 `main`. GitHub lints, checks formatting and types, and runs the tests, in Node
-and in a browser, on every pull request, so merge once those pass. To run the same
-checks yourself, run `npm ci` and `npx playwright install chromium` once,
+and in a browser, on every pull request, so merge once those pass. To run the
+same checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
-After merging, republish the page from `main` to its existing link. Don't
-publish from a branch that hasn't been merged, because the next publish from
-`main` will overwrite it.
+The Worker carries the page, so run `npm run build` after changing anything in
+`page/` or `worker/src/`. The checks fail if `worker/dist/` is out of date.
 
-Every deploy checks that the connector answers afterward. If it doesn't, the
-deploy puts the previous version back and fails.
+Every deploy checks that the Worker answers afterward. If it doesn't, the
+deploy puts the previous version back and fails. An open page picks up a
+deploy the next time it loads.
 
 ### Deploying on merge
 
-GitHub can deploy the connector after each merge, once the checks pass. In the
-repo's **Settings > Environments**, create an environment named `production`,
-limit its deployment branches to `main`, and add:
+GitHub can deploy the Worker, page included, after each merge once the checks
+pass on `main`. In the repo's **Settings > Environments**, create an
+environment named `production`, limit its deployment branches to `main`, and
+add:
 
 - a secret `CLOUDFLARE_API_TOKEN`: a Cloudflare token made from the **Edit
   Cloudflare Workers** template, with no IP filtering and a long expiry;
@@ -171,7 +161,7 @@ limit its deployment branches to `main`, and add:
 - a secret `CONNECTOR_KEY`, only if the Worker has one.
 
 Without the token, merges deploy nothing. Redeploy by hand with
-`npm run deploy:api` if anything in `worker/` or `page/js/snapshot.js` changed.
+`npm run deploy:api`.
 
 ## License
 
