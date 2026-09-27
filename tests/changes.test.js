@@ -126,8 +126,17 @@ test("the Rangers pass the Astros: the spot, how far back, and the game", () => 
   );
 });
 
+test("MLB's division marker on a wild card club is only a playoff spot", () => {
+  const racing = updateRow(BEFORE, "BOS", { clinch: null });
+  const markedDivision = updateRow(BEFORE, "BOS", { clinch: "y", clinched: true });
+  assert.deepEqual(findTableChanges(racing, markedDivision, TEAMS, TEAMS), [
+    { kind: "berth", team: "BOS", what: "playoff" },
+  ]);
+  assert.deepEqual(findTableChanges(markedDivision, BEFORE, TEAMS, TEAMS), []);
+});
+
 test("each step up is news: a bye after a division, but not a wild card after a playoff spot", () => {
-  const was = updateRow(updateRow(BEFORE, "CWS", { clinch: "x" }), "CLE", {
+  const was = updateRow(updateRow(BEFORE, "CWS", { clinch: "x", elim: "E" }), "CLE", {
     clinch: "y",
     clinched: true,
   });

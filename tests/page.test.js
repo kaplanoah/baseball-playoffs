@@ -382,6 +382,7 @@ test("a club's race: clinched, still racing, or out", () => {
     standing: "clinched",
   });
   assert.equal(describe({ clinch: "y", clinched: true, lead: true }).label, "Div");
+  assert.equal(describe({ gb: "6.5", elim: "E", clinch: "y", wcrank: "3" }).label, "In");
   assert.equal(
     describe({ gb: "5.0", wcgb: "+10.0", elim: "E", clinch: "w", wcrank: "1" }).label,
     "WC1",

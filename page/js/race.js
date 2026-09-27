@@ -9,11 +9,10 @@ const isAhead = (gamesBack) => gamesBack === "-" || String(gamesBack).startsWith
  */
 export function describeRace(row) {
   if (!row || !row.gb) return null;
-  if (row.clinch === "z") return { label: "Bye", standing: "clinched" };
-  if (row.clinched) return { label: "Div", standing: "clinched" };
+  if (row.clinched) return { label: row.clinch === "z" ? "Bye" : "Div", standing: "clinched" };
   if (row.clinch === "w") return { label: `WC${row.wcrank}`, standing: "clinched" };
   if (row.lead) return { label: row.magic ? `M#${row.magic}` : "1st", standing: "racing" };
-  if (row.clinch === "x") return { label: "In", standing: "clinched" };
+  if (row.clinch) return { label: "In", standing: "clinched" };
   if (row.elim !== "E") {
     return { label: row.gb === "-" ? "Tied" : `${row.gb} GB`, standing: "racing" };
   }

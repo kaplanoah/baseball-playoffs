@@ -479,3 +479,14 @@ test("a division tied at the top still has a magic number: a tie at the end does
   assert.equal(leader.magic, "4");
   assert.equal(buildSnapshot(EVENING).standings.divisions["AL West"][0].magic, "4");
 });
+
+test("a division is won only once every other club in it is out of the race, whatever MLB flags", () => {
+  const flagged = JSON.parse(JSON.stringify(EVENING));
+  const alEast = flagged.responses.standings.records.find((record) => record.division.id === 201);
+  const yankees = alEast.teamRecords.find((record) => record.team.id === 147);
+  Object.assign(yankees, { divisionChamp: true, clinchIndicator: "y" });
+  const [leader, wildCard] = buildSnapshot(flagged).standings.divisions["AL East"];
+  assert.deepEqual([leader.id, leader.clinched], ["TB", true]);
+  assert.deepEqual([wildCard.id, wildCard.clinched], ["NYY", false]);
+  assert.equal(buildSnapshot(EVENING).standings.divisions["AL Central"][0].clinched, false);
+});

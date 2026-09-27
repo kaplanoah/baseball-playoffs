@@ -70,11 +70,11 @@ test("a change is saved field by field, and replays to the same news", () => {
 test("a rebuild follows today's rules, not the ones the readings were saved under", () => {
   const playoffSpot = changeSnapshot(0, "CWS", { clinch: "x" });
   const wildCard = changeSnapshot(10, "CWS", { clinch: "w" });
-  const division = changeSnapshot(20, "CWS", { clinch: "y" }, wildCard);
-  const log = Readings.rebuildLog(recordParts([playoffSpot, wildCard, division]));
+  const bye = changeSnapshot(20, "ATL", { clinch: "z" }, wildCard);
+  const log = Readings.rebuildLog(recordParts([playoffSpot, wildCard, bye]));
   assert.deepEqual(
     log.map((entry) => [entry.kind, entry.team, entry.what]),
-    [["berth", "CWS", "division"]],
+    [["berth", "ATL", "bye"]],
   );
 });
 

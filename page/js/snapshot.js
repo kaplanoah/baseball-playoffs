@@ -556,8 +556,6 @@ function buildStandingsRow(id, record) {
     elim: record.eliminationNumber,
     wce: record.wildCardEliminationNumber,
     magic: null,
-    // Not clinchIndicator: its "x" and "w" mean a playoff spot, not the division.
-    clinched: !!record.divisionChamp,
     lead: !!record.divisionLeader,
     // MLB's own marker: x a playoff spot, w a wild card, y the division, z a bye.
     clinch: record.clinchIndicator || null,
@@ -565,6 +563,11 @@ function buildStandingsRow(id, record) {
     rank: readRank(record.divisionRank),
   };
 }
+
+// MLB's divisionChamp and its "y" marker have both named a wild card club, so a division is
+// won only once every other club in it is out of the division race.
+export const hasWonDivision = (row, divisionRows) =>
+  row.lead && divisionRows.every((other) => other.id === row.id || other.elim === "E");
 
 const SEASON_GAMES = 162;
 
@@ -602,6 +605,7 @@ function buildStandings(response, games) {
   }
   for (const rows of Object.values(divisions)) {
     rows.sort((first, second) => first.rank - second.rank).forEach((row) => delete row.rank);
+    for (const row of rows) row.clinched = hasWonDivision(row, rows);
     setMagicNumber(rows);
   }
   return { divisions };
