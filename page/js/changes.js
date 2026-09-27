@@ -1,13 +1,5 @@
 export const MAX_LOG = 50;
 
-function indexRows(standings) {
-  const rowsById = {};
-  for (const [division, clubs] of Object.entries((standings && standings.divisions) || {})) {
-    for (const row of clubs) rowsById[row.id] = { ...row, div: division };
-  }
-  return rowsById;
-}
-
 const isOutOfIt = (row) => !!row && row.elim === "E" && row.wce === "E";
 const parseGamesBack = (value) => {
   const games = parseFloat(String(value).replace("+", ""));
@@ -52,13 +44,13 @@ function findLatestEnd(games) {
 
 // `at` is when the change was noticed, so a change found after the last dismissal still
 // shows as new. `ended` is when the last game behind it ended: when the change happened.
-function createEntry(fields, results, now) {
+function createEntry(fields, results, at) {
   const games = results.filter(Boolean);
   const entry = { ...fields };
   if (games.length) entry.via = games.map(({ end, ...result }) => result);
   const ended = findLatestEnd(games);
   if (ended) entry.ended = ended;
-  entry.at = new Date(now).toISOString().replace(".000Z", "Z");
+  entry.at = new Date(at).toISOString().replace(".000Z", "Z");
   return entry;
 }
 
@@ -69,7 +61,7 @@ function findLastWildCard(rows, league) {
   return holders.length >= 3 ? holders[2].id : null;
 }
 
-function describeSwap(id, gone, newTeams, rows, games, now) {
+function describeSwap(id, gone, newTeams, rows, games, at) {
   const fields = { kind: "field", in: id, out: gone };
   if (newTeams[id].seed <= 3)
     Object.assign(fields, { spot: "division", div: (rows[id] || {}).div || "" });
@@ -80,10 +72,10 @@ function describeSwap(id, gone, newTeams, rows, games, now) {
     const back = findClosestRoute(goneRow);
     if (back != null) fields.outBack = back;
   }
-  return createEntry(fields, [findWin(games, id), findLoss(games, gone)], now);
+  return createEntry(fields, [findWin(games, id), findLoss(games, gone)], at);
 }
 
-function findSeedRises(leagueTeams, oldTeams, games, now) {
+function findSeedRises(leagueTeams, oldTeams, games, at) {
   const moved = leagueTeams.filter(([id, team]) => team.seed < oldTeams[id].seed);
   return moved.map(([id, team]) => {
     const fields = { kind: "seed", team: id, from: oldTeams[id].seed, to: team.seed };
@@ -94,13 +86,13 @@ function findSeedRises(leagueTeams, oldTeams, games, now) {
     const isSwapOnly = moved.length === 1 && passed.length === 1;
     if (isSwapOnly) fields.over = passed[0][0];
     const overLoss = isSwapOnly ? findLoss(games, fields.over) : null;
-    return createEntry(fields, [findWin(games, id), overLoss], now);
+    return createEntry(fields, [findWin(games, id), overLoss], at);
   });
 }
 
 // Seed moves are logged only when the field is unchanged, since a swap moves seeds too,
 // and only upward, since every rise implies a fall.
-function findFieldChanges(oldTeams, newTeams, rows, games, now, logSeeds) {
+function findFieldChanges(oldTeams, newTeams, rows, games, at, logSeeds) {
   const changes = [];
   for (const league of ["AL", "NL"]) {
     const listLeague = (teams) =>
@@ -124,15 +116,15 @@ function findFieldChanges(oldTeams, newTeams, rows, games, now, logSeeds) {
       const gone = departures[index];
       changes.push(
         gone
-          ? describeSwap(id, gone, newTeams, rows, games, now)
-          : createEntry({ kind: "field", in: id }, [], now),
+          ? describeSwap(id, gone, newTeams, rows, games, at)
+          : createEntry({ kind: "field", in: id }, [], at),
       );
     });
     for (const id of departures.slice(arrivals.length))
-      changes.push(createEntry({ kind: "field", out: id }, [], now));
+      changes.push(createEntry({ kind: "field", out: id }, [], at));
 
     if (logSeeds && !arrivals.length && !departures.length)
-      changes.push(...findSeedRises(listLeague(newTeams), oldTeams, games, now));
+      changes.push(...findSeedRises(listLeague(newTeams), oldTeams, games, at));
   }
   return changes;
 }
@@ -141,14 +133,10 @@ function findFieldChanges(oldTeams, newTeams, rows, games, now, logSeeds) {
 // only rules out the division, so it shares the playoff spot's rank.
 const CLINCH = { x: ["playoff", 1], w: ["wildcard", 1], y: ["division", 2], z: ["bye", 3] };
 
-// A stored table without `clinch` can only reveal a division title.
 function findBerthWon(oldRow, row) {
-  if ("clinch" in oldRow) {
-    const now = CLINCH[row.clinch];
-    const was = CLINCH[oldRow.clinch];
-    return now && now[1] > (was ? was[1] : 0) ? now[0] : null;
-  }
-  return row.clinched && !oldRow.clinched ? "division" : null;
+  const now = CLINCH[row.clinch];
+  const was = CLINCH[oldRow.clinch];
+  return now && now[1] > (was ? was[1] : 0) ? now[0] : null;
 }
 
 function findChaser(oldRow, row, after) {
@@ -158,7 +146,7 @@ function findChaser(oldRow, row, after) {
   return null;
 }
 
-function findStandingsChanges(before, after, games, now) {
+function findStandingsChanges(before, after, games, at) {
   const changes = [];
   const clubs = Object.entries(after).filter(([id]) => before[id]);
   for (const [id, row] of clubs) {
@@ -166,40 +154,45 @@ function findStandingsChanges(before, after, games, now) {
     if (!berth) continue;
     const fields = { kind: "berth", team: id, what: berth };
     if (berth === "division") fields.div = row.div;
-    changes.push(createEntry(fields, [findWin(games, id)], now));
+    changes.push(createEntry(fields, [findWin(games, id)], at));
   }
   for (const [id, row] of clubs) {
     const oldRow = before[id];
     if (!isOutOfIt(row) || isOutOfIt(oldRow)) continue;
     const chaser = findChaser(oldRow, row, after);
     changes.push(
-      createEntry({ kind: "elim", team: id }, [findLoss(games, id), findWin(games, chaser)], now),
+      createEntry({ kind: "elim", team: id }, [findLoss(games, id), findWin(games, chaser)], at),
     );
   }
   return changes;
 }
 
-export function findChanges(before, after, now = Date.now()) {
-  if (!before || !after) return [];
-  const games = (after.slate && after.slate.today && after.slate.today.games) || [];
-  const oldTeams = before.teams || {};
-  const newTeams = after.teams || {};
+const listGames = (reading) =>
+  Object.values(reading.games).sort(
+    (first, second) => Date.parse(first.start) - Date.parse(second.start),
+  );
+
+// The news between two readings from readings.js, stamped with the later one's time.
+export function findChanges(before, after) {
+  const games = listGames(after);
   const changes = [];
 
-  const hadField = Object.keys(oldTeams).length > 0;
+  const hadField = Object.keys(before.teams).length > 0;
   const locked = before.projected !== false && after.projected === false;
-  if (locked && hadField) changes.push(createEntry({ kind: "lock" }, [], now));
+  if (locked && hadField) changes.push(createEntry({ kind: "lock" }, [], after.at));
   if (hadField && (after.projected !== false || locked)) {
-    const rows = indexRows(after.standings);
-    changes.push(...findFieldChanges(oldTeams, newTeams, rows, games, now, !locked));
-  }
-  if (before.standings && before.standings.divisions && after.standings) {
     changes.push(
-      ...findStandingsChanges(indexRows(before.standings), indexRows(after.standings), games, now),
+      ...findFieldChanges(before.teams, after.teams, after.rows, games, after.at, !locked),
     );
   }
+  changes.push(...findStandingsChanges(before.rows, after.rows, games, after.at));
   return changes;
 }
+
+const FOUND_KINDS = new Set(["lock", "field", "seed", "berth", "elim"]);
+
+// Whether findChanges made this entry, so a rebuild from readings can make it again.
+export const isFoundEntry = (entry) => FOUND_KINDS.has(entry.kind);
 
 // A field or seed change can recur on a later day, so its key carries the day.
 function describeKey(entry) {

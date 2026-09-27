@@ -1,4 +1,5 @@
 import { test, expect, openApp, buildFixtureSnapshot, EVENING_FIXTURE } from "./harness.mjs";
+import { createReading } from "../../page/js/readings.js";
 
 const PLAYOFF_FIELD_2026 = [
   "Rays",
@@ -86,21 +87,31 @@ test("says how to add the connector when it isn't added, and doesn't retry by it
   expect(await app.countToolCalls()).toBe(1);
 });
 
-test("logs changes against the stored documents across snapshots", async ({ page }) => {
+test("rebuilds updates from the saved readings across snapshots", async ({ page }) => {
   const currentSnapshot = buildFixtureSnapshot(EVENING_FIXTURE);
-  const earlierTeams = structuredClone(currentSnapshot.teams);
-  [earlierTeams.NYY.seed, earlierTeams.BOS.seed] = [earlierTeams.BOS.seed, earlierTeams.NYY.seed];
+  const earlier = createReading({ ...currentSnapshot, asOf: "2026-09-24T20:00:00Z" });
+  [earlier.teams.NYY, earlier.teams.BOS] = [
+    { ...earlier.teams.NYY, seed: earlier.teams.BOS.seed },
+    { ...earlier.teams.BOS, seed: earlier.teams.NYY.seed },
+  ];
+  const part = `${currentSnapshot.slate.today.date}-01`;
   const app = await openApp(page, {
     store: {
       "seasons/2026": {
         year: 2026,
-        teams: earlierTeams,
+        teams: currentSnapshot.teams,
         series: currentSnapshot.series,
         projected: true,
         ranking: ["NYY", "LAD", "MIL"],
         log: [],
       },
-      "standings/2026": { ...currentSnapshot.standings, updatedAt: "2026-09-24T20:00:00Z" },
+      [`readings-2026/${part}`]: {
+        id: part,
+        day: currentSnapshot.slate.today.date,
+        number: 1,
+        start: earlier,
+        changes: [],
+      },
     },
   });
 
@@ -118,9 +129,10 @@ test("logs changes against the stored documents across snapshots", async ({ page
 
   await expect(updates).toContainText(/Mets .*Phillies/);
   await expect
-    .poll(async () => (await app.readDocument("seasons/2026")).log.map((entry) => entry.kind))
-    .toEqual(["seed", "field"]);
+    .poll(async () => (await app.readDocument(`readings-2026/${part}`)).changes.length)
+    .toBe(2);
   const season = await app.readDocument("seasons/2026");
+  expect(season.log).toEqual([]);
   expect(season.teams).toHaveProperty("NYM");
   expect(season.teams).not.toHaveProperty("PHI");
   expect(season.ranking).toEqual(["NYY", "LAD", "MIL"]);

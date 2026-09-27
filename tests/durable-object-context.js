@@ -8,6 +8,7 @@ export function createDurableObjectContext() {
       put: async (key, value) => {
         stored.set(key, structuredClone(value));
       },
+      delete: async (key) => stored.delete(key),
       list: async ({ prefix, limit }) =>
         new Map(
           [...stored]
