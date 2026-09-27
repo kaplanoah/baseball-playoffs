@@ -1375,6 +1375,13 @@ table.ref th.won-col {
     gap: 3px;
   }
 
+  /*
+   * An iPhone home-screen app shortens a page that can't scroll by the top safe area (WebKit bug
+   * 301108), which lifts the tab bar off the bottom, so every page scrolls by at least a pixel.
+   */
+  html {
+    min-height: calc(100% + 1px);
+  }
   body {
     padding-bottom: calc(var(--tab-bar-bottom) + 86px);
   }
