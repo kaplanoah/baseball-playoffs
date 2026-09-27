@@ -2,9 +2,16 @@ import { test, expect, openApp } from "./harness.mjs";
 
 const DEVICE_ENDPOINT = "https://fcm.googleapis.com/fcm/send/test-device";
 
-// Headless Chromium has no push service, so the browser's subscription is a stand-in with real
-// keys, which is all the Worker needs.
+// Headless Chromium has no push service, and its headless shell denies notifications outright,
+// so the permission prompt and the subscription are stand-ins. The subscription has real keys,
+// which is all the Worker needs.
 function stubPushManager(endpoint) {
+  let permission = "default";
+  Object.defineProperty(Notification, "permission", { get: () => permission });
+  Notification.requestPermission = async () => {
+    permission = "granted";
+    return permission;
+  };
   let current = null;
   const encode = (buffer) =>
     btoa(String.fromCharCode(...new Uint8Array(buffer)))
@@ -33,8 +40,7 @@ function stubPushManager(endpoint) {
   };
 }
 
-test("notifications can be turned on, tested, and turned off", async ({ page, context }) => {
-  await context.grantPermissions(["notifications"]);
+test("notifications can be turned on, tested, and turned off", async ({ page }) => {
   await page.addInitScript(stubPushManager, DEVICE_ENDPOINT);
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Ranking" }).click();
@@ -58,8 +64,7 @@ test("notifications can be turned on, tested, and turned off", async ({ page, co
   await expect(page.getByRole("button", { name: "Send a test" })).toBeHidden();
 });
 
-test("blocked notifications say where to turn them back on", async ({ page, context }) => {
-  await context.grantPermissions([]);
+test("blocked notifications say where to turn them back on", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(Notification, "permission", { get: () => "denied" });
   });
