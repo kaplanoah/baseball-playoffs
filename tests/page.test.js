@@ -4,6 +4,7 @@ import { session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
 import { droughtLabel } from "../page/js/clubs.js";
+import { describeRace } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
 import { stampName } from "../page/js/stamp.js";
@@ -298,13 +299,75 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Fri, Sep 25",
-    "Orioles 4 Final Game 1 Yankees 2",
+    "Orioles 4 - 2 Final Game 1 Yankees",
     "Orioles After Game 1 Game 2 Yankees",
     "Blue Jays Postponed Orioles",
-    "Guardians 1 Bot 7th Red Sox 0",
+    "Guardians 1 - 0 Bot 7th Red Sox",
   ]);
   assert.deepEqual(describeGameList(slate, "next"), ["Sat, Oct 3", "TBD 1:08 PM Rays"]);
   assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season."]);
+});
+
+test("games list: each club's rank, seed, record, and race", () => {
+  session.state = { teams: { NYY: { league: "AL", seed: 4 } }, ranking: ["NYY"] };
+  session.standings = {
+    divisions: {
+      "AL East": [
+        {
+          id: "NYY",
+          w: 93,
+          l: 68,
+          gb: "5.0",
+          wcgb: "+10.0",
+          elim: "E",
+          wce: "-",
+          clinch: "w",
+          wcrank: "1",
+        },
+        { id: "BAL", w: 79, l: 82, gb: "19.0", wcgb: "4.0", elim: "E", wce: "E", wcrank: "5" },
+      ],
+    },
+  };
+  const slate = {
+    today: {
+      date: "2026-09-26",
+      games: [
+        { away: "BAL", home: "NYY", state: "final", start: "2026-09-26T17:05:00Z", score: [3, 7] },
+      ],
+    },
+  };
+  assert.deepEqual(describeGameList(slate, "today"), [
+    "Sat, Sep 26",
+    "Orioles 79-82 19.0 GB 3 - 7 Final Yankees #1 4 seed 93-68 WC1",
+  ]);
+});
+
+test("a club's race: clinched, still racing, or out", () => {
+  const describe = (row) => describeRace({ gb: "-", wcgb: "-", elim: "-", wce: "-", ...row });
+  assert.deepEqual(describe({ clinch: "z", clinched: true, lead: true }), {
+    label: "Bye",
+    standing: "clinched",
+  });
+  assert.equal(describe({ clinch: "y", clinched: true, lead: true }).label, "Div");
+  assert.equal(
+    describe({ gb: "5.0", wcgb: "+10.0", elim: "E", clinch: "w", wcrank: "1" }).label,
+    "WC1",
+  );
+  assert.deepEqual(describe({ lead: true, magic: "2" }), { label: "M#2", standing: "racing" });
+  assert.equal(describe({ lead: true }).label, "1st");
+  assert.equal(describe({ wcgb: "3.0", wce: "E" }).label, "Tied");
+  assert.equal(describe({ gb: "3.5", elim: "12" }).label, "3.5 GB");
+  assert.equal(describe({ gb: "7.0", elim: "E", wcrank: "3" }).label, "WC3");
+  assert.equal(describe({ gb: "9.0", wcgb: "+1.0", elim: "E", wcrank: "2" }).label, "WC2");
+  assert.deepEqual(describe({ gb: "13.0", wcgb: "1.0", elim: "E", wce: "1" }), {
+    label: "1.0 WC",
+    standing: "racing",
+  });
+  assert.deepEqual(describe({ gb: "19.0", wcgb: "4.0", elim: "E", wce: "E" }), {
+    label: "19.0 GB",
+    standing: "out",
+  });
+  assert.equal(describeRace(null), null);
 });
 
 test("games list: a season with no live data says why", () => {

@@ -509,20 +509,94 @@ table.st .seed-cell {
   margin: 0;
   padding: 0;
 }
-/* Status spans both rows, so the away club and score sit above the home club and score. */
+/* The away and home clubs face each other across the score. */
 .game-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 7.5em;
-  column-gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 10px;
   align-items: center;
-  padding: 8px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--divider);
+}
+.game-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.game-side.home {
+  align-items: flex-end;
+  text-align: right;
+}
+.game-side .club {
   font-size: 0.8rem;
-  line-height: 1.7;
+  font-weight: 500;
+}
+.game-side.home .club,
+.game-side.home .game-facts {
+  flex-direction: row-reverse;
+}
+.game-side.out .team-name {
+  color: var(--ink-dim);
+}
+.game-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 5px;
+  font-size: 0.6rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.game-facts .rank-slot {
+  width: auto;
+}
+.game-facts .rank-tag {
+  min-width: 22px;
+  height: 15px;
+  padding: 0 3px;
+  font-size: 0.56rem;
+  line-height: 1;
+}
+.race.clinched {
+  color: var(--gold);
+}
+.race.racing {
+  color: var(--copper-ink);
+}
+.game-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 4.5em;
 }
 .game-score {
-  text-align: right;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 1.05rem;
   font-weight: 700;
+}
+.score-dash {
+  color: var(--card-border);
+  font-weight: 400;
+}
+.game-time {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.game-status {
+  font-size: 0.6rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+/* An empty status line still holds its place, so the time lines up with the club names. */
+.game-status:empty::before {
+  content: "\00a0";
+}
+.game-row.live .game-status {
+  color: var(--copper-ink);
 }
 .game-row .lost {
   color: var(--ink-dim);
@@ -531,27 +605,20 @@ table.st .seed-cell {
 .game-row .lost .dot {
   opacity: 0.55;
 }
-.game-status {
-  grid-row: span 2;
-  text-align: right;
-  font-size: 0.66rem;
-  line-height: 1.5;
-  color: var(--ink-dim);
-}
-.game-row.live .game-status {
-  color: var(--copper-ink);
-}
-.game-row.off .game-club {
+.game-row.off .game-side,
+.game-row.off .game-time {
   color: var(--ink-dim);
 }
 .game-status .doubleheader {
-  display: block;
   color: var(--gold);
+}
+.game-status .doubleheader:not(:first-child) {
+  margin-left: 1ch;
 }
 .dot.unknown-club {
   background: var(--card-border);
 }
-.game-club .tbd {
+.game-side .tbd {
   font-size: inherit;
 }
 

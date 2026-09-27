@@ -1,5 +1,6 @@
-import { teamTag } from "./clubs.js";
+import { rankTag, teamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
+import { describeRace, findStandingsRow } from "./race.js";
 import { session } from "./session.js";
 import { selectTab, wireTabs } from "./tabs.js";
 
@@ -41,16 +42,9 @@ function describeInning(game) {
 }
 
 function describeStatus(game) {
-  switch (game.state) {
-    case "final":
-      return "Final";
-    case "live":
-      return describeInning(game);
-    case "off":
-      return game.detail || "Postponed";
-    default:
-      return describeStart(game);
-  }
+  if (game.state === "final") return "Final";
+  if (game.state === "live") return describeInning(game);
+  return "";
 }
 
 // Not a .team-name: its clipped overflow cuts off the slant of the italic's last letter in Safari.
@@ -59,18 +53,49 @@ function renderClub(id) {
   return html`<span class="club"><span class="dot unknown-club"></span><span class="tbd">TBD</span></span>`;
 }
 
-function renderSide(id, score, hasLost) {
-  const lostClass = hasLost ? "lost" : "";
-  return html`<span class="game-club ${lostClass}">${renderClub(id)}</span><span class="game-score tabular ${lostClass}">${score ?? ""}</span>`;
+function renderSeed(id) {
+  const team = session.state && session.state.teams && session.state.teams[id];
+  return team && team.seed ? html`<span>${team.seed} seed</span>` : html``;
+}
+
+function renderRecordAndRace(row) {
+  const race = describeRace(row);
+  return html`${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${race && html`<span class="race ${race.standing}">${race.label}</span>`}`;
+}
+
+function renderFacts(id) {
+  if (!id) return html``;
+  return html`<span class="game-facts">${rankTag(id)}${renderSeed(id)}${renderRecordAndRace(findStandingsRow(id))}</span>`;
+}
+
+function renderSide(id, side, hasLost) {
+  const isOut = describeRace(findStandingsRow(id))?.standing === "out";
+  return html`<span class="game-side ${side} ${hasLost ? "lost" : ""} ${isOut ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
+}
+
+function renderScore(game, awayLost, homeLost) {
+  const [awayScore, homeScore] = game.score;
+  return html`<span class="game-score tabular"><span class="${awayLost ? "lost" : ""}">${awayScore}</span><span class="score-dash">-</span><span class="${homeLost ? "lost" : ""}">${homeScore}</span></span>`;
+}
+
+function renderMiddle(game, awayLost, homeLost) {
+  const doubleheader =
+    game.doubleheader && html`<span class="doubleheader">Game ${game.doubleheader}</span>`;
+  const headline = game.score
+    ? renderScore(game, awayLost, homeLost)
+    : html`<span class="game-time">${game.state === "off" ? game.detail || "Postponed" : describeStart(game)}</span>`;
+  return html`<span class="game-middle">${headline}<span class="game-status">${describeStatus(game)}${doubleheader}</span></span>`;
 }
 
 function renderGame(game) {
   const [awayScore, homeScore] = game.score || [];
   const isFinal = game.state === "final";
+  const awayLost = isFinal && awayScore < homeScore;
+  const homeLost = isFinal && homeScore < awayScore;
   return html`<li class="game-row ${game.state}">
-    ${renderSide(game.away, awayScore, isFinal && awayScore < homeScore)}
-    <span class="game-status">${describeStatus(game)}${game.doubleheader && html`<span class="doubleheader">Game ${game.doubleheader}</span>`}</span>
-    ${renderSide(game.home, homeScore, isFinal && homeScore < awayScore)}
+    ${renderSide(game.away, "away", awayLost)}
+    ${renderMiddle(game, awayLost, homeLost)}
+    ${renderSide(game.home, "home", homeLost)}
   </li>`;
 }
 
