@@ -36,7 +36,7 @@ export function renderNextCell(row, now = Date.now()) {
   const start = new Date(next.at);
   if (Number.isNaN(start.getTime())) return EMPTY_NEXT_CELL;
   const day =
-    countDaysBetween(start, new Date()) === 0 ? "Today" : DAYS[start.getDay()].slice(0, 3);
+    countDaysBetween(start, new Date(now)) === 0 ? "Today" : DAYS[start.getDay()].slice(0, 3);
   const time = next.tbd
     ? ""
     : " " +

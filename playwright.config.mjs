@@ -12,6 +12,7 @@ export default defineConfig({
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
+    // Tests expect Eastern times unless they pick another zone with test.use({ timezoneId }).
     timezoneId: "America/New_York",
     locale: "en-US",
     trace: "retain-on-failure",

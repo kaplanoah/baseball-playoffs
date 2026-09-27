@@ -73,11 +73,31 @@ const PICK_ENDED = ["latestEnd", "rank", "alive"];
 const PICK_UNDER_WAY = ["rank", "alive", "latestStart"];
 const PICK_STARTS = ["earliest", "rank", "alive"];
 
+const NIGHT_BEGINS_HOUR = 18;
+const NIGHT_ENDS_HOUR = 6;
+
+const isAfterDark = (date) =>
+  date.getHours() >= NIGHT_BEGINS_HOUR || date.getHours() < NIGHT_ENDS_HOUR;
+
+// A final in the small hours belongs to the evening before it, as the viewer's clock tells it.
+function findEveningOf(date) {
+  const evening = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  if (date.getHours() < NIGHT_ENDS_HOUR) evening.setDate(evening.getDate() - 1);
+  return evening;
+}
+
+function describeFinalDay(final, now) {
+  const end = new Date(final.end);
+  if (isAfterDark(end) && countDaysBetween(findEveningOf(end), now) === 1) return "last night";
+  const days = countDaysBetween(end, now);
+  if (days === 0) return "today";
+  if (days === 1) return "yesterday";
+  return DAYS[new Date(final.start || final.end).getDay()];
+}
+
 function describeLastFinal(lastFinal, now) {
   if (!lastFinal || !lastFinal.end) return "";
-  const days = countDaysBetween(new Date(lastFinal.end), now);
-  const when = days <= 1 ? "last night" : DAYS[new Date(lastFinal.start || lastFinal.end).getDay()];
-  return `No games since ${describeFinal(lastFinal, when)}`;
+  return `No games since ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
 }
 
 // With three or more games, one leads the line: a fresh final, else a live game, else the latest final.
