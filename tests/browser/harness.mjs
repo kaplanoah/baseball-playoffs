@@ -69,13 +69,18 @@ export async function openApp(
     snapshotRequests: 0,
     transformSnapshot: (snapshot) => snapshot,
     failWrites: false,
+    pushes: [],
+  };
+  const fetchImpl = async (url) => {
+    harness.pushes.push(url);
+    return new Response(null, { status: 201 });
   };
   const loadSnapshot = async (season) =>
     harness.transformSnapshot(structuredClone(snapshotsBySeason[season]));
   const seasonStore = new SeasonStore(
     context.ctx,
     {},
-    { loadSnapshot, now: () => Date.parse(now) },
+    { loadSnapshot, now: () => Date.parse(now), fetchImpl },
   );
   const openSockets = [];
 
@@ -93,6 +98,10 @@ export async function openApp(
         return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
       return route.fulfill({ json: harness.transformSnapshot(structuredClone(snapshot)) });
     },
+  );
+  await page.route(
+    (url) => url.pathname.startsWith("/push/"),
+    (route) => answerFromStore(route, seasonStore),
   );
   await page.route(
     (url) => url.pathname.startsWith("/store/"),
@@ -125,6 +134,9 @@ export async function openApp(
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,
+    listPushes: () => harness.pushes,
+    countSubscriptions: () =>
+      [...context.stored.keys()].filter((key) => key.startsWith("push:subscription:")).length,
     /** @param {(snapshot: any) => any} transform */
     changeSnapshots: (transform) => {
       harness.transformSnapshot = transform;

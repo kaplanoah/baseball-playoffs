@@ -35,6 +35,22 @@ export function html(strings, ...values) {
   return new Markup(text);
 }
 
+const TEXT_ENTITIES = {
+  "&amp;": "&",
+  "&lt;": "<",
+  "&gt;": ">",
+  "&quot;": '"',
+  "&#39;": "'",
+  "&ndash;": "\u2013",
+  "&mdash;": "\u2014",
+};
+
+// For places that show only text, like a notification.
+export const convertToText = (markup) =>
+  renderValue(markup)
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(?:amp|lt|gt|quot|#39|ndash|mdash);/g, (entity) => TEXT_ENTITIES[entity]);
+
 /**
  * The page's only way to write markup, so nothing reaches it unescaped.
  * @param {Element} element

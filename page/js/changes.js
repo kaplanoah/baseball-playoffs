@@ -195,7 +195,7 @@ const FOUND_KINDS = new Set(["lock", "field", "seed", "berth", "elim"]);
 export const isFoundEntry = (entry) => FOUND_KINDS.has(entry.kind);
 
 // A field or seed change can recur on a later day, so its key carries the day.
-function describeKey(entry) {
+export function describeKey(entry) {
   const day = String(entry.at).slice(0, 10);
   switch (entry.kind) {
     case "game":

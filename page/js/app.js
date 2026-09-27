@@ -4,6 +4,7 @@ import { html, setHtml } from "./html.js";
 import { readLastTab, saveLastTab } from "./last-tab.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
+import { startNotifications } from "./notifications.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
 import {
@@ -204,6 +205,7 @@ async function boot() {
   refreshStampEveryMinute();
   watchPageVisibility();
   startLive();
+  startNotifications();
   watchSpringTraining();
   await followSpringTraining();
 }

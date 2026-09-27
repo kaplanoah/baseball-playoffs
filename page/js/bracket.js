@@ -55,6 +55,9 @@ function listSeries(bracket) {
   return bracket.ws ? [...leagueSeries, bracket.ws] : leagueSeries;
 }
 
+export const findSeries = (state, id) =>
+  listSeries(fullBracket(state)).find((series) => series.id === id) || null;
+
 // `side` is "A" or "B".
 export function listSlotCandidates(state, seriesId, side) {
   const seriesById = Object.fromEntries(

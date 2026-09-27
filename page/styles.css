@@ -1185,6 +1185,82 @@ table.ref td .team-name {
   background: var(--gold);
   color: var(--gold-ink);
 }
+.notify-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 640px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0 0 14px;
+}
+.notify-card[hidden] {
+  display: none;
+}
+.notify-text {
+  flex: 1;
+  min-width: 0;
+}
+.notify-text h2 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.notify-text p {
+  color: var(--ink-dim);
+  font-size: 0.76rem;
+  margin: 4px 0 0;
+}
+.notify-text button.ghost {
+  font-size: 0.76rem;
+  padding: 5px 10px;
+  margin-top: 8px;
+}
+.switch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--divider);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition:
+    transform 0.2s,
+    background 0.2s;
+}
+.switch[aria-checked="true"] {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+.switch[aria-checked="true"] .switch-knob {
+  background: var(--gold-ink);
+  transform: translateX(18px);
+}
+.switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch-knob {
+    transition: none;
+  }
+}
 .rank-hint {
   color: var(--ink-dim);
   font-size: 0.76rem;
