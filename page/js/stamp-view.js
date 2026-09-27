@@ -1,13 +1,11 @@
 import { findSeriesBetween, isEliminated, seriesLabel } from "./bracket.js";
 import { html, setHtml } from "./html.js";
+import { findStandingsRow } from "./race.js";
 import { session } from "./session.js";
 import { stampName, lastStampText, upNextText, stampWhenHtml, stampDay } from "./stamp.js";
 
 function isAliveInStandings(id) {
-  const divisions = (session.standings && session.standings.divisions) || {};
-  const row = Object.values(divisions)
-    .flat()
-    .find((candidate) => candidate.id === id);
+  const row = findStandingsRow(id);
   return !row || !(row.elim === "E" && row.wce === "E");
 }
 
