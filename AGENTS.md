@@ -48,9 +48,10 @@ Follow these steps in order. When a step says to go back to an earlier step, con
    - If the Review job fails without posting any comments, its Claude credential secret is missing or expired. Tell the user, and continue. The Review job never blocks a merge.
 7. If GitHub reports merge conflicts with `main`, merge `main` into your branch, resolve the conflicts, and go back to step 2. If resolving a conflict would drop behavior from either side, resolve it in the way that best serves the spirit of both changes, and confirm with the user. If you genuinely need a decision from the user, give all the context concisely, list the pros and cons of each option, and make a recommendation.
 8. Squash-merge the PR once all of these are true: `check` passed on the latest commit, the PR has no merge conflicts, no Review run is still going, and every Review comment is answered. If GitHub refuses the merge, check the PR again: if CI hasn't finished on the latest commit, go back to step 4; if it has merge conflicts, go back to step 7.
-9. Don't deploy. Merging starts CI on `main`, and when CI passes, the Deploy workflow runs `npm run deploy:api`, which deploys the Worker and rolls back if the new version doesn't answer.
+9. Don't deploy. Merging starts CI on `main`, and when CI passes, the Deploy workflow runs `npm run deploy:api`, which deploys the Worker and rolls back if the new version doesn't answer. A merge that changes only docs, tests, and tooling skips the deploy; `worker/deploy-scope.mjs` lists those files. When you add a file that can't change the Worker, add it to that list.
 10. Wait for the Deploy run for the merge commit to finish, then read its log and do what matches:
     - It says `worker check: ok`: the new version is live. Tell the user.
+    - It says "Nothing the Worker runs changed": the merge didn't need a deploy, and the previous version is still live. Tell the user.
     - The run was skipped: CI failed on `main`. Read the CI log, fix the failure in a new PR, and start again at step 1.
     - It says "nothing was deployed": the `production` environment has no Cloudflare token. Tell the user.
     - The run failed: read the log. If it says "the earlier version is live again", the Worker rolled back and is unchanged. Tell the user what failed and recommend a fix.

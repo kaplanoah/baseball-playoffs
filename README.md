@@ -162,6 +162,8 @@ add:
   Cloudflare Workers** template, with no IP filtering and a long expiry;
 - a variable `CLOUDFLARE_ACCOUNT_ID`.
 
+A merge that changes only docs, tests, and tooling skips the deploy, since
+the Worker would be the same; `worker/deploy-scope.mjs` lists those files.
 Without the token, merges deploy nothing. Redeploy by hand with
 `npm run deploy:api`.
 
