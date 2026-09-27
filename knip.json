@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "page/js/app.js",
+    "worker/src/index.js",
+    "worker/*.mjs",
+    "tests/**/*.test.js",
+    "tests/browser/*.spec.mjs",
+    "tests/browser/serve.mjs",
+    "tests/fixtures/record.js"
+  ],
+  "project": ["page/js/**/*.js", "worker/**/*.{js,mjs}", "tests/**/*.{js,mjs}", "*.mjs"],
+  "ignore": ["page/js/sortable.min.js"]
+}

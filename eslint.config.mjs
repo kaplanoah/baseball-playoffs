@@ -34,10 +34,6 @@ export default [
     languageOptions: { globals: { ...globals.serviceworker, WebSocketPair: "readonly" } },
   },
   {
-    files: ["tests/browser/runtime.js"],
-    languageOptions: { sourceType: "script", globals: globals.browser },
-  },
-  {
     // Callbacks passed to page.evaluate run in the page.
     files: ["tests/browser/*.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },

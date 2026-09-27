@@ -1,6 +1,6 @@
 const FETCH_TIMEOUT_MS = 10 * 1000;
 
-export class LiveError extends Error {
+class LiveError extends Error {
   constructor(code, message) {
     super(message);
     this.code = code;

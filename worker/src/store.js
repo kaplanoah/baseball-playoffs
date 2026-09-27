@@ -8,7 +8,7 @@ const MAX_LISTED = 100;
 
 const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
-export function sortKeys(value) {
+function sortKeys(value) {
   if (Array.isArray(value)) return value.map(sortKeys);
   if (!isPlainObject(value)) return value;
   return Object.fromEntries(
