@@ -77,8 +77,9 @@ themselves, see "If they deploy it themselves" below.
    `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 2.`
 
 **2. Deploy the Worker.** Run `npm ci`, then `npm run deploy:api`. It runs the
-tests, deploys `main` exactly as it is on GitHub, checks that the Worker
-answers, and prints its address. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
+tests, deploys `main` exactly as it is on GitHub, and checks that the Worker
+answers. It keeps the Worker's address out of its output, because GitHub's
+deploy logs are public; step 3 prints it. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
 The session's own branch works once it matches `main`. It sets
 `NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
 proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
