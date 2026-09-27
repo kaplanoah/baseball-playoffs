@@ -285,7 +285,9 @@ test("with CONNECTOR_KEY set, only the keyed paths answer", async () => {
   );
 });
 
-test("the deployable file is built from the current sources", async () => {
-  const { buildWorker, OUTPUT } = await import("../worker/build.mjs");
-  assert.equal(readFileSync(OUTPUT, "utf8"), await buildWorker(), "run: npm run build");
+test("the deployable bundle builds and exports the Worker and its store", async () => {
+  const { buildWorker } = await import("../worker/build.mjs");
+  const bundle = await import(`data:text/javascript,${encodeURIComponent(await buildWorker())}`);
+  assert.equal(typeof bundle.default.fetch, "function");
+  assert.equal(typeof bundle.SeasonStore, "function");
 });

@@ -6,7 +6,7 @@ const loadDeployModule = () => import("../worker/deploy.mjs");
 const ENV = { CLOUDFLARE_ACCOUNT_ID: "acct123" };
 
 const API = "https://api.cloudflare.com/client/v4";
-const CONNECTOR_URL = "https://mlb-live.nokap.workers.dev/mcp";
+const CONNECTOR_URL = "https://mlb-live.example-subdomain.workers.dev/mcp";
 const LIVE_VERSIONS = [{ version_id: "v-live", percentage: 100 }];
 const LIVE_DEPLOYMENTS = [
   { created_on: "2026-09-24T10:00:00Z", versions: [{ version_id: "v-older", percentage: 100 }] },
@@ -55,7 +55,7 @@ function createFakeCloudflare({
       );
     }
     let result = {};
-    if (url.endsWith("/workers/subdomain")) result = { subdomain: "nokap" };
+    if (url.endsWith("/workers/subdomain")) result = { subdomain: "example-subdomain" };
     if (url.endsWith("/workers/scripts"))
       result = isNew ? [] : [{ id: "mlb-live", migration_tag: migrationTag }];
     if (isDeployments && init.method === "GET") result = { deployments: LIVE_DEPLOYMENTS };

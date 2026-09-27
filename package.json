@@ -11,7 +11,7 @@
     "node": ">=22.21"
   },
   "scripts": {
-    "test": "node worker/build.mjs --check && TZ=America/New_York node --test tests/*.test.js",
+    "test": "TZ=America/New_York node --test tests/*.test.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

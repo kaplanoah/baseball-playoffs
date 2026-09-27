@@ -141,8 +141,9 @@ and in a browser, on every pull request, so merge once those pass. To run the
 same checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
-The Worker carries the page, so run `npm run build` after changing anything in
-`page/` or `worker/src/`. The checks fail if `worker/dist/` is out of date.
+The Worker carries the page. Every deploy bundles both from the source it
+deploys, so there is nothing to rebuild by hand. `npm run build` writes the
+bundle to `worker/dist/`, which git ignores, if you want to look at it.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page picks up a

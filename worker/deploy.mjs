@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { buildWorker } from "./build.mjs";
 
 const API = "https://api.cloudflare.com/client/v4";
 const root = new URL("../", import.meta.url);
@@ -107,13 +108,21 @@ export function createCloudflareCaller({ fetchImpl, env, log }) {
   };
 }
 
+/**
+ * @param {object} options
+ * @param {string} options.script The bundled Worker to upload.
+ * @param {typeof fetch} [options.fetchImpl]
+ * @param {NodeJS.ProcessEnv} [options.env]
+ * @param {typeof console.log} [options.log]
+ * @param {(milliseconds: number) => Promise<unknown>} [options.pause]
+ */
 export async function deploy({
+  script,
   fetchImpl = fetch,
   env = process.env,
-  script = readRepoFile("worker/dist/worker.mjs"),
   log = console.log,
   pause = waitFor,
-} = {}) {
+}) {
   const account = readAccount(env);
   const { name, compatibilityDate } = readWorkerConfig();
   const base = findWorkersApi(account);
@@ -262,7 +271,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.error(`Not deploying: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
-  deploy().catch((error) => {
+  deploy({ script: await buildWorker() }).catch((error) => {
     console.error(error.message);
     process.exit(1);
   });

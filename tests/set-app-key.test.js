@@ -11,7 +11,7 @@ function createFakeCloudflare({ secrets = [] } = {}) {
     calls.push({ url, init });
     let result = {};
     if (url.endsWith("/secrets") && init.method === "GET") result = secrets;
-    if (url.endsWith("/workers/subdomain")) result = { subdomain: "nokap" };
+    if (url.endsWith("/workers/subdomain")) result = { subdomain: "example-subdomain" };
     return new Response(JSON.stringify({ success: true, result }));
   };
   return { fetchImpl, calls };
@@ -26,7 +26,7 @@ test("a new key is stored as a secret, and the page's address is printed", async
     log: (line) => printed.push(line),
     makeKey: () => "n3wkey",
   });
-  assert.equal(url, "https://mlb-live.nokap.workers.dev/n3wkey/");
+  assert.equal(url, "https://mlb-live.example-subdomain.workers.dev/n3wkey/");
   const put = cloudflare.calls.find((call) => call.init.method === "PUT");
   assert.equal(put.url, `${API}/scripts/mlb-live/secrets`);
   assert.deepEqual(JSON.parse(put.init.body), {
