@@ -445,3 +445,18 @@ test("clicking the tab that's showing scrolls back to the top", async ({ page })
 
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 });
+
+test("the page reopens on the tab it was last on", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+
+  await page.reload();
+
+  await expect(page.getByRole("tab", { name: "Standings" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#view-standings")).toBeVisible();
+  await expect(page.locator("#view-bracket")).toBeHidden();
+});

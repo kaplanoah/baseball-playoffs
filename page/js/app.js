@@ -1,6 +1,7 @@
 import { rankedOrder } from "./clubs.js";
 import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "./html.js";
+import { readLastTab, saveLastTab } from "./last-tab.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
 import { REORDER_EVENT } from "./ranking.js";
@@ -48,18 +49,29 @@ const findYearPicker = () => /** @type {HTMLSelectElement} */ (document.getEleme
 const findTabButtons = () =>
   /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("nav.tabs [role=tab]")]);
 
-function switchTab(tab) {
+function showTab(tab) {
   selectTab(findTabButtons(), tab);
-  moveTabSelection(tab);
   for (const view of document.querySelectorAll("section.view")) {
     view.classList.toggle("active", view.id === `view-${tab}`);
   }
+}
+
+function switchTab(tab) {
+  showTab(tab);
+  moveTabSelection(tab);
+  saveLastTab(tab);
 }
 
 // As on iPhone, choosing the tab that's already showing scrolls it back to the top.
 function chooseTab(tab) {
   if (tab === readSelectedTab(findTabButtons())) scrollToTop();
   else switchTab(tab);
+}
+
+// Runs before the tab bar starts, so its pill starts on the reopened tab instead of sliding there.
+function reopenLastTab() {
+  const lastTab = readLastTab();
+  if (findTabButtons().some((button) => button.dataset.tab === lastTab)) showTab(lastTab);
 }
 
 function watchActiveSeason() {
@@ -165,6 +177,7 @@ function finishReordering(order) {
 }
 
 function wireControls() {
+  reopenLastTab();
   wireTabs(findTabButtons(), chooseTab);
   startTabBar(chooseTab);
   wireGameTabs();
