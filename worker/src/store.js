@@ -1,7 +1,6 @@
 // The page's saved data, kept in one Durable Object so every device reads the latest write.
-// It follows the artifact store's rules: documents come back with sorted keys, update() merges
-// nested objects and replaces anything else, a null in an update removes that key, and a removed
-// document reads as null.
+// Documents come back with sorted keys, update() merges nested objects and replaces anything
+// else, a null in an update removes that key, and a removed document reads as null.
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY_BYTES = 64 * 1024;

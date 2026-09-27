@@ -25,7 +25,7 @@ import { scrollToTop } from "./scroll-to-top.js";
 import { renderStandings } from "./standings.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
 import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
-import { createWorkerStore, isSelfHosted } from "./worker-store.js";
+import { createWorkerStore } from "./worker-store.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
 const SPRING_CHECK_MS = 60 * 60 * 1000;
@@ -101,18 +101,6 @@ async function switchYear(year) {
   startLive();
 }
 
-async function connectStore() {
-  if (isSelfHosted()) {
-    session.db = createWorkerStore();
-    return;
-  }
-  try {
-    session.db = (await window.claude?.use?.("db")) || null;
-  } catch {
-    session.db = null;
-  }
-}
-
 async function listYears() {
   const recent = [seasonYear(), seasonYear() - 1, seasonYear() - 2].map(String);
   if (!session.db) return recent;
@@ -138,7 +126,7 @@ async function checkSpringTraining() {
   if (session.currentSeason === year) return;
   let springStart;
   try {
-    ({ springStart } = (await fetchLive(year)).snapshot);
+    ({ springStart } = await fetchLive(year));
   } catch {
     return;
   }
@@ -205,7 +193,7 @@ function refreshStampEveryMinute() {
 async function boot() {
   trackKeyboardFocus();
   wireControls();
-  await connectStore();
+  session.db = createWorkerStore();
   fillYearPicker(await listYears());
   await loadActiveSeason();
   renderAll();
@@ -217,8 +205,4 @@ async function boot() {
   await followSpringTraining();
 }
 
-if (window.claude?.hot) {
-  window.claude.hot.ready ? window.claude.hot.ready(boot) : boot();
-} else {
-  boot();
-}
+boot();

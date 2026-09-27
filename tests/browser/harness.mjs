@@ -1,8 +1,6 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { test as base, expect } from "@playwright/test";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
-import { wrapPage } from "../../worker/src/page.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import { createDurableObjectContext } from "../durable-object-context.js";
 
@@ -10,13 +8,6 @@ const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
 export const EVENING_FIXTURE = loadFixture("2026-09-24-evening");
 const FINAL_2025_FIXTURE = loadFixture("2025-final");
-const FIXTURES_BY_SEASON = {
-  [EVENING_FIXTURE.season]: EVENING_FIXTURE,
-  [FINAL_2025_FIXTURE.season]: FINAL_2025_FIXTURE,
-};
-
-const RUNTIME_SCRIPT_PATH = fileURLToPath(new URL("runtime.js", import.meta.url));
-const PAGE_HTML = readFileSync(new URL("../../page/index.html", import.meta.url), "utf8");
 
 export const buildFixtureSnapshot = (fixture) =>
   MLBSnapshot.buildSnapshot(fixture.responses, {
@@ -40,74 +31,7 @@ const pageErrorsFixture = {
 export const test = base.extend(pageErrorsFixture);
 export { expect };
 
-const SEASON_PATH = /^\/api\/v1\/seasons\/(\d{4})$/;
-
-function findRecordedResponse(url) {
-  const seasonPathMatch = SEASON_PATH.exec(url.pathname);
-  if (seasonPathMatch) return FIXTURES_BY_SEASON[seasonPathMatch[1]].responses.season;
-  const season = url.searchParams.get("season") || url.searchParams.get("startDate").slice(0, 4);
-  const { responses } = FIXTURES_BY_SEASON[season];
-  const responseName = {
-    "/api/v1/standings": "standings",
-    "/api/v1/schedule/postseason": "postseason",
-    "/api/v1/schedule": "schedule",
-  }[url.pathname];
-  return responses[responseName];
-}
-
-async function routeMlbToFixtures(page, { directAllowed }) {
-  const counter = { requests: 0 };
-  await page.route(
-    (url) => url.hostname !== "127.0.0.1",
-    (route) => {
-      const url = new URL(route.request().url());
-      if (url.hostname !== "statsapi.mlb.com") return route.abort();
-      counter.requests++;
-      if (!directAllowed) return route.abort();
-      return route.fulfill({ json: findRecordedResponse(url) });
-    },
-  );
-  return counter;
-}
-
-// Refused hosts reach the page as a TypeError from fetch, as in the artifact sandbox.
-export async function openApp(
-  page,
-  {
-    store = {},
-    connectorAdded = true,
-    directAllowed = false,
-    dbAvailable = true,
-    now = EVENING_FIXTURE.now,
-    extraSnapshots = {},
-  } = {},
-) {
-  const mlbRequests = await routeMlbToFixtures(page, { directAllowed });
-  await page.clock.install({ time: new Date(now) });
-  await page.addInitScript((config) => (window.__runtimeConfig = config), {
-    store,
-    snapshots: {
-      ...Object.fromEntries(
-        Object.entries(FIXTURES_BY_SEASON).map(([season, fixture]) => [
-          season,
-          buildFixtureSnapshot(fixture),
-        ]),
-      ),
-      ...extraSnapshots,
-    },
-    connectorAdded,
-    dbAvailable,
-  });
-  await page.addInitScript({ path: RUNTIME_SCRIPT_PATH });
-  await page.goto("/");
-
-  return {
-    readDocument: (path) =>
-      page.evaluate((documentPath) => window.__runtime.read(documentPath), path),
-    countToolCalls: () => page.evaluate(() => window.__runtime.toolCalls.length),
-    countMlbRequests: () => mlbRequests.requests,
-  };
-}
+const isWriteRequest = (request) => request.method() !== "GET";
 
 async function answerFromStore(route, store) {
   const request = route.request();
@@ -125,33 +49,53 @@ async function answerFromStore(route, store) {
   });
 }
 
-// The page as the Worker serves it: no claude.ai runtime, and the Worker's store behind it.
-export async function openSelfHostedApp(page, { store = {}, now = EVENING_FIXTURE.now } = {}) {
+/**
+ * The page as the Worker serves it, with the Worker's store and snapshot behind it.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ store?: object, now?: string, snapshots?: object, liveAvailable?: boolean }} [options]
+ */
+export async function openApp(
+  page,
+  { store = {}, now = EVENING_FIXTURE.now, snapshots = {}, liveAvailable = true } = {},
+) {
   const context = createDurableObjectContext();
   for (const [path, data] of Object.entries(store)) context.stored.set(path, data);
   const seasonStore = new SeasonStore(context.ctx, {});
+  const snapshotsBySeason = {
+    [EVENING_FIXTURE.season]: buildFixtureSnapshot(EVENING_FIXTURE),
+    [FINAL_2025_FIXTURE.season]: buildFixtureSnapshot(FINAL_2025_FIXTURE),
+    ...snapshots,
+  };
+  const harness = {
+    snapshotRequests: 0,
+    transformSnapshot: (snapshot) => snapshot,
+    failWrites: false,
+  };
+  const openSockets = [];
 
-  await routeMlbToFixtures(page, { directAllowed: false });
+  await page.route(
+    (url) => url.hostname !== "127.0.0.1",
+    (route) => route.abort(),
+  );
   await page.route(
     (url) => url.pathname === "/snapshot",
     (route) => {
+      harness.snapshotRequests++;
       const season = new URL(route.request().url()).searchParams.get("season");
-      return route.fulfill({ json: buildFixtureSnapshot(FIXTURES_BY_SEASON[season]) });
+      const snapshot = snapshotsBySeason[season];
+      if (!liveAvailable || !snapshot)
+        return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
+      return route.fulfill({ json: harness.transformSnapshot(structuredClone(snapshot)) });
     },
   );
   await page.route(
-    (url) => url.pathname === "/",
-    (route) =>
-      route.fulfill({
-        contentType: "text/html",
-        body: wrapPage(PAGE_HTML),
-      }),
-  );
-  await page.route(
     (url) => url.pathname.startsWith("/store/"),
-    (route) => answerFromStore(route, seasonStore),
+    (route) => {
+      if (harness.failWrites && isWriteRequest(route.request()))
+        return route.fulfill({ status: 503, json: { error: { code: "unavailable" } } });
+      return answerFromStore(route, seasonStore);
+    },
   );
-  const openSockets = [];
   await page.routeWebSocket(
     (url) => url.pathname === "/watch",
     (socket) => {
@@ -172,6 +116,14 @@ export async function openSelfHostedApp(page, { store = {}, now = EVENING_FIXTUR
           body: JSON.stringify(data),
         }),
       ),
+    countSnapshotRequests: () => harness.snapshotRequests,
+    /** @param {(snapshot: any) => any} transform */
+    changeSnapshots: (transform) => {
+      harness.transformSnapshot = transform;
+    },
+    failWrites: () => {
+      harness.failWrites = true;
+    },
     countOpenSockets: () => openSockets.length,
     dropConnections: async () => {
       await Promise.all(openSockets.map((socket) => socket.close()));

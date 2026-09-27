@@ -29,11 +29,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Deploy the connector
+      - name: Deploy the Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CONNECTOR_KEY: ${{ secrets.CONNECTOR_KEY }}
         run: |
           if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
             echo "::notice::No CLOUDFLARE_API_TOKEN in the production environment, so nothing was deployed."

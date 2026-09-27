@@ -1,69 +1,20 @@
-import { LIVE_SERVER } from "./live-fetch.js";
-
-const SETTINGS = "claude.ai's connector settings";
-const NOT_IN_VIEW = "Live scores aren't available in this view.";
 const TRY_AGAIN = "Couldn't reach live scores. Trying again shortly.";
 
-// `retry` waits and tries again; otherwise the fix is elsewhere. `retract` drops shown live data.
+// `retry` waits and tries again; otherwise the fix is elsewhere.
 const LIVE_ERRORS = {
-  server_not_connected: {
-    message: `Live scores need the ${LIVE_SERVER} connector: add it in ${SETTINGS}.`,
-    retry: false,
-    retract: true,
-  },
-  needs_reauth: {
-    message: `Reconnect ${LIVE_SERVER} in ${SETTINGS} for live scores.`,
-    retry: false,
-    retract: true,
-  },
-  selection_required: {
-    message: `Choose which ${LIVE_SERVER} connector this page should use.`,
-    retry: false,
-    retract: false,
-  },
-  not_in_manifest: {
-    message: "Live scores are turned off for this page. Reload to be asked again.",
-    retry: false,
-    retract: true,
-  },
-  blocked_by_policy: {
-    message: `Your organization doesn't allow ${LIVE_SERVER} here.`,
-    retry: false,
-    retract: true,
-  },
-  approval_required: {
-    message: `Your organization requires approval for ${LIVE_SERVER}.`,
-    retry: false,
-    retract: true,
-  },
-  no_mcp: { message: NOT_IN_VIEW, retry: false, retract: false },
-  not_granted: { message: NOT_IN_VIEW, retry: false, retract: false },
-  capability_disabled: { message: NOT_IN_VIEW, retry: false, retract: false },
   bad_payload: {
-    message: `${LIVE_SERVER} answered with something unexpected. Is it up to date?`,
+    message: "Live scores came back in a form this page doesn't know. Reload to update it.",
     retry: false,
-    retract: false,
-  },
-  bad_request: {
-    message: `${LIVE_SERVER} didn't accept this page's request. Is it up to date?`,
-    retry: false,
-    retract: false,
   },
 };
 
 export function describeLiveError(error) {
   const code = (error && error.code) || "upstream_error";
-  const reason = String((error && error.message) || "");
   const known = LIVE_ERRORS[code];
-  const message =
-    code === "tool_error"
-      ? `MLB didn't answer (${reason || "no reason given"}). Trying again shortly.`
-      : (known && known.message) || TRY_AGAIN;
   return {
     code,
-    message,
+    message: (known && known.message) || TRY_AGAIN,
     retry: known ? known.retry : true,
-    retract: known ? known.retract : false,
-    detail: reason.slice(0, 200),
+    detail: String((error && error.message) || "").slice(0, 200),
   };
 }

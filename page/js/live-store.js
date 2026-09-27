@@ -5,18 +5,13 @@ import { readingsCollection } from "./season-store.js";
 import { session, composeState } from "./session.js";
 import { renderUpdates } from "./updates.js";
 
-const BLOCKING_WRITE_ERRORS = new Set([
-  "not_granted",
-  "capability_disabled",
-  "revoked",
-  "invalid_argument",
-  "quota_exceeded",
-]);
+// The store refuses a malformed write the same way every time, so retrying can't help.
+const BLOCKING_WRITE_ERROR = "invalid_argument";
 
 let writesBlocked = false;
 let writing = Promise.resolve();
 let reportedKey = "";
-const liveStatus = { source: "", error: "", detail: "", write: "" };
+const liveStatus = { error: "", detail: "", write: "" };
 
 async function runStep(name, write) {
   try {
@@ -133,7 +128,7 @@ async function writeLive(snapshot) {
 
 function describeWriteFailure(error) {
   const code = (error && error.code) || "error";
-  if (BLOCKING_WRITE_ERRORS.has(code)) writesBlocked = true;
+  if (code === BLOCKING_WRITE_ERROR) writesBlocked = true;
   const step = (error && error.step) || "write";
   return `${step}: ${code}: ${String((error && error.message) || "").slice(0, 160)}`;
 }
@@ -151,7 +146,7 @@ export function saveLive(snapshot) {
 // Stored so a page that stops updating can be diagnosed without its browser console.
 export function reportStatus(change) {
   Object.assign(liveStatus, change);
-  const key = [liveStatus.source, liveStatus.error, liveStatus.write].join("|");
+  const key = [liveStatus.error, liveStatus.write].join("|");
   if (!session.db || key === reportedKey) return;
   reportedKey = key;
   const doc = { ...liveStatus, at: new Date().toISOString() };

@@ -85,7 +85,7 @@ test("update merges nested objects, replaces arrays, and removes keys set to nul
   });
 });
 
-test("update needs a document that exists, as the artifact store does", async () => {
+test("update needs a document that exists", async () => {
   const { env } = createFakeStore();
   const response = await requestStore(env, "/store/seasons/2030", {
     method: "PATCH",

@@ -1,17 +1,9 @@
-import {
-  test,
-  expect,
-  openSelfHostedApp,
-  buildFixtureSnapshot,
-  EVENING_FIXTURE,
-} from "./harness.mjs";
+import { test, expect, openApp, buildFixtureSnapshot, EVENING_FIXTURE } from "./harness.mjs";
 import { createReading } from "../../page/js/readings.js";
 
-test("the self-hosted page saves to the Worker's store, and loads from it", async ({ page }) => {
-  const app = await openSelfHostedApp(page);
-  await expect
-    .poll(() => app.readDocument("live/status"))
-    .toMatchObject({ source: "worker", error: "", write: "" });
+test("the page saves to the Worker's store, and loads from it", async ({ page }) => {
+  const app = await openApp(page);
+  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "", write: "" });
   const season = await app.readDocument("seasons/2026");
   expect(Object.keys(season.teams)).toHaveLength(12);
   expect(await app.readDocument("standings/2026")).toHaveProperty("divisions");
@@ -32,7 +24,7 @@ test("the self-hosted page saves to the Worker's store, and loads from it", asyn
 });
 
 test("a change from another device shows up without a reload", async ({ page }) => {
-  const app = await openSelfHostedApp(page);
+  const app = await openApp(page);
   await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
   await expect.poll(() => app.countOpenSockets()).toBeGreaterThan(0);
   await page.getByRole("tab", { name: "Ranking" }).click();
@@ -48,7 +40,7 @@ test("a change from another device shows up without a reload", async ({ page }) 
 });
 
 test("a page that loses its connection catches up when it reconnects", async ({ page }) => {
-  const app = await openSelfHostedApp(page);
+  const app = await openApp(page);
   await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
   await expect.poll(() => app.countOpenSockets()).toBe(1);
   await page.getByRole("tab", { name: "Ranking" }).click();
@@ -77,7 +69,7 @@ test("readings older than two weeks go, and their updates stay in the saved log"
   };
   const elimination = { at: "2026-09-01T23:00:00Z", rows: { BAL: { wce: reading.rows.BAL.wce } } };
   const lastStart = { ...reading, at: elimination.at, games: {} };
-  const app = await openSelfHostedApp(page, {
+  const app = await openApp(page, {
     store: {
       "readings-2026/2026-09-01-01": {
         id: "2026-09-01-01",

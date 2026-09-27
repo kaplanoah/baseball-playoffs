@@ -1,9 +1,7 @@
-// The artifact store's calls, answered by the Worker that serves the self-hosted page.
+// The page's saved data, kept by the Worker that serves the page and pushed to it as it changes.
 
 const RECONNECT_FIRST_MS = 1000;
 const RECONNECT_MAX_MS = 30 * 1000;
-
-export const isSelfHosted = () => !!document.querySelector('meta[name="store"][content="worker"]');
 
 class StoreError extends Error {
   constructor(code, message) {
@@ -12,7 +10,7 @@ class StoreError extends Error {
   }
 }
 
-// The artifact store hands documents back read-only, and the page relies on copying them.
+// Documents come back read-only, so the page copies before it changes one.
 function freezeDeeply(value) {
   if (value && typeof value === "object") {
     Object.values(value).forEach(freezeDeeply);
