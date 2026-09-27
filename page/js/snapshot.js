@@ -56,6 +56,7 @@ const GAME_FIELDS = [
   "abstractGameState",
   "detailedState",
   "codedGameState",
+  "reason",
   "startTimeTBD",
   "teams",
   "away",
@@ -188,6 +189,8 @@ export const CHECKED_FIELDS = [
   "records",
   "dates",
   "seasons",
+  // MLB leaves the cause off some delays, so a missing one is never flagged.
+  "reason",
 ];
 
 const readPath = (object, path) =>
@@ -364,6 +367,12 @@ function readGameState(status) {
   return "pre";
 }
 
+// MLB names a delay "Delayed Start" before the first pitch and "Delayed" after, with its cause apart.
+function describeDelay(status) {
+  if (!/^Delayed\b/.test(status.detailedState || "")) return null;
+  return status.reason ? `Delayed: ${status.reason}` : "Delayed";
+}
+
 // Without gameInfo, three hours past the scheduled start is close enough to order finals.
 function estimateEnd(game) {
   const info = game.gameInfo || {};
@@ -398,6 +407,7 @@ function normalizeGame(game) {
     inning: game.linescore ? game.linescore.currentInning : undefined,
     half: readHalfInning(game.linescore),
     detail: status.detailedState,
+    delay: describeDelay(status),
     doubleheader: game.doubleHeader && game.doubleHeader !== "N" ? game.gameNumber : null,
     number: game.seriesGameNumber,
     league: league ? league[1] : null,
@@ -439,6 +449,7 @@ function summarizeGame(game) {
   if (game.state === "live" && game.half) summary.half = game.half;
   if (game.state === "final") summary.end = game.end;
   if (game.state === "off") summary.detail = game.detail;
+  if (game.delay) summary.delay = game.delay;
   return summary;
 }
 
