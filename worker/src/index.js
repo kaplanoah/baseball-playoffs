@@ -12,7 +12,8 @@ function findAppPath(pathname, appKey) {
   return pathname.startsWith(`${prefix}/`) ? pathname.slice(prefix.length) : null;
 }
 
-const isStorePath = (appPath) => appPath === "/watch" || appPath.startsWith("/store/");
+const isStorePath = (appPath) =>
+  appPath === "/watch" || appPath.startsWith("/store/") || appPath.startsWith("/push/");
 
 export default {
   fetch(request, env = {}) {

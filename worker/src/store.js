@@ -1,11 +1,14 @@
 import { pollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
+import { findNotableEntries, listNotifications } from "./notifications.js";
+import { createPushService } from "./push.js";
 import * as SeasonUpdater from "./season-updater.js";
 import { createSnapshotServer } from "./snapshot.js";
 
 // The page's saved data, kept in one Durable Object so every device reads the latest write.
 // Documents come back with sorted keys, update() merges nested objects and replaces anything
 // else, a null in an update removes that key, and a removed document reads as null.
-// An alarm keeps the current season up to date from MLB while no page is open.
+// An alarm keeps the current season up to date from MLB while no page is open, and tells
+// subscribed devices about new updates.
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -81,6 +84,7 @@ export class SeasonStore {
       openSocket = openWatchSocket,
       loadSnapshot = createSnapshotServer().loadSnapshot,
       now = () => Date.now(),
+      fetchImpl = (input, init) => fetch(input, init),
     } = {},
   ) {
     this.ctx = ctx;
@@ -89,6 +93,7 @@ export class SeasonStore {
     this.now = now;
     this.hasAlarm = false;
     this.failures = 0;
+    this.push = createPushService({ storage: ctx.storage, now, fetchImpl });
     this.docs = {
       read: async (key) => (await ctx.storage.get(key)) ?? null,
       list: async (collection) => [
@@ -103,6 +108,7 @@ export class SeasonStore {
     await this.startUpdating();
     const { pathname, searchParams } = new URL(request.url);
     if (pathname === "/watch") return this.acceptWatcher(request);
+    if (pathname.startsWith("/push/")) return this.push.serveRequest(request, pathname);
     const path = readPath(pathname);
     if (!path) return respondError(404, "not_found", "No such path.");
     if (path.id === undefined) {
@@ -198,7 +204,9 @@ export class SeasonStore {
     } catch (error) {
       return this.recordFailure({ error: "upstream_error", detail: describeError(error) });
     }
+    let before;
     try {
+      before = await SeasonUpdater.readUpdates(this.docs, snapshot.season);
       await SeasonUpdater.saveSnapshot(this.docs, snapshot);
     } catch (error) {
       return this.recordFailure({ write: describeError(error) });
@@ -206,7 +214,27 @@ export class SeasonStore {
     this.failures = 0;
     const status = SeasonUpdater.describeSnapshotStatus(snapshot);
     await SeasonUpdater.saveStatus(this.docs, status, this.now());
+    await this.notifyUpdates(before, snapshot);
     return pollDelay(snapshot, this.now()) ?? POLL_CHECK_MS;
+  }
+
+  // A failed notification never holds up the next update.
+  async notifyUpdates(before, snapshot) {
+    try {
+      const after = await SeasonUpdater.readUpdates(this.docs, snapshot.season);
+      const entries = findNotableEntries({
+        before: before.log,
+        after: after.log,
+        ranking: after.ranking,
+        state: snapshot,
+        now: this.now(),
+      });
+      if (!entries.length) return;
+      const context = { teams: snapshot.teams, standings: snapshot.standings };
+      await this.push.sendToAll(listNotifications(entries, context));
+    } catch (error) {
+      console.error(`Notifying failed: ${describeError(error)}`);
+    }
   }
 
   async recordFailure(status) {

@@ -81,6 +81,16 @@ export async function saveSnapshot(docs, snapshot) {
   await saveStandings(docs, year, snapshot);
 }
 
+// The updates the page would list: the saved log with what the readings rebuild.
+export async function readUpdates(docs, year) {
+  const doc = await docs.read(seasonKey(year));
+  const parts = Readings.sortParts(await docs.list(Readings.readingsCollection(year)));
+  return {
+    log: Readings.composeLog(doc?.log || [], parts),
+    ranking: Array.isArray(doc?.ranking) ? doc.ranking : [],
+  };
+}
+
 export function describeSnapshotStatus(snapshot) {
   const missing = snapshot.missing || [];
   return { error: missing.length ? "mlb_fields_missing" : "", detail: missing.join(", ") };

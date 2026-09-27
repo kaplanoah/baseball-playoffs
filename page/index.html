@@ -180,6 +180,24 @@
   </section>
 
   <section id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" class="view">
+    <div class="notify-card" id="notifyCard" hidden>
+      <div class="notify-text">
+        <h2 id="notifyTitle">Notifications</h2>
+        <p id="notifyNote" role="status"></p>
+        <button type="button" class="ghost" id="notifyTestBtn" hidden>Send a test</button>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        class="switch"
+        id="notifySwitch"
+        aria-checked="false"
+        aria-labelledby="notifyTitle"
+        hidden
+      >
+        <span class="switch-knob" aria-hidden="true"></span>
+      </button>
+    </div>
     <p class="rank-hint">
       Drag a card by its handle, or focus the handle and use the arrow keys, to order the field by
       who you want to win the World Series. Order saves automatically and shows as a rank tag on the

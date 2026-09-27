@@ -9,7 +9,8 @@ previous, current and next game, and scores that update automatically.
 A Cloudflare Worker serves the page and saves your ranking. It also reads MLB
 on its own, every 30 seconds during games, so the standings and updates stay
 current even with the page closed. Saved to an iPhone's home screen, the page
-opens full screen like an app.
+opens full screen like an app, and can send a notification when something
+happens to a team in your ranking.
 
 ## Setup (for humans)
 
@@ -98,6 +99,13 @@ says why the Worker couldn't read MLB, and `write` names the save that failed.
 **5. Save it to the home screen.** On an iPhone, have them open the address
 in Safari and choose **Share > Add to Home Screen**. It then opens full
 screen with its own icon.
+
+**6. Turn on notifications.** From the home screen icon, have them open the
+Ranking tab, turn on **Notifications**, allow them, and tap **Send a test**.
+iPhones send web notifications only to pages opened from the home screen.
+Each device turns them on for itself. A notification comes for each new
+update about a team in the ranking: a postseason game or series result, a
+clinch, an elimination, or a change in the field or seeds.
 
 Finish by telling the user they can set their ranking on the Ranking tab. If
 they made a Cloudflare token only for this setup, tell them they can delete it

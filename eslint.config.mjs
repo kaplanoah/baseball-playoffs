@@ -30,6 +30,10 @@ export default [
     },
   },
   {
+    files: ["page/sw.js"],
+    languageOptions: { globals: globals.serviceworker },
+  },
+  {
     files: ["worker/src/**/*.js"],
     languageOptions: { globals: { ...globals.serviceworker, WebSocketPair: "readonly" } },
   },
