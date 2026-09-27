@@ -1522,6 +1522,11 @@ table.ref th.won-col {
     pointer-events: none;
     will-change: transform;
   }
+  /* The pill hides the tab under it, so a keyboard focus ring shows on the pill instead. */
+  body.kbd .tab-list:has(button.active:focus) ~ .tab-pill {
+    outline: 2px solid var(--copper-ink);
+    outline-offset: 2px;
+  }
   .tab-pill-row {
     position: absolute;
     top: 0;

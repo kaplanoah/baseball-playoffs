@@ -366,3 +366,13 @@ test("on a phone, dragging along the tab bar picks the tab it's released on", as
   await expect(page.getByRole("tab", { name: "Ranking" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#view-ranking")).toBeVisible();
 });
+
+test("on a phone, a screen reader's bare click still switches tabs", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+
+  await page.getByRole("tab", { name: "Games" }).dispatchEvent("click", { detail: 1 });
+
+  await expect(page.getByRole("tab", { name: "Games" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#view-games")).toBeVisible();
+});

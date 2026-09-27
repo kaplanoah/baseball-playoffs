@@ -11,6 +11,8 @@ const ROW_INSET_PX = BAR_PADDING_PX + PILL_OVERHANG_PX;
 // How far the pill's rounded ends curve in at label height; the labels it hides stop short of them.
 const PILL_END_CURVE_PX = 4;
 const DRAG_THRESHOLD_PX = 6;
+// A click this soon after a press the bar handled is that press's own click.
+const PRESS_CLICK_WINDOW_MS = 600;
 
 // The iOS 27 selection motion, from frame-by-frame captures of UITabBarController: on touch the
 // pill lifts into a clear lens 16pt larger that magnifies the tab under it by 16%, travels on a
@@ -67,7 +69,14 @@ const motion = {
   frame: 0,
   lastTime: 0,
 };
-const press = { isActive: false, isDragging: false, startX: 0, pointerId: null, lastMoveTime: 0 };
+const press = {
+  isActive: false,
+  isDragging: false,
+  startX: 0,
+  pointerId: null,
+  lastMoveTime: 0,
+  choseAt: -Infinity,
+};
 /** @type {(tab: string) => void} */
 let chooseTab = () => {};
 
@@ -330,13 +339,16 @@ function endPress(event) {
     return;
   }
   if (wasDragging) travelTo(tab);
+  press.choseAt = performance.now();
   chooseTab(tab);
   startMotion();
 }
 
-// Pointer presses choose tabs themselves, so the click that follows one must not choose again.
-function ignorePointerClicks(event) {
-  if (isFloating() && event.detail > 0) event.stopPropagation();
+// A press chooses its tab itself, so the click that follows it must not choose again.
+// Screen readers activate tabs with a bare click, which still goes through.
+function ignorePressClicks(event) {
+  const isPressClick = performance.now() - press.choseAt < PRESS_CLICK_WINDOW_MS;
+  if (isFloating() && isPressClick) event.stopPropagation();
 }
 
 function snapPillToSelectedTab() {
@@ -398,7 +410,7 @@ export function startTabBar(onChoose) {
   bar.addEventListener("pointermove", trackPress);
   bar.addEventListener("pointerup", endPress);
   bar.addEventListener("pointercancel", endPress);
-  bar.addEventListener("click", ignorePointerClicks, true);
+  bar.addEventListener("click", ignorePressClicks, true);
   FLOATING_QUERY.addEventListener("change", fitBar);
   new ResizeObserver(fitBar).observe(findList());
   fitBar();
