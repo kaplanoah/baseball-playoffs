@@ -12,7 +12,7 @@ let unwatchStandings = null;
 let unwatchReadings = null;
 let deferredSeason = null;
 
-export function emptySeason(year) {
+function emptySeason(year) {
   return { year, teams: {}, series: {}, ranking: [], log: [] };
 }
 

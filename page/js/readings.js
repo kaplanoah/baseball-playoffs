@@ -6,7 +6,7 @@ import { easternDay } from "./snapshot.js";
 // reaches every update a kept reading covers. Readings are saved in parts, each one day's or
 // less: the reading the part started from, then each change after it, field by field.
 
-export const KEPT_DAYS = 14;
+const KEPT_DAYS = 14;
 
 export const readingsCollection = (year) => `readings-${year}`;
 

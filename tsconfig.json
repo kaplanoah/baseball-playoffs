@@ -16,5 +16,5 @@
     "useUnknownInCatchVariables": true
   },
   "include": ["page/js", "worker", "tests", "*.mjs", "types"],
-  "exclude": ["page/js/sortable.min.js", "worker/dist", "tests/browser/runtime.js"]
+  "exclude": ["page/js/sortable.min.js", "worker/dist"]
 }

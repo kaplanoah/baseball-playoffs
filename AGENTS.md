@@ -16,14 +16,15 @@
 - Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
 - Build page markup with the `html` template from `page/js/html.js` and write it with `setHtml`. Both escape stored and fetched text, and lint rejects any other `innerHTML` write.
 - Worker: `worker/`. It serves the page, its store, and the live snapshot, only under `/<APP_KEY>/`; everything but `robots.txt` is a 404 without the key. An alarm in its Durable Object (`worker/src/season-updater.js`) keeps the current season's saved data up to date from MLB; the page only reads it, and saves just the ranking, dismissals, and a hand-set field. Deploys bundle it with all of `page/`; `npm run build` writes that bundle to `worker/dist/`, which git ignores.
-- Tests: `tests/`.
-- Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript.
+- Tests: `tests/`. Every change to behavior comes with tests that fail without it, in the same PR.
+- Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript. `npm run deadcode` runs knip, which fails on unused files, exports, and dependencies: delete them rather than ignoring them.
 - Times show in the viewer's own time zone; only MLB's day (`easternDay`) is Eastern. Tests pass in any `TZ`: a test that asserts a time picks its zone with `tests/time-zone.js` or `test.use({ timezoneId })`.
 - The store returns documents frozen, with sorted keys. `update()` merges, so to remove a key, set it to `null`.
 
 ## Workflow
 
-- `main` is the source of truth. Work on a branch, open a PR, and squash-merge once CI is green. Never push to another session's branch.
+- `main` is the source of truth. Work on a branch, open a PR, and squash-merge only once CI is green and the PR has no merge conflicts with `main`. Never push to another session's branch.
+- The Review workflow has Claude comment on each new PR. Fix each finding or reply saying why not; its comments are advice, not a required check.
 - Don't spend time curating commit history. Squash merges make it irrelevant.
 - Refer to PRs by number, not branch.
 - Merges to `main` deploy the Worker: CI runs `npm run deploy:api` once every check passes. To redeploy by hand, use `npm run deploy:api` and no other way.
