@@ -400,3 +400,48 @@ test("on a phone, even a page shorter than the screen can scroll", async ({ page
   }));
   expect(scrollHeight).toBeGreaterThan(clientHeight);
 });
+
+test("on a phone, tapping the tab that's showing scrolls back to the top", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+
+  await page.getByRole("tab", { name: "Standings" }).click();
+
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+  await expect(page.locator("#view-standings")).toBeVisible();
+});
+
+test("on a phone, dragging back to the tab that's showing leaves the page where it is", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  const scrolled = await page.evaluate(() => scrollY);
+  const from = await page.getByRole("tab", { name: "Bracket" }).boundingBox();
+  const to = await page.getByRole("tab", { name: "Ranking" }).boundingBox();
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(700);
+
+  expect(await page.evaluate(() => scrollY)).toBe(scrolled);
+});
+
+test("clicking the tab that's showing scrolls back to the top", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 });
+  await openApp(page);
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+
+  await page.getByRole("tab", { name: "Bracket" }).dispatchEvent("click");
+
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+});

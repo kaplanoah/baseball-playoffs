@@ -20,9 +20,10 @@ import { hasSpringStarted, session, seasonYear } from "./session.js";
 import { easternDay } from "./snapshot.js";
 import { openSetup, saveSetup } from "./setup.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
+import { scrollToTop } from "./scroll-to-top.js";
 import { renderStandings } from "./standings.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
-import { selectTab, wireTabs } from "./tabs.js";
+import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
 import { createWorkerStore, isSelfHosted } from "./worker-store.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
@@ -53,6 +54,12 @@ function switchTab(tab) {
   for (const view of document.querySelectorAll("section.view")) {
     view.classList.toggle("active", view.id === `view-${tab}`);
   }
+}
+
+// As on iPhone, choosing the tab that's already showing scrolls it back to the top.
+function chooseTab(tab) {
+  if (tab === readSelectedTab(findTabButtons())) scrollToTop();
+  else switchTab(tab);
 }
 
 function watchActiveSeason() {
@@ -158,8 +165,8 @@ function finishReordering(order) {
 }
 
 function wireControls() {
-  wireTabs(findTabButtons(), switchTab);
-  startTabBar(switchTab);
+  wireTabs(findTabButtons(), chooseTab);
+  startTabBar(chooseTab);
   wireGameTabs();
   const picker = findYearPicker();
   picker.addEventListener("change", () => switchYear(Number(picker.value)));

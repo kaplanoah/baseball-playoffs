@@ -8,6 +8,10 @@ export function selectTab(buttons, tab) {
   }
 }
 
+/** @param {HTMLButtonElement[]} buttons */
+export const readSelectedTab = (buttons) =>
+  buttons.find((button) => button.classList.contains("active"))?.dataset.tab;
+
 function moveBetweenTabs(event, buttons, onSelect) {
   const index = buttons.indexOf(event.target);
   const targets = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: buttons.length - 1 };
