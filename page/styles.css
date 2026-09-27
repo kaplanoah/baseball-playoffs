@@ -571,8 +571,11 @@ table.st .seed-cell {
   display: block;
   color: var(--gold);
 }
-.club.tbd .dot {
+.dot.unknown-club {
   background: var(--card-border);
+}
+.game-club .tbd {
+  font-size: inherit;
 }
 
 .updates {

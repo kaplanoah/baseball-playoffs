@@ -53,9 +53,10 @@ function describeStatus(game) {
   }
 }
 
+// Not a .team-name: its clipped overflow cuts off the slant of the italic's last letter in Safari.
 function renderClub(id) {
   if (id) return teamTag(id);
-  return html`<span class="club tbd"><span class="dot"></span><span class="team-name">TBD</span></span>`;
+  return html`<span class="club"><span class="dot unknown-club"></span><span class="tbd">TBD</span></span>`;
 }
 
 function renderSide(id, score, hasLost) {
