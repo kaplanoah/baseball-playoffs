@@ -1,5 +1,6 @@
 import { fullBracket } from "./bracket.js";
 import { sameJson } from "./compare.js";
+import { sortParts } from "./readings.js";
 import { session, composeState } from "./session.js";
 import { TEAMS } from "./teams.js";
 
@@ -74,6 +75,22 @@ export async function loadStandings(year) {
       session.storedStandings = readDoc(snapshot);
     } catch {
       session.storedStandings = null;
+    }
+  }
+  composeState();
+}
+
+export const readingsCollection = (year) => `readings-${year}`;
+
+// A season keeps a few weeks of readings, a part or two a day, so one listing holds them all.
+export async function loadReadings(year) {
+  session.readings = null;
+  if (session.db) {
+    try {
+      const result = await session.db.collection(readingsCollection(year)).limit(100).get();
+      session.readings = sortParts(result.docs.map(readDoc));
+    } catch {
+      session.readings = null;
     }
   }
   composeState();

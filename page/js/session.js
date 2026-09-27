@@ -1,4 +1,4 @@
-import * as LogChanges from "./changes.js";
+import { composeLog } from "./readings.js";
 import { easternDay } from "./snapshot.js";
 
 const FRESH_FINAL_MS = 10 * 60 * 1000;
@@ -20,6 +20,8 @@ export const session = {
   activeYear: guessSeasonYear(),
   seasonDoc: null,
   storedStandings: null,
+  // The active season's parts of readings, oldest first, or null when they couldn't be read.
+  readings: null,
   live: null,
   liveProblem: null,
   saveProblem: null,
@@ -33,7 +35,8 @@ export const seasonYear = () => session.currentSeason;
 
 function overlayLiveSnapshot(doc) {
   const { live } = session;
-  if (!live || live.season !== session.activeYear) return doc;
+  if (!live || live.season !== session.activeYear)
+    return { ...doc, log: composeLog(doc.log, session.readings) };
   const slate = live.slate && {
     ...live.slate,
     since: new Date(Date.parse(live.asOf) - FRESH_FINAL_MS).toISOString(),
@@ -44,7 +47,7 @@ function overlayLiveSnapshot(doc) {
     series: live.series,
     projected: live.projected,
     slate,
-    log: LogChanges.mergeLog(doc.log, live.log),
+    log: composeLog(doc.log, session.readings, live.log),
   };
 }
 

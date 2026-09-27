@@ -1,5 +1,7 @@
 import * as LogChanges from "./changes.js";
 import { sameJson } from "./compare.js";
+import * as Readings from "./readings.js";
+import { readingsCollection } from "./season-store.js";
 import { session, composeState } from "./session.js";
 import { renderUpdates } from "./updates.js";
 
@@ -34,11 +36,7 @@ function losesKeys(before, after) {
 }
 
 function collectChangedFields(doc, snapshot) {
-  const found = LogChanges.findChanges(
-    { teams: doc.teams, projected: doc.projected, standings: session.storedStandings },
-    snapshot,
-  );
-  const log = LogChanges.mergeLog(doc.log, [...snapshot.log, ...found]);
+  const log = LogChanges.mergeLog(doc.log, snapshot.log);
   const fields = {};
   if (!sameJson(doc.teams, snapshot.teams)) fields.teams = snapshot.teams;
   if (!sameJson(doc.series, snapshot.series)) fields.series = snapshot.series;
@@ -70,23 +68,66 @@ async function writeStandings(year, snapshot) {
   session.storedStandings = table;
 }
 
-// Season before standings: if the standings write fails, the old baseline finds the same changes
-// again next time, and the log's keys keep them single.
+function redrawUpdates() {
+  composeState();
+  renderUpdates();
+}
+
+async function writeSeason(year, snapshot) {
+  const doc = session.seasonDoc;
+  const fields = collectChangedFields(doc, snapshot);
+  if (!Object.keys(fields).length) return;
+  await writeSeasonFields(year, doc, fields);
+  // Applied before the store echoes it back; the echo then redraws nothing, so the log is redrawn here.
+  Object.assign(session.seasonDoc, fields);
+  if (fields.log) redrawUpdates();
+}
+
+const replacePart = (parts, changed) =>
+  Readings.sortParts([...parts.filter((part) => part.id !== changed.id), changed]);
+
+// A snapshot without standings came from a partial answer, not a change in them. Each open
+// page writes whole parts from its own readings, so whichever writes last leaves a part that
+// replays on its own.
+async function writeReading(year, snapshot) {
+  if (!session.readings || !snapshot.standings) return;
+  const dayName = Readings.readReadingDay(snapshot);
+  const changed = Readings.addReading(session.readings, dayName, Readings.createReading(snapshot));
+  if (!changed) return;
+  await runStep("readings", () =>
+    session.db.doc(`${readingsCollection(year)}/${changed.id}`).set(changed),
+  );
+  session.readings = replacePart(session.readings, changed);
+  redrawUpdates();
+}
+
+// The expired parts' updates move into the saved log before their readings go.
+async function removeExpiredReadings(year, snapshot) {
+  if (!session.readings) return;
+  const dayName = Readings.readReadingDay(snapshot);
+  const expired = Readings.findExpiredParts(session.readings, dayName);
+  if (!expired.length) return;
+  const doc = session.seasonDoc;
+  const log = LogChanges.mergeLog(doc.log, Readings.rebuildLog(expired));
+  if (!sameJson(doc.log, log)) {
+    await writeSeasonFields(year, doc, { log });
+    session.seasonDoc.log = log;
+  }
+  for (const part of expired) {
+    await runStep("readings removal", () =>
+      session.db.doc(`${readingsCollection(year)}/${part.id}`).delete(),
+    );
+    session.readings = session.readings.filter((kept) => kept !== part);
+  }
+  redrawUpdates();
+}
+
 async function writeLive(snapshot) {
   if (snapshot.season !== session.activeYear) return;
   const year = snapshot.season;
-  const doc = session.seasonDoc;
-  const fields = collectChangedFields(doc, snapshot);
-
-  if (Object.keys(fields).length) {
-    await writeSeasonFields(year, doc, fields);
-    // Applied before the store echoes it back; the echo then redraws nothing, so the log is redrawn here.
-    Object.assign(session.seasonDoc, fields);
-    if (fields.log) {
-      composeState();
-      renderUpdates();
-    }
-  }
+  await writeSeason(year, snapshot);
+  await writeReading(year, snapshot);
+  await removeExpiredReadings(year, snapshot);
   await writeStandings(year, snapshot);
 }
 

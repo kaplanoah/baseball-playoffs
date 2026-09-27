@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as MLBSnapshot from "../page/js/snapshot.js";
 import * as LogChanges from "../page/js/changes.js";
+import * as Readings from "../page/js/readings.js";
 
 const NOW = Date.parse("2026-09-25T02:00:00Z");
 
@@ -50,31 +51,27 @@ const TEAMS = {
 };
 const createFinal = (away, home, score) => ({ away, home, state: "final", score });
 
-function findTableChanges(oldRows, newRows, oldTeams, newTeams, games = [], projected = true) {
-  const before = { teams: oldTeams, projected: true, standings: buildTable(oldRows) };
-  const after = {
-    teams: newTeams,
+const createReading = (rows, teams, games = [], projected = true) =>
+  Readings.createReading({
+    asOf: new Date(NOW).toISOString(),
     projected,
-    standings: buildTable(newRows),
-    slate: { today: { games } },
-  };
-  return LogChanges.findChanges(before, after, NOW).map(({ at, ...entry }) => entry);
+    teams,
+    standings: buildTable(rows),
+    slate: { today: { date: "2026-09-24", games } },
+  });
+
+function findTableChanges(oldRows, newRows, oldTeams, newTeams, games = [], projected = true) {
+  const before = createReading(oldRows, oldTeams);
+  const after = createReading(newRows, newTeams, games, projected);
+  return LogChanges.findChanges(before, after).map(({ at, ...entry }) => entry);
 }
 
 test("nothing moved, nothing logged", () => {
   assert.deepEqual(findTableChanges(BEFORE, BEFORE, TEAMS, TEAMS), []);
 });
 
-test("an empty baseline is the starting point, not news", () => {
-  assert.deepEqual(
-    LogChanges.findChanges(
-      { teams: {}, projected: true },
-      { teams: TEAMS, standings: buildTable(BEFORE) },
-      NOW,
-    ),
-    [],
-  );
-  assert.deepEqual(LogChanges.findChanges(null, { teams: TEAMS }, NOW), []);
+test("an empty field is the starting point, not news", () => {
+  assert.deepEqual(findTableChanges(BEFORE, BEFORE, {}, TEAMS), []);
 });
 
 test("one White Sox win: the Orioles are out and the White Sox are in", () => {
@@ -139,17 +136,6 @@ test("each step up is news: a bye after a division, but not a wild card after a 
     { kind: "berth", team: "CLE", what: "bye" },
   ]);
   assert.deepEqual(findTableChanges(now, now, TEAMS, TEAMS), []);
-});
-
-test("a table saved before clinch markers were kept only yields division titles", () => {
-  const rowsWithoutClinch = BEFORE.map(({ clinch, ...row }) => row);
-  const now = updateRow(updateRow(BEFORE, "CWS", { clinch: "x" }), "CLE", {
-    clinch: "y",
-    clinched: true,
-  });
-  assert.deepEqual(findTableChanges(rowsWithoutClinch, now, TEAMS, TEAMS), [
-    { kind: "berth", team: "CLE", what: "division", div: "AL Central" },
-  ]);
 });
 
 test("a wild card changes hands: the spot, how far back, and both games", () => {
@@ -279,9 +265,8 @@ test("an entry is logged when it was noticed", () => {
   const after = updateRow(BEFORE, "BAL", { wce: "E" });
   const games = [{ ...createFinal("CWS", "KC", [9, 1]), end: "2026-09-24T20:45:00Z" }];
   const [entry] = LogChanges.findChanges(
-    { teams: TEAMS, projected: true, standings: buildTable(BEFORE) },
-    { teams: TEAMS, projected: true, standings: buildTable(after), slate: { today: { games } } },
-    NOW,
+    createReading(BEFORE, TEAMS),
+    createReading(after, TEAMS, games),
   );
   // Stamped now, not when the game ended: the reader may have dismissed the log since.
   assert.equal(entry.at, "2026-09-25T02:00:00Z");
@@ -299,9 +284,8 @@ test("a change two games made happened when the later one ended", () => {
     { ...createFinal("CWS", "KC", [2, 5]), end: "2026-09-25T00:41:00Z" },
   ];
   const [entry] = LogChanges.findChanges(
-    { teams: TEAMS, projected: true, standings: buildTable(BEFORE) },
-    { teams, projected: true, standings: buildTable(after), slate: { today: { games } } },
-    NOW,
+    createReading(BEFORE, TEAMS),
+    createReading(after, teams, games),
   );
   assert.equal(entry.ended, "2026-09-25T00:41:00Z");
   assert.equal(entry.at, "2026-09-25T02:00:00Z");
@@ -315,12 +299,11 @@ test("the real snapshot of 24 September against itself, and against the night be
     season: 2026,
     now: Date.parse(fixture.now),
   });
-  const stored = { teams: snapshot.teams, projected: true, standings: snapshot.standings };
-  assert.deepEqual(LogChanges.findChanges(stored, snapshot, NOW), []);
+  const reading = Readings.createReading(snapshot);
+  assert.deepEqual(LogChanges.findChanges(reading, reading), []);
   // The night before, Baltimore still had a wild card route.
-  const earlier = JSON.parse(JSON.stringify(stored));
-  earlier.standings.divisions["AL East"].find((row) => row.id === "BAL").wce = "1";
-  const [entry, ...rest] = LogChanges.findChanges(earlier, snapshot, NOW);
+  const earlier = { ...reading, rows: { ...reading.rows, BAL: { ...reading.rows.BAL, wce: "1" } } };
+  const [entry, ...rest] = LogChanges.findChanges(earlier, reading);
   assert.equal(rest.length, 0);
   assert.deepEqual(
     { kind: entry.kind, team: entry.team, via: entry.via },

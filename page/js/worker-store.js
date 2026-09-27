@@ -150,6 +150,10 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     await requestJson(findUrl(path), sendJson(method, data));
   }
 
+  async function removeDoc(path) {
+    await requestJson(findUrl(path), { method: "DELETE" });
+  }
+
   function doc(path) {
     return {
       id: readId(path),
@@ -157,6 +161,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
       get: () => readSnapshot(path),
       set: (data) => writeDoc(path, "PUT", data),
       update: (data) => writeDoc(path, "PATCH", data),
+      delete: () => removeDoc(path),
       onSnapshot: (onNext, onError = () => {}) => watchPath(path, onNext, onError),
     };
   }

@@ -135,6 +135,18 @@ test("every write reaches each open watcher, with the document as saved", async 
   assert.equal(plain.status, 426);
 });
 
+test("a removed document reads as null, and its watchers hear so", async () => {
+  const { env, stored, sockets } = createFakeStore();
+  await requestStore(env, "/watch", { headers: { upgrade: "websocket" } });
+  await requestStore(env, "/store/readings-2026/2026-09-27", { method: "PUT", body: { day: 1 } });
+
+  const response = await requestStore(env, "/store/readings-2026/2026-09-27", { method: "DELETE" });
+  assert.equal(response.status, 204);
+  assert.equal(await readData(env, "/store/readings-2026/2026-09-27"), null);
+  assert.equal(stored.size, 0);
+  assert.deepEqual(sockets[0].sent.at(-1), { path: "readings-2026/2026-09-27", data: null });
+});
+
 test("the store answers only under the key, and never sees it", async () => {
   const { env, seenPaths } = createFakeStore();
   await requestStore(env, "/store/seasons/2026?limit=1");
@@ -167,7 +179,7 @@ test("bad names, bodies, and methods are refused without writing", async () => {
       }),
       413,
     ],
-    [requestStore(env, "/store/seasons/2026", { method: "DELETE" }), 405],
+    [requestStore(env, "/store/seasons/2026", { method: "POST" }), 405],
     [requestStore(env, "/store/seasons", { method: "PUT", body: {} }), 405],
   ];
   for (const [pending, status] of refusals) assert.equal((await pending).status, status);

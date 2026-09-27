@@ -1,6 +1,7 @@
 // The page's saved data, kept in one Durable Object so every device reads the latest write.
 // It follows the artifact store's rules: documents come back with sorted keys, update() merges
-// nested objects and replaces anything else, and a null in an update removes that key.
+// nested objects and replaces anything else, a null in an update removes that key, and a removed
+// document reads as null.
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -85,7 +86,8 @@ export class SeasonStore {
     if (request.method === "GET") return this.readDoc(key);
     if (request.method === "PUT") return this.replaceDoc(key, request);
     if (request.method === "PATCH") return this.updateDoc(key, request);
-    return respondError(405, "method_not_allowed", "GET, PUT, or PATCH only.");
+    if (request.method === "DELETE") return this.removeDoc(key);
+    return respondError(405, "method_not_allowed", "GET, PUT, PATCH, or DELETE only.");
   }
 
   acceptWatcher(request) {
@@ -126,6 +128,12 @@ export class SeasonStore {
     const data = sortKeys(doc);
     await this.ctx.storage.put(key, data);
     this.announceChange(key, data);
+    return new Response(null, { status: 204 });
+  }
+
+  async removeDoc(key) {
+    await this.ctx.storage.delete(key);
+    this.announceChange(key, null);
     return new Response(null, { status: 204 });
   }
 
