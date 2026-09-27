@@ -28,65 +28,95 @@
   </header>
 
   <nav class="tabs">
-    <div class="tab-list" role="tablist" aria-label="Views">
-      <button
-        type="button"
-        role="tab"
-        id="tab-bracket"
-        data-tab="bracket"
-        aria-controls="view-bracket"
-        aria-selected="true"
-        class="active"
-      >
-        Bracket
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="tab-games"
-        data-tab="games"
-        aria-controls="view-games"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        Games
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="tab-standings"
-        data-tab="standings"
-        aria-controls="view-standings"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        Standings
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="tab-ranking"
-        data-tab="ranking"
-        aria-controls="view-ranking"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        Ranking
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="tab-reference"
-        data-tab="reference"
-        aria-controls="view-reference"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        All Teams
-      </button>
+    <div class="tab-bar" id="tabBar">
+      <span class="tab-glass" id="tabGlass" aria-hidden="true"><span class="tab-glow"></span></span>
+      <div class="tab-list" role="tablist" aria-label="Views">
+        <button
+          type="button"
+          role="tab"
+          id="tab-bracket"
+          data-tab="bracket"
+          aria-controls="view-bracket"
+          aria-selected="true"
+          class="active"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M232,66H206V48a6,6,0,0,0-6-6H56a6,6,0,0,0-6,6V66H24A14,14,0,0,0,10,80V96a38,38,0,0,0,38,38h5.14A78,78,0,0,0,122,189.75V218H96a6,6,0,0,0,0,12h64a6,6,0,0,0,0-12H134V189.75c32.44-2.52,59.43-25.3,68.62-55.75H208a38,38,0,0,0,38-38V80A14,14,0,0,0,232,66ZM48,122A26,26,0,0,1,22,96V80a2,2,0,0,1,2-2H50v34a80.87,80.87,0,0,0,.65,10Zm146-10.9c0,36.62-29.38,66.63-65.5,66.9A66,66,0,0,1,62,112V54H194ZM234,96a26,26,0,0,1-26,26h-2.77a78.45,78.45,0,0,0,.77-10.9V78h26a2,2,0,0,1,2,2Z"
+              /></svg></span
+          ><span class="tab-label">Bracket</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-games"
+          data-tab="games"
+          aria-controls="view-games"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M88,130a26,26,0,1,0,26,26A26,26,0,0,0,88,130Zm0,40a14,14,0,1,1,14-14A14,14,0,0,1,88,170Zm160-48H221.83A102,102,0,0,0,18,128v24a70.08,70.08,0,0,0,70,70h40a70.08,70.08,0,0,0,70-70V134h50a6,6,0,0,0,0-12Zm-62,30a58.07,58.07,0,0,1-58,58h-.85A70,70,0,0,0,158,152V134h28Zm-34-30a6,6,0,0,0-6,6v24a58,58,0,0,1-116,0V128a90,90,0,0,1,179.8-6Z"
+              /></svg></span
+          ><span class="tab-label">Games</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-standings"
+          data-tab="standings"
+          aria-controls="view-standings"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M238,56v64a6,6,0,0,1-12,0V70.48l-85.76,85.76a6,6,0,0,1-8.48,0L96,120.49,28.24,188.24a6,6,0,0,1-8.48-8.48l72-72a6,6,0,0,1,8.48,0L136,143.51,217.52,62H168a6,6,0,0,1,0-12h64A6,6,0,0,1,238,56Z"
+              /></svg></span
+          ><span class="tab-label">Standings</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-ranking"
+          data-tab="ranking"
+          aria-controls="view-ranking"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M237.28,97.87A14.18,14.18,0,0,0,224.76,88l-60.25-4.87-23.22-56.2a14.37,14.37,0,0,0-26.58,0L91.49,83.11,31.24,88a14.18,14.18,0,0,0-12.52,9.89A14.43,14.43,0,0,0,23,113.32L69,152.93l-14,59.25a14.4,14.4,0,0,0,5.59,15,14.1,14.1,0,0,0,15.91.6L128,196.12l51.58,31.71a14.1,14.1,0,0,0,15.91-.6,14.4,14.4,0,0,0,5.59-15l-14-59.25L233,113.32A14.43,14.43,0,0,0,237.28,97.87Zm-12.14,6.37-48.69,42a6,6,0,0,0-1.92,5.92l14.88,62.79a2.35,2.35,0,0,1-.95,2.57,2.24,2.24,0,0,1-2.6.1L131.14,184a6,6,0,0,0-6.28,0L70.14,217.61a2.24,2.24,0,0,1-2.6-.1,2.35,2.35,0,0,1-1-2.57l14.88-62.79a6,6,0,0,0-1.92-5.92l-48.69-42a2.37,2.37,0,0,1-.73-2.65,2.28,2.28,0,0,1,2.07-1.65l63.92-5.16a6,6,0,0,0,5.06-3.69l24.63-59.6a2.35,2.35,0,0,1,4.38,0l24.63,59.6a6,6,0,0,0,5.06,3.69l63.92,5.16a2.28,2.28,0,0,1,2.07,1.65A2.37,2.37,0,0,1,225.14,104.24Z"
+              /></svg></span
+          ><span class="tab-label">Ranking</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-reference"
+          data-tab="reference"
+          aria-controls="view-reference"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z"
+              /></svg></span
+          ><span class="tab-label">All Teams</span>
+        </button>
+      </div>
+      <span class="tab-pill" aria-hidden="true"><span class="tab-pill-row"></span></span>
     </div>
     <span id="banner" class="banner" hidden></span>
   </nav>
+  <div class="edge-fade" aria-hidden="true"></div>
 
   <div id="updates" class="updates" hidden></div>
 
@@ -196,6 +226,66 @@
       </div>
     </form>
   </dialog>
+
+  <svg class="svg-defs" aria-hidden="true">
+    <filter
+      id="glassLens"
+      x="0"
+      y="0"
+      width="348"
+      height="62"
+      filterUnits="userSpaceOnUse"
+      primitiveUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB"
+    >
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" edgeMode="duplicate" result="frosted" />
+      <feImage x="0" y="0" width="348" height="62" result="map" preserveAspectRatio="none" />
+      <feDisplacementMap
+        in="frosted"
+        in2="map"
+        scale="-20"
+        xChannelSelector="R"
+        yChannelSelector="G"
+        result="bentRed"
+      />
+      <feDisplacementMap
+        in="frosted"
+        in2="map"
+        scale="-21.2"
+        xChannelSelector="R"
+        yChannelSelector="G"
+        result="bentGreen"
+      />
+      <feDisplacementMap
+        in="frosted"
+        in2="map"
+        scale="-22.4"
+        xChannelSelector="R"
+        yChannelSelector="G"
+        result="bentBlue"
+      />
+      <feColorMatrix
+        in="bentRed"
+        type="matrix"
+        values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"
+        result="red"
+      />
+      <feColorMatrix
+        in="bentGreen"
+        type="matrix"
+        values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"
+        result="green"
+      />
+      <feColorMatrix
+        in="bentBlue"
+        type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"
+        result="blue"
+      />
+      <feBlend in="red" in2="green" mode="screen" result="redGreen" />
+      <feBlend in="redGreen" in2="blue" mode="screen" />
+    </filter>
+  </svg>
 
   <script src="js/sortable.min.js"></script>
   <script type="module" src="js/app.js"></script>

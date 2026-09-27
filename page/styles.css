@@ -131,10 +131,24 @@ nav.tabs {
 .stamp-err {
   color: var(--copper-ink);
 }
+.tab-bar {
+  display: contents;
+}
 .tab-list {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+.tab-glass,
+.tab-pill,
+.tab-icon,
+.edge-fade {
+  display: none;
+}
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
 }
 nav.tabs button {
   font: inherit;
@@ -1361,25 +1375,191 @@ table.ref th.won-col {
     gap: 3px;
   }
 
+  body {
+    padding-bottom: calc(var(--tab-bar-bottom) + 86px);
+  }
+  :root {
+    --tab-bar-bottom: max(calc(env(safe-area-inset-bottom) - 12px), 16px);
+  }
   nav.tabs {
-    flex-wrap: nowrap;
-    gap: 6px;
+    margin-bottom: 20px;
+  }
+  /* Without the banner the nav has nothing in the flow, so it steps aside. */
+  nav.tabs:has(> .banner[hidden]) {
+    display: contents;
+  }
+  nav.tabs:has(> .banner[hidden]) + .updates {
+    margin-top: 0;
+  }
+
+  /*
+   * A floating glass tab bar, sized like iOS's: a 62px capsule 21px in from the sides, a selection
+   * pill 5px inside it, icons over small system-font labels. tab-bar.js drives its motion.
+   */
+  .tab-bar {
+    --tab-bar-height: 62px;
+    --tab-height: calc(var(--tab-bar-height) - 10px);
+    position: fixed;
+    z-index: 20;
+    left: 21px;
+    right: 21px;
+    bottom: var(--tab-bar-bottom);
+    display: block;
+    height: var(--tab-bar-height);
+  }
+  /* The shadow sits on its own layer: Chrome misplaces an SVG backdrop filter on an element with one. */
+  .tab-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+  }
+  .tab-glass {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(3px) saturate(160%) brightness(1.05);
+    backdrop-filter: blur(3px) saturate(160%) brightness(1.05);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  }
+  /* Chrome skips filter functions chained before url(), so the lens filter does its own blur. */
+  .tab-glass.bends {
+    backdrop-filter: url(#glassLens) saturate(160%) brightness(1.05);
+  }
+  .tab-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle 46px at var(--glow-x, 50%) var(--glow-y, 50%),
+      rgba(255, 255, 255, var(--glow-alpha, 0)),
+      transparent
+    );
   }
   .tab-list {
-    flex: 1 1 100%;
+    position: absolute;
+    inset: 0;
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: 0;
+    padding: 5px 9px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
-  nav.tabs button {
-    flex: 1 1 auto;
+  nav.tabs .tab-list button,
+  .tab-copy {
+    flex: 1 1 0;
     min-width: 0;
-    padding: 6px 2px;
-    font-size: 0.68rem;
-    letter-spacing: 0.03em;
+    height: var(--tab-height);
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: #fff;
+    font:
+      500 11px/1.2 -apple-system,
+      BlinkMacSystemFont,
+      "SF Pro Text",
+      system-ui,
+      sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
     white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
-  nav.tabs {
-    flex-wrap: wrap;
+  nav.tabs .tab-list button.active {
+    background: none;
+    color: #fff;
+  }
+  .tab-icon {
+    display: block;
+    flex: none;
+    width: 21px;
+    height: 21px;
+  }
+  /* Phosphor draws inside a wide margin, so its box runs a little larger to match optically. */
+  .tab-icon svg {
+    display: block;
+    width: 23px;
+    height: 23px;
+    margin: -1px;
+  }
+  /*
+   * The selected tab sits on a frosted pill. --lift runs from 0 to 1 as a touch raises it into a
+   * clear lens, and --platter is its frosted fill, which fades while it lifts.
+   */
+  .tab-pill {
+    display: block;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: var(--pill-width, 20%);
+    height: var(--tab-height);
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, calc(0.11 * var(--platter, 1)));
+    -webkit-backdrop-filter: blur(calc(5px * var(--platter, 1))) saturate(150%)
+      brightness(calc(1 + var(--lift, 0) * 0.06));
+    backdrop-filter: blur(calc(5px * var(--platter, 1))) saturate(150%)
+      brightness(calc(1 + var(--lift, 0) * 0.06));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, calc(var(--lift, 0) * 0.6)),
+      inset 0 0 0 0.5px rgba(255, 255, 255, calc(var(--lift, 0) * 0.45)),
+      inset 0 -1px 1px rgba(255, 255, 255, calc(var(--lift, 0) * 0.18)),
+      0 6px 18px rgba(0, 0, 0, calc(var(--lift, 0) * 0.3));
+    pointer-events: none;
+    will-change: transform;
+  }
+  .tab-pill-row {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    display: flex;
+    width: var(--row-width, 100%);
+    height: 100%;
+  }
+  /* The bottom scroll edge: content dims and softens under the bar but stays readable. */
+  .edge-fade {
+    display: block;
+    position: fixed;
+    z-index: 19;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--tab-bar-bottom) + 100px);
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in srgb, var(--bg) 60%, transparent) 85%
+    );
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 70%);
+    mask-image: linear-gradient(to bottom, transparent, #000 70%);
+    pointer-events: none;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .tab-glass {
+      background: rgba(28, 44, 36, 0.94);
+    }
+  }
+  @media (prefers-contrast: more) {
+    .tab-glass {
+      background: #000;
+      box-shadow: inset 0 0 0 1px #fff;
+    }
   }
   .game-tabs button {
     flex: 1 1 0;
@@ -1391,16 +1571,8 @@ table.ref th.won-col {
     top: 0;
     flex-basis: 100%;
     padding-left: 0;
-    margin-top: 11px;
   }
   .banner::before {
     display: none;
-  }
-  @media (max-width: 359px) {
-    nav.tabs button {
-      font-size: 0.6rem;
-      letter-spacing: 0;
-      padding: 6px 1px;
-    }
   }
 }

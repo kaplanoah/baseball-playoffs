@@ -325,3 +325,44 @@ test("until spring training starts, the latest season is last year's", async ({ 
   await expect.poll(() => app.countToolCalls()).toBeGreaterThanOrEqual(2);
   await expect(page.locator("#yearSel")).toHaveValue("2026");
 });
+
+const PHONE = { width: 390, height: 844 };
+
+test("on a phone, the tabs float at the bottom and stay there while the page scrolls", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const bar = page.locator("#tabBar");
+  const resting = await bar.boundingBox();
+  const gapBelow = PHONE.height - (resting.y + resting.height);
+  expect(gapBelow).toBeGreaterThanOrEqual(16);
+  expect(gapBelow).toBeLessThan(32);
+
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await expect(page.getByRole("tab", { name: "Standings" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#view-standings")).toBeVisible();
+
+  await page.mouse.wheel(0, 800);
+  await expect
+    .poll(() => bar.boundingBox().then((box) => Math.round(box.y)))
+    .toBe(Math.round(resting.y));
+});
+
+test("on a phone, dragging along the tab bar picks the tab it's released on", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const from = await page.getByRole("tab", { name: "Bracket" }).boundingBox();
+  const to = await page.getByRole("tab", { name: "Ranking" }).boundingBox();
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
+  await page.mouse.up();
+
+  await expect(page.getByRole("tab", { name: "Ranking" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#view-ranking")).toBeVisible();
+});

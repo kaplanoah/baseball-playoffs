@@ -176,3 +176,6 @@ Without the token, merges deploy nothing. Redeploy by hand with
 ## License
 
 [MIT](LICENSE)
+
+The tab bar icons are from [Phosphor Icons](https://phosphoricons.com), used
+under the MIT license, copyright (c) 2023 Phosphor Icons.
