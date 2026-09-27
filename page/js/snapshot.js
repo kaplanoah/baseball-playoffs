@@ -467,13 +467,14 @@ function listClubGames(games, day) {
   return { previous: listInOrder(previous), next: listInOrder(next) };
 }
 
-// Before 6am Eastern, today is still last night.
+// Before 6am Eastern, today is still last night while any of last night's games is unfinished.
 function buildSlate(games, clubGames, now) {
   const clock = easternDay(now);
   const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
   const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
-  let day = clock.date;
-  if (clock.hour < 6 && listGamesOn(addDays(day, -1)).length) day = addDays(day, -1);
+  const lastNight = addDays(clock.date, -1);
+  const isLastNightUnfinished = listGamesOn(lastNight).some((game) => game.state !== "final");
+  const day = clock.hour < 6 && isLastNightUnfinished ? lastNight : clock.date;
 
   const nextDay = [...new Set(playable.map((game) => game.date))]
     .filter((date) => date > day)

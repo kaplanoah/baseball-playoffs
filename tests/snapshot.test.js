@@ -246,13 +246,25 @@ test("September: the day's games, in the shape the stamp reads", () => {
   assert.equal(slate.lastFinal.away, "HOU");
 });
 
-test("before 6am Eastern the day being played is still last night", () => {
+test("before 6am Eastern the day being played is still last night while a game is unfinished", () => {
   const at1am = Date.parse("2026-09-25T05:00:00Z");
   assert.equal(buildSnapshot(EVENING, at1am).slate.today.date, "2026-09-24");
   const at7am = Date.parse("2026-09-25T11:00:00Z");
   const { slate } = buildSnapshot(EVENING, at7am);
   assert.equal(slate.today.date, "2026-09-25");
   assert.equal(slate.lastFinal.state, "final");
+});
+
+test("once last night's games are all final, today is the new day even before 6am", () => {
+  const fixture = JSON.parse(JSON.stringify(EVENING));
+  const lastNight = fixture.responses.schedule.dates.find(
+    (scheduleDate) => scheduleDate.date === "2026-09-24",
+  );
+  for (const game of lastNight.games) {
+    game.status = { abstractGameState: "Final", codedGameState: "F", detailedState: "Final" };
+  }
+  const at1am = Date.parse("2026-09-25T05:00:00Z");
+  assert.equal(buildSnapshot(fixture, at1am).slate.today.date, "2026-09-25");
 });
 
 test("a rainout is neither a final nor on the slate", () => {
