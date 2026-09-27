@@ -197,19 +197,20 @@ export async function deploy({
     });
   }
 
+  // Deploy logs are public, and the address names the account's workers.dev subdomain.
   async function confirmWorkerAnswers(url, previousVersions) {
     if (await isWorkerAnswering(url, { fetchImpl, pause })) {
       log("worker check: ok");
       return;
     }
     if (!previousVersions)
-      throw new Error(`The Worker at ${url} didn't answer, and no earlier version exists.`);
+      throw new Error("The Worker didn't answer, and no earlier version exists.");
     await rollBack(previousVersions).catch((error) => {
       throw new Error(
-        `The Worker at ${url} didn't answer, and the new version is still live: ${error.message}`,
+        `The Worker didn't answer, and the new version is still live: ${error.message}`,
       );
     });
-    throw new Error(`The Worker at ${url} didn't answer, so the earlier version is live again.`);
+    throw new Error("The Worker didn't answer, so the earlier version is live again.");
   }
 
   const previousVersions = await findLiveVersions();
@@ -218,7 +219,6 @@ export async function deploy({
   await enableWorkersDevRoute();
   const url = await readWorkerUrl();
   await confirmWorkerAnswers(url, previousVersions);
-  log(`Worker URL: ${url}`);
   return url;
 }
 
