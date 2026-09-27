@@ -6,6 +6,7 @@ const DEVICE_ENDPOINT = "https://fcm.googleapis.com/fcm/send/test-device";
 // so the permission prompt and the subscription are stand-ins. The subscription has real keys,
 // which is all the Worker needs.
 function stubPushManager(endpoint) {
+  /** @type {NotificationPermission} */
   let permission = "default";
   Object.defineProperty(Notification, "permission", { get: () => permission });
   Notification.requestPermission = async () => {
