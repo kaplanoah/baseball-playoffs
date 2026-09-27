@@ -297,7 +297,8 @@ test("a page left open turns over when spring training starts", async ({ page })
     now: "2027-02-19T04:30:00Z",
     snapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
   });
-  // The hourly check starts once the page has asked for both seasons.
+  // Startup's own spring check requests a snapshot after setting the hourly timer, so the clock
+  // can't jump ahead before the timer exists.
   await expect.poll(() => app.countSnapshotRequests()).toBeGreaterThanOrEqual(2);
   await expect(page.locator("#yearSel")).toHaveValue("2026");
 
