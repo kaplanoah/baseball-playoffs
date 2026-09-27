@@ -77,8 +77,9 @@ themselves, see "If they deploy it themselves" below.
    `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 2.`
 
 **2. Deploy the Worker.** Run `npm ci`, then `npm run deploy:api`. It runs the
-tests, deploys `main` exactly as it is on GitHub, checks that the Worker
-answers, and prints its address. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
+tests, deploys `main` exactly as it is on GitHub, and checks that the Worker
+answers. It keeps the Worker's address out of its output, because GitHub's
+deploy logs are public; step 3 prints it. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
 The session's own branch works once it matches `main`. It sets
 `NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
 proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
@@ -136,7 +137,9 @@ runs the tests, in Node and in a browser, on every pull request, so merge once
 those pass and the pull request has no conflicts with `main`. If the repo has a
 `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret, Claude also reviews each
 new pull request and comments on bugs, rule breaks, security problems, and
-missing tests. Its comments are advice, not a required check. To run the
+missing tests. To have it review a pull request again after later pushes, add
+the `review` label; it takes the label off when it starts. Its comments are
+advice, not a required check. To run the
 same checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 

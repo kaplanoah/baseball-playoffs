@@ -276,6 +276,34 @@ test("a first deploy has no live version to look up", async () => {
   assert.equal(url, WORKER_URL);
 });
 
+test("the log and errors never show the Worker's address", async () => {
+  const { deploy } = await loadDeployModule();
+  const lines = [];
+  const logLine = (line) => lines.push(line);
+  await deploy({
+    fetchImpl: createFakeCloudflare().fetchImpl,
+    env: ENV,
+    script: "",
+    log: logLine,
+    pause: skipPause,
+  });
+  const silent = createFakeCloudflare({ answerWorker: () => new Response("", { status: 500 }) });
+  const failure = await deploy({
+    fetchImpl: silent.fetchImpl,
+    env: ENV,
+    script: "",
+    log: logLine,
+    pause: skipPause,
+  }).catch((error) => error);
+  lines.push(failure.message);
+  assert.ok(lines.includes("worker check: ok"));
+  assert.match(failure.message, /the earlier version is live again/);
+  assert.deepEqual(
+    lines.filter((line) => line.includes("example-subdomain")),
+    [],
+  );
+});
+
 test("a Worker that doesn't answer puts the live version back", async () => {
   const { deploy } = await loadDeployModule();
   const cloudflare = createFakeCloudflare({
