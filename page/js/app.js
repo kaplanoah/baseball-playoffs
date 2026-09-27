@@ -7,6 +7,7 @@ import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
 import {
   applyDeferredSeason,
+  loadReadings,
   loadSeason,
   loadSeasonList,
   loadStandings,
@@ -68,6 +69,7 @@ async function loadActiveSeason() {
     await loadSeason(session.activeYear);
   }
   await loadStandings(session.activeYear);
+  await loadReadings(session.activeYear);
 }
 
 async function switchYear(year) {

@@ -57,6 +57,11 @@
         mergeFields(documents.get(path), fields);
         notifyListeners(path);
       },
+      delete: async () => {
+        if (runtime.failWrites) throw createError("unavailable", "try again later");
+        documents.delete(path);
+        notifyListeners(path);
+      },
       onSnapshot: (listener) => {
         if (!listeners.has(path)) listeners.set(path, new Set());
         listeners.get(path).add(listener);
