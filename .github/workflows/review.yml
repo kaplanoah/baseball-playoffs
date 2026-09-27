@@ -60,9 +60,9 @@ jobs:
             3. Security: unescaped text reaching the page, anything that weakens the APP_KEY
                check, and secrets, keys, account IDs, or real Worker addresses in code or docs.
             4. Missing tests, with a high bar: flag this only when the PR changes behavior a user
-               would notice, the existing tests would still pass if that change were reverted, and
-               a test is straightforward to write. Never ask for tests of refactors, renames,
-               comments, docs, styling, or configuration.
+               would notice and the existing tests would still pass if that change were reverted.
+               Never ask for tests of refactors, renames, comments, docs, styling, or
+               configuration.
 
             Skip anything lint, Prettier, TypeScript, or knip already enforce, and anything that
             is a matter of taste. Only report what you are confident is real; when unsure, leave
