@@ -1399,11 +1399,12 @@ table.ref th.won-col {
   }
 
   /*
-   * An iPhone home-screen app shortens a page that can't scroll by the top safe area (WebKit bug
-   * 301108), which lifts the tab bar off the bottom, so every page scrolls by at least a pixel.
+   * An iPhone home-screen app lays the page out short of the screen by the top safe area (WebKit
+   * bug 301108), and its viewport only reaches the bottom of the screen when the page is at least
+   * that tall, so a shorter page would lift the tab bar off the bottom.
    */
   html {
-    min-height: calc(100% + 1px);
+    min-height: calc(100% + env(safe-area-inset-top) + 1px);
   }
   body {
     padding-bottom: calc(var(--tab-bar-bottom) + 86px);
