@@ -43,6 +43,17 @@
       <button
         type="button"
         role="tab"
+        id="tab-games"
+        data-tab="games"
+        aria-controls="view-games"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Games
+      </button>
+      <button
+        type="button"
+        role="tab"
         id="tab-standings"
         data-tab="standings"
         aria-controls="view-standings"
@@ -89,6 +100,45 @@
       <button type="button" class="primary" id="openSetupBtn">Set the field</button>
     </div>
     <div id="bracketWrap"></div>
+  </section>
+
+  <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="view">
+    <div class="game-tabs" role="tablist" aria-label="Games">
+      <button
+        type="button"
+        role="tab"
+        id="games-tab-previous"
+        data-tab="previous"
+        aria-controls="gamesList"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Previous
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="games-tab-today"
+        data-tab="today"
+        aria-controls="gamesList"
+        aria-selected="true"
+        class="active"
+      >
+        Today
+      </button>
+      <button
+        type="button"
+        role="tab"
+        id="games-tab-next"
+        data-tab="next"
+        aria-controls="gamesList"
+        aria-selected="false"
+        tabindex="-1"
+      >
+        Next
+      </button>
+    </div>
+    <div id="gamesList" role="tabpanel" aria-labelledby="games-tab-today"></div>
   </section>
 
   <section id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" class="view">

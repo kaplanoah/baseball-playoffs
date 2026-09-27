@@ -4,6 +4,7 @@ import { session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
 import { droughtLabel } from "../page/js/clubs.js";
+import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
 import { stampName } from "../page/js/stamp.js";
 import { entryText } from "../page/js/updates.js";
@@ -233,4 +234,86 @@ test("a club's status names the round it went out in", () => {
   assert.deepEqual(describeTeamStatus(state, "DET"), { status: "out", round: "WC" });
   assert.deepEqual(describeTeamStatus(state, "NYY"), { status: "out", round: "DS" });
   assert.deepEqual(describeTeamStatus(state, "BOS"), { status: "alive", round: null });
+});
+
+// One line of text per game, with a space wherever a tag was.
+const describeGameList = (slate, list) =>
+  String(renderGameList(slate, list))
+    .split(/<li|<h3/)
+    .map((part) =>
+      normalizeSpaces(part.replace(/<[^>]*>|^[^>]*>/g, " "))
+        .replace(/\s+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean);
+
+test("games list: live halves, a doubleheader in game order, a postponement, an unknown opponent", () => {
+  const slate = {
+    today: {
+      date: "2026-09-25",
+      games: [
+        {
+          away: "BAL",
+          home: "NYY",
+          state: "pre",
+          start: "2026-09-25T20:10:00Z",
+          tbd: true,
+          doubleheader: 2,
+        },
+        {
+          away: "BAL",
+          home: "NYY",
+          state: "final",
+          start: "2026-09-25T17:05:00Z",
+          score: [4, 2],
+          doubleheader: 1,
+        },
+        {
+          away: "CLE",
+          home: "BOS",
+          state: "live",
+          start: "2026-09-25T22:45:00Z",
+          score: [1, 0],
+          inning: 7,
+          half: "bottom",
+        },
+      ],
+      postponed: [
+        {
+          away: "TOR",
+          home: "BAL",
+          state: "off",
+          start: "2026-09-25T22:35:00Z",
+          detail: "Postponed",
+        },
+      ],
+    },
+    next: [
+      { date: "2026-10-03", away: null, home: "TB", state: "pre", start: "2026-10-03T17:08:00Z" },
+    ],
+  };
+  assert.deepEqual(describeGameList(slate, "today"), [
+    "Fri, Sep 25",
+    "Orioles 4 Final Game 1 Yankees 2",
+    "Orioles After Game 1 Game 2 Yankees",
+    "Blue Jays Postponed Orioles",
+    "Guardians 1 Bot 7th Red Sox 0",
+  ]);
+  assert.deepEqual(describeGameList(slate, "next"), ["Sat, Oct 3", "TBD 1:08 PM Rays"]);
+  assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season."]);
+});
+
+test("games list: a season with no live data says why", () => {
+  const { activeYear, currentSeason } = session;
+  try {
+    session.currentSeason = 2026;
+    session.activeYear = 2025;
+    assert.deepEqual(describeGameList(null, "today"), ["Games show for the current season only."]);
+    session.activeYear = 2026;
+    assert.deepEqual(describeGameList(null, "today"), [
+      "Games appear here as soon as the page can reach MLB.",
+    ]);
+  } finally {
+    Object.assign(session, { activeYear, currentSeason });
+  }
 });

@@ -68,11 +68,14 @@ const GAME_FIELDS = [
   "seriesDescription",
   "linescore",
   "currentInning",
+  "isTopInning",
+  "doubleHeader",
+  "gameNumber",
   "gameInfo",
   "firstPitch",
   "gameDurationMinutes",
 ].join(",");
-const SEASON_FIELDS = ["seasons", "springStartDate"].join(",");
+const SEASON_FIELDS = ["seasons", "springStartDate", "regularSeasonEndDate"].join(",");
 const STANDINGS_FIELDS = [
   "records",
   "division",
@@ -105,6 +108,7 @@ const isPresent = (value) => value !== undefined && value !== null && value !== 
 const hasPlayed = (record) => record.wins + record.losses > 0;
 const isFinal = (game) => readGameState(game.status || {}) === "final";
 const hasStarted = (game) => ["live", "final"].includes(readGameState(game.status || {}));
+const isLive = (game) => readGameState(game.status || {}) === "live";
 
 // With `onSome`, a field is only missing when no item it applies to has it.
 /**
@@ -142,7 +146,7 @@ const FIELD_RULES = {
     requireField("clinchIndicator", isText, (record) => record.divisionChamp === true),
   ],
   date: [requireField("date", isDay), requireField("games", Array.isArray)],
-  season: [requireField("springStartDate", isDay)],
+  season: [requireField("springStartDate", isDay), requireField("regularSeasonEndDate", isDay)],
   game: [
     requireField("gamePk", isNumber),
     requireField("gameType", isText),
@@ -156,12 +160,17 @@ const FIELD_RULES = {
     requireField("teams.away.team.name", isText),
     requireField("teams.home.team.id", isNumber),
     requireField("teams.home.team.name", isText),
+    requireField("doubleHeader", isText),
+    requireField("gameNumber", isNumber),
     requireField("teams.away.score", isNumber, isFinal),
     requireField("teams.home.score", isNumber, isFinal),
     requireField("gameInfo.firstPitch", isTime, isFinal, true),
     requireField("gameInfo.gameDurationMinutes", isNumber, isFinal, true),
   ],
-  scheduleGame: [requireField("linescore.currentInning", isNumber, hasStarted, true)],
+  scheduleGame: [
+    requireField("linescore.currentInning", isNumber, hasStarted, true),
+    requireField("linescore.isTopInning", isBoolean, isLive, true),
+  ],
   postseasonGame: [
     requireField("seriesGameNumber", isNumber),
     // The series' league comes from this name.
@@ -308,8 +317,13 @@ function addDays(date, days) {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
-export function mlbRequests(season, now) {
+export function mlbRequests(season, now, regularSeasonEnd = null) {
   const today = easternDay(now);
+  // Four days back spans a postseason off day; after the regular season, its last days hold
+  // every club's final game.
+  const firstDay = [addDays(today.date, -4), regularSeasonEnd && addDays(regularSeasonEnd, -3)]
+    .filter(Boolean)
+    .sort()[0];
   const requests = {
     season: `/api/v1/seasons/${season}?sportId=1&fields=${SEASON_FIELDS}`,
     standings:
@@ -319,18 +333,19 @@ export function mlbRequests(season, now) {
     schedule: null,
   };
   if (season === today.year) {
-    // Four days each way spans a postseason off day back and every club's next game ahead.
+    // Four days ahead reaches every club's next regular season game.
     requests.schedule =
-      `/api/v1/schedule?sportId=1&startDate=${addDays(today.date, -4)}` +
+      `/api/v1/schedule?sportId=1&startDate=${firstDay}` +
       `&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo&fields=${GAME_FIELDS}`;
   }
   return requests;
 }
 
+// The season's dates come first because they decide how far back the schedule reaches.
 export async function fetchSnapshot(getJson, season, now = Date.now()) {
-  const requests = mlbRequests(season, now);
-  const [seasonDates, standings, postseason, schedule] = await Promise.all([
-    getJson(requests.season),
+  const seasonDates = await getJson(mlbRequests(season, now).season);
+  const requests = mlbRequests(season, now, readRegularSeasonEnd(seasonDates));
+  const [standings, postseason, schedule] = await Promise.all([
     getJson(requests.standings),
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null,
@@ -358,6 +373,11 @@ function estimateEnd(game) {
   return new Date(firstPitch + minutes * 60000).toISOString().replace(".000Z", "Z");
 }
 
+function readHalfInning(linescore) {
+  if (!linescore || !isBoolean(linescore.isTopInning)) return null;
+  return linescore.isTopInning ? "top" : "bottom";
+}
+
 function normalizeGame(game) {
   const readSide = (key) => {
     const side = (game.teams && game.teams[key]) || {};
@@ -376,6 +396,9 @@ function normalizeGame(game) {
     away: readSide("away"),
     home: readSide("home"),
     inning: game.linescore ? game.linescore.currentInning : undefined,
+    half: readHalfInning(game.linescore),
+    detail: status.detailedState,
+    doubleheader: game.doubleHeader && game.doubleHeader !== "N" ? game.gameNumber : null,
     number: game.seriesGameNumber,
     league: league ? league[1] : null,
     end: state === "final" ? estimateEnd(game) : null,
@@ -383,31 +406,69 @@ function normalizeGame(game) {
 }
 
 // A suspended game is listed again on the day it resumes; the later listing counts.
-function listScheduledGames(response) {
+function listScheduledGames(...responses) {
   const gamesByPk = new Map();
-  for (const day of (response && response.dates) || []) {
-    for (const game of day.games || []) {
-      if (GAME_TYPES.has(game.gameType)) gamesByPk.set(game.gamePk, normalizeGame(game));
+  for (const response of responses) {
+    for (const day of (response && response.dates) || []) {
+      for (const game of day.games || []) {
+        if (GAME_TYPES.has(game.gameType)) gamesByPk.set(game.gamePk, normalizeGame(game));
+      }
     }
   }
   return [...gamesByPk.values()];
 }
 
 const hasBothClubs = (game) => !!(game.away.id && game.home.id);
+const hasClub = (game) => !!(game.away.id || game.home.id);
+const isPlayedBy = (game, club) => game.away.id === club || game.home.id === club;
 const compareStarts = (first, second) => Date.parse(first.start) - Date.parse(second.start);
 const compareEnds = (first, second) => Date.parse(first.end) - Date.parse(second.end);
+// MLB can list a doubleheader's second game with the earlier start time.
+const compareScheduleOrder = (first, second) =>
+  first.date.localeCompare(second.date) ||
+  (first.doubleheader || 0) - (second.doubleheader || 0) ||
+  compareStarts(first, second);
 
 function summarizeGame(game) {
   const summary = { away: game.away.id, home: game.home.id, state: game.state, start: game.start };
   if (game.tbd) summary.tbd = true;
-  if (game.state !== "pre") summary.score = [game.away.score || 0, game.home.score || 0];
+  if (game.doubleheader) summary.doubleheader = game.doubleheader;
+  if (game.state === "live" || game.state === "final")
+    summary.score = [game.away.score || 0, game.home.score || 0];
   if (game.state === "live") summary.inning = game.inning || 1;
+  if (game.state === "live" && game.half) summary.half = game.half;
   if (game.state === "final") summary.end = game.end;
+  if (game.state === "off") summary.detail = game.detail;
   return summary;
 }
 
+const summarizeDatedGame = (game) => ({ date: game.date, ...summarizeGame(game) });
+
+// Each club's last game before `day` and first after it, each game listed once for both its clubs.
+// Postseason games list a club before its opponent is known, so one known club is enough.
+function listClubGames(games, day) {
+  const counted = games.filter((game) => game.state !== "off" && hasClub(game));
+  const played = counted
+    .filter((game) => game.state === "final" && game.date < day)
+    .sort(compareScheduleOrder);
+  const ahead = counted
+    .filter((game) => game.state === "pre" && game.date > day)
+    .sort(compareScheduleOrder);
+  const previous = new Set();
+  const next = new Set();
+  for (const club of Object.values(MLB_TEAM)) {
+    const last = played.filter((game) => isPlayedBy(game, club)).pop();
+    const first = ahead.find((game) => isPlayedBy(game, club));
+    if (last) previous.add(last);
+    if (first) next.add(first);
+  }
+  const listInOrder = (clubGames) =>
+    [...clubGames].sort(compareScheduleOrder).map(summarizeDatedGame);
+  return { previous: listInOrder(previous), next: listInOrder(next) };
+}
+
 // Before 6am Eastern, today is still last night.
-function buildSlate(games, now) {
+function buildSlate(games, clubGames, now) {
   const clock = easternDay(now);
   const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
   const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
@@ -421,10 +482,18 @@ function buildSlate(games, now) {
     .filter((game) => game.state === "final" && game.date < day)
     .sort(compareEnds)
     .pop();
+  const postponed = games
+    .filter((game) => game.state === "off" && game.date === day && hasBothClubs(game))
+    .sort(compareStarts);
   return {
-    today: { date: day, games: listGamesOn(day).map(summarizeGame) },
+    today: {
+      date: day,
+      games: listGamesOn(day).map(summarizeGame),
+      postponed: postponed.map(summarizeGame),
+    },
     nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarizeGame) } : null,
     lastFinal: lastFinal ? summarizeGame(lastFinal) : null,
+    ...listClubGames(clubGames, day),
   };
 }
 
@@ -707,6 +776,8 @@ function buildSeries(teams, gamesBySeries, today) {
 }
 
 const readSpringStart = (seasonDates) => seasonDates?.seasons?.[0]?.springStartDate || null;
+const readRegularSeasonEnd = (seasonDates) =>
+  seasonDates?.seasons?.[0]?.regularSeasonEndDate || null;
 
 function readRecords(standings) {
   const records = {};
@@ -738,7 +809,9 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     series,
     log,
     standings: buildStandings(responses.standings, games),
-    slate: responses.schedule ? buildSlate(games, now) : null,
+    slate: responses.schedule
+      ? buildSlate(games, listScheduledGames(responses.schedule, responses.postseason), now)
+      : null,
     missing: findMissingFields(responses),
   };
 }

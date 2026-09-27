@@ -15,6 +15,26 @@ const PLAYOFF_FIELD_2026 = [
   "Phillies",
 ];
 
+test("the Games tab lists today's games and each club's previous and next game", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const games = page.locator("#gamesList");
+  await expect(games.locator(".game-row")).toHaveCount(12);
+  await expect(games.locator(".game-row.live").first()).toContainText("Top 9th");
+
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect(games.locator(".game-row")).toHaveCount(15);
+  await expect(games).toContainText("Game 2");
+
+  await page.getByRole("tab", { name: "Previous" }).press("End");
+  await expect(page.getByRole("tab", { name: "Next" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: "Next" })).toHaveAttribute("aria-selected", "true");
+  await expect(games.locator(".game-row")).toHaveCount(15);
+  await expect(games.locator(".game-row").first()).toContainText("Game 1");
+});
+
 test("falls back to the connector and renders the bracket, standings and stamp", async ({
   page,
 }) => {
