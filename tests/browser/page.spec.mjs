@@ -400,3 +400,18 @@ test("on a phone, even a page shorter than the screen can scroll", async ({ page
   }));
   expect(scrollHeight).toBeGreaterThan(clientHeight);
 });
+
+test("the page reopens on the tab it was last on", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+
+  await page.reload();
+
+  await expect(page.getByRole("tab", { name: "Standings" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#view-standings")).toBeVisible();
+  await expect(page.locator("#view-bracket")).toBeHidden();
+});
