@@ -8,6 +8,8 @@ import { easternDay } from "./snapshot.js";
 
 export const KEPT_DAYS = 14;
 
+export const readingsCollection = (year) => `readings-${year}`;
+
 // Well under the Worker store's 64 KiB, so a busy day moves on to a new part before a write fails.
 const MAX_PART_LENGTH = 40 * 1024;
 

@@ -25,6 +25,8 @@ function createSnapshot(id, data) {
 }
 
 const readId = (path) => path.slice(path.lastIndexOf("/") + 1);
+const readCollectionName = (path) => path.slice(0, path.lastIndexOf("/"));
+const compareIds = ([first], [second]) => (first < second ? -1 : 1);
 
 async function requestJson(url, init = {}) {
   let response;
@@ -51,6 +53,8 @@ const sendJson = (method, data) => ({
 
 export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   const listenersByPath = new Map();
+  // Each watched collection keeps its documents by id, so a push changes one without a new listing.
+  const collectionWatches = new Map();
   let socket = null;
   let reconnectTimer = null;
   let reconnectDelay = RECONNECT_FIRST_MS;
@@ -59,6 +63,8 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   const pushedAt = new Map();
 
   const findUrl = (path) => new URL(`store/${path}`, baseUrl);
+  const findListUrl = (name, count) => new URL(`store/${name}?limit=${count}`, baseUrl);
+  const hasWatchers = () => listenersByPath.size > 0 || collectionWatches.size > 0;
 
   function deliverSnapshot(path, snapshot) {
     for (const listener of listenersByPath.get(path) || []) listener.onNext(snapshot);
@@ -83,18 +89,59 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     }
   }
 
-  const refreshWatchedPaths = () => Promise.all([...listenersByPath.keys()].map(refreshPath));
+  function deliverCollection(watch) {
+    const docs = [...watch.docsById].sort(compareIds).map(([id, data]) => createSnapshot(id, data));
+    for (const listener of watch.listeners) listener.onNext({ docs });
+  }
+
+  async function refreshCollection(name) {
+    const watch = collectionWatches.get(name);
+    const startedAt = ++clock;
+    try {
+      const { docs } = await requestJson(findListUrl(name, watch.limit));
+      if (collectionWatches.get(name) !== watch) return;
+      const docsById = new Map(docs.map(({ id, data }) => [id, data]));
+      for (const [id, pushed] of watch.pushes) {
+        if (pushed.at < startedAt) continue;
+        if (pushed.data === null) docsById.delete(id);
+        else docsById.set(id, pushed.data);
+      }
+      watch.docsById = docsById;
+      deliverCollection(watch);
+    } catch (error) {
+      for (const listener of watch.listeners) listener.onError(error);
+    }
+  }
+
+  const refreshWatchedPaths = () =>
+    Promise.all([
+      ...[...listenersByPath.keys()].map(refreshPath),
+      ...[...collectionWatches.keys()].map(refreshCollection),
+    ]);
+
+  // Before the first listing arrives, the listing takes the push in instead.
+  function applyCollectionPush(path, data) {
+    const watch = collectionWatches.get(readCollectionName(path));
+    if (!watch) return;
+    const id = readId(path);
+    watch.pushes.set(id, { at: clock, data });
+    if (!watch.docsById) return;
+    if (data === null) watch.docsById.delete(id);
+    else watch.docsById.set(id, data);
+    deliverCollection(watch);
+  }
 
   function receivePush(event) {
     const { path, data } = JSON.parse(event.data);
     pushedAt.set(path, ++clock);
     deliverSnapshot(path, createSnapshot(readId(path), data));
+    applyCollectionPush(path, data);
   }
 
   // While the socket is down, each reconnect attempt also reads the watched documents again.
   function scheduleReconnect() {
     socket = null;
-    if (reconnectTimer || !listenersByPath.size) return;
+    if (reconnectTimer || !hasWatchers()) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       refreshWatchedPaths();
@@ -121,7 +168,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // A phone suspends a page in the background, and its socket can still look open after
   // missing pushes, so coming back always reads again, and reconnects at once if needed.
   function catchUpWhenVisible() {
-    if (document.hidden || !listenersByPath.size) return;
+    if (document.hidden || !hasWatchers()) return;
     refreshWatchedPaths();
     if (socket) return;
     clearTimeout(reconnectTimer);
@@ -141,6 +188,25 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
       const listeners = listenersByPath.get(path);
       listeners?.delete(listener);
       if (listeners && !listeners.size) listenersByPath.delete(path);
+    };
+  }
+
+  function watchCollection(name, limit, onNext, onError) {
+    const listener = { onNext, onError };
+    if (!collectionWatches.has(name))
+      collectionWatches.set(name, {
+        limit,
+        listeners: new Set(),
+        docsById: null,
+        pushes: new Map(),
+      });
+    collectionWatches.get(name).listeners.add(listener);
+    refreshCollection(name);
+    if (!socket && !reconnectTimer) openSocket();
+    return () => {
+      const watch = collectionWatches.get(name);
+      watch?.listeners.delete(listener);
+      if (watch && !watch.listeners.size) collectionWatches.delete(name);
     };
   }
 
@@ -168,9 +234,10 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     return {
       limit: (count) => ({
         get: async () => {
-          const { docs } = await requestJson(new URL(`store/${name}?limit=${count}`, baseUrl));
+          const { docs } = await requestJson(findListUrl(name, count));
           return { docs: docs.map(({ id, data }) => createSnapshot(id, data)) };
         },
+        onSnapshot: (onNext, onError = () => {}) => watchCollection(name, count, onNext, onError),
       }),
     };
   }

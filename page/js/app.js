@@ -14,6 +14,7 @@ import {
   loadStandings,
   saveRanking,
   stopSavingAfterFailedLoad,
+  watchReadings,
   watchSeason,
   watchStandings,
 } from "./season-store.js";
@@ -25,6 +26,7 @@ import { scrollToTop } from "./scroll-to-top.js";
 import { renderStandings } from "./standings.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
 import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
+import { renderUpdates } from "./updates.js";
 import { createWorkerStore } from "./worker-store.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
@@ -80,6 +82,7 @@ function watchActiveSeason() {
     renderStandings();
     renderStamp();
   });
+  watchReadings(session.activeYear, renderUpdates);
 }
 
 async function loadActiveSeason() {

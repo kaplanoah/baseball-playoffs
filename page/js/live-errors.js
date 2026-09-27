@@ -15,6 +15,5 @@ export function describeLiveError(error) {
     code,
     message: (known && known.message) || TRY_AGAIN,
     retry: known ? known.retry : true,
-    detail: String((error && error.message) || "").slice(0, 200),
   };
 }

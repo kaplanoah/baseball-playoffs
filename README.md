@@ -6,8 +6,10 @@ A private web page that tracks the MLB postseason. It shows the bracket, your
 ranking of who you want to win the World Series, the standings, each team's
 previous, current and next game, and scores that update automatically.
 
-A Cloudflare Worker serves the page, saves your ranking, and reads the scores
-from MLB. Saved to an iPhone's home screen, it opens full screen like an app.
+A Cloudflare Worker serves the page and saves your ranking. It also reads MLB
+on its own, every 30 seconds during games, so the standings and updates stay
+current even with the page closed. Saved to an iPhone's home screen, the page
+opens full screen like an app.
 
 ## Setup (for humans)
 
@@ -88,10 +90,10 @@ data answer only there. Give the user the address and tell them to keep it
 private: anyone who has it can see and change the page. Never pass
 `--rotate` unless they ask. It replaces the key, which changes the address.
 
-**4. Check the page.** Have the user open the address. Then read
-`<address>store/live/status` with `curl`. If `data.error` and `data.write` are
-empty, it works. If not, the page explains
-`error` under its title, and `write` names the save that failed.
+**4. Check the page.** Have the user open the address. The first visit also
+starts the Worker's own updates. Then read `<address>store/live/status` with
+`curl`. If `data.error` and `data.write` are empty, it works. If not, `error`
+says why the Worker couldn't read MLB, and `write` names the save that failed.
 
 **5. Save it to the home screen.** On an iPhone, have them open the address
 in Safari and choose **Share > Add to Home Screen**. It then opens full

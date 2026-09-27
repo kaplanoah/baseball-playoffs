@@ -64,5 +64,5 @@ export function createSnapshotServer({
     }
   }
 
-  return { serveSnapshot };
+  return { loadSnapshot, serveSnapshot };
 }
