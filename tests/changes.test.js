@@ -129,14 +129,13 @@ test("the Rangers pass the Astros: the spot, how far back, and the game", () => 
   );
 });
 
-test("each step up is news: a wild card after a playoff spot, a bye after a division", () => {
+test("each step up is news: a bye after a division, but not a wild card after a playoff spot", () => {
   const was = updateRow(updateRow(BEFORE, "CWS", { clinch: "x" }), "CLE", {
     clinch: "y",
     clinched: true,
   });
   const now = updateRow(updateRow(was, "CWS", { clinch: "w" }), "CLE", { clinch: "z" });
   assert.deepEqual(findTableChanges(was, now, TEAMS, TEAMS), [
-    { kind: "berth", team: "CWS", what: "wildcard" },
     { kind: "berth", team: "CLE", what: "bye" },
   ]);
   assert.deepEqual(findTableChanges(now, now, TEAMS, TEAMS), []);

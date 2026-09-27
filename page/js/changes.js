@@ -137,8 +137,9 @@ function findFieldChanges(oldTeams, newTeams, rows, games, now, logSeeds) {
   return changes;
 }
 
-// Each step up MLB's clinch marker is its own news.
-const CLINCH = { x: ["playoff", 1], w: ["wildcard", 2], y: ["division", 3], z: ["bye", 4] };
+// Each step up MLB's clinch marker is its own news. A wild card after a playoff spot
+// only rules out the division, so it shares the playoff spot's rank.
+const CLINCH = { x: ["playoff", 1], w: ["wildcard", 1], y: ["division", 2], z: ["bye", 3] };
 
 // A stored table without `clinch` can only reveal a division title.
 function findBerthWon(oldRow, row) {
