@@ -121,8 +121,12 @@ something doesn't match, point them to Cloudflare's
 ## Making changes
 
 `main` is what's deployed. Work on a branch and open a pull request into
-`main`. GitHub lints, checks formatting and types, and runs the tests, in Node
-and in a browser, on every pull request, so merge once those pass. To run the
+`main`. GitHub lints, checks formatting and types, looks for unused code, and
+runs the tests, in Node and in a browser, on every pull request, so merge once
+those pass and the pull request has no conflicts with `main`. If the repo has a
+`CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` secret, Claude also reviews each
+new pull request and comments on bugs, rule breaks, security problems, and
+missing tests. Its comments are advice, not a required check. To run the
 same checks yourself, run `npm ci` and `npx playwright install chromium` once,
 then `npm run check`. `npm run format` fixes formatting.
 
