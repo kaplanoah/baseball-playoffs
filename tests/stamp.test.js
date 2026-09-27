@@ -1,9 +1,12 @@
-// Expected times are Eastern because npm test sets TZ. `since` is ten minutes
-// before the snapshot: only a final newer than that leads the line.
+// `since` is ten minutes before the snapshot: only a final newer than that leads the line.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { lastStampText, upNextText, stampWhen, stampWhenHtml, stampDay } from "../page/js/stamp.js";
 import { normalizeSpaces } from "./text.js";
+import { EASTERN, useTimeZone } from "./time-zone.js";
+
+// The expected times below are what a viewer in Eastern time sees.
+useTimeZone(EASTERN);
 
 // September and early October are EDT, UTC-4.
 const toEasternIso = (date, time) => {

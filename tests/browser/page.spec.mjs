@@ -232,31 +232,28 @@ test("the field setup dialog closes with Escape", async ({ page }) => {
   await expect(dialog).toBeHidden();
 });
 
+const SEASON_WITH_TWO_UPDATES = {
+  year: 2026,
+  teams: {},
+  series: {},
+  ranking: [],
+  seenAt: "2026-09-24T20:00:00Z",
+  log: [
+    {
+      kind: "elim",
+      team: "SEA",
+      via: [{ team: "TEX", won: true, opp: "NYM", score: [3, 1] }],
+      ended: "2026-09-24T00:55:00Z",
+      at: "2026-09-25T00:40:00Z",
+    },
+    { kind: "lock", at: "2026-09-25T00:30:00Z" },
+  ],
+};
+
 test("the update list shows when a change happened, not when the page noticed it", async ({
   page,
 }) => {
-  await openApp(page, {
-    liveAvailable: false,
-    store: {
-      "seasons/2026": {
-        year: 2026,
-        teams: {},
-        series: {},
-        ranking: [],
-        seenAt: "2026-09-24T20:00:00Z",
-        log: [
-          {
-            kind: "elim",
-            team: "SEA",
-            via: [{ team: "TEX", won: true, opp: "NYM", score: [3, 1] }],
-            ended: "2026-09-24T00:55:00Z",
-            at: "2026-09-25T00:40:00Z",
-          },
-          { kind: "lock", at: "2026-09-25T00:30:00Z" },
-        ],
-      },
-    },
-  });
+  await openApp(page, { liveAvailable: false, store: { "seasons/2026": SEASON_WITH_TWO_UPDATES } });
 
   const updateTimes = page.locator("#updates .when");
   await expect(updateTimes).toHaveCount(2);
@@ -264,6 +261,31 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(updateTimes.nth(1)).toHaveText(/^Yesterday$/);
   await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
 });
+
+// The page's clock reads 8:44 PM Eastern, which is the next morning in London and Tokyo.
+const LOCAL_TIMES_OF_THE_NEWER_UPDATE = {
+  "Pacific/Honolulu": "2:30 PM",
+  "Europe/London": "1:30 AM",
+  "Asia/Tokyo": "9:30 AM",
+};
+
+for (const [timezoneId, localTime] of Object.entries(LOCAL_TIMES_OF_THE_NEWER_UPDATE)) {
+  test.describe(`in ${timezoneId}`, () => {
+    test.use({ timezoneId });
+
+    test("the update list tells time and day by the viewer's own clock", async ({ page }) => {
+      await openApp(page, {
+        liveAvailable: false,
+        store: { "seasons/2026": SEASON_WITH_TWO_UPDATES },
+      });
+
+      const updateTimes = page.locator("#updates .when");
+      await expect(updateTimes).toHaveCount(2);
+      await expect(updateTimes.nth(0)).toHaveText(localTime);
+      await expect(updateTimes.nth(1)).toHaveText("Yesterday");
+    });
+  });
+}
 
 const buildEmptySeasonSnapshot = (season, springStart) => ({
   ...buildFixtureSnapshot(EVENING_FIXTURE),

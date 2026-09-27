@@ -9,6 +9,10 @@ import { html } from "../page/js/html.js";
 import { stampName } from "../page/js/stamp.js";
 import { entryText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
+import { EASTERN, useTimeZone } from "./time-zone.js";
+
+// The expected times below are what a viewer in Eastern time sees.
+useTimeZone(EASTERN);
 
 function checkAt(isoTime, check) {
   mock.timers.enable({ apis: ["Date"], now: Date.parse(isoTime) });
