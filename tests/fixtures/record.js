@@ -2,15 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
 
+async function fetchJson(request) {
+  const response = await fetch(MLBSnapshot.MLB_API + request);
+  if (!response.ok) throw new Error(`${response.status} for ${request}`);
+  return response.json();
+}
+
 async function recordFixture(season, name) {
   const now = Date.now();
-  const requests = MLBSnapshot.mlbRequests(season, now);
   const fixture = { season, now: new Date(now).toISOString(), responses: {} };
+  const seasonDates = await fetchJson(MLBSnapshot.mlbRequests(season, now).season);
+  const regularSeasonEnd = seasonDates.seasons?.[0]?.regularSeasonEndDate;
+  const requests = MLBSnapshot.mlbRequests(season, now, regularSeasonEnd);
   for (const [key, request] of Object.entries(requests)) {
-    if (!request) continue;
-    const response = await fetch(MLBSnapshot.MLB_API + request);
-    if (!response.ok) throw new Error(`${response.status} for ${request}`);
-    fixture.responses[key] = await response.json();
+    if (request) fixture.responses[key] = key === "season" ? seasonDates : await fetchJson(request);
   }
   const file = path.join(import.meta.dirname, `${name}.json`);
   fs.writeFileSync(file, JSON.stringify(fixture));

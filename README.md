@@ -4,7 +4,8 @@
 
 A private page on claude.ai that tracks the MLB postseason. It shows the
 bracket, your ranking of who you want to win the World Series, the standings,
-and scores that update automatically.
+each team's previous, current and next game, and scores that update
+automatically.
 
 ## Setup (for humans)
 

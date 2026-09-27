@@ -238,6 +238,10 @@ test("September: the day's games, in the shape the stamp reads", () => {
   });
   const liveGame = slate.today.games.find((game) => game.state === "live");
   assert.ok(Number.isInteger(liveGame.inning) && liveGame.score.length === 2 && !liveGame.end);
+  assert.deepEqual(
+    slate.today.games.filter((game) => game.state === "live").map((game) => game.half),
+    ["top", "bottom", "top", "bottom"],
+  );
   assert.equal(slate.nextDay.date, "2026-09-25");
   assert.equal(slate.lastFinal.away, "HOU");
 });
@@ -263,6 +267,48 @@ test("a rainout is neither a final nor on the slate", () => {
   };
   const { slate } = buildSnapshot(fixture);
   assert.equal(slate.today.games.length, 11);
+  assert.deepEqual(
+    slate.today.postponed.map((game) => [game.state, game.detail]),
+    [["off", "Postponed"]],
+  );
+});
+
+const listClubsIn = (games) => games.flatMap((game) => [game.away, game.home]).filter(Boolean);
+const describeGame = (game) =>
+  `${game.date} ${game.away}@${game.home}` + (game.doubleheader ? ` G${game.doubleheader}` : "");
+
+test("each club's previous and next game, each game listed once", () => {
+  const { slate } = buildSnapshot(EVENING);
+  for (const games of [slate.previous, slate.next]) {
+    const clubs = listClubsIn(games);
+    assert.equal(clubs.length, 30);
+    assert.equal(new Set(clubs).size, 30);
+  }
+  assert.ok(slate.previous.every((game) => game.date < "2026-09-24" && game.state === "final"));
+  assert.ok(slate.next.every((game) => game.date > "2026-09-24" && game.state === "pre"));
+});
+
+test("a doubleheader counts game 2 as the previous game and game 1 as the next", () => {
+  const { slate } = buildSnapshot(EVENING);
+  assert.ok(slate.previous.map(describeGame).includes("2026-09-23 TOR@BAL G2"));
+  const next = slate.next.map(describeGame);
+  assert.ok(next.includes("2026-09-25 CHC@BOS G1"));
+  // MLB lists this game 2 with the earlier start time.
+  assert.ok(next.includes("2026-09-25 BAL@NYY G1"));
+});
+
+test("a postseason game counts as next before its opponent is known", () => {
+  const fixture = JSON.parse(JSON.stringify(EVENING));
+  const [firstGame] = fixture.responses.postseason.dates
+    .flatMap((day) => day.games)
+    .filter((game) => game.gameType === "D");
+  firstGame.teams.home.team = { id: 139, name: "Tampa Bay Rays" };
+  const now = Date.parse("2026-09-30T16:00:00Z");
+  const { slate } = buildSnapshot(fixture, now);
+  const next = slate.next.find((game) => game.home === "TB");
+  assert.equal(next.away, null);
+  assert.equal(next.date, firstGame.officialDate);
+  assert.ok(slate.previous.some((game) => listClubsIn([game]).includes("TB")));
 });
 
 test("when to ask again: closely during games, otherwise sleep until the next", () => {
@@ -314,15 +360,24 @@ test("what to fetch: a past season skips the schedule", () => {
   const now = Date.parse("2026-09-24T22:00:00Z");
   assert.equal(MLBSnapshot.mlbRequests(2025, now).schedule, null);
   assert.match(
-    MLBSnapshot.mlbRequests(2026, now).schedule,
+    MLBSnapshot.mlbRequests(2026, now, "2026-09-27").schedule,
     /startDate=2026-09-20&endDate=2026-09-28/,
+  );
+});
+
+test("what to fetch: in October the schedule reaches back to the regular season's last days", () => {
+  const now = Date.parse("2026-10-20T16:00:00Z");
+  assert.match(
+    MLBSnapshot.mlbRequests(2026, now, "2026-09-27").schedule,
+    /startDate=2026-09-24&endDate=2026-10-24/,
   );
 });
 
 test("fetchSnapshot asks for exactly the requests it builds", async () => {
   const fixture = EVENING;
   const asked = [];
-  const requests = MLBSnapshot.mlbRequests(2026, Date.parse(fixture.now));
+  const regularSeasonEnd = fixture.responses.season.seasons[0].regularSeasonEndDate;
+  const requests = MLBSnapshot.mlbRequests(2026, Date.parse(fixture.now), regularSeasonEnd);
   const byPath = Object.fromEntries(
     Object.entries(requests).map(([key, path]) => [path, fixture.responses[key]]),
   );
@@ -335,6 +390,7 @@ test("fetchSnapshot asks for exactly the requests it builds", async () => {
     Date.parse(fixture.now),
   );
   assert.equal(asked.length, 4);
+  assert.equal(asked[0], requests.season);
   assert.deepEqual(snapshot, buildSnapshot(fixture));
 });
 

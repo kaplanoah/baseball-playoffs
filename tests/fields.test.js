@@ -61,7 +61,7 @@ test("a postseason series that stops naming its league is flagged", () => {
 
 test("no games or standings yet is fine; no dates or records at all is not", () => {
   const empty = {
-    season: { seasons: [{ springStartDate: "2026-02-20" }] },
+    season: { seasons: [{ springStartDate: "2026-02-20", regularSeasonEndDate: "2026-09-27" }] },
     standings: { records: [] },
     postseason: { dates: [] },
     schedule: { dates: [] },

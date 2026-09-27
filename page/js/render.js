@@ -1,4 +1,5 @@
 import { renderBracket } from "./bracket-view.js";
+import { renderGames } from "./games-view.js";
 import { renderRanking, renderReference } from "./ranking.js";
 import { renderStamp } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
@@ -8,6 +9,7 @@ export function renderAll() {
   renderStamp();
   renderUpdates();
   renderBracket();
+  renderGames();
   renderStandings();
   renderRanking();
   renderReference();

@@ -1,4 +1,5 @@
 import { rankedOrder } from "./clubs.js";
+import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "./html.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
@@ -19,6 +20,7 @@ import { easternDay } from "./snapshot.js";
 import { openSetup, saveSetup } from "./setup.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
+import { selectTab, wireTabs } from "./tabs.js";
 import { createWorkerStore, isSelfHosted } from "./worker-store.js";
 
 const STAMP_REFRESH_MS = 60 * 1000;
@@ -44,26 +46,10 @@ const findTabButtons = () =>
   /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("nav.tabs [role=tab]")]);
 
 function switchTab(tab) {
-  for (const button of findTabButtons()) {
-    const isActive = button.dataset.tab === tab;
-    button.classList.toggle("active", isActive);
-    button.setAttribute("aria-selected", String(isActive));
-    button.tabIndex = isActive ? 0 : -1;
-  }
+  selectTab(findTabButtons(), tab);
   for (const view of document.querySelectorAll("section.view")) {
     view.classList.toggle("active", view.id === `view-${tab}`);
   }
-}
-
-function moveBetweenTabs(event) {
-  const buttons = findTabButtons();
-  const index = buttons.indexOf(event.target);
-  const targets = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: buttons.length - 1 };
-  if (index === -1 || !(event.key in targets)) return;
-  event.preventDefault();
-  const next = buttons[(targets[event.key] + buttons.length) % buttons.length];
-  switchTab(next.dataset.tab);
-  next.focus();
 }
 
 function watchActiveSeason() {
@@ -168,10 +154,8 @@ function finishReordering(order) {
 }
 
 function wireControls() {
-  for (const button of findTabButtons()) {
-    button.addEventListener("click", () => switchTab(button.dataset.tab));
-    button.addEventListener("keydown", moveBetweenTabs);
-  }
+  wireTabs(findTabButtons(), switchTab);
+  wireGameTabs();
   const picker = findYearPicker();
   picker.addEventListener("change", () => switchYear(Number(picker.value)));
   document.getElementById("openSetupBtn").addEventListener("click", openSetup);

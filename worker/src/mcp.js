@@ -9,8 +9,8 @@ const TOOL = {
   description:
     "The current state of one MLB season: the postseason field and seeds (projected from the " +
     "standings until MLB sets the bracket), every series record and its next game, division and " +
-    "wild card standings, and the day's games with scores and innings. Read-only, from the public " +
-    "MLB Stats API.",
+    "wild card standings, the day's games with scores and innings, and each club's previous and " +
+    "next game. Read-only, from the public MLB Stats API.",
   inputSchema: {
     type: "object",
     properties: {
