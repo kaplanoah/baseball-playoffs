@@ -1,6 +1,11 @@
+import { pollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
+import * as SeasonUpdater from "./season-updater.js";
+import { createSnapshotServer } from "./snapshot.js";
+
 // The page's saved data, kept in one Durable Object so every device reads the latest write.
 // Documents come back with sorted keys, update() merges nested objects and replaces anything
 // else, a null in an update removes that key, and a removed document reads as null.
+// An alarm keeps the current season up to date from MLB while no page is open.
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -66,13 +71,36 @@ function openWatchSocket(ctx) {
   return new Response(null, { status: 101, webSocket: client });
 }
 
+const describeError = (error) => (error instanceof Error ? error.message : String(error));
+
 export class SeasonStore {
-  constructor(ctx, env, { openSocket = openWatchSocket } = {}) {
+  constructor(
+    ctx,
+    env,
+    {
+      openSocket = openWatchSocket,
+      loadSnapshot = createSnapshotServer().loadSnapshot,
+      now = () => Date.now(),
+    } = {},
+  ) {
     this.ctx = ctx;
     this.openSocket = openSocket;
+    this.loadSnapshot = loadSnapshot;
+    this.now = now;
+    this.hasAlarm = false;
+    this.failures = 0;
+    this.docs = {
+      read: async (key) => (await ctx.storage.get(key)) ?? null,
+      list: async (collection) => [
+        ...(await ctx.storage.list({ prefix: `${collection}/` })).values(),
+      ],
+      write: (key, doc) => this.putDoc(key, doc),
+      remove: (key) => this.deleteDoc(key),
+    };
   }
 
   async fetch(request) {
+    await this.startUpdating();
     const { pathname, searchParams } = new URL(request.url);
     if (pathname === "/watch") return this.acceptWatcher(request);
     const path = readPath(pathname);
@@ -124,16 +152,69 @@ export class SeasonStore {
   }
 
   async saveDoc(key, doc) {
-    const data = sortKeys(doc);
-    await this.ctx.storage.put(key, data);
-    this.announceChange(key, data);
+    await this.putDoc(key, doc);
     return new Response(null, { status: 204 });
   }
 
   async removeDoc(key) {
+    await this.deleteDoc(key);
+    return new Response(null, { status: 204 });
+  }
+
+  async putDoc(key, doc) {
+    const data = sortKeys(doc);
+    await this.ctx.storage.put(key, data);
+    this.announceChange(key, data);
+  }
+
+  async deleteDoc(key) {
     await this.ctx.storage.delete(key);
     this.announceChange(key, null);
-    return new Response(null, { status: 204 });
+  }
+
+  // A stored alarm outlives deploys, so this starts the updates only the first time.
+  async startUpdating() {
+    if (this.hasAlarm) return;
+    if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(this.now());
+    this.hasAlarm = true;
+  }
+
+  async alarm() {
+    let delay = SeasonUpdater.RETRY_MS[0];
+    try {
+      delay = await this.updateSeason();
+    } catch (error) {
+      // Cloudflare would retry a failed alarm on its own schedule, on top of the one set here.
+      console.error(`The season update failed: ${describeError(error)}`);
+    }
+    await this.ctx.storage.setAlarm(this.now() + delay);
+  }
+
+  // Returns how long to wait before the next update.
+  async updateSeason() {
+    let snapshot;
+    try {
+      snapshot = await SeasonUpdater.loadCurrentSnapshot(this.loadSnapshot, this.now());
+    } catch (error) {
+      return this.recordFailure({ error: "upstream_error", detail: describeError(error) });
+    }
+    try {
+      await SeasonUpdater.saveSnapshot(this.docs, snapshot);
+    } catch (error) {
+      return this.recordFailure({ write: describeError(error) });
+    }
+    this.failures = 0;
+    const status = SeasonUpdater.describeSnapshotStatus(snapshot);
+    await SeasonUpdater.saveStatus(this.docs, status, this.now());
+    return pollDelay(snapshot, this.now()) ?? POLL_CHECK_MS;
+  }
+
+  async recordFailure(status) {
+    const retries = SeasonUpdater.RETRY_MS;
+    const delay = retries[Math.min(this.failures, retries.length - 1)];
+    this.failures += 1;
+    await SeasonUpdater.saveStatus(this.docs, status, this.now());
+    return delay;
   }
 
   announceChange(path, data) {

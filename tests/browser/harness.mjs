@@ -60,7 +60,6 @@ export async function openApp(
 ) {
   const context = createDurableObjectContext();
   for (const [path, data] of Object.entries(store)) context.stored.set(path, data);
-  const seasonStore = new SeasonStore(context.ctx, {});
   const snapshotsBySeason = {
     [EVENING_FIXTURE.season]: buildFixtureSnapshot(EVENING_FIXTURE),
     [FINAL_2025_FIXTURE.season]: buildFixtureSnapshot(FINAL_2025_FIXTURE),
@@ -71,6 +70,13 @@ export async function openApp(
     transformSnapshot: (snapshot) => snapshot,
     failWrites: false,
   };
+  const loadSnapshot = async (season) =>
+    harness.transformSnapshot(structuredClone(snapshotsBySeason[season]));
+  const seasonStore = new SeasonStore(
+    context.ctx,
+    {},
+    { loadSnapshot, now: () => Date.parse(now) },
+  );
   const openSockets = [];
 
   await page.route(
@@ -116,6 +122,8 @@ export async function openApp(
           body: JSON.stringify(data),
         }),
       ),
+    // What the Worker's alarm does on its own schedule.
+    updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,
     /** @param {(snapshot: any) => any} transform */
     changeSnapshots: (transform) => {

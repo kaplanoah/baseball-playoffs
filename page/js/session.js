@@ -6,7 +6,7 @@ const APRIL = 4;
 
 // A season starts on the day spring training does, which is always before April, so the
 // first guess is only in doubt from January through March.
-function guessSeasonYear(now = Date.now()) {
+export function guessSeasonYear(now = Date.now()) {
   const { date, year } = easternDay(now);
   return Number(date.slice(5, 7)) >= APRIL ? year : year - 1;
 }

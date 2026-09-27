@@ -1,6 +1,6 @@
 import { fullBracket } from "./bracket.js";
 import { sameJson } from "./compare.js";
-import { sortParts } from "./readings.js";
+import { readingsCollection, sortParts } from "./readings.js";
 import { session, composeState } from "./session.js";
 import { TEAMS } from "./teams.js";
 
@@ -9,6 +9,7 @@ const LOAD_FAILED = "Couldn't load your saved data, so changes won't be saved th
 
 let unwatchSeason = null;
 let unwatchStandings = null;
+let unwatchReadings = null;
 let deferredSeason = null;
 
 function emptySeason(year) {
@@ -80,15 +81,21 @@ export async function loadStandings(year) {
   composeState();
 }
 
-export const readingsCollection = (year) => `readings-${year}`;
-
 // A season keeps a few weeks of readings, a part or two a day, so one listing holds them all.
+const READING_PARTS_LIMIT = 100;
+
+// Nothing on the page edits a reading, so the store's read-only copies are used as they are.
+const readParts = (docs) => sortParts(docs.map((doc) => doc.data()));
+
 export async function loadReadings(year) {
   session.readings = null;
   if (session.db) {
     try {
-      const result = await session.db.collection(readingsCollection(year)).limit(100).get();
-      session.readings = sortParts(result.docs.map(readDoc));
+      const result = await session.db
+        .collection(readingsCollection(year))
+        .limit(READING_PARTS_LIMIT)
+        .get();
+      session.readings = readParts(result.docs);
     } catch {
       session.readings = null;
     }
@@ -113,6 +120,28 @@ export function watchStandings(year, onChange) {
     },
     () => {},
   );
+}
+
+// The Worker saves a reading whenever the standings change, and updates are rebuilt from them.
+export function watchReadings(year, onChange) {
+  if (unwatchReadings) {
+    unwatchReadings();
+    unwatchReadings = null;
+  }
+  if (!session.db) return;
+  unwatchReadings = session.db
+    .collection(readingsCollection(year))
+    .limit(READING_PARTS_LIMIT)
+    .onSnapshot(
+      (result) => {
+        const incoming = readParts(result.docs);
+        if (sameJson(incoming, session.readings)) return;
+        session.readings = incoming;
+        composeState();
+        onChange();
+      },
+      () => {},
+    );
 }
 
 function applySeason(incoming) {

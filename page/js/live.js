@@ -2,7 +2,6 @@ import * as MLBSnapshot from "./snapshot.js";
 import { sameJson } from "./compare.js";
 import { describeLiveError } from "./live-errors.js";
 import { fetchLive } from "./live-fetch.js";
-import { reportStatus, saveLive } from "./live-store.js";
 import { renderAll } from "./render.js";
 import { session, composeState } from "./session.js";
 import { renderStamp } from "./stamp-view.js";
@@ -50,7 +49,6 @@ function applyLive(snapshot) {
   composeState();
   if (previous && sameJson(current, before)) renderStamp();
   else renderUnlessReordering();
-  saveLive(snapshot);
 }
 
 function handleLiveSnapshot(snapshot) {
@@ -60,10 +58,6 @@ function handleLiveSnapshot(snapshot) {
   liveWarning = describeMissingFields(missing);
   updateLiveProblem();
   applyLive(snapshot);
-  reportStatus({
-    error: missing.length ? "mlb_fields_missing" : "",
-    detail: missing.join(", "),
-  });
   scheduleLive(MLBSnapshot.pollDelay(snapshot));
 }
 
@@ -71,7 +65,6 @@ function handleLiveFailure(error) {
   liveError = describeLiveError(error);
   updateLiveProblem();
   renderStamp();
-  reportStatus({ error: liveError.code, detail: liveError.detail });
   if (liveError.retry) scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
   else waitForVisibility();
 }

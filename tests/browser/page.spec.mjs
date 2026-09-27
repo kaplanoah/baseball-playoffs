@@ -36,13 +36,10 @@ test("the Games tab lists today's games and each club's previous and next game",
   await expect(games.locator(".game-row").first()).toContainText("Game 1");
 });
 
-test("renders the bracket, standings and stamp from the Worker's snapshot, and saves them", async ({
-  page,
-}) => {
+test("renders the bracket, standings and stamp from the Worker's snapshot", async ({ page }) => {
   const app = await openApp(page);
 
-  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "", write: "" });
-  expect(app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
 
   const bracket = page.locator("#bracketWrap");
   for (const club of PLAYOFF_FIELD_2026) await expect(bracket).toContainText(club);
@@ -52,10 +49,7 @@ test("renders the bracket, standings and stamp from the Worker's snapshot, and s
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standingsWrap .div-block")).toHaveCount(8);
   await expect(page.locator("#standingsWrap")).toContainText("AL East");
-
-  const season = await app.readDocument("seasons/2026");
-  expect(Object.keys(season.teams)).toHaveLength(12);
-  expect(await app.readDocument("standings/2026")).toHaveProperty("divisions");
+  expect(await app.readDocument("seasons/2026")).toBeNull();
 });
 
 test("says when live scores can't be reached, and tries again", async ({ page }) => {
@@ -64,15 +58,12 @@ test("says when live scores can't be reached, and tries again", async ({ page })
   await expect(page.locator("#stamp")).toContainText(
     "Couldn't reach live scores. Trying again shortly.",
   );
-  await expect
-    .poll(() => app.readDocument("live/status"))
-    .toMatchObject({ error: "upstream_error", detail: "Couldn't read MLB: test" });
 
   await page.clock.fastForward("00:30");
   await expect.poll(() => app.countSnapshotRequests()).toBe(2);
 });
 
-test("rebuilds updates from the saved readings across snapshots", async ({ page }) => {
+test("rebuilds updates from the saved readings as the Worker adds to them", async ({ page }) => {
   const currentSnapshot = buildFixtureSnapshot(EVENING_FIXTURE);
   const earlier = createReading({ ...currentSnapshot, asOf: "2026-09-24T20:00:00Z" });
   [earlier.teams.NYY, earlier.teams.BOS] = [
@@ -101,25 +92,19 @@ test("rebuilds updates from the saved readings across snapshots", async ({ page 
   });
 
   const updates = page.locator("#updates");
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
+  await expect(updates).toBeHidden();
+  await app.updateFromWorker();
   await expect(updates).toContainText(/Yankees passed the .*Red Sox for the AL 4 seed/);
 
   app.changeSnapshots((snapshot) => {
     const { PHI, ...teams } = snapshot.teams;
     return { ...snapshot, teams: { ...teams, NYM: { ...PHI, w: 83, l: 76 } } };
   });
-  // A game is live, so the next poll is thirty seconds out.
-  await page.clock.fastForward("00:30");
+  await app.updateFromWorker();
 
   await expect(updates).toContainText(/Mets .*Phillies/);
-  await expect
-    .poll(async () => (await app.readDocument(`readings-2026/${part}`)).changes.length)
-    .toBe(2);
-  const season = await app.readDocument("seasons/2026");
-  expect(season.log).toEqual([]);
-  expect(season.teams).toHaveProperty("NYM");
-  expect(season.teams).not.toHaveProperty("PHI");
-  expect(season.ranking).toEqual(["NYY", "LAD", "MIL"]);
-  expect(await app.readDocument("live/status")).toMatchObject({ error: "", write: "" });
+  expect((await app.readDocument(`readings-2026/${part}`)).changes).toHaveLength(2);
 });
 
 test("switching to 2025 shows the finished bracket and its champion, and stops polling", async ({
@@ -128,7 +113,7 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   const app = await openApp(page, {
     store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
   });
-  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
 
   await page.locator("#yearSel").selectOption("2025");
 
@@ -136,7 +121,6 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   await expect(page.locator("#banner")).toContainText("Dodgers");
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers win the World Series");
   await expect(page.locator("#updates")).toBeHidden();
-  await expect.poll(() => app.readDocument("seasons/2025")).toMatchObject({ projected: false });
 
   const requestCount = app.countSnapshotRequests();
   await page.clock.fastForward("02:00:00");
@@ -145,7 +129,7 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
 
 test("warns under the title when MLB stops sending a field", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
 
   app.changeSnapshots((snapshot) => ({ ...snapshot, missing: ["wildCardRank"] }));
   await page.clock.fastForward("00:30");
@@ -154,9 +138,6 @@ test("warns under the title when MLB stops sending a field", async ({ page }) =>
     "MLB stopped sending wildCardRank, so some details may be blank.",
   );
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers");
-  await expect
-    .poll(() => app.readDocument("live/status"))
-    .toMatchObject({ error: "mlb_fields_missing", detail: "wildCardRank" });
 });
 
 test("setting the field by hand says what's missing instead of saving", async ({ page }) => {
@@ -173,8 +154,9 @@ test("setting the field by hand says what's missing instead of saving", async ({
 
 test("the ranking can be reordered from the keyboard, and saves", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   await page.getByRole("tab", { name: "Ranking" }).click();
+  await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
 
   const firstItem = page.locator("#rankList .rank-item").first();
   const movedClubId = await firstItem.getAttribute("data-id");
@@ -184,15 +166,16 @@ test("the ranking can be reordered from the keyboard, and saves", async ({ page 
   await expect(page.locator("#rankList .rank-item").nth(1)).toHaveAttribute("data-id", movedClubId);
   await expect(page.locator("#rankList .rank-item").nth(1).locator(".grip")).toBeFocused();
   await expect
-    .poll(async () => (await app.readDocument("seasons/2026")).ranking[1])
+    .poll(async () => (await app.readDocument("seasons/2026"))?.ranking[1])
     .toBe(movedClubId);
 });
 
 test("a save that fails says so under the title", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.readDocument("live/status")).toMatchObject({ error: "" });
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   app.failWrites();
   await page.getByRole("tab", { name: "Ranking" }).click();
+  await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
 
   await page.locator("#rankList .grip").first().focus();
   await page.keyboard.press("ArrowDown");
