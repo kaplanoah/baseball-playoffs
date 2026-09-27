@@ -308,6 +308,39 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season."]);
 });
 
+test("games list: a delay shows under the start time or the score", () => {
+  const slate = {
+    today: {
+      date: "2026-09-27",
+      games: [
+        {
+          away: "BAL",
+          home: "NYY",
+          state: "pre",
+          start: "2026-09-27T17:05:00Z",
+          delay: "Delayed: Rain",
+        },
+        {
+          away: "TB",
+          home: "PHI",
+          state: "live",
+          start: "2026-09-27T17:35:00Z",
+          score: [0, 4],
+          inning: 3,
+          half: "bottom",
+          delay: "Delayed",
+        },
+      ],
+    },
+  };
+  assert.deepEqual(describeGameList(slate, "today"), [
+    "Sun, Sep 27",
+    "Orioles 1:05 PM Delayed: Rain Yankees",
+    "Rays 0 - 4 Delayed Phillies",
+  ]);
+  assert.match(String(renderGameList(slate, "today")), /class="game-row pre delayed"/);
+});
+
 test("games list: each club's rank, seed, record, and race", () => {
   session.state = { teams: { NYY: { league: "AL", seed: 4 } }, ranking: ["NYY"] };
   session.standings = {
