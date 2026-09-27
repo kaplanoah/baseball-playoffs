@@ -60,7 +60,7 @@ function renderSeed(id) {
 
 function renderRecordAndRace(row) {
   const race = describeRace(row);
-  return html`${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${race && html`<span class="race ${race.standing}">${race.label}</span>`}`;
+  return html`${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${race && race.label && html`<span class="race ${race.standing}">${race.label}</span>`}`;
 }
 
 function renderFacts(id) {

@@ -5,7 +5,7 @@ const isAhead = (gamesBack) => gamesBack === "-" || String(gamesBack).startsWith
 /**
  * @param {{ gb?: string, wcgb?: string, elim?: string, wce?: string, magic?: string | null,
  *   clinch?: string | null, clinched?: boolean, lead?: boolean, wcrank?: string | null } | null} row
- * @returns {{ label: string, standing: "clinched" | "racing" | "out" } | null}
+ * @returns {{ label: string | null, standing: "clinched" | "racing" | "out" } | null}
  */
 export function describeRace(row) {
   if (!row || !row.gb) return null;
@@ -21,7 +21,7 @@ export function describeRace(row) {
     const label = isAhead(row.wcgb) ? `WC${row.wcrank}` : `${row.wcgb} WC`;
     return { label, standing: "racing" };
   }
-  return { label: `${row.gb} GB`, standing: "out" };
+  return { label: null, standing: "out" };
 }
 
 export function findStandingsRow(id) {

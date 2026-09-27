@@ -338,7 +338,7 @@ test("games list: each club's rank, seed, record, and race", () => {
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Sat, Sep 26",
-    "Orioles 79-82 19.0 GB 3 - 7 Final Yankees #1 4 seed 93-68 WC1",
+    "Orioles 79-82 3 - 7 Final Yankees #1 4 seed 93-68 WC1",
   ]);
 });
 
@@ -364,7 +364,7 @@ test("a club's race: clinched, still racing, or out", () => {
     standing: "racing",
   });
   assert.deepEqual(describe({ gb: "19.0", wcgb: "4.0", elim: "E", wce: "E" }), {
-    label: "19.0 GB",
+    label: null,
     standing: "out",
   });
   assert.equal(describeRace(null), null);
