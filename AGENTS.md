@@ -23,16 +23,38 @@
 
 ## Workflow
 
-- `main` is the source of truth. Work on a branch, open a PR, and squash-merge only once CI is green and the PR has no merge conflicts with `main`. Never push to another session's branch.
-- The Review workflow has Claude comment on each new PR. Fix each finding or reply saying why not; its comments are advice, not a required check.
+- `main` is the source of truth. Every change reaches it through a PR, by the steps in "Shipping a change" below.
+- Never push to another session's branch.
 - Don't spend time curating commit history. Squash merges make it irrelevant.
 - Refer to PRs by number, not branch.
-- Merges to `main` deploy the Worker: CI runs `npm run deploy:api` once every check passes. To redeploy by hand, use `npm run deploy:api` and no other way.
 - `npm run set-app-key` gives the Worker its `APP_KEY` and prints the page's address. `--rotate` replaces the key, which changes the address; do that only when the user asks.
 - The repo is public. Never commit secrets, keys, account IDs, real Worker addresses or subdomains, or personal data; use placeholders in tests and docs.
 - The Cloudflare token lives only in the cloud environment's API credentials and the repo's `production` GitHub environment. Never ask for it in chat or put it in environment variables, code, or commits.
 - Keep scratch work (design playgrounds, test harnesses) out of git, and never point tests at the real page.
-- Ask when unsure.
+- When unsure, do what best serves the intent of the work, and confirm with the user. If you genuinely need a decision from the user, give all the context concisely, list the pros and cons of each option, and make a recommendation.
+
+### Shipping a change
+
+Follow these steps in order. When a step says to go back to an earlier step, continue in order from there.
+
+1. Fetch `main` and start your branch from it. If the branch's last PR has merged, reset the branch to `origin/main` first.
+2. Run `npm run check`. If anything fails, fix it and run `npm run check` again. Repeat until it passes. Never push while it fails.
+   - The browser tests run in CI on Chromium's headless shell, which behaves differently from full Chromium; for example, it denies notification permission. If you set `CHROMIUM_PATH`, point it at the headless shell.
+3. Commit, push, and open a PR into `main`. If the PR is already open, the push updates it.
+4. Wait until every CI job on the PR's latest commit has finished. The `check` job is the one that must pass; it fails whenever any other CI job fails.
+5. If a CI job failed, read its log and reproduce the failure locally. Fix it and go back to step 2. If you can't reproduce or fix it, tell the user which job failed, what its log says, what you tried, and what you recommend.
+6. The Review workflow posts Claude's comments when a PR opens; it doesn't run again after later pushes. Answer every comment: either fix it and go back to step 2, or reply on the comment saying why not.
+   - If the Review job fails without posting any comments, its Claude credential secret is missing or expired. Tell the user, and continue. The Review job never blocks a merge.
+7. If GitHub reports merge conflicts with `main`, merge `main` into your branch, resolve the conflicts, and go back to step 2. If resolving a conflict would drop behavior from either side, resolve it in the way that best serves the spirit of both changes, and confirm with the user. If you genuinely need a decision from the user, give all the context concisely, list the pros and cons of each option, and make a recommendation.
+8. Squash-merge the PR once all of these are true: `check` passed on the latest commit, the PR has no merge conflicts, and every Review comment is answered. If GitHub refuses the merge, check the PR again: if CI hasn't finished on the latest commit, go back to step 4; if it has merge conflicts, go back to step 7.
+9. Don't deploy. Merging starts CI on `main`, and when CI passes, the Deploy workflow runs `npm run deploy:api`, which deploys the Worker and rolls back if the new version doesn't answer.
+10. Wait for the Deploy run for the merge commit to finish, then read its log and do what matches:
+    - It says `worker check: ok`: the new version is live. Tell the user.
+    - The run was skipped: CI failed on `main`. Read the CI log, fix the failure in a new PR, and start again at step 1.
+    - It says "nothing was deployed": the `production` environment has no Cloudflare token. Tell the user.
+    - The run failed: read the log. If it says "the earlier version is live again", the Worker rolled back and is unchanged. Tell the user what failed and recommend a fix.
+11. Run `npm run deploy:api` yourself only when step 10 found no successful deploy and the user agrees. Say why the automatic deploy didn't happen and recommend whether to deploy by hand. Never deploy any other way.
+12. To ship work in several PRs, open each PR only after the one before it has merged, starting again at step 1.
 
 ## Writing
 
