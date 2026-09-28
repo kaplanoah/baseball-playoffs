@@ -404,7 +404,8 @@ test("a club that has never won counts its drought from its first season", () =>
   assert.equal(droughtLabel("MIL"), "Since 1969");
 });
 
-test("a club's status names the round it went out in", () => {
+// Detroit went out in the Wild Card Series and New York in the Division Series.
+function buildPostseasonState() {
   const teams = {};
   const clubs = {
     AL: ["NYY", "TOR", "SEA", "BOS", "DET", "CLE"],
@@ -412,10 +413,14 @@ test("a club's status names the round it went out in", () => {
   };
   for (const [league, ids] of Object.entries(clubs))
     ids.forEach((id, index) => (teams[id] = { league, seed: index + 1 }));
-  const state = {
+  return {
     teams,
     series: { AL_WC2: { winsA: 2, winsB: 0 }, AL_DS1: { winsA: 1, winsB: 3 } },
   };
+}
+
+test("a club's status names the round it went out in", () => {
+  const state = buildPostseasonState();
   assert.deepEqual(describeTeamStatus(state, "DET"), { status: "out", round: "WC" });
   assert.deepEqual(describeTeamStatus(state, "NYY"), { status: "out", round: "DS" });
   assert.deepEqual(describeTeamStatus(state, "BOS"), { status: "alive", round: null });
@@ -552,6 +557,60 @@ test("games list: each club's rank, seed, record, and race", () => {
   assert.deepEqual(describeGameList(slate, "today"), [
     "Sat, Sep 26",
     "Orioles 79-82 3 - 7 Final Yankees #1 4 seed 93-68 WC1",
+  ]);
+});
+
+const listSideClasses = (rendered) =>
+  [...String(rendered).matchAll(/class="game-side ([^"]*)"/g)].map(([, classes]) =>
+    classes.split(/\s+/).filter(Boolean),
+  );
+
+test("games list: a finished game marks its winner and dims only the losing score", () => {
+  const slate = {
+    today: {
+      date: "2026-09-26",
+      games: [
+        { away: "BAL", home: "NYY", state: "final", start: "2026-09-26T17:05:00Z", score: [3, 7] },
+        {
+          away: "TB",
+          home: "BOS",
+          state: "live",
+          start: "2026-09-26T17:10:00Z",
+          score: [5, 1],
+          inning: 6,
+          half: "top",
+        },
+      ],
+    },
+  };
+  const rendered = renderGameList(slate, "today");
+  assert.deepEqual(listSideClasses(rendered), [["away"], ["home", "won"], ["away"], ["home"]]);
+  assert.match(String(rendered), /<span class="lost">3<\/span>/);
+});
+
+test("games list: a club out of the race or knocked out of the postseason shows as out", () => {
+  session.state = buildPostseasonState();
+  session.standings = {
+    divisions: {
+      "AL East": [
+        { id: "BAL", w: 75, l: 87, gb: "19.0", wcgb: "9.0", elim: "E", wce: "E", wcrank: "8" },
+      ],
+    },
+  };
+  const slate = {
+    today: {
+      date: "2026-10-01",
+      games: [
+        { away: "DET", home: "BOS", state: "final", start: "2026-10-01T17:05:00Z", score: [1, 4] },
+        { away: "BAL", home: "TOR", state: "pre", start: "2026-10-01T23:07:00Z" },
+      ],
+    },
+  };
+  assert.deepEqual(listSideClasses(renderGameList(slate, "today")), [
+    ["away", "out"],
+    ["home", "won"],
+    ["away", "out"],
+    ["home"],
   ]);
 });
 

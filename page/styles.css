@@ -536,8 +536,14 @@ table.st .seed-cell {
 .game-side.home .game-facts {
   flex-direction: row-reverse;
 }
+.game-side.won .club {
+  font-weight: 700;
+}
 .game-side.out .team-name {
   color: var(--ink-dim);
+}
+.game-side.out .dot {
+  opacity: 0.55;
 }
 .game-facts {
   display: flex;
@@ -601,12 +607,9 @@ table.st .seed-cell {
 .game-row.delayed .game-status {
   color: var(--gold);
 }
-.game-row .lost {
+.game-score .lost {
   color: var(--ink-dim);
   font-weight: 400;
-}
-.game-row .lost .dot {
-  opacity: 0.55;
 }
 .game-row.off .game-side,
 .game-row.off .game-time {
@@ -930,8 +933,6 @@ button.ghost {
 }
 .matchup-row.eliminated .team-name {
   color: var(--out);
-  text-decoration: line-through;
-  text-decoration-color: var(--card-border);
 }
 .team-id {
   display: flex;
