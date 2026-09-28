@@ -245,6 +245,32 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
 });
 
+const ONE_GAME_ELIMINATES = (team) => ({
+  kind: "elim",
+  team,
+  via: [{ team: "TEX", won: true, opp: "NYM", score: [3, 1] }],
+  ended: "2026-09-25T00:10:00Z",
+  at: "2026-09-25T00:40:00Z",
+});
+
+test("updates that share a time show it once", async ({ page }) => {
+  await openApp(page, {
+    liveAvailable: false,
+    store: {
+      "seasons/2026": {
+        ...SEASON_WITH_TWO_UPDATES,
+        log: [
+          ONE_GAME_ELIMINATES("SEA"),
+          ONE_GAME_ELIMINATES("HOU"),
+          { kind: "lock", at: "2026-09-25T00:30:00Z" },
+        ],
+      },
+    },
+  });
+
+  await expect(page.locator("#updates .when")).toHaveText([/^8:30\sPM$/, /^8:10\sPM$/, ""]);
+});
+
 // The page's clock reads 8:44 PM Eastern, which is the next morning in London and Tokyo.
 const LOCAL_TIMES_OF_THE_NEWER_UPDATE = {
   "Pacific/Honolulu": "2:30 PM",

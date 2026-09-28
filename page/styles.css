@@ -685,7 +685,7 @@ nav.tabs + .updates {
 }
 .updates-list li {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
   font-size: 0.82rem;
   padding: 5px 0;
