@@ -42,10 +42,19 @@ const isNearby = (first, second) =>
 const sharesGame = (entries) =>
   isNearby(entries[0], entries[entries.length - 1]) && findCommonGames(entries).length > 0;
 
-// A clinch with no game of its own came from what else its update found.
-const isClinchFor = (berth, elimination) =>
+const isGameClinchFor = (berth, elimination) =>
   isSameLeague(berth, elimination) &&
-  (listResults(berth).length ? sharesGame([berth, elimination]) : berth.at === elimination.at);
+  listResults(berth).length > 0 &&
+  sharesGame([berth, elimination]);
+
+// A clinch with no game of its own came from what else its update found, unless another
+// clinch shares the elimination's game.
+const isGamelessClinchFor = (berth, elimination) =>
+  isSameLeague(berth, elimination) && !listResults(berth).length && berth.at === elimination.at;
+
+const findClinchFor = (berths, elimination) =>
+  berths.find((berth) => isGameClinchFor(berth, elimination)) ||
+  berths.find((berth) => isGamelessClinchFor(berth, elimination));
 
 const joinsEliminations = (group, elimination) =>
   isSameLeague(group[0], elimination) && sharesGame([...group, elimination]);
@@ -64,7 +73,7 @@ export function groupUpdates(entries) {
   const berths = entries.filter((entry) => entry.kind === "berth");
   const unclaimed = [];
   for (const elimination of entries.filter((entry) => entry.kind === "elim")) {
-    const berth = berths.find((candidate) => isClinchFor(candidate, elimination));
+    const berth = findClinchFor(berths, elimination);
     if (berth) moveInto(groups, berth, elimination);
     else unclaimed.push(elimination);
   }

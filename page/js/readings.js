@@ -13,6 +13,17 @@ export const readingsCollection = (year) => `readings-${year}`;
 // Well under the Worker store's 64 KiB, so a busy day moves on to a new part before a write fails.
 const MAX_PART_LENGTH = 40 * 1024;
 
+// A change before 6am Eastern comes from last night's games, even once the slate has moved on.
+export const readReadingDay = (snapshot) =>
+  snapshot.slate?.lastNight?.date ||
+  snapshot.slate?.today?.date ||
+  easternDay(Date.parse(snapshot.asOf)).date;
+
+function listDayFinals(slate, day) {
+  const slateDay = [slate?.today, slate?.lastNight].find((candidate) => candidate?.date === day);
+  return (slateDay?.games || []).filter((game) => game.state === "final");
+}
+
 // A reading keeps only what findChanges reads: the field, the standings without each club's
 // schedule, and the day's final scores.
 export function createReading(snapshot) {
@@ -21,9 +32,8 @@ export function createReading(snapshot) {
     for (const { next, then, ...row } of clubs) rows[row.id] = { ...row, div: division };
   }
   const games = {};
-  for (const game of snapshot.slate?.today?.games || []) {
-    if (game.state === "final") games[`${game.away}-${game.home}-${game.doubleheader || 1}`] = game;
-  }
+  for (const game of listDayFinals(snapshot.slate, readReadingDay(snapshot)))
+    games[`${game.away}-${game.home}-${game.doubleheader || 1}`] = game;
   return {
     at: snapshot.asOf,
     projected: snapshot.projected,
@@ -32,9 +42,6 @@ export function createReading(snapshot) {
     games,
   };
 }
-
-export const readReadingDay = (snapshot) =>
-  snapshot.slate?.today?.date || easternDay(Date.parse(snapshot.asOf)).date;
 
 // A field missing on either side counts as null, which is how it is stored.
 function diffRecords(before, after) {

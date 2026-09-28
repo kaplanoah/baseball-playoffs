@@ -480,14 +480,20 @@ function listClubGames(games, day) {
   return { previous: listInOrder(previous), next: listInOrder(next) };
 }
 
+const NIGHT_END_HOUR = 6;
+
 // Before 6am Eastern, today is still last night while any of last night's games is unfinished.
+// Once they're all final, last night stays alongside until 6am, since its games still explain
+// what changes then.
 function buildSlate(games, clubGames, now) {
   const clock = easternDay(now);
   const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
   const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
   const lastNight = addDays(clock.date, -1);
+  const isNight = clock.hour < NIGHT_END_HOUR;
   const isLastNightUnfinished = listGamesOn(lastNight).some((game) => game.state !== "final");
-  const day = clock.hour < 6 && isLastNightUnfinished ? lastNight : clock.date;
+  const day = isNight && isLastNightUnfinished ? lastNight : clock.date;
+  const hasLastNightEnded = isNight && day !== lastNight;
 
   const nextDay = [...new Set(playable.map((game) => game.date))]
     .filter((date) => date > day)
@@ -506,6 +512,9 @@ function buildSlate(games, clubGames, now) {
       postponed: postponed.map(summarizeGame),
     },
     nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarizeGame) } : null,
+    lastNight: hasLastNightEnded
+      ? { date: lastNight, games: listGamesOn(lastNight).map(summarizeGame) }
+      : null,
     lastFinal: lastFinal ? summarizeGame(lastFinal) : null,
     ...listClubGames(clubGames, day),
   };
@@ -570,12 +579,19 @@ function buildStandingsRow(id, record) {
   };
 }
 
-// MLB's divisionChamp and its "y" marker have both named a wild card club, so a division is
-// won only once every other club in it is out of the division race.
-export const hasWonDivision = (row, divisionRows) =>
-  row.lead && divisionRows.every((other) => other.id === row.id || other.elim === "E");
-
 export const SEASON_GAMES = 162;
+
+const hasPlayedOut = (row) => row.w + row.l >= SEASON_GAMES;
+
+// MLB's divisionChamp and its "y" marker have both named a wild card club, so a division is
+// won only once every other club in it is out of the division race. A tie at the end is
+// broken on paper, and MLB then names only the winner the leader but never eliminates the
+// other club.
+const isOutOfDivisionRace = (other, leader) =>
+  other.elim === "E" || (!other.lead && hasPlayedOut(other) && hasPlayedOut(leader));
+
+export const hasWonDivision = (row, divisionRows) =>
+  row.lead && divisionRows.every((other) => other.id === row.id || isOutOfDivisionRace(other, row));
 
 // MLB gives a club tied for the lead "-" instead of an elimination number, so a tie is
 // counted the way MLB counts the rest: a tie at the end doesn't clinch.
@@ -758,9 +774,10 @@ function readOfficialField({ gamesBySeries, wildCardClubs }, records) {
 const isBetween = (game, teamA, teamB) =>
   [teamA, teamB].includes(game.away.id) && [teamA, teamB].includes(game.home.id);
 
+// A game still live past midnight Eastern is dated the day before.
 function findNextGame(games, today) {
   return games
-    .filter((game) => (game.state === "pre" || game.state === "live") && game.date >= today)
+    .filter((game) => game.state === "live" || (game.state === "pre" && game.date >= today))
     .sort((first, second) => first.number - second.number || compareStarts(first, second))[0];
 }
 
@@ -826,8 +843,7 @@ function readRecords(standings) {
   const champions = new Set();
   for (const { id, record } of listStandingsRows(standings)) {
     records[id] = { w: record.wins, l: record.losses };
-    if (record.divisionChamp || (record.divisionRank === "1" && record.divisionLeader))
-      champions.add(id);
+    if (record.divisionRank === "1" && record.divisionLeader) champions.add(id);
   }
   return { records, champions };
 }

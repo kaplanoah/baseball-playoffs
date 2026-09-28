@@ -15,8 +15,9 @@ function findClosestRoute(row) {
   return routes.length ? Math.min(...routes).toFixed(1) : null;
 }
 
+// The club's latest final is the one that moved it.
 function findResult(games, club) {
-  const game = games.find(
+  const game = games.findLast(
     (candidate) =>
       candidate.state === "final" && club && (candidate.away === club || candidate.home === club),
   );
@@ -228,9 +229,12 @@ function findStandingsChanges(before, after, games, at) {
   return [...berths.filter(Boolean), ...eliminations];
 }
 
+// MLB can list a doubleheader's second game with the earlier start time.
 const listGames = (reading) =>
   Object.values(reading.games).sort(
-    (first, second) => Date.parse(first.start) - Date.parse(second.start),
+    (first, second) =>
+      (first.doubleheader || 0) - (second.doubleheader || 0) ||
+      Date.parse(first.start) - Date.parse(second.start),
   );
 
 // The news between two readings from readings.js, stamped with the later one's time.
