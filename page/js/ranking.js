@@ -62,7 +62,7 @@ export function renderRanking() {
     setHtml(gutter, html``);
     setHtml(
       list,
-      html`<li class="rank-item">Set this year's playoff field first, on the Bracket tab.</li>`,
+      html`<li class="rank-item">The ranking fills in once there's a playoff field.</li>`,
     );
     return;
   }

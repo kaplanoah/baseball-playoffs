@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fetchLive } from "../page/js/live-fetch.js";
+import { UPSTREAM_TIMEOUT_MS } from "../worker/src/snapshot.js";
 
 const SNAPSHOT = { version: 1, season: 2026 };
 
@@ -22,4 +23,16 @@ test("an error from the Worker keeps its reason, and an unexpected answer says s
   await assert.rejects(fetchLive(2026), { code: "upstream_error", message: "MLB is down" });
   globalThis.fetch = async () => new Response(JSON.stringify({ version: 1, season: 2025 }));
   await assert.rejects(fetchLive(2026), { code: "bad_payload" });
+});
+
+test("the page waits out the Worker's two rounds of MLB requests", async (context) => {
+  const waits = [];
+  const timeout = AbortSignal.timeout;
+  context.mock.method(AbortSignal, "timeout", (milliseconds) => {
+    waits.push(milliseconds);
+    return timeout.call(AbortSignal, milliseconds);
+  });
+  globalThis.fetch = async () => new Response(JSON.stringify(SNAPSHOT));
+  await fetchLive(2026);
+  assert.ok(waits[0] > 2 * UPSTREAM_TIMEOUT_MS);
 });

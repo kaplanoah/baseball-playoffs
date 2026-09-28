@@ -425,3 +425,12 @@ test("the log keeps each piece of news once, oldest first, the newest fifty", ()
   assert.equal(merged[0].game, 10);
   assert.deepEqual(LogChanges.mergeLog(merged.slice().reverse(), []), merged);
 });
+
+test("a field change's key carries MLB's day, which runs through the evening's games", () => {
+  const swapAt = (at) => LogChanges.describeKey({ kind: "field", in: "TEX", out: "HOU", at });
+  // 4pm and 9pm Eastern on September 24: the second is already the 25th in UTC.
+  assert.equal(swapAt("2026-09-24T20:00:00Z"), swapAt("2026-09-25T01:00:00Z"));
+  // 9pm Eastern, then 9am Eastern the next day: the same UTC day.
+  assert.notEqual(swapAt("2026-09-25T01:00:00Z"), swapAt("2026-09-25T13:00:00Z"));
+  assert.equal(swapAt("2026-09-25T01:00:00Z"), "field:TEX:HOU:2026-09-24");
+});

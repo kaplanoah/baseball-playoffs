@@ -31,8 +31,6 @@ const SEASON_ID = /^\d{4}$/;
 const PAGE_FIELDS = {
   ranking: (value) => Array.isArray(value) && value.every((id) => typeof id === "string"),
   seenAt: (value) => typeof value === "string",
-  teams: isPlainObject,
-  series: isPlainObject,
 };
 
 const isPageField = ([key, value]) =>
@@ -150,11 +148,7 @@ export class SeasonStore {
     const { body, status, message } = await readObjectBody(request);
     if (!body) return respondError(status, "invalid_argument", message);
     if (!Object.entries(body).every(isPageField))
-      return respondError(
-        400,
-        "invalid_argument",
-        "A season takes only ranking, seenAt, teams, and series.",
-      );
+      return respondError(400, "invalid_argument", "A season takes only ranking and seenAt.");
     const stored = (await this.ctx.storage.get(key)) ?? { year };
     await this.putDoc(key, replaceFields(stored, body));
     return new Response(null, { status: 204 });

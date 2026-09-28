@@ -101,7 +101,7 @@ export function renderDivisionBlock(name, rows) {
     <div class="div-title">
       <span class="${league}">${name}</span><span class="title-right">${renderDivisionTag(rows[0] || {})}</span>
     </div>
-    <div class="st-scroll"><table class="st">
+    <div class="st-scroll" tabindex="0" role="region" aria-label="${name} standings"><table class="st">
       ${COLUMNS}
       ${renderHeader("GB", "E#", DIVISION_ELIMINATION_TITLE)}
       <tbody>${rows.map(renderRow)}</tbody>
@@ -132,7 +132,7 @@ function renderWildCardBlock(league, pool) {
   };
   return html`<div class="div-block">
     <div class="div-title"><span class="${league}">${league} Wild Card</span></div>
-    <div class="st-scroll"><table class="st">
+    <div class="st-scroll" tabindex="0" role="region" aria-label="${league} Wild Card standings"><table class="st">
       ${COLUMNS}
       ${renderHeader("WCGB", "WCE", WILD_CARD_ELIMINATION_TITLE)}
       <tbody>${pool.map(renderRow)}</tbody>

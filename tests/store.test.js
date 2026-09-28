@@ -86,13 +86,13 @@ test("the page's update replaces each field it names, and a null removes one", a
   });
   const response = await requestStore(env, "/store/seasons/2026", {
     method: "PATCH",
-    body: { ranking: ["LAD"], series: { ALCS: { winsA: 0 } }, seenAt: null },
+    body: { ranking: ["LAD"], seenAt: null },
   });
   assert.equal(response.status, 204);
   assert.deepEqual(await readData(env, "/store/seasons/2026"), {
     log: [{ kind: "lock" }],
     ranking: ["LAD"],
-    series: { ALCS: { winsA: 0 } },
+    series: { WS: { winsA: 1, winsB: 0 } },
     year: 2026,
   });
 });
@@ -200,7 +200,8 @@ test("the page can't replace or remove documents, or change anything but its own
     [patch("/store/seasons/2026", { log: null }), 400],
     [patch("/store/seasons/2026", { year: 1999 }), 400],
     [patch("/store/seasons/2026", { ranking: "NYY" }), 400],
-    [patch("/store/seasons/2026", { teams: ["NYY"] }), 400],
+    [patch("/store/seasons/2026", { teams: {} }), 400],
+    [patch("/store/seasons/2026", { series: {} }), 400],
   ];
   for (const [pending, status] of refusals) assert.equal((await pending).status, status);
   assert.deepEqual(stored.get("seasons/2026"), season);

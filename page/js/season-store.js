@@ -216,15 +216,6 @@ async function writeSeason(fields) {
   }
 }
 
-export async function saveTeams(teams) {
-  const ranking = Object.keys(teams).sort(
-    (first, second) => teams[first].seed - teams[second].seed,
-  );
-  Object.assign(session.seasonDoc, { teams, series: {}, ranking });
-  composeState();
-  await writeSeason({ teams, series: {}, ranking });
-}
-
 export async function saveRanking(order) {
   session.seasonDoc.ranking = order;
   session.state.ranking = order;

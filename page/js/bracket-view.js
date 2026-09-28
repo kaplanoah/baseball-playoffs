@@ -318,10 +318,10 @@ function renderStackedStage(bracket, slotHeight) {
 
 export function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
-  const setupPrompt = document.getElementById("setupPrompt");
+  const noFieldNote = document.getElementById("noFieldNote");
   const bracket = fullBracket(session.state);
   const hasField = !!bracket.al && !!bracket.nl;
-  setupPrompt.hidden = hasField;
+  noFieldNote.hidden = hasField;
   if (!hasField) {
     setHtml(wrap, html``);
     renderedSlotHeight = 0;
@@ -332,7 +332,10 @@ export function renderBracket() {
   const slotHeight = PHONE.matches ? measureSlotHeight(wrap) : 0;
   const stage = PHONE.matches ? renderStackedStage(bracket, slotHeight) : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
-  setHtml(wrap, html`<div class="tree-scroll">${stage}</div>`);
+  setHtml(
+    wrap,
+    html`<div class="tree-scroll" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
+  );
   wrap.querySelector(".tree-scroll").scrollLeft = scrollLeft;
   renderedSlotHeight = slotHeight;
   renderBanner(bracket);
