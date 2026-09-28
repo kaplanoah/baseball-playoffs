@@ -74,9 +74,10 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   let socket = null;
   let reconnectTimer = null;
   let reconnectDelay = RECONNECT_FIRST_MS;
-  // A read that started before a pushed change must not replace it with older data.
+  // Reads overlap, so one that started before a pushed change, or before a read that already
+  // arrived, must not replace it with older data.
   let clock = 0;
-  const pushedAt = new Map();
+  const deliveredAt = new Map();
 
   const findUrl = (path) => new URL(`store/${path}`, baseUrl);
   const findListUrl = (name, count) => new URL(`store/${name}?limit=${count}`, baseUrl);
@@ -98,7 +99,9 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     const startedAt = ++clock;
     try {
       const snapshot = await readSnapshot(path);
-      if ((pushedAt.get(path) || 0) < startedAt) deliverSnapshot(path, snapshot);
+      if ((deliveredAt.get(path) || 0) > startedAt) return;
+      deliveredAt.set(path, startedAt);
+      deliverSnapshot(path, snapshot);
     } catch (error) {
       deliverError(path, error);
     }
@@ -114,7 +117,8 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     const startedAt = ++clock;
     try {
       const docs = await readDocs(findListUrl(name, watch.limit));
-      if (collectionWatches.get(name) !== watch) return;
+      if (collectionWatches.get(name) !== watch || watch.listedAt > startedAt) return;
+      watch.listedAt = startedAt;
       const docsById = new Map(docs.map(({ id, data }) => [id, data]));
       for (const [id, pushed] of watch.pushes) {
         if (pushed.at < startedAt) continue;
@@ -148,7 +152,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
 
   function receivePush(event) {
     const { path, data } = JSON.parse(event.data);
-    pushedAt.set(path, ++clock);
+    deliveredAt.set(path, ++clock);
     deliverSnapshot(path, createSnapshot(readId(path), data));
     applyCollectionPush(path, data);
   }
@@ -213,6 +217,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
         limit,
         listeners: new Set(),
         docsById: null,
+        listedAt: 0,
         pushes: new Map(),
       });
     collectionWatches.get(name).listeners.add(listener);

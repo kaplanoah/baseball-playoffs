@@ -1,4 +1,5 @@
-const FETCH_TIMEOUT_MS = 10 * 1000;
+// Longer than the Worker's two rounds of MLB requests, the season's dates and then the rest.
+const FETCH_TIMEOUT_MS = 20 * 1000;
 
 class LiveError extends Error {
   constructor(code, message) {

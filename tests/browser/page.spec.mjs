@@ -259,16 +259,26 @@ test("warns under the title when MLB stops sending a field", async ({ page }) =>
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers");
 });
 
-test("setting the field by hand says what's missing instead of saving", async ({ page }) => {
+test("with no field yet, the bracket says it fills in once MLB projects one", async ({ page }) => {
   await openApp(page, { liveAvailable: false });
 
-  await page.getByRole("button", { name: "Set the field" }).click();
-  await page.getByRole("button", { name: "Save field" }).click();
-
-  await expect(page.getByRole("alert")).toHaveText(
-    "Assign all 6 seeds in both the AL and the NL before saving.",
+  await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Set the field" })).toHaveCount(0);
+  await page.getByRole("tab", { name: "Ranking" }).click();
+  await expect(page.locator("#rankList")).toHaveText(
+    "The ranking fills in once there's a playoff field.",
   );
-  await expect(page.getByRole("dialog", { name: "Set the playoff field" })).toBeVisible();
+});
+
+test("the bracket and standings scroll from the keyboard, even in Safari", async ({ page }) => {
+  await openApp(page);
+  await expect(page.getByRole("region", { name: "Bracket" })).toHaveAttribute("tabindex", "0");
+
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await expect(page.getByRole("region", { name: "AL East standings" })).toHaveAttribute(
+    "tabindex",
+    "0",
+  );
 });
 
 test("the ranking can be reordered from the keyboard, and saves", async ({ page }) => {
@@ -323,7 +333,7 @@ test("markup in the shared store is shown as text", async ({ page }) => {
   await expect(page.locator("#injected")).toHaveCount(0);
 });
 
-test("a stored field short a league asks for the field instead of breaking the page", async ({
+test("a stored field short a league says there's no field instead of breaking the page", async ({
   page,
 }) => {
   const clubs = ["NYY", "TOR", "SEA", "BOS", "DET", "CLE", "HOU", "LAD", "MIL", "PHI", "CHC", "SD"];
@@ -335,20 +345,9 @@ test("a stored field short a league asks for the field instead of breaking the p
     store: { "seasons/2026": { year: 2026, teams, series: {}, ranking: [], log: [] } },
   });
 
-  await expect(page.getByRole("button", { name: "Set the field" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
   await page.getByRole("tab", { name: "Ranking" }).click();
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
-});
-
-test("the field setup dialog closes with Escape", async ({ page }) => {
-  await openApp(page, { liveAvailable: false });
-
-  await page.getByRole("button", { name: "Set the field" }).click();
-  const dialog = page.getByRole("dialog", { name: "Set the playoff field" });
-  await expect(dialog).toBeVisible();
-  await page.keyboard.press("Escape");
-
-  await expect(dialog).toBeHidden();
 });
 
 const SEASON_WITH_TWO_UPDATES = {
@@ -500,7 +499,7 @@ test("the new season starts on the day spring training does", async ({ page }) =
   });
 
   await expect(page.locator("#yearSel")).toHaveValue("2027");
-  await expect(page.getByRole("button", { name: "Set the field" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
 });
 
 test("a page left open turns over when spring training starts", async ({ page }) => {

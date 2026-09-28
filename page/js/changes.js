@@ -1,4 +1,4 @@
-import { SEASON_GAMES, hasWonDivision } from "./snapshot.js";
+import { SEASON_GAMES, easternDay, hasWonDivision } from "./snapshot.js";
 
 export const MAX_LOG = 50;
 
@@ -259,9 +259,14 @@ const FOUND_KINDS = new Set(["lock", "field", "seed", "berth", "elim"]);
 // Whether findChanges made this entry, so a rebuild from readings can make it again.
 export const isFoundEntry = (entry) => FOUND_KINDS.has(entry.kind);
 
+// MLB's day, which runs past midnight UTC through the evening's games.
+function readEntryDay(entry) {
+  const at = Date.parse(entry.at);
+  return Number.isNaN(at) ? String(entry.at) : easternDay(at).date;
+}
+
 // A field or seed change can recur on a later day, so its key carries the day.
 export function describeKey(entry) {
-  const day = String(entry.at).slice(0, 10);
   switch (entry.kind) {
     case "game":
       return `game:${entry.series}:${entry.game}`;
@@ -274,9 +279,9 @@ export function describeKey(entry) {
     case "berth":
       return `berth:${entry.team}:${entry.what}`;
     case "field":
-      return `field:${entry.in || ""}:${entry.out || ""}:${day}`;
+      return `field:${entry.in || ""}:${entry.out || ""}:${readEntryDay(entry)}`;
     case "seed":
-      return `seed:${entry.team}:${entry.to}:${day}`;
+      return `seed:${entry.team}:${entry.to}:${readEntryDay(entry)}`;
     default:
       return `${entry.kind}:${entry.at}`;
   }

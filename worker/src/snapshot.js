@@ -5,7 +5,7 @@ const FIRST_SEASON = 1995;
 const LAST_SEASON = 2100;
 const SEASON_RULE = `season must be a whole year between ${FIRST_SEASON} and ${LAST_SEASON}`;
 
-const UPSTREAM_TIMEOUT_MS = 8000;
+export const UPSTREAM_TIMEOUT_MS = 8000;
 const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
 const SNAPSHOT_REUSE_MS = 10000;
 
