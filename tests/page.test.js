@@ -1,6 +1,6 @@
 import { beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { session } from "../page/js/session.js";
+import { composeState, session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
 import { droughtLabel } from "../page/js/clubs.js";
@@ -430,6 +430,25 @@ test("a club that has never won counts its drought from its first season", () =>
   assert.equal(droughtLabel("TB"), "Since 1998");
   assert.equal(droughtLabel("COL"), "Since 1993");
   assert.equal(droughtLabel("MIL"), "Since 1969");
+});
+
+test("a live answer without standings leaves the saved field showing", () => {
+  const saved = { NYY: { league: "AL", seed: 4 } };
+  const { activeYear } = session;
+  const live = { season: 2026, asOf: "2026-09-24T22:00:00Z", slate: null, log: [] };
+  try {
+    Object.assign(session, { activeYear: 2026, readings: null });
+    session.seasonDoc = { year: 2026, teams: saved, series: {}, ranking: [], log: [] };
+    session.live = { ...live, projected: true, standings: null, teams: {}, series: {} };
+    composeState();
+    assert.deepEqual(session.state.teams, saved);
+    const teams = { TOR: { league: "AL", seed: 1 } };
+    session.live = { ...live, projected: true, standings: { divisions: {} }, teams, series: {} };
+    composeState();
+    assert.deepEqual(session.state.teams, teams);
+  } finally {
+    Object.assign(session, { activeYear, live: null, seasonDoc: null });
+  }
 });
 
 // Detroit went out in the Wild Card Series and New York in the Division Series.
