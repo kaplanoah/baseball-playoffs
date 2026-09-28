@@ -33,6 +33,30 @@ test("the sliders button opens settings, and Done, Escape, or the backdrop close
   await expect(settings).toBeHidden();
 });
 
+test("the sliders icon takes the stamp's time color and brightens on hover", async ({ page }) => {
+  await openApp(page);
+  const button = page.getByRole("button", { name: "Settings", exact: true });
+  const timeColor = await page
+    .locator("#stamp b")
+    .first()
+    .evaluate((time) => getComputedStyle(time).color);
+
+  await expect(button).toHaveCSS("color", timeColor);
+  await button.hover();
+  await expect(button).toHaveCSS("color", "rgb(241, 234, 212)");
+});
+
+test("the sliders icon sits close to the stamp", async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator("#stamp")).toBeVisible();
+
+  const stamp = await page.locator("#stamp").boundingBox();
+  const icon = await page.locator("#settingsBtn svg").boundingBox();
+  const gap = icon.x - (stamp.x + stamp.width);
+  expect(gap).toBeGreaterThanOrEqual(12);
+  expect(gap).toBeLessThanOrEqual(18);
+});
+
 test("a click inside settings leaves it open", async ({ page }) => {
   await openApp(page);
   await openSettings(page);

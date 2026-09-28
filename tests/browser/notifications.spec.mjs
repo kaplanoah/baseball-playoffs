@@ -65,14 +65,28 @@ test("notifications can be turned on, tested, and turned off", async ({ page }) 
   await expect(page.getByRole("button", { name: "Send a test" })).toBeHidden();
 });
 
-test("blocked notifications say where to turn them back on", async ({ page }) => {
+test("blocked notifications point to the browser's site settings", async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(Notification, "permission", { get: () => "denied" });
   });
   await openApp(page);
   await openSettings(page);
 
-  await expect(page.locator("#notifyNote")).toHaveText(/Settings > Notifications/);
+  await expect(page.locator("#notifyNote")).toHaveText(/browser's site settings/);
+  await expect(page.getByRole("switch", { name: "Notifications" })).toBeDisabled();
+});
+
+test("on an iPhone, blocked notifications point to Settings", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, "permission", { get: () => "denied" });
+    Object.defineProperty(navigator, "userAgent", {
+      get: () => "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)",
+    });
+  });
+  await openApp(page);
+  await openSettings(page);
+
+  await expect(page.locator("#notifyNote")).toHaveText(/Turn them on in Settings > Notifications/);
   await expect(page.getByRole("switch", { name: "Notifications" })).toBeDisabled();
 });
 
