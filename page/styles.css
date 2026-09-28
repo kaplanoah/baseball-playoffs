@@ -4,6 +4,7 @@
   --card-border: #2a4536;
   --ink: #f1ead4;
   --ink-dim: #7fa88f;
+  --ink-mid: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
   --divider: #1e3a2b;
   --gold: #f4c15c;
   --gold-ink: #12200f;
@@ -91,7 +92,7 @@ header.top h1 {
 .year-tag[hidden] {
   display: none;
 }
-/* The icon sits flush with the page edge; its tap area runs past it. */
+/* The icon sits flush with the page edge and close to the stamp; its tap area runs past it. */
 .settings-btn {
   flex: none;
   display: flex;
@@ -99,12 +100,24 @@ header.top h1 {
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin: -8px -10px -8px 0;
-  padding: 0;
+  margin: -8px -10px -8px -14px;
+  padding: 4px;
   border: 0;
+  border-radius: 50%;
   background: none;
-  color: var(--ink);
+  /* The hover circle stays inside the padding, smaller than the tap area. */
+  background-clip: content-box;
+  color: var(--ink-mid);
   cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+@media (hover: hover) {
+  .settings-btn:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
 }
 .settings-btn svg {
   width: 24px;
@@ -132,7 +145,7 @@ nav.tabs {
 }
 .stamp b {
   font-weight: 400;
-  color: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
+  color: var(--ink-mid);
 }
 .stamp .ap {
   margin-left: 0.5ch;
@@ -413,7 +426,7 @@ table.st tr.alive td.next-cell,
 table.st tr.eliminated td.next-cell {
   text-align: left;
   font-size: 0.7rem;
-  color: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
+  color: var(--ink-mid);
 }
 table.st tr.cut td {
   border-bottom: 0;
@@ -1396,6 +1409,9 @@ table.ref td .team-name {
   .settings-panel[open] {
     animation: none;
   }
+  .settings-btn {
+    transition: none;
+  }
 }
 .rank-hint {
   color: var(--ink-dim);
@@ -1640,8 +1656,10 @@ table.ref th.won-col {
   header.top > div:first-child {
     order: 1;
   }
+  /* Here the button sits beside the title, not the stamp, so it keeps the header's own gap. */
   .settings-btn {
     order: 2;
+    margin-left: 0;
   }
   header.top {
     row-gap: 10px;
