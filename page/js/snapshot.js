@@ -570,12 +570,19 @@ function buildStandingsRow(id, record) {
   };
 }
 
-// MLB's divisionChamp and its "y" marker have both named a wild card club, so a division is
-// won only once every other club in it is out of the division race.
-export const hasWonDivision = (row, divisionRows) =>
-  row.lead && divisionRows.every((other) => other.id === row.id || other.elim === "E");
-
 export const SEASON_GAMES = 162;
+
+const hasPlayedOut = (row) => row.w + row.l >= SEASON_GAMES;
+
+// MLB's divisionChamp and its "y" marker have both named a wild card club, so a division is
+// won only once every other club in it is out of the division race. A tie at the end is
+// broken on paper, and MLB then names only the winner the leader but never eliminates the
+// other club.
+const isOutOfDivisionRace = (other, leader) =>
+  other.elim === "E" || (!other.lead && hasPlayedOut(other) && hasPlayedOut(leader));
+
+export const hasWonDivision = (row, divisionRows) =>
+  row.lead && divisionRows.every((other) => other.id === row.id || isOutOfDivisionRace(other, row));
 
 // MLB gives a club tied for the lead "-" instead of an elimination number, so a tie is
 // counted the way MLB counts the rest: a tie at the end doesn't clinch.
@@ -758,9 +765,10 @@ function readOfficialField({ gamesBySeries, wildCardClubs }, records) {
 const isBetween = (game, teamA, teamB) =>
   [teamA, teamB].includes(game.away.id) && [teamA, teamB].includes(game.home.id);
 
+// A game still live past midnight Eastern is dated the day before.
 function findNextGame(games, today) {
   return games
-    .filter((game) => (game.state === "pre" || game.state === "live") && game.date >= today)
+    .filter((game) => game.state === "live" || (game.state === "pre" && game.date >= today))
     .sort((first, second) => first.number - second.number || compareStarts(first, second))[0];
 }
 
@@ -826,8 +834,7 @@ function readRecords(standings) {
   const champions = new Set();
   for (const { id, record } of listStandingsRows(standings)) {
     records[id] = { w: record.wins, l: record.losses };
-    if (record.divisionChamp || (record.divisionRank === "1" && record.divisionLeader))
-      champions.add(id);
+    if (record.divisionRank === "1" && record.divisionLeader) champions.add(id);
   }
   return { records, champions };
 }

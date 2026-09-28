@@ -47,6 +47,29 @@ test("the first reading is the start, and a repeat adds nothing", () => {
   assert.deepEqual(Readings.rebuildLog([first]), []);
 });
 
+test("past midnight, a reading keeps the night's finals once the slate has moved on", () => {
+  const fixture = JSON.parse(JSON.stringify(EVENING));
+  const lastNight = fixture.responses.schedule.dates.find((date) => date.date === "2026-09-24");
+  for (const game of lastNight.games) {
+    game.status = { abstractGameState: "Final", codedGameState: "F", detailedState: "Final" };
+    game.teams.away.score ??= 1;
+    game.teams.home.score ??= 2;
+  }
+  const snapshot = MLBSnapshot.buildSnapshot(fixture.responses, {
+    season: 2026,
+    now: Date.parse("2026-09-25T05:12:00Z"),
+  });
+  assert.equal(snapshot.slate.today.date, "2026-09-25");
+  assert.equal(Readings.readReadingDay(snapshot), "2026-09-24");
+  const reading = Readings.createReading(snapshot);
+  assert.equal(Object.keys(reading.games).length, lastNight.games.length);
+  assert.ok("LAA-SEA-1" in reading.games);
+
+  const morning = { ...snapshot, asOf: "2026-09-25T10:00:00Z" };
+  assert.equal(Readings.readReadingDay(morning), "2026-09-25");
+  assert.deepEqual(Readings.createReading(morning).games, {});
+});
+
 test("a reading leaves out each club's schedule, and keeps only final scores", () => {
   const reading = Readings.createReading(SNAPSHOT);
   assert.equal("next" in reading.rows.TB, false);

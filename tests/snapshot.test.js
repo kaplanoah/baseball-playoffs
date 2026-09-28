@@ -73,6 +73,26 @@ test("2025: the official field comes from the postseason schedule, seeded", () =
   assert.deepEqual(snapshot.teams.TOR, { league: "AL", seed: 1, w: 94, l: 68 });
 });
 
+test("2025: a division tied at the end is won by the club MLB's tiebreaker names", () => {
+  const [toronto, yankees] = buildSnapshot(SEASON_2025).standings.divisions["AL East"];
+  assert.deepEqual([toronto.id, toronto.w, toronto.l], ["TOR", 94, 68]);
+  assert.deepEqual([yankees.id, yankees.w, yankees.l], ["NYY", 94, 68]);
+  assert.equal(toronto.clinched, true);
+  assert.equal(toronto.magic, null);
+  assert.equal(yankees.clinched, false);
+});
+
+test("2025: MLB calling a wild card club a division champion doesn't move its series", () => {
+  const fixture = JSON.parse(JSON.stringify(SEASON_2025));
+  const cubs = fixture.responses.standings.records
+    .flatMap((division) => division.teamRecords)
+    .find((record) => record.team.id === 112);
+  cubs.divisionChamp = true;
+  const snapshot = buildSnapshot(fixture);
+  assert.equal(snapshot.projected, false);
+  assert.deepEqual(snapshot.series, buildSnapshot(SEASON_2025).series);
+});
+
 test("2025: every series record, and no next game once decided", () => {
   const { series } = buildSnapshot(SEASON_2025);
   const readRecord = (id) => [series[id].winsA, series[id].winsB];
@@ -130,6 +150,16 @@ test("a bracket just set: twelve real clubs, division series opponents still pla
   // The 4/5 winner goes to the 1 seed: DS1 is Toronto's series.
   assert.equal(snapshot.series.AL_DS1.next.date, "2025-10-04");
   assert.ok(snapshot.series.WS.next);
+});
+
+test("a game still live past midnight Eastern is its series' next game", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-10-28T00:00:00Z");
+  const game3 = fixture.responses.postseason.dates
+    .flatMap((day) => day.games)
+    .find((game) => game.gameType === "W" && game.seriesGameNumber === 3);
+  game3.status = { abstractGameState: "Live", codedGameState: "I", detailedState: "In Progress" };
+  const { series } = buildSnapshot(fixture, Date.parse("2025-10-28T05:30:00Z"));
+  assert.equal(series.WS.next.date, "2025-10-27");
 });
 
 test("halfway: division series under way, the next game named, later rounds waiting", () => {

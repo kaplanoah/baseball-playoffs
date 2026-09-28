@@ -316,6 +316,18 @@ test("an off day, and a final from days back", () => {
   assert.equal(describeUpNext(slate), null);
 });
 
+test("a final from over a week back gives its date", () => {
+  const slate = {
+    since: toEasternIso(TODAY, "12:15"),
+    today: { date: TODAY, games: [] },
+    lastFinal: createFinal("TOR", "BAL", "19:05", [3, 4], "22:01", "2026-09-14"),
+  };
+  assert.equal(
+    describeLast(slate, createContext({ now: toEasternIso(TODAY, "13:15") })),
+    "No games since Orioles 4 Blue Jays 3 final at 10:01 PM Sep 14",
+  );
+});
+
 test("a first pitch MLB hasn't timed yet says so", () => {
   const slate = {
     today: { date: TODAY, games: [] },

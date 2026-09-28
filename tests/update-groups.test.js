@@ -36,6 +36,16 @@ test("a clinch with no game of its own takes the eliminations in its league from
   ]);
 });
 
+test("an elimination goes with the clinch that shares its game, not one with no game", () => {
+  const astrosWin = { team: "HOU", won: true, opp: "SEA", score: [4, 1] };
+  const yankees = createBerth("NYY", []);
+  const astros = { ...createBerth("HOU", [astrosWin]), what: "division" };
+  const mariners = createElimination("SEA", [
+    { ...astrosWin, team: "SEA", opp: "HOU", won: false, score: [1, 4] },
+  ]);
+  assert.deepEqual(groupUpdates([yankees, astros, mariners]), [[yankees], [astros, mariners]]);
+});
+
 test("a clinch with its own game leaves an elimination that shares none with it", () => {
   const berth = createBerth("PHI", [PHILLIES_WIN]);
   const elimination = createElimination("ARI", [RANGERS_LOSS]);

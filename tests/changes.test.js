@@ -136,6 +136,19 @@ test("a division won by a rival's loss names that loss", () => {
   );
 });
 
+test("a doubleheader's change is explained by the game that made it, game 2 here", () => {
+  const before = updateRow(updateRow(BEFORE, "SEA", { elim: "E" }), "TEX", { elim: "1" });
+  const after = updateRow(before, "TEX", { elim: "E" });
+  const games = [
+    { ...createFinal("TEX", "MIN", [6, 4]), start: "2026-09-24T17:05:00Z", doubleheader: 1 },
+    { ...createFinal("TEX", "MIN", [4, 6]), start: "2026-09-24T22:05:00Z", doubleheader: 2 },
+  ];
+  const rangersLoss = { team: "TEX", won: false, opp: "MIN", score: [4, 6] };
+  assert.deepEqual(findTableChanges(before, after, TEAMS, TEAMS, games), [
+    { kind: "berth", team: "HOU", what: "division", div: "AL West", via: [rangersLoss] },
+  ]);
+});
+
 // The Orioles chase the White Sox, the last wild card, and are one result from out.
 const CHASE = updateRow(updateRow(BEFORE, "BAL", { w: 80, l: 78 }), "CWS", { w: 85, l: 75 });
 const ORIOLES_LOSS = { team: "BAL", won: false, opp: "NYY", score: [2, 4] };

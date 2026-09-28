@@ -16,7 +16,8 @@ export function droughtLabel(id) {
   const year = seasonYear();
   if (won >= year) return "Reigning";
   const { state } = session;
-  const crowned = state && state.teams ? fullBracket(state).ws?.winner : null;
+  const isCurrentShown = session.activeYear === year && state && state.teams;
+  const crowned = isCurrentShown ? fullBracket(state).ws?.winner : null;
   if (won === year - 1 && !crowned) return "Defending";
   const years = year - won;
   return years + (years === 1 ? " yr" : " yrs");

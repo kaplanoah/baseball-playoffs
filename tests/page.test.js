@@ -1,5 +1,6 @@
 import { beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { composeState, session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
@@ -7,6 +8,7 @@ import { droughtLabel } from "../page/js/clubs.js";
 import { describeRace, isSeedFinal } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
+import { buildSnapshot } from "../page/js/snapshot.js";
 import { stampName } from "../page/js/stamp.js";
 import { entryText, updateText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
@@ -448,6 +450,26 @@ test("a live answer without standings leaves the saved field showing", () => {
     assert.deepEqual(session.state.teams, teams);
   } finally {
     Object.assign(session, { activeYear, live: null, seasonDoc: null });
+  }
+});
+
+test("last year's champion is defending while this year's is undecided, whatever year is shown", () => {
+  const final2025 = JSON.parse(
+    readFileSync(`${import.meta.dirname}/fixtures/2025-final.json`, "utf8"),
+  );
+  const shown2025 = buildSnapshot(final2025.responses, {
+    season: 2025,
+    now: Date.parse(final2025.now),
+  });
+  const { currentSeason, activeYear } = session;
+  try {
+    Object.assign(session, { currentSeason: 2026, trackedTitles: { LAD: 2025 } });
+    Object.assign(session, { activeYear: 2025, state: shown2025 });
+    assert.equal(droughtLabel("LAD"), "Defending");
+    Object.assign(session, { activeYear: 2026, state: { teams: {}, series: {} } });
+    assert.equal(droughtLabel("LAD"), "Defending");
+  } finally {
+    Object.assign(session, { currentSeason, activeYear, trackedTitles: {} });
   }
 });
 

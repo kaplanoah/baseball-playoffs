@@ -92,7 +92,9 @@ function describeFinalDay(final, now) {
   const days = countDaysBetween(end, now);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
-  return DAYS[new Date(final.start || final.end).getDay()];
+  const played = new Date(final.start || final.end);
+  if (days < 7) return DAYS[played.getDay()];
+  return played.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function describeLastFinal(lastFinal, now) {
