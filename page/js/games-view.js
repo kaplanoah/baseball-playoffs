@@ -1,3 +1,4 @@
+import { isEliminated } from "./bracket.js";
 import { rankTag, teamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
 import { describeRace, findStandingsRow } from "./race.js";
@@ -69,9 +70,14 @@ function renderFacts(id) {
   return html`<span class="game-facts">${rankTag(id)}${renderSeed(id)}${renderRecordAndRace(findStandingsRow(id))}</span>`;
 }
 
-function renderSide(id, side, hasLost) {
-  const isOut = describeRace(findStandingsRow(id))?.standing === "out";
-  return html`<span class="game-side ${side} ${hasLost ? "lost" : ""} ${isOut ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
+function isOut(id) {
+  const { state } = session;
+  const isOutOfPostseason = Boolean(state && state.teams) && isEliminated(state, id);
+  return isOutOfPostseason || describeRace(findStandingsRow(id))?.standing === "out";
+}
+
+function renderSide(id, side, hasWon) {
+  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
 }
 
 function renderScore(game, awayLost, homeLost) {
@@ -93,10 +99,12 @@ function renderGame(game) {
   const isFinal = game.state === "final";
   const awayLost = isFinal && awayScore < homeScore;
   const homeLost = isFinal && homeScore < awayScore;
+  const awayWon = isFinal && awayScore > homeScore;
+  const homeWon = isFinal && homeScore > awayScore;
   return html`<li class="game-row ${game.state} ${game.delay ? "delayed" : ""}">
-    ${renderSide(game.away, "away", awayLost)}
+    ${renderSide(game.away, "away", awayWon)}
     ${renderMiddle(game, awayLost, homeLost)}
-    ${renderSide(game.home, "home", homeLost)}
+    ${renderSide(game.home, "home", homeWon)}
   </li>`;
 }
 

@@ -36,6 +36,52 @@ test("the Games tab lists today's games and each club's previous and next game",
   await expect(games.locator(".game-row").first()).toContainText("Game 1");
 });
 
+const CREAM = "rgb(241, 234, 212)";
+const GREEN = "rgb(127, 168, 143)";
+const TAUPE = "rgb(138, 122, 106)";
+
+test("the Games tab bolds each winner and dims only the clubs that are out", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const findSide = (away, home, side) =>
+    page
+      .locator("#gamesList .game-row")
+      .filter({ hasText: away })
+      .filter({ hasText: home })
+      .locator(`.game-side.${side}`);
+
+  const winnerStillIn = findSide("Brewers", "Phillies", "away").locator(".team-name");
+  const loserStillIn = findSide("Brewers", "Phillies", "home").locator(".team-name");
+  const winnerOut = findSide("Nationals", "Tigers", "away").locator(".team-name");
+  const loserOut = findSide("Nationals", "Tigers", "home");
+
+  await expect(winnerStillIn).toHaveCSS("font-weight", "700");
+  await expect(winnerStillIn).toHaveCSS("color", CREAM);
+  await expect(loserStillIn).toHaveCSS("font-weight", "500");
+  await expect(loserStillIn).toHaveCSS("color", CREAM);
+  await expect(winnerOut).toHaveCSS("font-weight", "700");
+  await expect(winnerOut).toHaveCSS("color", GREEN);
+  await expect(loserOut.locator(".team-name")).toHaveCSS("color", GREEN);
+  await expect(loserOut.locator(".dot")).toHaveCSS("opacity", "0.55");
+});
+
+test("the bracket shows an eliminated club in taupe, without a line through its name", async ({
+  page,
+}) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await page.locator("#yearSel").selectOption("2025");
+
+  const eliminated = page
+    .locator(".matchup-row.eliminated .team-name")
+    .filter({ hasText: "Mariners" })
+    .first();
+  await expect(eliminated).toHaveCSS("color", TAUPE);
+  await expect(eliminated).toHaveCSS("text-decoration-line", "none");
+});
+
 test("renders the bracket, standings and stamp from the Worker's snapshot", async ({ page }) => {
   const app = await openApp(page);
 
