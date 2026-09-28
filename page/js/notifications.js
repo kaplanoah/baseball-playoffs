@@ -5,8 +5,10 @@ const NOTES = {
   loading: "",
   off: "Get a notification when something happens to a team in your ranking.",
   on: "On for this device. You'll hear about the teams in your ranking.",
-  blocked:
-    "Notifications are blocked for this page. Turn them on in your device's Settings > Notifications.",
+  blockedOnIos:
+    "Notifications are blocked for this page. Turn them on in Settings > Notifications.",
+  blockedInBrowser:
+    "Notifications are blocked for this page. Turn them on in the browser's site settings, from the icon beside the address.",
   homeScreen:
     "To get notifications on an iPhone, add this page to your Home Screen and open it from there.",
   unsupported: "This browser can't show notifications.",
@@ -36,6 +38,12 @@ const isStandalone = () =>
 const canPush = () =>
   "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
+// iOS keeps a Home Screen page's permission in its Settings app; other browsers keep it per site.
+function describeStatus() {
+  if (status === "blocked") return isIos() ? NOTES.blockedOnIos : NOTES.blockedInBrowser;
+  return NOTES[status];
+}
+
 function renderNotifications() {
   const toggle = findElement("notifySwitch");
   const isOn = status === "on";
@@ -44,7 +52,7 @@ function renderNotifications() {
   /** @type {HTMLButtonElement} */ (toggle).disabled = isBusy || status === "blocked";
   findElement("notifyTestBtn").hidden = !isOn;
   /** @type {HTMLButtonElement} */ (findElement("notifyTestBtn")).disabled = isBusy;
-  findElement("notifyNote").textContent = note || NOTES[status];
+  findElement("notifyNote").textContent = note || describeStatus();
   findElement("notifyCard").hidden = status === "loading";
 }
 
