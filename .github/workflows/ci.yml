@@ -165,7 +165,8 @@ jobs:
 
             Skip anything lint, Prettier, TypeScript, or knip already enforce, and anything that
             is a matter of taste. Only report what you are confident is real; when unsure, leave
-            it out.
+            it out. Don't run the tests or other checks: this workflow's other jobs run them all,
+            and a failure there fails the PR without you.
 
             Post each finding as an inline comment on the line it concerns, with confirmed=true.
             Say what is wrong, when it goes wrong, and how to fix it, in a few sentences.
@@ -174,8 +175,8 @@ jobs:
             Last, leave one summary comment, which replaces the one from your previous review:
             `gh pr comment ${{ github.event.pull_request.number }} --edit-last --create-if-none --body "<summary>"`.
             Start it with "Claude reviewed ${{ github.event.pull_request.head.sha }}:", then say
-            how many findings you posted inline, or that you found none. If a tool or command you
-            needed wasn't allowed, name it and say what you couldn't check because of it.
+            how many findings you posted inline, or that you found none. If a tool you needed to
+            read the PR or its code wasn't allowed, name it and say what you couldn't check.
 
   # The one check to require. It runs even when a job fails, because GitHub counts a
   # skipped required check as passing.
