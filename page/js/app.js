@@ -102,6 +102,7 @@ async function loadActiveSeason() {
 async function switchYear(year) {
   session.activeYear = year;
   await loadActiveSeason();
+  if (session.activeYear !== year) return;
   renderAll();
   watchActiveSeason();
   startLive();
@@ -165,8 +166,9 @@ function watchSpringTraining() {
 // Sortable has already moved the dragged card, so redrawing the list keeps it where it was dropped.
 function finishReordering(order) {
   session.isReordering = false;
-  if (order.join() !== rankedOrder().join()) showSaveResult(saveRanking(order));
-  applyDeferredSeason();
+  const hasMoved = order.join() !== rankedOrder().join();
+  if (hasMoved) showSaveResult(saveRanking(order));
+  applyDeferredSeason(hasMoved);
   renderAll();
 }
 

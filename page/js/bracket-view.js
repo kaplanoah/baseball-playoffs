@@ -1,5 +1,6 @@
 import { ROUND_LABEL, fullBracket, isEliminated, listSlotCandidates } from "./bracket.js";
 import { rankedOrder, rankTag, seedMark, teamLabel, teamTag } from "./clubs.js";
+import { readGameDay } from "./dates.js";
 import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 
@@ -75,19 +76,6 @@ const alignToPixel = (value) => Math.round(value) + 0.5; // a 1px stroke centere
 function drawConnector(x1, y1, x2, y2) {
   const midX = (x1 + x2) / 2;
   return `M ${alignToPixel(x1)} ${alignToPixel(y1)} H ${alignToPixel(midX)} V ${alignToPixel(y2)} H ${alignToPixel(x2)}`;
-}
-
-// Until the time is set MLB's `at` is a placeholder, so the day comes from `date`:
-// converting the placeholder to local time can land on the wrong day out west.
-function readGameDay(next) {
-  if (next.date) {
-    const [year, month, day] = next.date.split("-").map(Number);
-    return new Date(year, month - 1, day);
-  }
-  if (!next.at) return null;
-  const at = new Date(next.at);
-  if (Number.isNaN(at.getTime())) return null;
-  return new Date(at.getFullYear(), at.getMonth(), at.getDate());
 }
 
 function describeNextGame(series) {
@@ -331,7 +319,8 @@ function renderStackedStage(bracket, slotHeight) {
 export function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
   const setupPrompt = document.getElementById("setupPrompt");
-  const hasField = Object.keys(session.state.teams).length >= 12;
+  const bracket = fullBracket(session.state);
+  const hasField = !!bracket.al && !!bracket.nl;
   setupPrompt.hidden = hasField;
   if (!hasField) {
     setHtml(wrap, html``);
@@ -340,7 +329,6 @@ export function renderBracket() {
     return;
   }
 
-  const bracket = fullBracket(session.state);
   const slotHeight = PHONE.matches ? measureSlotHeight(wrap) : 0;
   const stage = PHONE.matches ? renderStackedStage(bracket, slotHeight) : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;

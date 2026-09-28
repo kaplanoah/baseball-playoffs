@@ -49,10 +49,12 @@ function formatSince(iso, now = new Date()) {
 const findHappenedAt = (group) =>
   Math.max(...group.map((entry) => Date.parse(entry.ended || entry.at)));
 
+const readNoticedAt = (entry) => Date.parse(entry.at);
+
 function listFreshUpdates() {
   const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
   const fresh = (session.state.log || []).filter(
-    (entry) => entry && (!seen || Date.parse(entry.at) > seen) && entryText(entry),
+    (entry) => entry && (!seen || readNoticedAt(entry) > seen) && entryText(entry),
   );
   return groupUpdates(fresh).sort(
     (first, second) => findHappenedAt(second) - findHappenedAt(first),
@@ -106,8 +108,11 @@ export function renderUpdates() {
   document.getElementById("dismissUpdates").addEventListener("click", dismissUpdates);
 }
 
+// Updates are stamped by the Worker's clock, so the dismissal goes by the newest one, not by
+// this device's clock, which can be off.
 function dismissUpdates() {
-  const saving = saveSeenAt(new Date().toISOString());
+  const newest = Math.max(...listFreshUpdates().flatMap((group) => group.map(readNoticedAt)));
+  const saving = saveSeenAt(new Date(newest).toISOString());
   renderUpdates();
   return showSaveResult(saving);
 }

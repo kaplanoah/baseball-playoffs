@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { composeState, session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
-import { droughtLabel } from "../page/js/clubs.js";
+import { droughtLabel, rankedOrder } from "../page/js/clubs.js";
 import { describeRace, isSeedFinal } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
@@ -471,6 +471,19 @@ test("last year's champion is defending while this year's is undecided, whatever
   } finally {
     Object.assign(session, { currentSeason, activeYear, trackedTitles: {} });
   }
+});
+
+test("clubs never dragged into place follow the ranked ones by league and seed", () => {
+  session.state = {
+    teams: {
+      ATL: { league: "NL", seed: 1 },
+      NYY: { league: "AL", seed: 4 },
+      SEA: { league: "AL", seed: 2 },
+      TB: { league: "AL", seed: 1 },
+    },
+    ranking: ["SEA"],
+  };
+  assert.deepEqual(rankedOrder(), ["SEA", "TB", "NYY", "ATL"]);
 });
 
 // Detroit went out in the Wild Card Series and New York in the Division Series.

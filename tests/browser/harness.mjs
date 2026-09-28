@@ -52,11 +52,22 @@ async function answerFromStore(route, store) {
 /**
  * The page as the Worker serves it, with the Worker's store and snapshot behind it.
  * @param {import("@playwright/test").Page} page
- * @param {{ store?: object, now?: string, snapshots?: object, liveAvailable?: boolean }} [options]
+ * @param {object} [options]
+ * @param {object} [options.store]
+ * @param {string} [options.now]
+ * @param {object} [options.snapshots]
+ * @param {boolean} [options.liveAvailable]
+ * @param {boolean} [options.portalReadsDocuments] a captive portal answers reading a document
  */
 export async function openApp(
   page,
-  { store = {}, now = EVENING_FIXTURE.now, snapshots = {}, liveAvailable = true } = {},
+  {
+    store = {},
+    now = EVENING_FIXTURE.now,
+    snapshots = {},
+    liveAvailable = true,
+    portalReadsDocuments = false,
+  } = {},
 ) {
   const context = createDurableObjectContext();
   for (const [path, data] of Object.entries(store)) context.stored.set(path, data);
@@ -108,6 +119,12 @@ export async function openApp(
     (route) => {
       if (harness.failWrites && isWriteRequest(route.request()))
         return route.fulfill({ status: 503, json: { error: { code: "unavailable" } } });
+      // A captive portal answers in place of the Worker.
+      const isDocumentRead =
+        route.request().method() === "GET" &&
+        /^\/store\/[^/]+\/[^/]+$/.test(new URL(route.request().url()).pathname);
+      if (portalReadsDocuments && isDocumentRead)
+        return route.fulfill({ contentType: "text/html", body: "<h1>Sign in to Wi-Fi</h1>" });
       return answerFromStore(route, seasonStore);
     },
   );

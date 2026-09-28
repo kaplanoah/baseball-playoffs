@@ -52,12 +52,22 @@ export function teamTag(id, tag = "span") {
   return html`<span class="club">${teamDot(id)}<${tag} class="team-name">${teamLabel(id)}</${tag}></span>`;
 }
 
+const readLeague = (id) => TEAMS[id]?.league || "";
+const readSeed = (teams, id) => teams[id].seed ?? 99;
+
 // `ranking` changes only on a drag, so it can name clubs that left the field and miss ones that arrived.
+// The store sorts a document's keys, so the ones that arrived go by league and seed.
 export function rankedOrder() {
   const { state } = session;
   if (!state || !state.teams) return [];
   const ranked = (state.ranking || []).filter((id) => state.teams[id]);
-  const unranked = Object.keys(state.teams).filter((id) => !ranked.includes(id));
+  const unranked = Object.keys(state.teams)
+    .filter((id) => !ranked.includes(id))
+    .sort(
+      (first, second) =>
+        readLeague(first).localeCompare(readLeague(second)) ||
+        readSeed(state.teams, first) - readSeed(state.teams, second),
+    );
   return ranked.concat(unranked);
 }
 
