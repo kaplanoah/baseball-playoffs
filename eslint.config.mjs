@@ -1,6 +1,9 @@
 import js from "@eslint/js";
 import globals from "globals";
 
+// A bullet or middle dot typed by hand, as a character, an escape, or an HTML entity.
+const HAND_SEPARATOR = String.raw`/\u2022|\u00b7|&bull;|&middot;|&#8226;|&#183;/`;
+
 export default [
   { ignores: [".claude/worktrees/", "worker/dist/", "page/js/sortable.min.js"] },
   js.configs.recommended,
@@ -11,7 +14,8 @@ export default [
     languageOptions: { globals: { ...globals.browser, Sortable: "readonly" } },
   },
   {
-    // Markup reaches the page only through setHtml, which escapes whatever html`` didn't build.
+    // Markup reaches the page only through setHtml, which escapes whatever html`` didn't build,
+    // and lists of facts only through joinWithSeparator, so they all read the same way.
     files: ["page/js/**/*.js"],
     ignores: ["page/js/html.js"],
     rules: {
@@ -25,6 +29,10 @@ export default [
         {
           selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
           message: "Write markup with setHtml from html.js.",
+        },
+        {
+          selector: `Literal[value=${HAND_SEPARATOR}], TemplateElement[value.cooked=${HAND_SEPARATOR}]`,
+          message: "Separate items with joinWithSeparator from html.js.",
         },
       ],
     },

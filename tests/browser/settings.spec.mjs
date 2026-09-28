@@ -66,7 +66,7 @@ test("settings name the deployed version, in the viewer's time", async ({ page }
   await openSettings(page);
 
   const version = page.locator("#versionNote");
-  await expect(version).toContainText("Version #81 · abc1234");
+  await expect(version).toContainText("Version #81\u2022abc1234");
   await expect(version).toContainText("Deployed Sep 27, 2026, 8:10 PM");
 });
 

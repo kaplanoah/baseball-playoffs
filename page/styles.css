@@ -43,6 +43,9 @@ h3 {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+.sep {
+  margin: 0 6px;
+}
 
 header.top {
   display: flex;
@@ -1138,9 +1141,6 @@ table.ref td .team-name {
 }
 .rank-ws > span {
   white-space: nowrap;
-}
-.rank-ws .sep {
-  margin: 0 6px;
 }
 .rank-cols {
   margin-left: auto;

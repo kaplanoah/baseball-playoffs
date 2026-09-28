@@ -1,6 +1,6 @@
 import { ROUND_LABEL, fullBracket, isEliminated, listSlotCandidates } from "./bracket.js";
 import { rankedOrder, rankTag, seedMark, teamLabel, teamTag } from "./clubs.js";
-import { html, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const rankOf = (id) => {
@@ -97,7 +97,8 @@ function describeNextGame(series) {
       ? { month: "short", day: "numeric" }
       : { weekday: "short", month: "short", day: "numeric" },
   );
-  return days < 0 ? `Next game ${date}${time}` : `Next game ${date}${time} \u2022 ${days} days`;
+  const note = `Next game ${date}${time}`;
+  return days < 0 ? note : joinWithSeparator([note, `${days} days`]);
 }
 
 const readWinningPercentage = (team) =>
