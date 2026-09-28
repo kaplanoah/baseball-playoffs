@@ -1,12 +1,13 @@
 import { pollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
 import { findNotableUpdates, listNotifications } from "./notifications.js";
 import { createPushService } from "./push.js";
+import { describeError, respondError, respondJson } from "./responses.js";
 import * as SeasonUpdater from "./season-updater.js";
 import { createSnapshotServer } from "./snapshot.js";
 
 // The page's saved data, kept in one Durable Object so every device reads the latest write.
-// Documents come back with sorted keys, update() merges nested objects and replaces anything
-// else, a null in an update removes that key, and a removed document reads as null.
+// Documents come back with sorted keys, and a missing one reads as null. The page can read
+// any document, but saves only its own fields of a season: each whole, with null removing one.
 // An alarm keeps the current season up to date from MLB while no page is open, and tells
 // subscribed devices about new updates.
 
@@ -26,23 +27,25 @@ function sortKeys(value) {
   );
 }
 
-export function mergeFields(stored, fields) {
-  const merged = { ...stored };
-  for (const [key, value] of Object.entries(fields)) {
-    if (value === null) delete merged[key];
-    else if (isPlainObject(value))
-      merged[key] = mergeFields(isPlainObject(merged[key]) ? merged[key] : {}, value);
-    else merged[key] = value;
-  }
-  return merged;
-}
+const SEASON_ID = /^\d{4}$/;
+const PAGE_FIELDS = {
+  ranking: (value) => Array.isArray(value) && value.every((id) => typeof id === "string"),
+  seenAt: (value) => typeof value === "string",
+  teams: isPlainObject,
+  series: isPlainObject,
+};
 
-const respondJson = (body, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-  });
-const respondError = (status, code, message) => respondJson({ error: { code, message } }, status);
+const isPageField = ([key, value]) =>
+  Object.hasOwn(PAGE_FIELDS, key) && (value === null || PAGE_FIELDS[key](value));
+
+function replaceFields(stored, fields) {
+  const replaced = { ...stored };
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === null) delete replaced[key];
+    else replaced[key] = value;
+  }
+  return replaced;
+}
 
 async function readObjectBody(request) {
   const declared = Number(request.headers.get("content-length"));
@@ -73,8 +76,6 @@ function openWatchSocket(ctx) {
   ctx.acceptWebSocket(server);
   return new Response(null, { status: 101, webSocket: client });
 }
-
-const describeError = (error) => (error instanceof Error ? error.message : String(error));
 
 export class SeasonStore {
   constructor(
@@ -117,10 +118,11 @@ export class SeasonStore {
     }
     const key = `${path.collection}/${path.id}`;
     if (request.method === "GET") return this.readDoc(key);
-    if (request.method === "PUT") return this.replaceDoc(key, request);
-    if (request.method === "PATCH") return this.updateDoc(key, request);
-    if (request.method === "DELETE") return this.removeDoc(key);
-    return respondError(405, "method_not_allowed", "GET, PUT, PATCH, or DELETE only.");
+    if (request.method !== "PATCH")
+      return respondError(405, "method_not_allowed", "GET or PATCH only.");
+    if (path.collection !== "seasons" || !SEASON_ID.test(path.id))
+      return respondError(403, "permission_denied", "Only a season takes changes.");
+    return this.savePageFields(key, Number(path.id), request);
   }
 
   acceptWatcher(request) {
@@ -142,28 +144,19 @@ export class SeasonStore {
     return respondJson({ data: data ?? null });
   }
 
-  async replaceDoc(key, request) {
+  // Creating a season here, with no read before it on the page, can't overwrite one the alarm
+  // or another device made first.
+  async savePageFields(key, year, request) {
     const { body, status, message } = await readObjectBody(request);
     if (!body) return respondError(status, "invalid_argument", message);
-    return this.saveDoc(key, body);
-  }
-
-  async updateDoc(key, request) {
-    const { body, status, message } = await readObjectBody(request);
-    if (!body) return respondError(status, "invalid_argument", message);
-    const stored = await this.ctx.storage.get(key);
-    if (stored === undefined)
-      return respondError(404, "invalid_argument", "Update needs a document that exists.");
-    return this.saveDoc(key, mergeFields(stored, body));
-  }
-
-  async saveDoc(key, doc) {
-    await this.putDoc(key, doc);
-    return new Response(null, { status: 204 });
-  }
-
-  async removeDoc(key) {
-    await this.deleteDoc(key);
+    if (!Object.entries(body).every(isPageField))
+      return respondError(
+        400,
+        "invalid_argument",
+        "A season takes only ranking, seenAt, teams, and series.",
+      );
+    const stored = (await this.ctx.storage.get(key)) ?? { year };
+    await this.putDoc(key, replaceFields(stored, body));
     return new Response(null, { status: 204 });
   }
 

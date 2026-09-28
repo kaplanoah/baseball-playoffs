@@ -140,14 +140,7 @@ export async function openApp(
 
   return {
     readDocument: async (path) => (await context.ctx.storage.get(path)) ?? null,
-    writeFromAnotherDevice: (path, data) =>
-      seasonStore.fetch(
-        new Request(`http://127.0.0.1/store/${path}`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(data),
-        }),
-      ),
+    writeFromAnotherDevice: (path, data) => seasonStore.docs.write(path, data),
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,

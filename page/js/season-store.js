@@ -207,12 +207,8 @@ export function applyDeferredSeason(hasMoved) {
 // Writing the whole document would overwrite fields another open view has changed since.
 async function writeSeason(fields) {
   if (!session.db) return;
-  const year = session.activeYear;
-  const ref = session.db.doc(`seasons/${year}`);
   try {
-    const stored = await ref.get();
-    if (stored.exists) await ref.update(fields);
-    else await ref.set({ ...emptySeason(year), ...fields });
+    await session.db.doc(`seasons/${session.activeYear}`).update(fields);
     if (session.saveProblem === SAVE_FAILED) session.saveProblem = null;
   } catch (error) {
     session.saveProblem = SAVE_FAILED;

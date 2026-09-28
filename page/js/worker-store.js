@@ -225,12 +225,8 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     };
   }
 
-  async function writeDoc(path, method, data) {
-    await requestJson(findUrl(path), sendJson(method, data));
-  }
-
-  async function removeDoc(path) {
-    await requestJson(findUrl(path), { method: "DELETE" });
+  async function updateDoc(path, data) {
+    await requestJson(findUrl(path), sendJson("PATCH", data));
   }
 
   function doc(path) {
@@ -238,9 +234,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
       id: readId(path),
       path,
       get: () => readSnapshot(path),
-      set: (data) => writeDoc(path, "PUT", data),
-      update: (data) => writeDoc(path, "PATCH", data),
-      delete: () => removeDoc(path),
+      update: (data) => updateDoc(path, data),
       onSnapshot: (onNext, onError = () => {}) => watchPath(path, onNext, onError),
     };
   }
