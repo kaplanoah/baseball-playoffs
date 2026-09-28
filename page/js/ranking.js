@@ -1,6 +1,6 @@
 import { describeTeamStatus } from "./bracket.js";
 import { droughtLabel, lastTitle, rankedOrder, rankTag, teamLabel, teamTag } from "./clubs.js";
-import { html, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 import { TEAMS } from "./teams.js";
 
@@ -15,13 +15,16 @@ const MOVES = { ArrowUp: -1, ArrowDown: 1 };
 
 function renderStatusChip({ status, round }) {
   const chip = STATUS_CHIPS[status];
-  const label = round ? html`${chip.label} &middot; ${round}` : chip.label;
+  const label = round ? joinWithSeparator([chip.label, round]) : chip.label;
   return html`<span class="status-chip ${chip.className}">${label}</span>`;
 }
 
 function renderTitleSummary(id, won) {
   if (!won) return html`Never won WS`;
-  return html`<span>Last WS ${won}<span class="sep">&bull;</span></span><span>${droughtLabel(id)}</span>`;
+  return joinWithSeparator([
+    html`<span>Last WS ${won}</span>`,
+    html`<span>${droughtLabel(id)}</span>`,
+  ]);
 }
 
 function renderRankItem(id, index) {

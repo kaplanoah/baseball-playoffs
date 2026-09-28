@@ -1,7 +1,7 @@
 // The settings panel behind the header's sliders button: the season, notifications, and which
 // version of the page this is. Phones show it as a sheet from the bottom, wider screens as a modal.
 
-import { html, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -26,7 +26,7 @@ const formatBuildTime = (iso) =>
 /** @param {{ commit: string, pullRequest: number | null, builtAt: string }} release */
 function renderRelease({ commit, pullRequest, builtAt }) {
   const note = findElement("versionNote");
-  const name = pullRequest ? `#${pullRequest} · ${commit}` : commit;
+  const name = pullRequest ? joinWithSeparator([`#${pullRequest}`, commit]) : commit;
   setHtml(
     note,
     html`<span>Version ${name}</span><span>Deployed ${formatBuildTime(builtAt)}</span>`,

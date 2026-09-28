@@ -51,6 +51,15 @@ export const convertToText = (markup) =>
     .replace(/<[^>]*>/g, "")
     .replace(/&(?:amp|lt|gt|quot|#39|ndash|mdash);/g, (entity) => TEXT_ENTITIES[entity]);
 
+const SEPARATOR = new Markup('<span class="sep">&bull;</span>');
+
+/**
+ * Joins items with the page's one separator, so every list of facts reads the same way.
+ * @param {unknown[]} items
+ */
+export const joinWithSeparator = (items) =>
+  html`${items.flatMap((item, index) => (index ? [SEPARATOR, item] : [item]))}`;
+
 /**
  * The page's only way to write markup, so nothing reaches it unescaped.
  * @param {Element} element
