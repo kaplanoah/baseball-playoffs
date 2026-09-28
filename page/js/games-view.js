@@ -1,11 +1,19 @@
 import { isEliminated } from "./bracket.js";
 import { rankTag, teamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
-import { describeRace, findStandingsRow } from "./race.js";
+import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
 import { session } from "./session.js";
 import { selectTab, wireTabs } from "./tabs.js";
 
 const HALF_INNING_LABELS = { top: "Top", bottom: "Bot" };
+const CLINCH_TITLES = {
+  z: "Clinched the best record in the league",
+  y: "Clinched the division",
+  w: "Clinched a wild card spot",
+  x: "Clinched a playoff spot",
+};
+// Trimmed to the drawing, so sized in em its base sits on the text's baseline like a letter.
+const SEED_LOCK = html`<svg class="seed-lock" viewBox="1.5 1.3 9 12.4" role="img" aria-label="seed final"><path d="M3.5 7V4.5a2.5 2.5 0 0 1 5 0V7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="2.2" y="7.2" width="7.6" height="5.8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
 const EMPTY_LIST_TEXT = {
   previous: "No earlier games this season.",
   today: "No games today.",
@@ -55,19 +63,27 @@ function renderClub(id) {
   return html`<span class="club"><span class="dot unknown-club"></span><span class="tbd">TBD</span></span>`;
 }
 
-function renderSeed(id) {
-  const team = session.state && session.state.teams && session.state.teams[id];
-  return team && team.seed ? html`<span>${team.seed} seed</span>` : html``;
+function renderNameLine(id) {
+  return html`<span class="name-line">${renderClub(id)}${id && rankTag(id)}</span>`;
 }
 
-function renderRecordAndRace(row) {
+function renderSeed(id) {
+  const team = session.state && session.state.teams && session.state.teams[id];
+  if (!team || !team.seed) return html``;
+  return html`<span class="seed">${team.seed} seed${isSeedFinal(id) && SEED_LOCK}</span>`;
+}
+
+function renderRace(row) {
   const race = describeRace(row);
-  return html`${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${race && race.label && html`<span class="race ${race.standing}">${race.label}</span>`}`;
+  if (!race || !race.label) return html``;
+  const title = race.standing === "clinched" && CLINCH_TITLES[race.label];
+  return html`<span class="race ${race.standing}"${title && html` title="${title}"`}>${race.label}</span>`;
 }
 
 function renderFacts(id) {
   if (!id) return html``;
-  return html`<span class="game-facts">${rankTag(id)}${renderSeed(id)}${renderRecordAndRace(findStandingsRow(id))}</span>`;
+  const row = findStandingsRow(id);
+  return html`<span class="game-facts">${renderSeed(id)}${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${renderRace(row)}</span>`;
 }
 
 function isOut(id) {
@@ -77,7 +93,7 @@ function isOut(id) {
 }
 
 function renderSide(id, side, hasWon) {
-  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
+  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderNameLine(id)}${renderFacts(id)}</span>`;
 }
 
 function renderScore(game, awayLost, homeLost) {
