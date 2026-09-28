@@ -212,9 +212,10 @@ export class SeasonStore {
       return this.recordFailure({ write: describeError(error) });
     }
     this.failures = 0;
+    // The next update's `before` holds what this one saved, so notifying can't wait on the status.
+    await this.notifyUpdates(before, snapshot);
     const status = SeasonUpdater.describeSnapshotStatus(snapshot);
     await SeasonUpdater.saveStatus(this.docs, status, this.now());
-    await this.notifyUpdates(before, snapshot);
     return pollDelay(snapshot, this.now()) ?? POLL_CHECK_MS;
   }
 
@@ -223,9 +224,8 @@ export class SeasonStore {
     try {
       const after = await SeasonUpdater.readUpdates(this.docs, snapshot.season);
       const updates = findNotableUpdates({
-        before: before.log,
-        after: after.log,
-        ranking: after.ranking,
+        before,
+        after,
         state: snapshot,
         now: this.now(),
       });

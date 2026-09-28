@@ -78,7 +78,7 @@ function describeGamesBack(value) {
   if (isNaN(games) || games <= 0) return "even, behind on the tiebreaker";
   const whole = Math.floor(games);
   const hasHalf = games - whole >= 0.5;
-  const count = (whole ? String(whole) : "") + (hasHalf ? "½" : "");
+  const count = (whole ? String(whole) : "") + (hasHalf ? "\u00bd" : "");
   return `${count} game${games > 1 ? "s" : ""} back`;
 }
 

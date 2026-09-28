@@ -40,7 +40,7 @@ test("the RFC's example inputs encrypt to the body another implementation makes"
 
 test("a message with a fresh key and salt decrypts on the browser's side", async () => {
   const keys = await createBrowserKeys();
-  const message = { title: "Dodgers took Game 2", body: "Lead the NLDS 2–0" };
+  const message = { title: "Dodgers took Game 2", body: "Lead the NLDS 2\u20130" };
   const body = await WebPush.encryptPayload({
     payload: new TextEncoder().encode(JSON.stringify(message)),
     p256dh: keys.p256dh,

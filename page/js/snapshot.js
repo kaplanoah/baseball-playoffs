@@ -206,8 +206,10 @@ function findInvalidFields(items, rules) {
     .map((rule) => rule.path);
 }
 
+// No divisions at all is how MLB answers before a season's first standings.
 function findMissingStandingsFields(standings) {
   if (!Array.isArray(standings?.records)) return ["records"];
+  if (standings.records.length && !hasEveryDivision(standings)) return ["records"];
   const clubs = standings.records.flatMap((division) => division.teamRecords || []);
   return [
     ...findInvalidFields(standings.records, FIELD_RULES.division),
@@ -615,6 +617,16 @@ function buildStandings(response, games) {
   return { divisions };
 }
 
+// MLB sometimes answers with no divisions, or only some, and a field projected from that
+// would drop clubs that are still in it.
+function hasEveryDivision(response) {
+  const divisions = new Set(listStandingsRows(response).map((row) => row.division));
+  return Object.values(MLB_DIVISION).every((division) => divisions.has(division));
+}
+
+// A projected field is known only from the standings it is projected from.
+export const hasKnownField = (snapshot) => !snapshot.projected || !!snapshot.standings;
+
 // League rank breaks ties on record because it already carries MLB's tiebreakers.
 function projectField(response) {
   const rows = listStandingsRows(response);
@@ -826,7 +838,8 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   const { records, champions } = readRecords(responses.standings);
   const grouped = groupPostseason(postseasonGames, champions);
   const official = readOfficialField(grouped, records);
-  const teams = official || projectField(responses.standings);
+  const hasStandings = hasEveryDivision(responses.standings);
+  const teams = official || (hasStandings ? projectField(responses.standings) : {});
   const { series, log } = buildSeries(teams, grouped.gamesBySeries, easternDay(now).date);
   const clubGames = [
     ...games.filter((game) => game.type === "R"),
@@ -842,7 +855,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     teams,
     series,
     log,
-    standings: buildStandings(responses.standings, clubGames),
+    standings: hasStandings ? buildStandings(responses.standings, clubGames) : null,
     slate: responses.schedule
       ? buildSlate(games, listScheduledGames(responses.schedule, responses.postseason), now)
       : null,
@@ -859,7 +872,8 @@ export function pollDelay(snapshot, now = Date.now()) {
   if (games.some((game) => game.state === "live")) return POLL_LIVE_MS;
   const starts = games
     .filter((game) => game.state === "pre" && !game.tbd)
-    .map((game) => Date.parse(game.start));
+    .map((game) => Date.parse(game.start))
+    .filter(Number.isFinite);
   const untilLead = Math.min(...starts) - POLL_LEAD_MS - now;
   return Math.min(Math.max(untilLead, POLL_LIVE_MS), POLL_CHECK_MS);
 }

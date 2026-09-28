@@ -27,9 +27,11 @@ const seasonKey = (year) => `seasons/${year}`;
 function collectChangedFields(doc, snapshot) {
   const log = LogChanges.mergeLog(doc.log, snapshot.log);
   const fields = {};
-  if (!sameJson(doc.teams, snapshot.teams)) fields.teams = snapshot.teams;
-  if (!sameJson(doc.series, snapshot.series)) fields.series = snapshot.series;
-  if (doc.projected !== snapshot.projected) fields.projected = snapshot.projected;
+  if (MLBSnapshot.hasKnownField(snapshot)) {
+    if (!sameJson(doc.teams, snapshot.teams)) fields.teams = snapshot.teams;
+    if (!sameJson(doc.series, snapshot.series)) fields.series = snapshot.series;
+    if (doc.projected !== snapshot.projected) fields.projected = snapshot.projected;
+  }
   if (!sameJson(doc.log, log)) fields.log = log;
   return fields;
 }
@@ -85,10 +87,7 @@ export async function saveSnapshot(docs, snapshot) {
 export async function readUpdates(docs, year) {
   const doc = await docs.read(seasonKey(year));
   const parts = Readings.sortParts(await docs.list(Readings.readingsCollection(year)));
-  return {
-    log: Readings.composeLog(doc?.log || [], parts),
-    ranking: Array.isArray(doc?.ranking) ? doc.ranking : [],
-  };
+  return Readings.composeLog(doc?.log || [], parts);
 }
 
 export function describeSnapshotStatus(snapshot) {

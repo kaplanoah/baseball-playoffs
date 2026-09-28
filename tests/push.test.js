@@ -169,14 +169,27 @@ test("an update that finds a change for a ranked club notifies every device", as
   assert.deepEqual(harness.pushes, [], "nothing new, nothing sent");
 });
 
-test("a change for clubs outside the ranking sends nothing", async () => {
-  const { store, env, context, harness } = createPushStore();
+test("a club counts as ranked before the ranking is ever dragged", async () => {
+  const { store, env, harness } = createPushStore();
   await subscribe(env);
-  context.stored.set("seasons/2026", { year: 2026, ranking: ["LAD"] });
   await store.alarm();
   harness.snapshot = moveMetsIntoField(SNAPSHOT);
   await store.alarm();
-  assert.deepEqual(harness.pushes, []);
+  assert.equal(harness.pushes.length, 1);
+});
+
+test("an update's news goes out even when saving its status fails", async () => {
+  const { store, env, context, harness } = createPushStore();
+  await subscribe(env);
+  await store.alarm();
+  harness.snapshot = moveMetsIntoField(SNAPSHOT);
+  const { put } = context.ctx.storage;
+  context.ctx.storage.put = async (key, value) => {
+    if (key.endsWith("live/status")) throw new Error("storage is full");
+    return put(key, value);
+  };
+  await store.alarm();
+  assert.equal(harness.pushes.length, 1);
 });
 
 test("a push service that fails doesn't stop the season update", async () => {

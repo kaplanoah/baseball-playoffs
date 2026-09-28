@@ -1,5 +1,5 @@
 import { findSeries } from "../../page/js/bracket.js";
-import { describeKey } from "../../page/js/changes.js";
+import { describeKey, isFoundEntry } from "../../page/js/changes.js";
 import { teamLabel } from "../../page/js/clubs.js";
 import { describeUpdate } from "../../page/js/entry-text.js";
 import { convertToText } from "../../page/js/html.js";
@@ -9,8 +9,10 @@ import { groupUpdates } from "../../page/js/update-groups.js";
 
 // A rebuild can find an old change again after changes.js improves, and that is not news.
 const RECENT_MS = 60 * 60 * 1000;
+// A game's time is when it should have ended, which a delay can put hours before its final.
+const RECENT_GAME_MS = 24 * 60 * 60 * 1000;
 const MAX_NOTIFIED = 4;
-const SENTENCE_BREAK = " — ";
+const SENTENCE_BREAK = " \u2014 ";
 
 // The clubs an update is about, or null when it is about the whole field.
 function listEntryClubs(entry, state) {
@@ -28,10 +30,14 @@ function listEntryClubs(entry, state) {
   }
 }
 
-function isAboutRanked(entry, ranking, state) {
+// The ranking lists every club in the field, whether or not it was dragged into place.
+function isAboutRanked(entry, state) {
   const clubs = listEntryClubs(entry, state);
-  return clubs === null ? ranking.length > 0 : clubs.some((id) => id && ranking.includes(id));
+  return clubs === null || clubs.some((id) => id && state.teams[id]);
 }
+
+const isRecent = (entry, now) =>
+  Date.parse(entry.at) >= now - (isFoundEntry(entry) ? RECENT_MS : RECENT_GAME_MS);
 
 // Grouped before the ranking is checked, so a ranked club's update brings along the
 // eliminations it caused.
@@ -39,18 +45,13 @@ function isAboutRanked(entry, ranking, state) {
  * @param {object} options
  * @param {Record<string, any>[]} options.before the updates before this snapshot was saved
  * @param {Record<string, any>[]} options.after the updates after
- * @param {string[]} options.ranking
  * @param {{ teams: object, series: object }} options.state
  * @param {number} options.now
  */
-export function findNotableUpdates({ before, after, ranking, state, now }) {
+export function findNotableUpdates({ before, after, state, now }) {
   const known = new Set(before.map(describeKey));
-  const fresh = after.filter(
-    (entry) => !known.has(describeKey(entry)) && Date.parse(entry.at) >= now - RECENT_MS,
-  );
-  return groupUpdates(fresh).filter((group) =>
-    group.some((entry) => isAboutRanked(entry, ranking, state)),
-  );
+  const fresh = after.filter((entry) => !known.has(describeKey(entry)) && isRecent(entry, now));
+  return groupUpdates(fresh).filter((group) => group.some((entry) => isAboutRanked(entry, state)));
 }
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -64,13 +65,18 @@ export function describeNotification(group, context) {
 }
 
 // Past a few at once, the rest are summed up in one, so a busy night doesn't bury the phone.
+// The summary's tag is its first update's, so a later summary doesn't replace it.
 export function listNotifications(groups, context) {
   const messages = groups.map((group) => describeNotification(group, context)).filter(Boolean);
   if (messages.length <= MAX_NOTIFIED) return messages;
   const shown = messages.slice(0, MAX_NOTIFIED - 1);
-  const rest = messages.length - shown.length;
+  const hidden = messages.slice(shown.length);
   return [
     ...shown,
-    { title: `${rest} more updates`, body: "Open the page to see them all.", tag: "more" },
+    {
+      title: `${hidden.length} more updates`,
+      body: "Open the page to see them all.",
+      tag: `more:${hidden[0].tag}`,
+    },
   ];
 }

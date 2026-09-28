@@ -89,6 +89,21 @@ test("a change in the field is saved as a new change in today's reading", async 
   assert.ok(!("PHI" in read("seasons/2026").teams));
 });
 
+test("standings MLB sent empty leave the saved field, standings, and readings alone", async () => {
+  const responses = structuredClone(EVENING.responses);
+  responses.standings.records = [];
+  const empty = MLBSnapshot.buildSnapshot(responses, { season: 2026, now: NOW });
+  const { store, harness, read } = createUpdatingStore();
+  await store.alarm();
+  const saved = { season: read("seasons/2026"), standings: read("standings/2026") };
+  harness.snapshot = empty;
+  await store.alarm();
+
+  assert.deepEqual(read("seasons/2026"), saved.season);
+  assert.deepEqual(read("standings/2026"), saved.standings);
+  assert.deepEqual(read(`readings-2026/${TODAY}-01`).changes, []);
+});
+
 test("readings older than two weeks go, and their updates stay in the saved log", async () => {
   const reading = createReading(SNAPSHOT);
   const oldStart = {
