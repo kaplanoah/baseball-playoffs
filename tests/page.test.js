@@ -3,14 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { composeState, session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
-import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
-import { droughtLabel, rankedOrder } from "../page/js/clubs.js";
+import { describeTeamStatus, nameSeries } from "../page/js/bracket.js";
+import { describeDrought, listRankedOrder } from "../page/js/clubs.js";
 import { describeRace, isSeedFinal } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
-import { stampName } from "../page/js/stamp.js";
-import { entryText, updateText } from "../page/js/updates.js";
+import { formatStampName } from "../page/js/stamp.js";
+import { renderEntryText, renderUpdateText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
 import { EASTERN, useTimeZone } from "./time-zone.js";
 
@@ -27,9 +27,9 @@ function checkAt(isoTime, check) {
 }
 
 const RANK_CHIP = /<span class="rank-slot">.*?<\/span><\/span>/g;
-const describeEntry = (entry) => stripTags(String(entryText(entry)).replace(RANK_CHIP, ""));
+const describeEntry = (entry) => stripTags(String(renderEntryText(entry)).replace(RANK_CHIP, ""));
 const describeUpdate = (entries) =>
-  stripTags(String(updateText(entries)).replace(RANK_CHIP, ""))
+  stripTags(String(renderUpdateText(entries)).replace(RANK_CHIP, ""))
     .replace(/&mdash;/g, "--")
     .replace(/&#39;/g, "'");
 
@@ -98,9 +98,9 @@ test("update log: a seed pass, with the game behind it", () => {
 });
 
 test("series names", () => {
-  assert.equal(seriesLabel("NL_DS2"), "NLDS");
-  assert.equal(seriesLabel("AL_WC1"), "AL Wild Card Series");
-  assert.equal(seriesLabel("WS"), "World Series");
+  assert.equal(nameSeries("NL_DS2"), "NLDS");
+  assert.equal(nameSeries("AL_WC1"), "AL Wild Card Series");
+  assert.equal(nameSeries("WS"), "World Series");
 });
 
 test("update log: a field change names the spot and how far back the club that dropped out is", () => {
@@ -405,13 +405,13 @@ test("division header: a magic number only when there is a number", () => {
 test("text from the shared store or MLB is shown as text, never as markup", () => {
   const markup = '<img src=x onerror="alert(1)">';
   const shown = [
-    entryText({ kind: "berth", team: "NYY", what: "division", div: markup }),
-    entryText({ kind: "game", won: "NYY", series: markup, game: markup, score: [markup, 1] }),
-    entryText({ kind: "seed", team: "NYY", from: markup, to: markup }),
-    entryText({ kind: "unknown", text: markup }),
+    renderEntryText({ kind: "berth", team: "NYY", what: "division", div: markup }),
+    renderEntryText({ kind: "game", won: "NYY", series: markup, game: markup, score: [markup, 1] }),
+    renderEntryText({ kind: "seed", team: "NYY", from: markup, to: markup }),
+    renderEntryText({ kind: "unknown", text: markup }),
     renderNextCell({ next: { at: "2026-09-25T23:05:00Z", home: true, opp: markup } }),
     renderDivisionBlock("AL East", [{ id: "NYY", w: markup, l: 1, pct: markup, gb: markup }]),
-    html`<span>${stampName(markup)}</span>`,
+    html`<span>${formatStampName(markup)}</span>`,
   ];
   for (const rendered of shown) assert.doesNotMatch(String(rendered), /<img/);
 });
@@ -429,9 +429,9 @@ test("html escapes every value except markup it built", () => {
 
 test("a club that has never won counts its drought from its first season", () => {
   session.trackedTitles = {};
-  assert.equal(droughtLabel("TB"), "Since 1998");
-  assert.equal(droughtLabel("COL"), "Since 1993");
-  assert.equal(droughtLabel("MIL"), "Since 1969");
+  assert.equal(describeDrought("TB"), "Since 1998");
+  assert.equal(describeDrought("COL"), "Since 1993");
+  assert.equal(describeDrought("MIL"), "Since 1969");
 });
 
 test("a live answer without standings leaves the saved field showing", () => {
@@ -465,9 +465,9 @@ test("last year's champion is defending while this year's is undecided, whatever
   try {
     Object.assign(session, { currentSeason: 2026, trackedTitles: { LAD: 2025 } });
     Object.assign(session, { activeYear: 2025, state: shown2025 });
-    assert.equal(droughtLabel("LAD"), "Defending");
+    assert.equal(describeDrought("LAD"), "Defending");
     Object.assign(session, { activeYear: 2026, state: { teams: {}, series: {} } });
-    assert.equal(droughtLabel("LAD"), "Defending");
+    assert.equal(describeDrought("LAD"), "Defending");
   } finally {
     Object.assign(session, { currentSeason, activeYear, trackedTitles: {} });
   }
@@ -483,7 +483,7 @@ test("clubs never dragged into place follow the ranked ones by league and seed",
     },
     ranking: ["SEA"],
   };
-  assert.deepEqual(rankedOrder(), ["SEA", "TB", "NYY", "ATL"]);
+  assert.deepEqual(listRankedOrder(), ["SEA", "TB", "NYY", "ATL"]);
 });
 
 // Detroit went out in the Wild Card Series and New York in the Division Series.

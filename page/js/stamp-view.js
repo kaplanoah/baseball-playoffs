@@ -1,8 +1,14 @@
-import { findSeriesBetween, isEliminated, seriesLabel } from "./bracket.js";
+import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
 import { html, setHtml } from "./html.js";
 import { findStandingsRow } from "./race.js";
 import { session } from "./session.js";
-import { stampName, lastStampText, upNextText, stampWhenHtml, stampDay } from "./stamp.js";
+import {
+  formatStampName,
+  describeLastStamp,
+  describeUpNextGame,
+  renderStampWhen,
+  formatStampDay,
+} from "./stamp.js";
 
 function isAliveInStandings(id) {
   const row = findStandingsRow(id);
@@ -16,9 +22,9 @@ function describeSeriesAfter(game) {
   const low = Math.min(series.winsA, series.winsB);
   const leader = series.winsA > series.winsB ? series.teamA : series.teamB;
   if (series.winner)
-    return ` \u2014 ${stampName(series.winner)} win the ${seriesLabel(series.id)} ${high}-${low}`;
+    return ` \u2014 ${formatStampName(series.winner)} win the ${nameSeries(series.id)} ${high}-${low}`;
   if (high === low) return ` \u2014 series even ${high}-${low}`;
-  return ` \u2014 ${stampName(leader)} now lead ${high}-${low}`;
+  return ` \u2014 ${formatStampName(leader)} now lead ${high}-${low}`;
 }
 
 function buildStampContext() {
@@ -40,17 +46,21 @@ function renderStampLine(label, when, why) {
 function renderLiveLines() {
   if (!session.state.slate) return [];
   const context = buildStampContext();
-  const latest = lastStampText(session.state.slate, context);
+  const latest = describeLastStamp(session.state.slate, context);
   const lines = latest
     ? [
-        html`<span><b class="lead">${stampWhenHtml(new Date(session.live.asOf))}</b>${latest}</span>`,
+        html`<span><b class="lead">${renderStampWhen(new Date(session.live.asOf))}</b>${latest}</span>`,
       ]
     : [];
-  const next = upNextText(session.state.slate, context);
+  const next = describeUpNextGame(session.state.slate, context);
   if (next) {
     const at = new Date(next.at);
     lines.push(
-      renderStampLine("Next first pitch", next.tbd ? stampDay(at) : stampWhenHtml(at), next.text),
+      renderStampLine(
+        "Next first pitch",
+        next.tbd ? formatStampDay(at) : renderStampWhen(at),
+        next.text,
+      ),
     );
   }
   return lines;
@@ -59,7 +69,9 @@ function renderLiveLines() {
 // Without live scores, only the stored standings say how current the page is.
 function renderSavedLines() {
   const savedAt = Date.parse(session.standings && session.standings.updatedAt);
-  return Number.isNaN(savedAt) ? [] : [renderStampLine("Saved", stampWhenHtml(new Date(savedAt)))];
+  return Number.isNaN(savedAt)
+    ? []
+    : [renderStampLine("Saved", renderStampWhen(new Date(savedAt)))];
 }
 
 function renderStampLines() {

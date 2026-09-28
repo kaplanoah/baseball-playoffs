@@ -1,4 +1,4 @@
-import { pollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
+import { choosePollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
 import { findNotableUpdates, listNotifications } from "./notifications.js";
 import { createPushService } from "./push.js";
 import { describeError, respondError, respondJson } from "./responses.js";
@@ -203,7 +203,7 @@ export class SeasonStore {
     await this.notifyUpdates(before, snapshot);
     const status = SeasonUpdater.describeSnapshotStatus(snapshot);
     await SeasonUpdater.saveStatus(this.docs, status, this.now());
-    return pollDelay(snapshot, this.now()) ?? POLL_CHECK_MS;
+    return choosePollDelay(snapshot, this.now()) ?? POLL_CHECK_MS;
   }
 
   // A failed notification never holds up the next update.

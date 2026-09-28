@@ -2,8 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readGameDay } from "../page/js/dates.js";
-import { easternDay } from "../page/js/snapshot.js";
-import { lastStampText } from "../page/js/stamp.js";
+import { readEasternDay } from "../page/js/snapshot.js";
+import { describeLastStamp } from "../page/js/stamp.js";
 import { renderNextCell } from "../page/js/standings.js";
 import { normalizeSpaces } from "./text.js";
 import { checkInTimeZone } from "./time-zone.js";
@@ -21,7 +21,7 @@ const AFTERNOON_AFTER = new Date("2026-09-24T17:17:00Z");
 
 const describeLastFinal = () =>
   normalizeSpaces(
-    lastStampText(
+    describeLastStamp(
       { today: { games: [] }, lastFinal: MARINERS_WIN },
       { ranking: [], alive: () => true, now: AFTERNOON_AFTER },
     ),
@@ -102,7 +102,7 @@ test("MLB's day is Eastern wherever the page is open", () => {
   const lateEvening = Date.parse("2026-09-25T02:00:00Z");
   for (const zone of ["America/Los_Angeles", "Europe/London", "Asia/Tokyo"])
     assert.equal(
-      checkInTimeZone(zone, () => easternDay(lateEvening).date),
+      checkInTimeZone(zone, () => readEasternDay(lateEvening).date),
       "2026-09-24",
       zone,
     );

@@ -1,11 +1,17 @@
-import { ROUND_LABEL, fullBracket, isEliminated, listSlotCandidates } from "./bracket.js";
-import { rankedOrder, rankTag, seedMark, teamLabel, teamTag } from "./clubs.js";
+import { ROUND_LABEL, buildBracket, isEliminated, listSlotCandidates } from "./bracket.js";
+import {
+  listRankedOrder,
+  renderRankTag,
+  renderSeedMark,
+  nameTeam,
+  renderTeamTag,
+} from "./clubs.js";
 import { readGameDay } from "./dates.js";
 import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 
-const rankOf = (id) => {
-  const index = rankedOrder().indexOf(id);
+const findRank = (id) => {
+  const index = listRankedOrder().indexOf(id);
   return index === -1 ? Infinity : index;
 };
 
@@ -16,8 +22,8 @@ function listSideCandidates(series, side) {
 
 // A side is preferred only when every club that could fill it is ranked above every club on the other.
 function findPreferredSide(series) {
-  const ranksA = listSideCandidates(series, "A").map(rankOf);
-  const ranksB = listSideCandidates(series, "B").map(rankOf);
+  const ranksA = listSideCandidates(series, "A").map(findRank);
+  const ranksB = listSideCandidates(series, "B").map(findRank);
   if (!ranksA.length || !ranksB.length) return null;
   if (Math.max(...ranksA) < Math.min(...ranksB)) return "A";
   if (Math.max(...ranksB) < Math.min(...ranksA)) return "B";
@@ -33,7 +39,7 @@ function renderMatchupRow(series, side) {
   const isPreferred = findPreferredSide(series) === side;
   const seed = session.state.teams[id] && session.state.teams[id].seed;
   return html`<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
-    <div class="team-id">${rankTag(id, isPreferred)}${seedMark(seed)}${teamTag(id)}</div>
+    <div class="team-id">${renderRankTag(id, isPreferred)}${renderSeedMark(seed)}${renderTeamTag(id)}</div>
     <span class="nscore tabular ${isWinner ? "lead" : ""}">${wins}</span>
   </div>`;
 }
@@ -149,10 +155,10 @@ function renderSeriesCard(series, top, left, champLine = "", width = CARD.width)
   </div>`;
 }
 
-const describeAdvance = (champion) => (champion ? `${teamLabel(champion)} advance` : "");
+const describeAdvance = (champion) => (champion ? `${nameTeam(champion)} advance` : "");
 
 const describeWorldSeriesWin = (ws) =>
-  ws.winner ? `${teamLabel(ws.winner)} win the World Series` : "";
+  ws.winner ? `${nameTeam(ws.winner)} win the World Series` : "";
 
 const COLUMN_LABELS = [
   ["AL Wild Card", "al"],
@@ -319,7 +325,7 @@ function renderStackedStage(bracket, slotHeight) {
 export function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
   const noFieldNote = document.getElementById("noFieldNote");
-  const bracket = fullBracket(session.state);
+  const bracket = buildBracket(session.state);
   const hasField = !!bracket.al && !!bracket.nl;
   noFieldNote.hidden = hasField;
   if (!hasField) {
@@ -357,12 +363,12 @@ export function watchBracketSpace() {
 
 function renderBannerTeam(label, id) {
   return html`<span class="banner-label">${label}</span>
-    <span class="banner-team">${rankTag(id)}${teamTag(id)}</span>`;
+    <span class="banner-team">${renderRankTag(id)}${renderTeamTag(id)}</span>`;
 }
 
 function renderBanner(bracket) {
   const banner = document.getElementById("banner");
-  if (!bracket || !rankedOrder().length) {
+  if (!bracket || !listRankedOrder().length) {
     banner.hidden = true;
     return;
   }
@@ -373,7 +379,7 @@ function renderBanner(bracket) {
     setHtml(banner, renderBannerTeam("World Series champions", champion));
     return;
   }
-  const aliveRanked = rankedOrder().filter((id) => !isEliminated(session.state, id));
+  const aliveRanked = listRankedOrder().filter((id) => !isEliminated(session.state, id));
   setHtml(
     banner,
     aliveRanked.length

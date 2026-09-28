@@ -1,9 +1,9 @@
-import { rankTag, teamTag } from "./clubs.js";
+import { renderRankTag, renderTeamTag } from "./clubs.js";
 import { DAYS, countDaysBetween } from "./dates.js";
 import { describeEntry, describeUpdate } from "./entry-text.js";
 import { html, setHtml } from "./html.js";
 import { saveSeenAt } from "./season-store.js";
-import { session, seasonYear } from "./session.js";
+import { session, readSeasonYear } from "./session.js";
 import { showSaveResult } from "./stamp-view.js";
 import { TEAMS } from "./teams.js";
 import { groupUpdates } from "./update-groups.js";
@@ -11,7 +11,7 @@ import { groupUpdates } from "./update-groups.js";
 const MAX_SHOWN = 12;
 
 function renderClubChip(id) {
-  return TEAMS[id] ? html`${rankTag(id)}${teamTag(id, "b")}` : html``;
+  return TEAMS[id] ? html`${renderRankTag(id)}${renderTeamTag(id, "b")}` : html``;
 }
 
 const readTextContext = () => ({
@@ -21,9 +21,9 @@ const readTextContext = () => ({
 });
 
 // Markup for an entry, or null for one there is nothing to say about.
-export const entryText = (entry) => describeEntry(entry, readTextContext());
+export const renderEntryText = (entry) => describeEntry(entry, readTextContext());
 
-export const updateText = (entries) => describeUpdate(entries, readTextContext());
+export const renderUpdateText = (entries) => describeUpdate(entries, readTextContext());
 
 function formatWhen(iso, now = new Date()) {
   const date = new Date(iso);
@@ -54,7 +54,7 @@ const readNoticedAt = (entry) => Date.parse(entry.at);
 function listFreshUpdates() {
   const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
   const fresh = (session.state.log || []).filter(
-    (entry) => entry && (!seen || readNoticedAt(entry) > seen) && entryText(entry),
+    (entry) => entry && (!seen || readNoticedAt(entry) > seen) && renderEntryText(entry),
   );
   return groupUpdates(fresh).sort(
     (first, second) => findHappenedAt(second) - findHappenedAt(first),
@@ -68,7 +68,7 @@ function formatTimeColumn(groups) {
 }
 
 function renderUpdate(group, when) {
-  return html`<li><span class="when">${when}</span><span class="what">${updateText(group)}</span></li>`;
+  return html`<li><span class="when">${when}</span><span class="what">${renderUpdateText(group)}</span></li>`;
 }
 
 function hideUpdates(panel) {
@@ -78,7 +78,7 @@ function hideUpdates(panel) {
 
 export function renderUpdates() {
   const panel = document.getElementById("updates");
-  const fresh = session.activeYear === seasonYear() ? listFreshUpdates() : [];
+  const fresh = session.activeYear === readSeasonYear() ? listFreshUpdates() : [];
   if (!fresh.length) {
     hideUpdates(panel);
     return;

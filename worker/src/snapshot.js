@@ -40,7 +40,7 @@ export function createSnapshotServer({
   }
 
   function readSeason(searchParams) {
-    if (!searchParams.has("season")) return MLBSnapshot.easternDay(now()).year;
+    if (!searchParams.has("season")) return MLBSnapshot.readEasternDay(now()).year;
     const season = Number(searchParams.get("season"));
     const isValid = Number.isInteger(season) && season >= FIRST_SEASON && season <= LAST_SEASON;
     return isValid ? season : null;

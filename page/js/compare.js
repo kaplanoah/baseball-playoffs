@@ -11,5 +11,5 @@ function serializeCanonically(value) {
   return JSON.stringify(value === undefined ? null : value);
 }
 
-export const sameJson = (first, second) =>
+export const isSameJson = (first, second) =>
   serializeCanonically(first) === serializeCanonically(second);

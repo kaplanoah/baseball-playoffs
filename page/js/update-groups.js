@@ -27,9 +27,10 @@ const listGames = (entry) => listResults(entry).map(describeGame);
 export const findCommonGames = (entries) =>
   entries.map(listGames).reduce((common, games) => common.filter((game) => games.includes(game)));
 
-const leagueOf = (entry) => TEAMS[entry.team]?.league;
+const findLeague = (entry) => TEAMS[entry.team]?.league;
 
-const isSameLeague = (first, second) => !!leagueOf(first) && leagueOf(first) === leagueOf(second);
+const isSameLeague = (first, second) =>
+  !!findLeague(first) && findLeague(first) === findLeague(second);
 
 // MLB can post a clinch minutes after the elimination the same game brought, so updates
 // that share a game group when found apart. The same clubs with the same score again are

@@ -1,5 +1,5 @@
 import { watchBracketSpace } from "./bracket-view.js";
-import { rankedOrder } from "./clubs.js";
+import { listRankedOrder } from "./clubs.js";
 import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "./html.js";
 import { readLastTab, saveLastTab } from "./last-tab.js";
@@ -20,8 +20,8 @@ import {
   watchSeason,
   watchStandings,
 } from "./season-store.js";
-import { hasSpringStarted, session, seasonYear } from "./session.js";
-import { easternDay } from "./snapshot.js";
+import { hasSpringStarted, session, readSeasonYear } from "./session.js";
+import { readEasternDay } from "./snapshot.js";
 import { startSettings } from "./settings.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { scrollToTop } from "./scroll-to-top.js";
@@ -108,7 +108,7 @@ async function switchYear(year) {
 }
 
 async function listYears() {
-  const recent = [seasonYear(), seasonYear() - 1, seasonYear() - 2].map(String);
+  const recent = [readSeasonYear(), readSeasonYear() - 1, readSeasonYear() - 2].map(String);
   if (!session.db) return recent;
   try {
     return await loadSeasonList();
@@ -128,7 +128,7 @@ function fillYearPicker(years) {
 
 // Before April the new season starts on the day MLB says spring training does.
 async function checkSpringTraining() {
-  const year = easternDay(Date.now()).year;
+  const year = readEasternDay(Date.now()).year;
   if (session.currentSeason === year) return;
   let springStart;
   try {
@@ -165,7 +165,7 @@ function watchSpringTraining() {
 // Sortable has already moved the dragged card, so redrawing the list keeps it where it was dropped.
 function finishReordering(order) {
   session.isReordering = false;
-  const hasMoved = order.join() !== rankedOrder().join();
+  const hasMoved = order.join() !== listRankedOrder().join();
   if (hasMoved) showSaveResult(saveRanking(order));
   applyDeferredSeason(hasMoved);
   renderAll();

@@ -1,5 +1,5 @@
 import * as MLBSnapshot from "./snapshot.js";
-import { sameJson } from "./compare.js";
+import { isSameJson } from "./compare.js";
 import { describeLiveError } from "./live-errors.js";
 import { fetchLive } from "./live-fetch.js";
 import { renderAll } from "./render.js";
@@ -47,21 +47,21 @@ function applyLive(snapshot) {
   const { asOf: _asOf, ...current } = snapshot;
   const { asOf: _previousAsOf, ...before } = previous || {};
   composeState();
-  if (previous && sameJson(current, before)) renderStamp();
+  if (previous && isSameJson(current, before)) renderStamp();
   else renderUnlessReordering();
 }
 
-function handleLiveSnapshot(snapshot) {
+function acceptLiveSnapshot(snapshot) {
   liveError = null;
   liveFailures = 0;
   const missing = snapshot.missing || [];
   liveWarning = describeMissingFields(missing);
   updateLiveProblem();
   applyLive(snapshot);
-  scheduleLive(MLBSnapshot.pollDelay(snapshot));
+  scheduleLive(MLBSnapshot.choosePollDelay(snapshot));
 }
 
-function handleLiveFailure(error) {
+function recordLiveFailure(error) {
   liveError = describeLiveError(error);
   updateLiveProblem();
   renderStamp();
@@ -79,9 +79,9 @@ async function refreshLive() {
   const sequence = ++liveSequence;
   try {
     const snapshot = await fetchLive(season);
-    if (sequence === liveSequence) handleLiveSnapshot(snapshot);
+    if (sequence === liveSequence) acceptLiveSnapshot(snapshot);
   } catch (error) {
-    if (sequence === liveSequence) handleLiveFailure(error);
+    if (sequence === liveSequence) recordLiveFailure(error);
   }
 }
 

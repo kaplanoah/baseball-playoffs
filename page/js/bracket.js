@@ -30,7 +30,7 @@ function describeSeries(state, series) {
 const hasFullLeague = (state, league) =>
   Object.values(state.teams).filter((team) => team.league === league).length >= 6;
 
-export function fullBracket(state) {
+export function buildBracket(state) {
   const bracket = resolveBracket(state.teams, (seriesId, round, teamA, teamB) =>
     decideFromWins(state, seriesId, round, teamA, teamB),
   );
@@ -56,12 +56,12 @@ function listSeries(bracket) {
 }
 
 export const findSeries = (state, id) =>
-  listSeries(fullBracket(state)).find((series) => series.id === id) || null;
+  listSeries(buildBracket(state)).find((series) => series.id === id) || null;
 
 // `side` is "A" or "B".
 export function listSlotCandidates(state, seriesId, side) {
   const seriesById = Object.fromEntries(
-    listSeries(fullBracket(state)).map((series) => [series.id, series]),
+    listSeries(buildBracket(state)).map((series) => [series.id, series]),
   );
   const collectCandidates = (id, sideIndex) => {
     const series = seriesById[id];
@@ -77,7 +77,7 @@ export function listSlotCandidates(state, seriesId, side) {
 function findLoss(state, id) {
   const team = state.teams[id];
   if (!team) return null;
-  const bracket = fullBracket(state);
+  const bracket = buildBracket(state);
   const league = team.league === "AL" ? bracket.al : bracket.nl;
   if (!league) return null;
   const played = [...league.wc, ...league.ds, ...league.cs, bracket.ws].filter(Boolean);
@@ -93,7 +93,7 @@ export const isEliminated = (state, id) => !!findLoss(state, id);
 
 export function findSeriesBetween(state, first, second) {
   return (
-    listSeries(fullBracket(state)).find(
+    listSeries(buildBracket(state)).find(
       (series) =>
         series.teamA &&
         series.teamB &&
@@ -104,12 +104,12 @@ export function findSeriesBetween(state, first, second) {
 
 // `round` is the round the club went out in.
 export function describeTeamStatus(state, id) {
-  if (fullBracket(state).ws?.winner === id) return { status: "champion", round: null };
+  if (buildBracket(state).ws?.winner === id) return { status: "champion", round: null };
   const loss = findLoss(state, id);
   return loss ? { status: "out", round: loss.round } : { status: "alive", round: null };
 }
 
-export function seriesLabel(id) {
+export function nameSeries(id) {
   if (id === "WS") return "World Series";
   const [league, key] = String(id).split("_");
   if (!key) return String(id);

@@ -1,4 +1,4 @@
-import { rankTag, teamTag } from "./clubs.js";
+import { renderRankTag, renderTeamTag } from "./clubs.js";
 import { DAYS, countDaysBetween, readGameDay } from "./dates.js";
 import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
@@ -57,9 +57,9 @@ export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
 function renderStandingsRow(row, cells, { out = false, cut = false } = {}) {
   const seed = session.state.teams[row.id] && session.state.teams[row.id].seed;
   const rowMarkup = html`<tr class="${out ? "eliminated" : "alive"} ${cut ? "cut" : ""}">
-    <td class="rank-cell">${rankTag(row.id)}</td>
+    <td class="rank-cell">${renderRankTag(row.id)}</td>
     <td class="seed-cell">${seed || ""}</td>
-    <td class="team">${teamTag(row.id)}</td>
+    <td class="team">${renderTeamTag(row.id)}</td>
     ${cells}
   </tr>`;
   // One cell spanning the table, so the dashes run at a single even pitch.
