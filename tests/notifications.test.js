@@ -24,11 +24,11 @@ const CLINCH = findLogEntry("clinch", undefined);
 test("a notification's title is the update's main clause, and its body the rest", () => {
   assert.deepEqual(describeNotification([GAME_5], CONTEXT), {
     title: "Blue Jays took Game 5",
-    body: "Lead the World Series 3–2",
+    body: "Lead the World Series 3\u20132",
     tag: "game:WS:5",
   });
   assert.deepEqual(describeNotification([CLINCH], CONTEXT), {
-    title: "Dodgers win the World Series, 4–3 over the Blue Jays",
+    title: "Dodgers win the World Series, 4\u20133 over the Blue Jays",
     body: "",
     tag: "clinch:WS",
   });
@@ -36,24 +36,30 @@ test("a notification's title is the update's main clause, and its body the rest"
 });
 
 const NOW = Date.parse(GAME_5.at) + 60 * 1000;
-const findFor = (ranking, { before = [], after = [GAME_5], now = NOW } = {}) =>
-  findNotableUpdates({ before, after, ranking, state: SNAPSHOT, now });
+const HOUR_MS = 60 * 60 * 1000;
+const findFor = ({ before = [], after = [GAME_5], now = NOW } = {}) =>
+  findNotableUpdates({ before, after, state: SNAPSHOT, now });
 
-test("a new update about any club in the ranking is notable, win or lose", () => {
-  assert.deepEqual(findFor(["TOR"]), [[GAME_5]]);
-  assert.deepEqual(findFor(["LAD"]), [[GAME_5]], "the Dodgers lost Game 5");
-  assert.deepEqual(findFor(["NYY", "SEA"]), []);
+test("a new update about any club in the field is notable, and one about others is not", () => {
+  assert.deepEqual(findFor(), [[GAME_5]]);
+  const outsider = { kind: "elim", team: "TEX", at: GAME_5.at };
+  assert.deepEqual(findFor({ after: [outsider] }), []);
 });
 
-test("an update already known, or noticed long ago, is not notable", () => {
-  assert.deepEqual(findFor(["TOR"], { before: [GAME_5] }), []);
-  assert.deepEqual(findFor(["TOR"], { now: NOW + 2 * 60 * 60 * 1000 }), []);
+test("an update already known is not notable", () => {
+  assert.deepEqual(findFor({ before: [GAME_5] }), []);
 });
 
-test("an update about the whole field is notable once anything is ranked", () => {
+test("a change found long ago is not notable, but a game seen late still is", () => {
+  const elimination = { kind: "elim", team: "NYY", at: GAME_5.at };
+  assert.deepEqual(findFor({ after: [elimination], now: NOW + 2 * HOUR_MS }), []);
+  assert.deepEqual(findFor({ now: NOW + 2 * HOUR_MS }), [[GAME_5]]);
+  assert.deepEqual(findFor({ now: NOW + 25 * HOUR_MS }), []);
+});
+
+test("an update about the whole field is notable", () => {
   const lock = { kind: "lock", at: GAME_5.at };
-  assert.deepEqual(findFor(["NYY"], { after: [lock] }), [[lock]]);
-  assert.deepEqual(findFor([], { after: [lock] }), []);
+  assert.deepEqual(findFor({ after: [lock] }), [[lock]]);
 });
 
 test("past a few updates at once, the rest are summed up in one", () => {
@@ -67,7 +73,7 @@ test("past a few updates at once, the rest are summed up in one", () => {
   assert.deepEqual(messages[3], {
     title: `${entries.length - 3} more updates`,
     body: "Open the page to see them all.",
-    tag: "more",
+    tag: "more:game:WS:4",
   });
   const fourGroups = entries.slice(0, 4).map((entry) => [entry]);
   assert.equal(listNotifications(fourGroups, CONTEXT).length, 4);
@@ -84,11 +90,13 @@ const ASTROS_CLINCH = {
 };
 const RANGERS_OUT = { kind: "elim", team: "TEX", via: [RANGERS_LOSS], at: GAME_5.at };
 
-test("a clinch and the eliminations it brought are one notification, if any club is ranked", () => {
+test("a clinch and the eliminations it brought are one notification, if any club is in the field", () => {
   const after = [ASTROS_CLINCH, RANGERS_OUT];
-  assert.deepEqual(findFor(["TEX"], { after }), [after]);
-  assert.deepEqual(findFor(["HOU"], { after }), [after]);
-  assert.deepEqual(findFor(["SEA"], { after }), []);
+  const findIn = (field) =>
+    findNotableUpdates({ before: [], after, state: { ...SNAPSHOT, teams: field }, now: NOW });
+  assert.deepEqual(findIn({ TEX: {} }), [after]);
+  assert.deepEqual(findIn({ HOU: {} }), [after]);
+  assert.deepEqual(findIn({ SEA: {} }), []);
   assert.deepEqual(describeNotification(after, CONTEXT), {
     title: "Astros clinch the AL West",
     body: "Rangers eliminated with a 6-4 loss to the Twins",

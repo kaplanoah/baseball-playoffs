@@ -1,5 +1,5 @@
 import { composeLog } from "./readings.js";
-import { easternDay } from "./snapshot.js";
+import { easternDay, hasKnownField } from "./snapshot.js";
 
 const FRESH_FINAL_MS = 10 * 60 * 1000;
 const APRIL = 4;
@@ -41,11 +41,12 @@ function overlayLiveSnapshot(doc) {
     ...live.slate,
     since: new Date(Date.parse(live.asOf) - FRESH_FINAL_MS).toISOString(),
   };
+  const field = hasKnownField(live)
+    ? { teams: live.teams, series: live.series, projected: live.projected }
+    : {};
   return {
     ...doc,
-    teams: live.teams,
-    series: live.series,
-    projected: live.projected,
+    ...field,
     slate,
     log: composeLog(doc.log, session.readings, live.log),
   };

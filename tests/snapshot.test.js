@@ -452,6 +452,17 @@ test("when to ask again: closely during games, otherwise sleep until the next", 
   assert.equal(MLBSnapshot.pollDelay({ slate: null }), null);
 });
 
+test("a game with no start time doesn't make the next ask come at once", () => {
+  const games = [{ state: "pre" }, { state: "pre", start: "2026-09-25T17:05:00Z" }];
+  assert.equal(
+    MLBSnapshot.pollDelay(
+      { slate: { today: { games }, nextDay: null } },
+      Date.parse("2026-09-24T22:00:00Z"),
+    ),
+    MLBSnapshot.POLL_CHECK_MS,
+  );
+});
+
 test("an off day with the page open: one look an hour, not a poll", () => {
   const snapshot = MLBSnapshot.buildSnapshot(EVENING.responses, {
     season: 2026,
@@ -517,6 +528,22 @@ test("a set bracket still builds when a club is missing from the standings", () 
   assert.equal(snapshot.projected, false);
   assert.deepEqual(snapshot.teams.CIN, { league: "NL", seed: full.teams.CIN.seed });
   assert.deepEqual(snapshot.series, full.series);
+});
+
+test("standings missing a division are no standings, and project no field", () => {
+  for (const [keep, missing] of [
+    [() => false, false],
+    [(record) => record.division.id !== 200, true],
+  ]) {
+    const fixture = JSON.parse(JSON.stringify(EVENING));
+    fixture.responses.standings.records = fixture.responses.standings.records.filter(keep);
+    const snapshot = buildSnapshot(fixture);
+    assert.equal(snapshot.standings, null);
+    assert.equal(snapshot.projected, true);
+    assert.equal(MLBSnapshot.hasKnownField(snapshot), false);
+    assert.equal(snapshot.missing.includes("records"), missing);
+  }
+  assert.equal(MLBSnapshot.hasKnownField(buildSnapshot(EVENING)), true);
 });
 
 test("the bracket walk seats seeds and advances winners, 1 against the 4/5 winner", () => {
