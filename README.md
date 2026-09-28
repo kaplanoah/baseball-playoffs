@@ -101,8 +101,9 @@ says why the Worker couldn't read MLB, and `write` names the save that failed.
 in Safari and choose **Share > Add to Home Screen**. It then opens full
 screen with its own icon.
 
-**6. Turn on notifications.** From the home screen icon, have them open the
-Ranking tab, turn on **Notifications**, allow them, and tap **Send a test**.
+**6. Turn on notifications.** From the home screen icon, have them tap the
+sliders at the top right to open settings, turn on **Notifications**, allow
+them, and tap **Send a test**.
 iPhones send web notifications only to pages opened from the home screen.
 Each device turns them on for itself. A notification comes for each new
 update about a team in the ranking: a postseason game or series result, a
@@ -145,7 +146,9 @@ then `npm run check`. `npm run format` fixes formatting.
 
 The Worker carries the page. Every deploy bundles both from the source it
 deploys, so there is nothing to rebuild by hand. `npm run build` writes the
-bundle to `worker/dist/`, which git ignores, if you want to look at it.
+bundle to `worker/dist/`, which git ignores, if you want to look at it. The
+bundle records the commit it was built from, its pull request, and when, and
+the page's settings show them.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page picks up a

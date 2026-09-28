@@ -89,3 +89,48 @@ test("the deployable bundle builds and exports the Worker and its store", async 
   assert.equal(typeof bundle.default.fetch, "function");
   assert.equal(typeof bundle.SeasonStore, "function");
 });
+
+const importBundle = async (script) => import(`data:text/javascript,${encodeURIComponent(script)}`);
+const requestVersion = (bundle) =>
+  bundle.default.fetch(new Request("https://mlb-live.example/k3y/version.json"), {
+    APP_KEY: "k3y",
+  });
+
+test("the bundle serves the release it was built from", async () => {
+  const { buildWorker } = await import("../worker/build.mjs");
+  const release = { commit: "abc1234", pullRequest: 81, builtAt: "2026-09-28T00:10:41.000Z" };
+  const response = await requestVersion(await importBundle(await buildWorker({ release })));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("content-type"), "application/json");
+  assert.deepEqual(await response.json(), release);
+});
+
+test("a bundle built without a release has no version file", async () => {
+  const { buildWorker } = await import("../worker/build.mjs");
+  const response = await requestVersion(await importBundle(await buildWorker({ release: null })));
+  assert.equal(response.status, 404);
+});
+
+test("the release names the commit, its pull request, and when it was built", async () => {
+  const { readRelease } = await import("../worker/build.mjs");
+  const git = () => "b102733\nTell a team that lost today from one that's out (#81)\n";
+  assert.deepEqual(readRelease(git, new Date("2026-09-28T00:10:41Z")), {
+    commit: "b102733",
+    pullRequest: 81,
+    builtAt: "2026-09-28T00:10:41.000Z",
+  });
+});
+
+test("a commit that isn't a squash merge has no pull request", async () => {
+  const { readRelease } = await import("../worker/build.mjs");
+  const release = readRelease(() => "abc1234\nMerge abc into def\n");
+  assert.equal(release.pullRequest, null);
+});
+
+test("without git, the build has no release", async () => {
+  const { readRelease } = await import("../worker/build.mjs");
+  const release = readRelease(() => {
+    throw new Error("not a git repository");
+  });
+  assert.equal(release, null);
+});

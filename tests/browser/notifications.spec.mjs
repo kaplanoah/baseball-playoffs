@@ -1,4 +1,4 @@
-import { test, expect, openApp } from "./harness.mjs";
+import { test, expect, openApp, openSettings } from "./harness.mjs";
 
 const DEVICE_ENDPOINT = "https://fcm.googleapis.com/fcm/send/test-device";
 
@@ -44,7 +44,7 @@ function stubPushManager(endpoint) {
 test("notifications can be turned on, tested, and turned off", async ({ page }) => {
   await page.addInitScript(stubPushManager, DEVICE_ENDPOINT);
   const app = await openApp(page);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
 
   const toggle = page.getByRole("switch", { name: "Notifications" });
   const note = page.locator("#notifyNote");
@@ -70,7 +70,7 @@ test("blocked notifications say where to turn them back on", async ({ page }) =>
     Object.defineProperty(Notification, "permission", { get: () => "denied" });
   });
   await openApp(page);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
 
   await expect(page.locator("#notifyNote")).toHaveText(/Settings > Notifications/);
   await expect(page.getByRole("switch", { name: "Notifications" })).toBeDisabled();
@@ -84,7 +84,7 @@ test("on an iPhone outside the Home Screen, the page says to add it there", asyn
     });
   });
   await openApp(page);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
 
   await expect(page.locator("#notifyNote")).toHaveText(/add this page to your Home Screen/);
   await expect(page.getByRole("switch", { name: "Notifications" })).toBeHidden();

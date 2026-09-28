@@ -1,11 +1,12 @@
-// The Ranking tab's notifications switch: subscribes this device to the Worker's pushes about
+// The settings panel's notifications switch: subscribes this device to the Worker's pushes about
 // the teams in the ranking.
 
 const NOTES = {
   loading: "",
   off: "Get a notification when something happens to a team in your ranking.",
   on: "On for this device. You'll hear about the teams in your ranking.",
-  blocked: "Notifications are blocked for this page. Turn them on in Settings > Notifications.",
+  blocked:
+    "Notifications are blocked for this page. Turn them on in your device's Settings > Notifications.",
   homeScreen:
     "To get notifications on an iPhone, add this page to your Home Screen and open it from there.",
   unsupported: "This browser can't show notifications.",
