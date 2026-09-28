@@ -4,7 +4,7 @@ import { session } from "../page/js/session.js";
 import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, seriesLabel } from "../page/js/bracket.js";
 import { droughtLabel } from "../page/js/clubs.js";
-import { describeRace } from "../page/js/race.js";
+import { describeRace, isSeedFinal } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
 import { stampName } from "../page/js/stamp.js";
@@ -584,8 +584,11 @@ test("games list: each club's rank, seed, record, and race", () => {
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Sat, Sep 26",
-    "Orioles 79-82 3 - 7 Final Yankees #1 4 seed 93-68 WC1",
+    "Orioles 79-82 3 - 7 Final Yankees #1 4 seed 93-68 w",
   ]);
+  const rendered = String(renderGameList(slate, "today"));
+  assert.equal(rendered.match(/class="seed-lock"/g)?.length, 1);
+  assert.match(rendered, /title="Clinched a wild card spot">w</);
 });
 
 const listSideClasses = (rendered) =>
@@ -645,14 +648,15 @@ test("games list: a club out of the race or knocked out of the postseason shows 
 test("a club's race: clinched, still racing, or out", () => {
   const describe = (row) => describeRace({ gb: "-", wcgb: "-", elim: "-", wce: "-", ...row });
   assert.deepEqual(describe({ clinch: "z", clinched: true, lead: true }), {
-    label: "Bye",
+    label: "z",
     standing: "clinched",
   });
-  assert.equal(describe({ clinch: "y", clinched: true, lead: true }).label, "Div");
-  assert.equal(describe({ gb: "6.5", elim: "E", clinch: "y", wcrank: "3" }).label, "In");
+  assert.equal(describe({ clinch: "y", clinched: true, lead: true }).label, "y");
+  assert.equal(describe({ clinched: true, lead: true }).label, "y");
+  assert.equal(describe({ clinch: "x", lead: true, magic: "3" }).label, "x");
   assert.equal(
     describe({ gb: "5.0", wcgb: "+10.0", elim: "E", clinch: "w", wcrank: "1" }).label,
-    "WC1",
+    "w",
   );
   assert.deepEqual(describe({ lead: true, magic: "2" }), { label: "M#2", standing: "racing" });
   assert.equal(describe({ lead: true }).label, "1st");
@@ -669,6 +673,50 @@ test("a club's race: clinched, still racing, or out", () => {
     standing: "out",
   });
   assert.equal(describeRace(null), null);
+});
+
+// The last day of 2026: one game left each, so a club's wins can grow by one at most.
+const FINAL_DAY_STANDINGS = {
+  divisions: {
+    "AL East": [
+      { id: "TB", w: 98, l: 63, elim: "-", wce: "-", clinch: "z", clinched: true, lead: true },
+      { id: "NYY", w: 93, l: 68, elim: "E", wce: "-", clinch: "w" },
+    ],
+    "AL Central": [
+      { id: "CLE", w: 85, l: 76, elim: "-", wce: "-", clinch: "y", clinched: true, lead: true },
+      { id: "CWS", w: 83, l: 78, elim: "E", wce: "-", clinch: "w" },
+    ],
+    "AL West": [
+      { id: "HOU", w: 80, l: 81, elim: "-", wce: "-", lead: true },
+      { id: "TEX", w: 80, l: 81, elim: "-", wce: "E" },
+    ],
+    "NL Central": [
+      { id: "CHC", w: 88, l: 73, elim: "E", wce: "-", clinch: "w" },
+      { id: "MIL", w: 102, l: 59, elim: "-", wce: "-", clinch: "z", clinched: true, lead: true },
+    ],
+    "NL East": [
+      { id: "PHI", w: 87, l: 74, elim: "E", wce: "-" },
+      { id: "ATL", w: 94, l: 67, elim: "-", wce: "-", clinch: "y", clinched: true, lead: true },
+    ],
+  },
+};
+
+test("a seed is final only once no club can still pass or tie it", () => {
+  const seeds = { TB: 1, CLE: 2, HOU: 3, NYY: 4, CWS: 6, MIL: 1, ATL: 3, CHC: 5, PHI: 6 };
+  session.state = {
+    teams: Object.fromEntries(Object.entries(seeds).map(([id, seed]) => [id, { seed }])),
+  };
+  session.standings = FINAL_DAY_STANDINGS;
+  assert.equal(isSeedFinal("TB"), true);
+  assert.equal(isSeedFinal("CLE"), true);
+  assert.equal(isSeedFinal("NYY"), true);
+  assert.equal(isSeedFinal("CHC"), false, "the Phillies can still tie the Cubs");
+  assert.equal(isSeedFinal("HOU"), false, "not clinched");
+  assert.equal(isSeedFinal("PHI"), false, "not clinched");
+  assert.equal(isSeedFinal("TEX"), false, "not in the field");
+
+  session.state = { ...session.state, projected: false };
+  assert.equal(isSeedFinal("CHC"), true, "MLB has set the bracket");
 });
 
 test("games list: a season with no live data says why", () => {

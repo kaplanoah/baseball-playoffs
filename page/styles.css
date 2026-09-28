@@ -564,7 +564,15 @@ table.st .seed-cell {
   font-size: 0.8rem;
   font-weight: 500;
 }
+.name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
 .game-side.home .club,
+.game-side.home .name-line,
 .game-side.home .game-facts {
   flex-direction: row-reverse;
 }
@@ -580,16 +588,24 @@ table.st .seed-cell {
 .game-facts {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 2px 5px;
+  align-items: baseline;
+  gap: 2px 1.5ch;
   font-size: 0.6rem;
   color: var(--ink-dim);
   white-space: nowrap;
 }
-.game-facts .rank-slot {
+/* A character width from the word, like the number, and a pixel low so it reads level with the text. */
+.seed-lock {
+  width: 0.66em;
+  height: 0.9em;
+  margin-left: 1ch;
+  position: relative;
+  top: 1px;
+}
+.name-line .rank-slot {
   width: auto;
 }
-.game-facts .rank-tag {
+.name-line .rank-tag {
   min-width: 22px;
   height: 15px;
   padding: 0 3px;
@@ -598,6 +614,7 @@ table.st .seed-cell {
 }
 .race.clinched {
   color: var(--gold);
+  font-weight: 500;
 }
 .race.racing {
   color: var(--copper-ink);
