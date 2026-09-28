@@ -52,8 +52,13 @@ function listFreshEntries() {
     );
 }
 
-function renderEntry(entry) {
-  const when = formatWhen(findHappenedAt(entry));
+// Updates that share a time show it once, on the first of them.
+function formatTimeColumn(entries) {
+  const times = entries.map((entry) => formatWhen(findHappenedAt(entry)));
+  return times.map((time, index) => (time === times[index - 1] ? "" : time));
+}
+
+function renderEntry(entry, when) {
   return html`<li><span class="when">${when}</span><span class="what">${entryText(entry)}</span></li>`;
 }
 
@@ -72,6 +77,7 @@ export function renderUpdates() {
   panel.hidden = false;
 
   const shown = fresh.slice(0, MAX_SHOWN);
+  const times = formatTimeColumn(shown);
   const extra = fresh.length - shown.length;
   // The oldest update listed, not the last dismissal: a change can be found after a dismissal
   // but have happened before it.
@@ -86,7 +92,7 @@ export function renderUpdates() {
       <button type="button" class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
     </div>
     <ul class="updates-list">
-      ${shown.map(renderEntry)}
+      ${shown.map((entry, index) => renderEntry(entry, times[index]))}
       ${extra > 0 && html`<li class="more">and ${extra} more</li>`}
     </ul>`,
   );
