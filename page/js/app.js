@@ -1,3 +1,4 @@
+import { watchBracketSpace } from "./bracket-view.js";
 import { rankedOrder } from "./clubs.js";
 import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "./html.js";
@@ -203,6 +204,7 @@ async function boot() {
   fillYearPicker(await listYears());
   await loadActiveSeason();
   renderAll();
+  watchBracketSpace();
   watchActiveSeason();
   refreshStampEveryMinute();
   watchPageVisibility();

@@ -37,13 +37,14 @@ function renderMatchupRow(series, side) {
   </div>`;
 }
 
-/* Card metrics must match styles.css. Each wild card card sits dividerY - topSlotY
-   above its division card, so its connector runs straight into the top slot. */
-const LAYOUT = {
-  columnWidth: 209,
+// Card metrics must match styles.css.
+const CARD = { width: 209, height: 90, topSlotY: 41, dividerY: 57 };
+
+/* Desktop: AL on the left and NL on the right, meeting at the World Series in the middle. Each
+   wild card card sits dividerY - topSlotY above its division card, so its connector runs straight
+   into the top slot. */
+const WIDE = {
   columnGap: 20,
-  topSlotY: 41,
-  dividerY: 57,
   stageHeight: 400, // room for a next-game note under the lowest cards
   wildCard1Y: 24,
   division1Y: 40,
@@ -51,8 +52,24 @@ const LAYOUT = {
   division2Y: 280,
   wildCard2Y: 264,
 };
-const columnLeft = (index) => index * (LAYOUT.columnWidth + LAYOUT.columnGap);
-const columnRight = (index) => columnLeft(index) + LAYOUT.columnWidth;
+
+// Phones: AL above NL, rounds left to right, swiped sideways.
+const STACKED = {
+  columnGap: 32,
+  worldSeriesWidth: 240,
+  noteHeight: 20,
+  headerHeight: 34,
+  minSlotHeight: 132,
+  maxSlotHeight: 180,
+};
+const DIVISION_DROP = CARD.dividerY - CARD.topSlotY;
+// Each wild card slot holds its card, the division card dropped beside it, and that card's note.
+const SERIES_HEIGHT = DIVISION_DROP + CARD.height + STACKED.noteHeight;
+
+const PHONE = matchMedia("(max-width: 779px)");
+
+const findColumnLeft = (layout, index) => index * (CARD.width + layout.columnGap);
+const findColumnRight = (layout, index) => findColumnLeft(layout, index) + CARD.width;
 const alignToPixel = (value) => Math.round(value) + 0.5; // a 1px stroke centered on .5 fills one pixel row
 
 function drawConnector(x1, y1, x2, y2) {
@@ -133,16 +150,21 @@ function renderCardNote(series, champLine) {
   return note ? html`<div class="card-note">${note}</div>` : html``;
 }
 
-function renderSeriesCard(series, top, column, champLine = "") {
+function renderSeriesCard(series, top, left, champLine = "", width = CARD.width) {
   const [first, second] = orderRows(series);
-  return html`<div class="box" style="left:${columnLeft(column)}px; top:${top}px; width:${LAYOUT.columnWidth}px;">
-    <div class="series">
+  return html`<div class="box" style="left:${left}px; top:${top}px; width:${width}px;">
+    <div class="series ${series.round === "WS" ? "world" : ""}">
       <div class="bestof"><span>${ROUND_LABEL[series.round]}</span><span>BO${series.bestOf}</span></div>
       ${renderMatchupRow(series, first)}${renderMatchupRow(series, second)}
     </div>
     ${renderCardNote(series, champLine)}
   </div>`;
 }
+
+const describeAdvance = (champion) => (champion ? `${teamLabel(champion)} advance` : "");
+
+const describeWorldSeriesWin = (ws) =>
+  ws.winner ? `${teamLabel(ws.winner)} win the World Series` : "";
 
 const COLUMN_LABELS = [
   ["AL Wild Card", "al"],
@@ -157,52 +179,153 @@ const COLUMN_LABELS = [
 function renderColumnLabels() {
   return COLUMN_LABELS.map(
     ([text, className], index) =>
-      html`<div class="lg-label ${className}" style="left:${columnLeft(index)}px; width:${LAYOUT.columnWidth}px;">${text}</div>`,
+      html`<div class="lg-label ${className}" style="left:${findColumnLeft(WIDE, index)}px; width:${CARD.width}px;">${text}</div>`,
   );
 }
 
-function drawConnectors() {
-  const wildCard1Out = LAYOUT.wildCard1Y + LAYOUT.dividerY;
-  const wildCard2Out = LAYOUT.wildCard2Y + LAYOUT.dividerY;
-  const division1Out = LAYOUT.division1Y + LAYOUT.dividerY;
-  const division2Out = LAYOUT.division2Y + LAYOUT.dividerY;
-  const middleOut = LAYOUT.middleY + LAYOUT.dividerY;
-  const division1Slot = LAYOUT.division1Y + LAYOUT.topSlotY;
-  const division2Slot = LAYOUT.division2Y + LAYOUT.topSlotY;
+function drawWideConnectors() {
+  const left = (index) => findColumnLeft(WIDE, index);
+  const right = (index) => findColumnRight(WIDE, index);
+  const wildCard1Out = WIDE.wildCard1Y + CARD.dividerY;
+  const wildCard2Out = WIDE.wildCard2Y + CARD.dividerY;
+  const division1Out = WIDE.division1Y + CARD.dividerY;
+  const division2Out = WIDE.division2Y + CARD.dividerY;
+  const middleOut = WIDE.middleY + CARD.dividerY;
+  const division1Slot = WIDE.division1Y + CARD.topSlotY;
+  const division2Slot = WIDE.division2Y + CARD.topSlotY;
 
   return [
-    drawConnector(columnRight(0), wildCard1Out, columnLeft(1), division1Slot),
-    drawConnector(columnRight(0), wildCard2Out, columnLeft(1), division2Slot),
-    drawConnector(columnRight(1), division1Out, columnLeft(2), middleOut),
-    drawConnector(columnRight(1), division2Out, columnLeft(2), middleOut),
-    drawConnector(columnRight(2), middleOut, columnLeft(3), middleOut),
-    drawConnector(columnLeft(6), wildCard1Out, columnRight(5), division1Slot),
-    drawConnector(columnLeft(6), wildCard2Out, columnRight(5), division2Slot),
-    drawConnector(columnLeft(5), division1Out, columnRight(4), middleOut),
-    drawConnector(columnLeft(5), division2Out, columnRight(4), middleOut),
-    drawConnector(columnLeft(4), middleOut, columnRight(3), middleOut),
+    drawConnector(right(0), wildCard1Out, left(1), division1Slot),
+    drawConnector(right(0), wildCard2Out, left(1), division2Slot),
+    drawConnector(right(1), division1Out, left(2), middleOut),
+    drawConnector(right(1), division2Out, left(2), middleOut),
+    drawConnector(right(2), middleOut, left(3), middleOut),
+    drawConnector(left(6), wildCard1Out, right(5), division1Slot),
+    drawConnector(left(6), wildCard2Out, right(5), division2Slot),
+    drawConnector(left(5), division1Out, right(4), middleOut),
+    drawConnector(left(5), division2Out, right(4), middleOut),
+    drawConnector(left(4), middleOut, right(3), middleOut),
   ].map((path) => html`<path d="${path}"/>`);
 }
 
-const describeAdvance = (champion) => (champion ? `${teamLabel(champion)} advance` : "");
-
 // wc[1] (4/5) feeds DS1 and wc[0] (3/6) feeds DS2, so each sits beside the card it feeds.
-function renderSeriesCards(bracket) {
+function renderWideCards(bracket) {
   const { al, nl, ws } = bracket;
-  const worldSeriesLine = ws.winner ? `${teamLabel(ws.winner)} win the World Series` : "";
+  const left = (index) => findColumnLeft(WIDE, index);
   return [
-    renderSeriesCard(al.wc[1], LAYOUT.wildCard1Y, 0),
-    renderSeriesCard(al.wc[0], LAYOUT.wildCard2Y, 0),
-    renderSeriesCard(al.ds[0], LAYOUT.division1Y, 1),
-    renderSeriesCard(al.ds[1], LAYOUT.division2Y, 1),
-    renderSeriesCard(al.cs[0], LAYOUT.middleY, 2, describeAdvance(al.champion)),
-    renderSeriesCard(ws, LAYOUT.middleY, 3, worldSeriesLine),
-    renderSeriesCard(nl.cs[0], LAYOUT.middleY, 4, describeAdvance(nl.champion)),
-    renderSeriesCard(nl.ds[0], LAYOUT.division1Y, 5),
-    renderSeriesCard(nl.ds[1], LAYOUT.division2Y, 5),
-    renderSeriesCard(nl.wc[1], LAYOUT.wildCard1Y, 6),
-    renderSeriesCard(nl.wc[0], LAYOUT.wildCard2Y, 6),
+    renderSeriesCard(al.wc[1], WIDE.wildCard1Y, left(0)),
+    renderSeriesCard(al.wc[0], WIDE.wildCard2Y, left(0)),
+    renderSeriesCard(al.ds[0], WIDE.division1Y, left(1)),
+    renderSeriesCard(al.ds[1], WIDE.division2Y, left(1)),
+    renderSeriesCard(al.cs[0], WIDE.middleY, left(2), describeAdvance(al.champion)),
+    renderSeriesCard(ws, WIDE.middleY, left(3), describeWorldSeriesWin(ws)),
+    renderSeriesCard(nl.cs[0], WIDE.middleY, left(4), describeAdvance(nl.champion)),
+    renderSeriesCard(nl.ds[0], WIDE.division1Y, left(5)),
+    renderSeriesCard(nl.ds[1], WIDE.division2Y, left(5)),
+    renderSeriesCard(nl.wc[1], WIDE.wildCard1Y, left(6)),
+    renderSeriesCard(nl.wc[0], WIDE.wildCard2Y, left(6)),
   ];
+}
+
+function renderWideStage(bracket) {
+  const width = findColumnRight(WIDE, 6);
+  return html`<div class="bracket-inner" style="width:${width}px;">
+    <div class="lg-labels-row">${renderColumnLabels()}</div>
+    <div class="bracket-stage" style="height:${WIDE.stageHeight}px;">
+      <svg class="bracket-lines" width="${width}" height="${WIDE.stageHeight}" viewBox="0 0 ${width} ${WIDE.stageHeight}">${drawWideConnectors()}</svg>
+      ${renderWideCards(bracket)}
+    </div>
+  </div>`;
+}
+
+const LEAGUE_NAMES = { al: "American League", nl: "National League" };
+
+function renderLeagueHeader(league, top) {
+  return html`<div class="league-head ${league}" style="top:${top}px; width:${findColumnRight(STACKED, 2)}px;">${LEAGUE_NAMES[league]}</div>`;
+}
+
+const isShown = (element) => element.getClientRects().length > 0;
+
+let renderedSlotHeight = 0;
+
+// The four wild card slots share the height from the bracket's top to the page's bottom padding,
+// which clears the floating tab bar.
+function measureSlotHeight(wrap) {
+  if (!isShown(wrap)) return renderedSlotHeight || STACKED.minSlotHeight;
+  const top = wrap.getBoundingClientRect().top + scrollY;
+  const bottomPadding = parseFloat(getComputedStyle(document.body).paddingBottom);
+  const slotHeight = Math.floor((innerHeight - top - bottomPadding - 2 * STACKED.headerHeight) / 4);
+  return Math.min(STACKED.maxSlotHeight, Math.max(STACKED.minSlotHeight, slotHeight));
+}
+
+function placeLeague(top, slotHeight) {
+  const firstY = top + STACKED.headerHeight + Math.floor((slotHeight - SERIES_HEIGHT) / 2);
+  const wildCardY = [firstY, firstY + slotHeight];
+  const divisionY = wildCardY.map((y) => y + DIVISION_DROP);
+  const championshipY = Math.round((divisionY[0] + divisionY[1]) / 2);
+  return { top, wildCardY, divisionY, championshipY };
+}
+
+function drawLeagueConnectors(place) {
+  const left = (index) => findColumnLeft(STACKED, index);
+  const right = (index) => findColumnRight(STACKED, index);
+  const championshipIn = place.championshipY + CARD.dividerY;
+  return [
+    ...place.wildCardY.map((y, index) =>
+      drawConnector(right(0), y + CARD.dividerY, left(1), place.divisionY[index] + CARD.topSlotY),
+    ),
+    ...place.divisionY.map((y) =>
+      drawConnector(right(1), y + CARD.dividerY, left(2), championshipIn),
+    ),
+  ];
+}
+
+function drawStackedConnectors(places, worldSeriesY) {
+  const worldSeriesIn = worldSeriesY + CARD.dividerY;
+  return [
+    ...places.flatMap(drawLeagueConnectors),
+    ...places.map((place) =>
+      drawConnector(
+        findColumnRight(STACKED, 2),
+        place.championshipY + CARD.dividerY,
+        findColumnLeft(STACKED, 3),
+        worldSeriesIn,
+      ),
+    ),
+  ].map((path) => html`<path d="${path}"/>`);
+}
+
+function renderLeague(key, league, place) {
+  const left = (index) => findColumnLeft(STACKED, index);
+  return [
+    renderLeagueHeader(key, place.top),
+    renderSeriesCard(league.wc[1], place.wildCardY[0], left(0)),
+    renderSeriesCard(league.wc[0], place.wildCardY[1], left(0)),
+    renderSeriesCard(league.ds[0], place.divisionY[0], left(1)),
+    renderSeriesCard(league.ds[1], place.divisionY[1], left(1)),
+    renderSeriesCard(league.cs[0], place.championshipY, left(2), describeAdvance(league.champion)),
+  ];
+}
+
+function renderStackedStage(bracket, slotHeight) {
+  const leagueHeight = STACKED.headerHeight + 2 * slotHeight;
+  const al = placeLeague(0, slotHeight);
+  const nl = placeLeague(leagueHeight, slotHeight);
+  const worldSeriesY = Math.round((al.championshipY + nl.championshipY) / 2);
+  const width = findColumnLeft(STACKED, 3) + STACKED.worldSeriesWidth;
+  const height = 2 * leagueHeight;
+  return html`<div class="bracket-stage" style="width:${width}px; height:${height}px;">
+    <svg class="bracket-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
+    ${renderLeague("al", bracket.al, al)}
+    ${renderSeriesCard(
+      bracket.ws,
+      worldSeriesY,
+      findColumnLeft(STACKED, 3),
+      describeWorldSeriesWin(bracket.ws),
+      STACKED.worldSeriesWidth,
+    )}
+    ${renderLeague("nl", bracket.nl, nl)}
+  </div>`;
 }
 
 export function renderBracket() {
@@ -212,25 +335,33 @@ export function renderBracket() {
   setupPrompt.hidden = hasField;
   if (!hasField) {
     setHtml(wrap, html``);
+    renderedSlotHeight = 0;
     renderBanner(null);
     return;
   }
 
   const bracket = fullBracket(session.state);
-  const width = columnRight(6);
-  setHtml(
-    wrap,
-    html`
-    <div class="tree-scroll"><div class="bracket-inner" style="width:${width}px;">
-      <div class="lg-labels-row">${renderColumnLabels()}</div>
-      <div class="bracket-stage" style="height:${LAYOUT.stageHeight}px;">
-        <svg class="bracket-lines" width="${width}" height="${LAYOUT.stageHeight}" viewBox="0 0 ${width} ${LAYOUT.stageHeight}">${drawConnectors()}</svg>
-        ${renderSeriesCards(bracket)}
-      </div>
-    </div></div>
-  `,
-  );
+  const slotHeight = PHONE.matches ? measureSlotHeight(wrap) : 0;
+  const stage = PHONE.matches ? renderStackedStage(bracket, slotHeight) : renderWideStage(bracket);
+  const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
+  setHtml(wrap, html`<div class="tree-scroll">${stage}</div>`);
+  wrap.querySelector(".tree-scroll").scrollLeft = scrollLeft;
+  renderedSlotHeight = slotHeight;
   renderBanner(bracket);
+}
+
+/* Redraws when crossing into or out of phone width, and on a phone when the slots' share of the
+   screen changes: the screen resizes, the bracket tab shows, or content above the bracket grows
+   or shrinks. */
+export function watchBracketSpace() {
+  const wrap = document.getElementById("bracketWrap");
+  const redrawIfResized = () => {
+    if (!PHONE.matches || !renderedSlotHeight || !isShown(wrap)) return;
+    if (measureSlotHeight(wrap) !== renderedSlotHeight) renderBracket();
+  };
+  PHONE.addEventListener("change", renderBracket);
+  addEventListener("resize", redrawIfResized);
+  new ResizeObserver(redrawIfResized).observe(document.body);
 }
 
 function renderBannerTeam(label, id) {

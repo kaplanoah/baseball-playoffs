@@ -30,7 +30,7 @@ body {
   /* Insets are zero except in the home-screen app, which draws under the status bar and notch. */
   padding-inline: max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-right));
   padding-block: calc(17px + env(safe-area-inset-top)) max(48px, env(safe-area-inset-bottom));
-  /* 7 x LAYOUT.columnWidth + 6 x LAYOUT.columnGap in bracket-view.js, plus .tree-scroll's 18px each side. */
+  /* 7 x CARD.width + 6 x WIDE.columnGap in bracket-view.js, plus .tree-scroll's 18px each side. */
   max-width: 1619px;
   margin: 0 auto;
 }
@@ -864,7 +864,7 @@ button.ghost {
   color: var(--gold-ink);
 }
 
-/* Card part heights add up to LAY in bracket-view.js: 1 + 24 + 32 + 32 + 1 = 90px. */
+/* Card part heights add up to CARD.height in bracket-view.js: 1 + 24 + 32 + 32 + 1 = 90px. */
 .tree-scroll {
   overflow-x: auto;
   padding-bottom: 10px;
@@ -900,6 +900,22 @@ button.ghost {
 .bracket-stage {
   position: relative;
 }
+.league-head {
+  position: absolute;
+  left: 0;
+  height: 19px;
+  border-bottom: 0.5px solid currentColor;
+  font-size: 0.72rem;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.league-head.al {
+  color: var(--al);
+}
+.league-head.nl {
+  color: var(--nl);
+}
 .bracket-lines {
   position: absolute;
   top: 0;
@@ -913,6 +929,19 @@ button.ghost {
 }
 .box {
   position: absolute;
+}
+@media (max-width: 779px) {
+  .tree-scroll {
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 18px;
+    overscroll-behavior-x: contain;
+  }
+  .box {
+    scroll-snap-align: start;
+  }
+  .series.world .bestof span:first-child {
+    color: var(--gold);
+  }
 }
 
 /* Outside the card's box so it can't change the connector geometry. */
