@@ -1,4 +1,11 @@
-import { test, expect, openApp, buildFixtureSnapshot, EVENING_FIXTURE } from "./harness.mjs";
+import {
+  test,
+  expect,
+  openApp,
+  buildFixtureSnapshot,
+  chooseSeason,
+  EVENING_FIXTURE,
+} from "./harness.mjs";
 import { createReading } from "../../page/js/readings.js";
 
 const PLAYOFF_FIELD_2026 = [
@@ -72,7 +79,7 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
   await openApp(page, {
     store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
   });
-  await page.locator("#yearSel").selectOption("2025");
+  await chooseSeason(page, "2025");
 
   const eliminated = page
     .locator(".matchup-row.eliminated .team-name")
@@ -161,7 +168,7 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   });
   await expect.poll(() => app.countSnapshotRequests()).toBe(1);
 
-  await page.locator("#yearSel").selectOption("2025");
+  await chooseSeason(page, "2025");
 
   await expect(page.locator("#banner")).toContainText("World Series champions");
   await expect(page.locator("#banner")).toContainText("Dodgers");

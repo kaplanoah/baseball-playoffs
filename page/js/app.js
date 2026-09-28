@@ -21,6 +21,7 @@ import {
 } from "./season-store.js";
 import { hasSpringStarted, session, seasonYear } from "./session.js";
 import { easternDay } from "./snapshot.js";
+import { startSettings } from "./settings.js";
 import { openSetup, saveSetup } from "./setup.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { scrollToTop } from "./scroll-to-top.js";
@@ -173,6 +174,7 @@ function wireControls() {
   wireTabs(findTabButtons(), chooseTab);
   startTabBar(chooseTab);
   wireGameTabs();
+  startSettings();
   const picker = findYearPicker();
   picker.addEventListener("change", () => switchYear(Number(picker.value)));
   document.getElementById("openSetupBtn").addEventListener("click", openSetup);

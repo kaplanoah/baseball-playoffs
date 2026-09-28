@@ -152,3 +152,18 @@ export async function openApp(
     },
   };
 }
+
+/** @param {import("@playwright/test").Page} page */
+export const openSettings = (page) =>
+  page.getByRole("button", { name: "Settings", exact: true }).click();
+
+/**
+ * Picks a season in the settings panel, then closes it.
+ * @param {import("@playwright/test").Page} page
+ * @param {string} year
+ */
+export async function chooseSeason(page, year) {
+  await openSettings(page);
+  await page.getByRole("combobox", { name: "Season" }).selectOption(year);
+  await page.getByRole("button", { name: "Done" }).click();
+}

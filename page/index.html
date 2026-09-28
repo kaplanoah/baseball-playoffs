@@ -22,16 +22,27 @@
   <link rel="stylesheet" href="styles.css" />
 
   <header class="top">
-    <div>
+    <div class="title-row">
       <h1>MLB Postseason</h1>
+      <span class="year-tag" id="yearTag" hidden></span>
     </div>
     <div class="head-right">
       <div class="stamp-wrap">
         <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
       </div>
-      <div class="year-picker">
-        <select id="yearSel" aria-label="Season"></select>
-      </div>
+      <button
+        type="button"
+        class="settings-btn"
+        id="settingsBtn"
+        aria-label="Settings"
+        aria-haspopup="dialog"
+      >
+        <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+          <path
+            d="M40,86H74.6a30,30,0,0,0,58.8,0H216a6,6,0,0,0,0-12H133.4a30,30,0,0,0-58.8,0H40a6,6,0,0,0,0,12Zm64-24A18,18,0,1,1,86,80,18,18,0,0,1,104,62ZM216,170H197.4a30,30,0,0,0-58.8,0H40a6,6,0,0,0,0,12h98.6a30,30,0,0,0,58.8,0H216a6,6,0,0,0,0-12Zm-48,24a18,18,0,1,1,18-18A18,18,0,0,1,168,194Z"
+          />
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -180,24 +191,6 @@
   </section>
 
   <section id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" class="view">
-    <div class="notify-card" id="notifyCard" hidden>
-      <div class="notify-text">
-        <h2 id="notifyTitle">Notifications</h2>
-        <p id="notifyNote" role="status"></p>
-        <button type="button" class="ghost" id="notifyTestBtn" hidden>Send a test</button>
-      </div>
-      <button
-        type="button"
-        role="switch"
-        class="switch"
-        id="notifySwitch"
-        aria-checked="false"
-        aria-labelledby="notifyTitle"
-        hidden
-      >
-        <span class="switch-knob" aria-hidden="true"></span>
-      </button>
-    </div>
     <p class="rank-hint">
       Drag a card by its handle, or focus the handle and use the arrow keys, to order the field by
       who you want to win the World Series. Order saves automatically and shows as a rank tag on the
@@ -251,6 +244,52 @@
         <button type="button" class="primary" id="saveSetupBtn">Save field</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="settings-panel" aria-labelledby="settingsTitle">
+    <div class="settings-body">
+      <span class="sheet-grabber" aria-hidden="true"></span>
+      <div class="settings-head">
+        <h2 id="settingsTitle">Settings</h2>
+        <button type="button" class="settings-done" id="settingsDoneBtn">
+          <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+            <path
+              d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
+            />
+          </svg>
+          <span class="settings-done-label">Done</span>
+        </button>
+      </div>
+      <section class="settings-section" aria-labelledby="seasonTitle">
+        <h3 id="seasonTitle">Season</h3>
+        <label class="setting-row">
+          <span>Showing</span>
+          <select id="yearSel" aria-label="Season"></select>
+        </label>
+        <p class="setting-note" id="seasonNote"></p>
+      </section>
+      <section class="settings-section" id="notifyCard" aria-labelledby="notifyTitle" hidden>
+        <h3 id="notifyTitle">Notifications</h3>
+        <div class="notify-card">
+          <div class="notify-text">
+            <p id="notifyNote" role="status"></p>
+            <button type="button" class="ghost" id="notifyTestBtn" hidden>Send a test</button>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            class="switch"
+            id="notifySwitch"
+            aria-checked="false"
+            aria-labelledby="notifyTitle"
+            hidden
+          >
+            <span class="switch-knob" aria-hidden="true"></span>
+          </button>
+        </div>
+      </section>
+      <p class="settings-version" id="versionNote" hidden></p>
+    </div>
   </dialog>
 
   <svg class="svg-defs" aria-hidden="true">
