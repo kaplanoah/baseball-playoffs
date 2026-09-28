@@ -8,7 +8,7 @@ const OLD_ENDPOINT = "https://web.push.apple.com/old";
 const NEW_ENDPOINT = "https://web.push.apple.com/new";
 
 // Runs the service worker with stand-ins for what the browser gives it.
-function startServiceWorker({ publicKey = "server-key" } = {}) {
+function startServiceWorker({ publicKey = "AQID_w" } = {}) {
   const listeners = {};
   const requests = [];
   const subscribed = [];
@@ -32,7 +32,7 @@ function startServiceWorker({ publicKey = "server-key" } = {}) {
       },
     },
   };
-  runInNewContext(readFileSync("page/sw.js", "utf8"), { self, fetch, URL, JSON });
+  runInNewContext(readFileSync("page/sw.js", "utf8"), { self, fetch, URL, JSON, atob });
   const dispatch = async (type, fields) => {
     let waiting;
     listeners[type]({ ...fields, waitUntil: (promise) => (waiting = promise) });
@@ -59,10 +59,10 @@ test("a subscription the browser replaced is saved, and the old one removed", as
 });
 
 test("a subscription the browser dropped is made again with the Worker's key", async () => {
-  const worker = startServiceWorker({ publicKey: "server-key" });
+  const worker = startServiceWorker({ publicKey: "AQID_w" });
   await worker.dispatch("pushsubscriptionchange", { oldSubscription: null, newSubscription: null });
-  assert.deepEqual(JSON.parse(JSON.stringify(worker.subscribed)), [
-    { userVisibleOnly: true, applicationServerKey: "server-key" },
-  ]);
+  const [options] = worker.subscribed;
+  assert.equal(options.userVisibleOnly, true);
+  assert.deepEqual([...options.applicationServerKey], [1, 2, 3, 255]);
   assert.deepEqual(listSubscriptionRequests(worker.requests), [["PUT", NEW_ENDPOINT]]);
 });
