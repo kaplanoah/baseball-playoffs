@@ -1,8 +1,7 @@
-// Decides whether a merge needs a deploy. Only a merge that changes nothing but the docs, tests,
-// and tooling listed here skips one, so a new kind of file deploys until it is listed.
-// It imports only Node's own modules, so it runs before npm ci.
+// Decides whether main needs a deploy. Only when nothing but the docs, tests, and tooling listed
+// here changed since the live version does it skip one, so a new kind of file deploys until it
+// is listed.
 import { execFileSync } from "node:child_process";
-import { appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const SKIPPED_FILES = new Set([
@@ -33,11 +32,10 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const runGit = (args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });
 
 // Without --no-renames, a file moved out of page/ would list only where it went.
-export function listChangedFiles(git = runGit) {
+/** @param {string} since the live version's commit */
+export function listChangedFiles(since, git = runGit) {
   try {
-    return git(["diff", "--name-only", "--no-renames", "HEAD^", "HEAD"])
-      .split("\n")
-      .filter(Boolean);
+    return git(["diff", "--name-only", "--no-renames", since, "HEAD"]).split("\n").filter(Boolean);
   } catch {
     return null;
   }
@@ -46,17 +44,14 @@ export function listChangedFiles(git = runGit) {
 /** @param {string[] | null} changedFiles null when they couldn't be listed */
 export function decideDeploy(changedFiles) {
   if (changedFiles === null)
-    return { isNeeded: true, reason: "Couldn't list the merge's changes, so deploying." };
+    return {
+      isNeeded: true,
+      reason: "Couldn't list the changes since the live version, so deploying.",
+    };
   const deployed = findDeployedChanges(changedFiles);
   if (deployed.length) return { isNeeded: true, reason: `Deploying for ${deployed.join(", ")}.` };
   return {
     isNeeded: false,
-    reason: `Nothing the Worker runs changed, so nothing was deployed. Changed: ${changedFiles.join(", ") || "none"}.`,
+    reason: `Nothing the Worker runs changed since the live version, so nothing was deployed. Changed: ${changedFiles.join(", ") || "none"}.`,
   };
-}
-
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { isNeeded, reason } = decideDeploy(listChangedFiles());
-  console.log(isNeeded ? reason : `::notice::${reason}`);
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `deploy=${isNeeded}\n`);
 }

@@ -9,6 +9,8 @@ const API = "https://api.cloudflare.com/client/v4";
 const WORKER_URL = "https://mlb-live.example-subdomain.workers.dev/";
 const ROBOTS_URL = `${WORKER_URL}robots.txt`;
 const LIVE_VERSIONS = [{ version_id: "v-live", percentage: 100 }];
+const LIVE_COMMIT = "1".repeat(40);
+const NEW_COMMIT = "2".repeat(40);
 const LIVE_DEPLOYMENTS = [
   { created_on: "2026-09-24T10:00:00Z", versions: [{ version_id: "v-older", percentage: 100 }] },
   { created_on: "2026-09-25T10:00:00Z", versions: LIVE_VERSIONS },
@@ -17,7 +19,7 @@ const ANSWER_ROBOTS = () => new Response("User-agent: *\nDisallow: /\n");
 const skipPause = async () => {};
 
 /**
- * @param {{ refuse?: string, isNew?: boolean, answerWorker?: () => Response, refuseRollback?: boolean, migrationTag?: string }} [options]
+ * @param {{ refuse?: string, isNew?: boolean, answerWorker?: () => Response, refuseRollback?: boolean, migrationTag?: string, liveCommit?: string }} [options]
  */
 function createFakeCloudflare({
   refuse,
@@ -25,6 +27,7 @@ function createFakeCloudflare({
   answerWorker = ANSWER_ROBOTS,
   refuseRollback = false,
   migrationTag,
+  liveCommit,
 } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
@@ -57,6 +60,8 @@ function createFakeCloudflare({
     if (url.endsWith("/workers/scripts"))
       result = isNew ? [] : [{ id: "mlb-live", migration_tag: migrationTag }];
     if (isDeployments && init.method === "GET") result = { deployments: LIVE_DEPLOYMENTS };
+    if (url.endsWith("/versions/v-live"))
+      result = { id: "v-live", annotations: liveCommit ? { "workers/message": liveCommit } : {} };
     return new Response(JSON.stringify({ success: true, result }));
   };
   return { fetchImpl, calls };
@@ -78,12 +83,14 @@ test("upload, route, and the Worker URL", async () => {
     fetchImpl: cloudflare.fetchImpl,
     env: ENV,
     script: "export default {}",
+    commit: NEW_COMMIT,
     log: () => {},
     pause: skipPause,
   });
   assert.equal(url, WORKER_URL);
   assert.deepEqual(describeCalls(cloudflare.calls), [
     "GET /accounts/acct123/workers/scripts/mlb-live/deployments",
+    "GET /accounts/acct123/workers/scripts/mlb-live/versions/v-live",
     "GET /accounts/acct123/workers/scripts",
     "PUT /accounts/acct123/workers/scripts/mlb-live",
     "POST /accounts/acct123/workers/scripts/mlb-live/subdomain",
@@ -91,7 +98,7 @@ test("upload, route, and the Worker URL", async () => {
     `GET ${ROBOTS_URL}`,
   ]);
 
-  const form = cloudflare.calls[2].init.body;
+  const form = cloudflare.calls[3].init.body;
   const metadata = JSON.parse(await form.get("metadata").text());
   assert.deepEqual(metadata, {
     main_module: "worker.mjs",
@@ -99,15 +106,74 @@ test("upload, route, and the Worker URL", async () => {
     observability: { enabled: true },
     bindings: [{ type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" }],
     keep_bindings: ["secret_text"],
+    annotations: { "workers/message": NEW_COMMIT },
     migrations: { new_tag: "v1", steps: [{ new_sqlite_classes: ["SeasonStore"] }] },
   });
   const file = form.get("worker.mjs");
   assert.equal(file.type, "application/javascript+module");
   assert.equal(await file.text(), "export default {}");
-  assert.deepEqual(JSON.parse(cloudflare.calls[3].init.body), {
+  assert.deepEqual(JSON.parse(cloudflare.calls[4].init.body), {
     enabled: true,
     previews_enabled: false,
   });
+});
+
+test("nothing is uploaded when nothing the Worker runs changed since the live version", async () => {
+  const { deploy } = await loadDeployModule();
+  const cloudflare = createFakeCloudflare({ liveCommit: LIVE_COMMIT });
+  const asked = [];
+  const lines = [];
+  const url = await deploy({
+    fetchImpl: cloudflare.fetchImpl,
+    env: ENV,
+    script: "",
+    commit: NEW_COMMIT,
+    findChanges: (since) => {
+      asked.push(since);
+      return ["README.md", "tests/store.test.js"];
+    },
+    log: (line) => lines.push(line),
+    pause: skipPause,
+  });
+  assert.equal(url, null);
+  assert.deepEqual(asked, [LIVE_COMMIT]);
+  assert.ok(!describeCalls(cloudflare.calls).some((call) => call.startsWith("PUT ")));
+  assert.match(lines.at(-1), /Nothing the Worker runs changed since the live version/);
+});
+
+test("every change since the live version counts, not just the last merge's", async () => {
+  const { deploy } = await loadDeployModule();
+  const cloudflare = createFakeCloudflare({ liveCommit: LIVE_COMMIT });
+  const url = await deploy({
+    fetchImpl: cloudflare.fetchImpl,
+    env: ENV,
+    script: "",
+    commit: NEW_COMMIT,
+    findChanges: () => ["worker/src/store.js", "README.md"],
+    log: () => {},
+    pause: skipPause,
+  });
+  assert.equal(url, WORKER_URL);
+  assert.ok(
+    describeCalls(cloudflare.calls).includes("PUT /accounts/acct123/workers/scripts/mlb-live"),
+  );
+});
+
+test("a live version with no recorded commit, or changes that can't be listed, deploy", async () => {
+  const { deploy } = await loadDeployModule();
+  /** @param {string | undefined} liveCommit @param {string[] | null} changes */
+  const deployWith = (liveCommit, changes) =>
+    deploy({
+      fetchImpl: createFakeCloudflare({ liveCommit }).fetchImpl,
+      env: ENV,
+      script: "",
+      commit: NEW_COMMIT,
+      findChanges: () => changes,
+      log: () => {},
+      pause: skipPause,
+    });
+  assert.equal(await deployWith(undefined, []), WORKER_URL);
+  assert.equal(await deployWith(LIVE_COMMIT, null), WORKER_URL);
 });
 
 test("a migration already applied isn't sent again", async () => {
@@ -127,7 +193,7 @@ test("a migration already applied isn't sent again", async () => {
     log: () => {},
     pause: skipPause,
   });
-  const metadata = JSON.parse(await cloudflare.calls[2].init.body.get("metadata").text());
+  const metadata = JSON.parse(await cloudflare.calls[3].init.body.get("metadata").text());
   assert.equal(metadata.migrations, undefined);
 });
 
@@ -378,6 +444,7 @@ function createFakeGit({
   dirty = "",
   head = "a".repeat(40),
   origin = "a".repeat(40),
+  isBehind = false,
 } = {}) {
   const asked = [];
   const answerGitCommand = (args) => {
@@ -386,6 +453,10 @@ function createFakeGit({
     if (args[0] === "status") return dirty;
     if (args[0] === "fetch") return "";
     if (args[0] === "rev-parse") return args[1] === "HEAD" ? head : origin;
+    if (args[0] === "merge-base") {
+      if (isBehind) return "";
+      throw new Error("not an ancestor");
+    }
     throw new Error(`unexpected git ${args.join(" ")}`);
   };
   return { git: answerGitCommand, asked };
@@ -394,14 +465,22 @@ function createFakeGit({
 test("a release is clean and exactly what GitHub has as main, on any branch", async () => {
   const { checkRelease } = await loadDeployModule();
   const cleanMain = createFakeGit();
-  assert.equal(checkRelease(cleanMain.git), "a".repeat(40));
+  const release = { commit: "a".repeat(40), newerMain: null };
+  assert.deepEqual(checkRelease(cleanMain.git), release);
   assert.ok(
     cleanMain.asked.includes("fetch --quiet origin main"),
     "compares against a fresh fetch",
   );
   // A detached checkout reports its branch as HEAD.
-  assert.equal(checkRelease(createFakeGit({ branch: "claude/some-branch" }).git), "a".repeat(40));
-  assert.equal(checkRelease(createFakeGit({ branch: "HEAD" }).git), "a".repeat(40));
+  assert.deepEqual(checkRelease(createFakeGit({ branch: "claude/some-branch" }).git), release);
+  assert.deepEqual(checkRelease(createFakeGit({ branch: "HEAD" }).git), release);
+});
+
+test("a merged commit that main has moved past names the newer main instead", async () => {
+  const { checkRelease } = await loadDeployModule();
+  const behind = createFakeGit({ branch: "HEAD", head: "b".repeat(40), isBehind: true });
+  assert.deepEqual(checkRelease(behind.git), { commit: "b".repeat(40), newerMain: "a".repeat(40) });
+  assert.ok(behind.asked.includes(`merge-base --is-ancestor ${"b".repeat(40)} ${"a".repeat(40)}`));
 });
 
 test("anything else is refused, with the reason", async () => {

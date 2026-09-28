@@ -13,7 +13,10 @@ test("a merge of only docs, tests, and tooling skips the deploy", () => {
     "worker/set-app-key.mjs",
   ]);
   assert.equal(decision.isNeeded, false);
-  assert.match(decision.reason, /^Nothing the Worker runs changed, so nothing was deployed\./);
+  assert.match(
+    decision.reason,
+    /^Nothing the Worker runs changed since the live version, so nothing was deployed\./,
+  );
   assert.match(decision.reason, /AGENTS\.md, README\.md/);
 });
 
@@ -41,18 +44,18 @@ test("a file no list names deploys, and the reason names only what deploys", () 
 
 test("changes that can't be listed deploy", () => {
   const failingGit = () => {
-    throw new Error("unknown revision HEAD^");
+    throw new Error("unknown revision abc1234");
   };
-  assert.equal(listChangedFiles(failingGit), null);
+  assert.equal(listChangedFiles("abc1234", failingGit), null);
   assert.equal(decideDeploy(null).isNeeded, true);
 });
 
-test("a moved file lists both where it was and where it went", () => {
+test("changes are listed since the live version, with a moved file on both sides", () => {
   const calls = [];
   const git = (args) => {
     calls.push(args);
     return "page/js/old.js\ntests/old.test.js\n";
   };
-  assert.deepEqual(listChangedFiles(git), ["page/js/old.js", "tests/old.test.js"]);
-  assert.ok(calls[0].includes("--no-renames"));
+  assert.deepEqual(listChangedFiles("abc1234", git), ["page/js/old.js", "tests/old.test.js"]);
+  assert.deepEqual(calls[0], ["diff", "--name-only", "--no-renames", "abc1234", "HEAD"]);
 });
