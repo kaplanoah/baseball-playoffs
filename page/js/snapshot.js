@@ -522,22 +522,26 @@ function listStandingsRows(response) {
   return rows;
 }
 
+// A postseason game can list a club before its opponent is known, so one known club is enough.
+function describeUpcomingGame(game, opponent, home) {
+  const upcoming = { at: game.start, home, tbd: game.tbd };
+  if (opponent) upcoming.opp = opponent;
+  if (game.type !== "R") upcoming.postseason = true;
+  return upcoming;
+}
+
 function listUpcomingGames(games) {
   const upcoming = {};
   const gamesAhead = games
-    .filter((game) => game.type === "R" && game.state === "pre" && hasBothClubs(game))
+    .filter((game) => game.state === "pre" && hasClub(game))
     .sort(compareStarts);
   for (const game of gamesAhead) {
     for (const [club, opponent, home] of [
       [game.away.id, game.home.id, false],
       [game.home.id, game.away.id, true],
     ]) {
-      (upcoming[club] = upcoming[club] || []).push({
-        at: game.start,
-        opp: opponent,
-        home,
-        tbd: game.tbd,
-      });
+      if (club)
+        (upcoming[club] = upcoming[club] || []).push(describeUpcomingGame(game, opponent, home));
     }
   }
   return upcoming;
@@ -777,6 +781,16 @@ function tallySeries(seriesId, games, round, teamA, teamB, today) {
   return { record, log, winner };
 }
 
+// A decided series can still list the games it didn't need.
+function listOpenSeriesGames(gamesBySeries, log) {
+  const decided = new Set(
+    log.filter((entry) => entry.kind === "clinch").map((entry) => entry.series),
+  );
+  return Object.entries(gamesBySeries)
+    .filter(([seriesId]) => !decided.has(seriesId))
+    .flatMap(([, games]) => games);
+}
+
 function buildSeries(teams, gamesBySeries, today) {
   const series = {};
   const log = [];
@@ -814,6 +828,10 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   const official = readOfficialField(grouped, records);
   const teams = official || projectField(responses.standings);
   const { series, log } = buildSeries(teams, grouped.gamesBySeries, easternDay(now).date);
+  const clubGames = [
+    ...games.filter((game) => game.type === "R"),
+    ...listOpenSeriesGames(grouped.gamesBySeries, log),
+  ];
 
   return {
     version: 1,
@@ -824,7 +842,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     teams,
     series,
     log,
-    standings: buildStandings(responses.standings, games),
+    standings: buildStandings(responses.standings, clubGames),
     slate: responses.schedule
       ? buildSlate(games, listScheduledGames(responses.schedule, responses.postseason), now)
       : null,

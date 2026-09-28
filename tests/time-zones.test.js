@@ -56,7 +56,7 @@ test("the Next column names the viewer's own day and time", () => {
   };
   for (const [zone, when] of Object.entries(expected))
     assert.equal(
-      checkInTimeZone(zone, () => normalizeSpaces(renderNextCell(row, noon))),
+      checkInTimeZone(zone, () => normalizeSpaces(renderNextCell(row, { now: noon }))),
       `<td class="next-cell">${when} @ ATH</td>`,
       zone,
     );
