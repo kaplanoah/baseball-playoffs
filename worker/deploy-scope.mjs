@@ -11,7 +11,6 @@ const SKIPPED_FILES = new Set([
   ".git-blame-ignore-revs",
   ".github/dependabot.yml",
   ".github/workflows/ci.yml",
-  ".github/workflows/review.yml",
   ".gitignore",
   ".prettierignore",
   "eslint.config.mjs",
