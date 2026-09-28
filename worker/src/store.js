@@ -1,5 +1,5 @@
 import { pollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
-import { findNotableEntries, listNotifications } from "./notifications.js";
+import { findNotableUpdates, listNotifications } from "./notifications.js";
 import { createPushService } from "./push.js";
 import * as SeasonUpdater from "./season-updater.js";
 import { createSnapshotServer } from "./snapshot.js";
@@ -222,16 +222,16 @@ export class SeasonStore {
   async notifyUpdates(before, snapshot) {
     try {
       const after = await SeasonUpdater.readUpdates(this.docs, snapshot.season);
-      const entries = findNotableEntries({
+      const updates = findNotableUpdates({
         before: before.log,
         after: after.log,
         ranking: after.ranking,
         state: snapshot,
         now: this.now(),
       });
-      if (!entries.length) return;
+      if (!updates.length) return;
       const context = { teams: snapshot.teams, standings: snapshot.standings };
-      await this.push.sendToAll(listNotifications(entries, context));
+      await this.push.sendToAll(listNotifications(updates, context));
     } catch (error) {
       console.error(`Notifying failed: ${describeError(error)}`);
     }

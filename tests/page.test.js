@@ -8,7 +8,7 @@ import { describeRace } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../page/js/html.js";
 import { stampName } from "../page/js/stamp.js";
-import { entryText } from "../page/js/updates.js";
+import { entryText, updateText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "./text.js";
 import { EASTERN, useTimeZone } from "./time-zone.js";
 
@@ -26,6 +26,10 @@ function checkAt(isoTime, check) {
 
 const RANK_CHIP = /<span class="rank-slot">.*?<\/span><\/span>/g;
 const describeEntry = (entry) => stripTags(String(entryText(entry)).replace(RANK_CHIP, ""));
+const describeUpdate = (entries) =>
+  stripTags(String(updateText(entries)).replace(RANK_CHIP, ""))
+    .replace(/&mdash;/g, "--")
+    .replace(/&#39;/g, "'");
 
 beforeEach(() => {
   session.state = { teams: {} };
@@ -153,6 +157,18 @@ test("update log: an elimination is plain words", () => {
   );
 });
 
+test("update log: an elimination the club's own win didn't prevent says so", () => {
+  assert.equal(
+    describeEntry({
+      kind: "elim",
+      team: "BAL",
+      despite: { team: "BAL", won: true, opp: "NYY", score: [4, 2] },
+      via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }],
+    }),
+    "Orioles eliminated &mdash; beat the Yankees 4-2, but White Sox beat the Royals 9-1",
+  );
+});
+
 test("update log: clinches", () => {
   const describeBerth = (entry) => describeEntry({ kind: "berth", ...entry });
   assert.equal(
@@ -169,6 +185,170 @@ test("update log: clinches", () => {
     "Rays clinch the AL East",
   );
   assert.equal(describeBerth({ team: "TB", what: "bye" }), "Rays clinch a first-round bye");
+  assert.equal(
+    describeBerth({
+      team: "HOU",
+      what: "division",
+      div: "AL West",
+      via: [
+        { team: "HOU", won: true, opp: "PHI", score: [1, 0] },
+        { team: "TEX", won: false, opp: "NYY", score: [7, 8] },
+      ],
+    }),
+    "Astros clinch the AL West &mdash; beat the Phillies 1-0, Rangers lost to the Yankees 8-7",
+  );
+});
+
+const AT = "2026-09-27T21:43:00Z";
+const createResult = (team, won, opp, score) => ({ team, won, opp, score });
+const PHILLIES_WIN = createResult("PHI", true, "TB", [7, 3]);
+const PHILLIES_CLINCH = {
+  kind: "berth",
+  team: "PHI",
+  what: "playoff",
+  via: [PHILLIES_WIN],
+  at: AT,
+};
+const eliminateDiamondbacks = (fields) => ({ kind: "elim", team: "ARI", at: AT, ...fields });
+const DIAMONDBACKS_LOSS = createResult("ARI", false, "SF", [2, 5]);
+
+test("grouped updates: a clinch credits its win with the eliminations it decided", () => {
+  assert.equal(
+    describeUpdate([PHILLIES_CLINCH, eliminateDiamondbacks({ via: [PHILLIES_WIN] })]),
+    "Phillies clinch a playoff spot -- beat the Rays 7-3, eliminating the Diamondbacks",
+  );
+  const padresLoss = createResult("SD", false, "LAD", [2, 6]);
+  const dodgersWin = createResult("LAD", true, "SD", [6, 2]);
+  assert.equal(
+    describeUpdate([
+      {
+        kind: "berth",
+        team: "LAD",
+        what: "division",
+        div: "NL West",
+        via: [dodgersWin, padresLoss],
+      },
+      { kind: "elim", team: "SD", via: [padresLoss, dodgersWin], at: AT },
+    ]),
+    "Dodgers clinch the NL West -- beat the Padres 6-2, eliminating them",
+  );
+});
+
+test("grouped updates: an eliminated club's own loss says whether it counted and when", () => {
+  const describeWithLoss = (fields) =>
+    describeUpdate([
+      PHILLIES_CLINCH,
+      eliminateDiamondbacks({ via: [DIAMONDBACKS_LOSS, PHILLIES_WIN], ...fields }),
+    ]);
+  assert.equal(
+    describeWithLoss({ decider: "PHI" }),
+    "Phillies clinch a playoff spot -- beat the Rays 7-3, eliminating the Diamondbacks after their 5-2 loss to the Giants",
+  );
+  assert.equal(
+    describeWithLoss({ decider: "ARI" }),
+    "Phillies clinch a playoff spot -- beat the Rays 7-3, Diamondbacks eliminated with a 5-2 loss to the Giants",
+  );
+  assert.equal(
+    describeWithLoss({}),
+    "Phillies clinch a playoff spot -- beat the Rays 7-3, eliminating the Diamondbacks, who also lost 5-2 to the Giants",
+  );
+  assert.equal(
+    describeUpdate([
+      PHILLIES_CLINCH,
+      eliminateDiamondbacks({
+        via: [PHILLIES_WIN],
+        despite: createResult("ARI", true, "SF", [4, 1]),
+      }),
+    ]),
+    "Phillies clinch a playoff spot -- beat the Rays 7-3, eliminating the Diamondbacks despite their 4-1 win over the Giants",
+  );
+});
+
+test("grouped updates: a club that clinched without winning, and the losses behind it", () => {
+  const rangersLoss = createResult("TEX", false, "MIN", [4, 6]);
+  const astrosClinch = (via) => ({
+    kind: "berth",
+    team: "HOU",
+    what: "division",
+    div: "AL West",
+    via,
+  });
+  assert.equal(
+    describeUpdate([
+      astrosClinch([rangersLoss]),
+      { kind: "elim", team: "TEX", via: [rangersLoss] },
+    ]),
+    "Astros clinch the AL West -- Rangers eliminated with a 6-4 loss to the Twins",
+  );
+  const lateLoss = createResult("TEX", false, "NYY", [7, 8]);
+  const astrosWin = createResult("HOU", true, "PHI", [1, 0]);
+  assert.equal(
+    describeUpdate([
+      astrosClinch([astrosWin, lateLoss]),
+      { kind: "elim", team: "TEX", via: [lateLoss] },
+    ]),
+    "Astros clinch the AL West -- beat the Phillies 1-0, Rangers eliminated with an 8-7 loss to the Yankees",
+  );
+  const marinersWin = createResult("SEA", true, "TB", [3, 2]);
+  assert.equal(
+    describeUpdate([astrosClinch([]), { kind: "elim", team: "TEX", via: [marinersWin] }]),
+    "Astros clinch the AL West -- Rangers eliminated by the Mariners' 3-2 win over the Rays",
+  );
+});
+
+test("grouped updates: one win that put out two clubs shows the win totals", () => {
+  const metsWin = createResult("NYM", true, "ATL", [5, 2]);
+  const race = { race: "wildcard", target: 89, at: AT };
+  const braves = {
+    kind: "elim",
+    team: "ATL",
+    most: 87,
+    via: [createResult("ATL", false, "NYM", [2, 5]), metsWin],
+    ...race,
+  };
+  const reds = { kind: "elim", team: "CIN", most: 88, via: [metsWin], ...race };
+  const metsClinch = { kind: "berth", team: "NYM", what: "wildcard", via: [metsWin], at: AT };
+  assert.equal(
+    describeUpdate([metsClinch, braves, reds]),
+    "Mets clinch a wild card spot -- beat the Braves 5-2 for their 89th win, eliminating them (87 wins at most) and the Reds (88 at most)",
+  );
+  assert.equal(
+    describeUpdate([metsClinch, braves, { ...reds, most: 89 }]),
+    "Mets clinch a wild card spot -- beat the Braves 5-2 for their 89th win, eliminating them (87 wins at most) and the Reds (89 at most, loses the tiebreaker)",
+  );
+  assert.equal(
+    describeUpdate([metsClinch, braves]),
+    "Mets clinch a wild card spot -- beat the Braves 5-2, eliminating them",
+  );
+});
+
+test("grouped updates: eliminations one game decided, with no clinch", () => {
+  const metsWin = createResult("NYM", true, "CHC", [4, 3]);
+  const giants = {
+    kind: "elim",
+    team: "SF",
+    race: "wildcard",
+    most: 88,
+    target: 89,
+    via: [metsWin],
+  };
+  const cubs = {
+    kind: "elim",
+    team: "CHC",
+    race: "wildcard",
+    most: 87,
+    target: 89,
+    via: [createResult("CHC", false, "NYM", [3, 4]), metsWin],
+  };
+  assert.equal(
+    describeUpdate([giants, cubs]),
+    "Cubs and Giants eliminated -- Mets beat the Cubs 4-3 for their 89th win, in the last wild card spot; Cubs can reach 87 wins at most, Giants 88",
+  );
+  const { most, target, ...giantsWithoutCounts } = giants;
+  assert.equal(
+    describeUpdate([cubs, giantsWithoutCounts]),
+    "Cubs and Giants eliminated -- Mets beat the Cubs 4-3",
+  );
 });
 
 test("Next column: a game that has started gives way to the one after it", () =>

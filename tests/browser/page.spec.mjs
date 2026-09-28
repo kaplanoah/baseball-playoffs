@@ -245,10 +245,10 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
 });
 
-const ONE_GAME_ELIMINATES = (team) => ({
+const ELIMINATED_AT_8_10 = (team, winner) => ({
   kind: "elim",
   team,
-  via: [{ team: "TEX", won: true, opp: "NYM", score: [3, 1] }],
+  via: [{ team: winner, won: true, opp: "NYM", score: [3, 1] }],
   ended: "2026-09-25T00:10:00Z",
   at: "2026-09-25T00:40:00Z",
 });
@@ -260,8 +260,8 @@ test("updates that share a time show it once", async ({ page }) => {
       "seasons/2026": {
         ...SEASON_WITH_TWO_UPDATES,
         log: [
-          ONE_GAME_ELIMINATES("SEA"),
-          ONE_GAME_ELIMINATES("HOU"),
+          ELIMINATED_AT_8_10("SEA", "TEX"),
+          ELIMINATED_AT_8_10("HOU", "BOS"),
           { kind: "lock", at: "2026-09-25T00:30:00Z" },
         ],
       },
@@ -269,6 +269,39 @@ test("updates that share a time show it once", async ({ page }) => {
   });
 
   await expect(page.locator("#updates .when")).toHaveText([/^8:30\sPM$/, /^8:10\sPM$/, ""]);
+});
+
+test("a clinch and the elimination it brought are one update, at the game's time", async ({
+  page,
+}) => {
+  const rangersLoss = { team: "TEX", won: false, opp: "MIN", score: [4, 6] };
+  const found = { ended: "2026-09-25T00:10:00Z", at: "2026-09-25T00:40:00Z" };
+  await openApp(page, {
+    liveAvailable: false,
+    store: {
+      "seasons/2026": {
+        ...SEASON_WITH_TWO_UPDATES,
+        log: [
+          {
+            kind: "berth",
+            team: "HOU",
+            what: "division",
+            div: "AL West",
+            via: [rangersLoss],
+            ...found,
+          },
+          { kind: "elim", team: "TEX", via: [rangersLoss], ...found },
+        ],
+      },
+    },
+  });
+
+  const updates = page.locator("#updates");
+  await expect(updates.locator(".updates-count")).toHaveText("1 update since earlier today");
+  await expect(updates.locator(".what")).toHaveText(
+    "Astros clinch the AL West \u2014 Rangers eliminated with a 6-4 loss to the Twins",
+  );
+  await expect(updates.locator(".when")).toHaveText(/^8:10\sPM$/);
 });
 
 // The page's clock reads 8:44 PM Eastern, which is the next morning in London and Tokyo.

@@ -1,11 +1,12 @@
 import { rankTag, teamTag } from "./clubs.js";
 import { DAYS, countDaysBetween } from "./dates.js";
-import { describeEntry } from "./entry-text.js";
+import { describeEntry, describeUpdate } from "./entry-text.js";
 import { html, setHtml } from "./html.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, seasonYear } from "./session.js";
 import { showSaveResult } from "./stamp-view.js";
 import { TEAMS } from "./teams.js";
+import { groupUpdates } from "./update-groups.js";
 
 const MAX_SHOWN = 12;
 
@@ -13,13 +14,16 @@ function renderClubChip(id) {
   return TEAMS[id] ? html`${rankTag(id)}${teamTag(id, "b")}` : html``;
 }
 
+const readTextContext = () => ({
+  renderClub: renderClubChip,
+  teams: session.state?.teams,
+  standings: session.standings,
+});
+
 // Markup for an entry, or null for one there is nothing to say about.
-export const entryText = (entry) =>
-  describeEntry(entry, {
-    renderClub: renderClubChip,
-    teams: session.state?.teams,
-    standings: session.standings,
-  });
+export const entryText = (entry) => describeEntry(entry, readTextContext());
+
+export const updateText = (entries) => describeUpdate(entries, readTextContext());
 
 function formatWhen(iso, now = new Date()) {
   const date = new Date(iso);
@@ -40,26 +44,29 @@ function formatSince(iso, now = new Date()) {
   return `since ${date.toLocaleDateString([], { month: "short", day: "numeric" })}`;
 }
 
-// Freshness goes by when a change was noticed; the list shows when it happened.
-const findHappenedAt = (entry) => entry.ended || entry.at;
+// Freshness goes by when a change was noticed; the list shows when it happened, which for a
+// group is when its last game ended.
+const findHappenedAt = (group) =>
+  Math.max(...group.map((entry) => Date.parse(entry.ended || entry.at)));
 
-function listFreshEntries() {
+function listFreshUpdates() {
   const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
-  return (session.state.log || [])
-    .filter((entry) => entry && (!seen || Date.parse(entry.at) > seen) && entryText(entry))
-    .sort(
-      (first, second) => Date.parse(findHappenedAt(second)) - Date.parse(findHappenedAt(first)),
-    );
+  const fresh = (session.state.log || []).filter(
+    (entry) => entry && (!seen || Date.parse(entry.at) > seen) && entryText(entry),
+  );
+  return groupUpdates(fresh).sort(
+    (first, second) => findHappenedAt(second) - findHappenedAt(first),
+  );
 }
 
 // Updates that share a time show it once, on the first of them.
-function formatTimeColumn(entries) {
-  const times = entries.map((entry) => formatWhen(findHappenedAt(entry)));
+function formatTimeColumn(groups) {
+  const times = groups.map((group) => formatWhen(findHappenedAt(group)));
   return times.map((time, index) => (time === times[index - 1] ? "" : time));
 }
 
-function renderEntry(entry, when) {
-  return html`<li><span class="when">${when}</span><span class="what">${entryText(entry)}</span></li>`;
+function renderUpdate(group, when) {
+  return html`<li><span class="when">${when}</span><span class="what">${updateText(group)}</span></li>`;
 }
 
 function hideUpdates(panel) {
@@ -69,7 +76,7 @@ function hideUpdates(panel) {
 
 export function renderUpdates() {
   const panel = document.getElementById("updates");
-  const fresh = session.activeYear === seasonYear() ? listFreshEntries() : [];
+  const fresh = session.activeYear === seasonYear() ? listFreshUpdates() : [];
   if (!fresh.length) {
     hideUpdates(panel);
     return;
@@ -92,7 +99,7 @@ export function renderUpdates() {
       <button type="button" class="updates-x" id="dismissUpdates" aria-label="Dismiss updates" title="Dismiss"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1l8 8M9 1l-8 8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
     </div>
     <ul class="updates-list">
-      ${shown.map((entry, index) => renderEntry(entry, times[index]))}
+      ${shown.map((group, index) => renderUpdate(group, times[index]))}
       ${extra > 0 && html`<li class="more">and ${extra} more</li>`}
     </ul>`,
   );
