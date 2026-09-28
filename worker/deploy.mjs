@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildWorker } from "./build.mjs";
+import { decideDeploy, listChangedFiles } from "./deploy-scope.mjs";
 
 const API = "https://api.cloudflare.com/client/v4";
 const root = new URL("../", import.meta.url);
@@ -19,7 +20,20 @@ export function readWorkerConfig(toml = readRepoFile("worker/wrangler.toml")) {
 }
 
 const RELEASE_BRANCH = "main";
+const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 
+function isAncestor(git, commit, of) {
+  try {
+    git(["merge-base", "--is-ancestor", commit, of]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// A merged commit that main has since moved past isn't deployed: the newer one's deploy covers
+// it, and deploying it would put older code live.
+/** @returns {{ commit: string, newerMain: string | null }} */
 export function checkRelease(
   git = (args) => execFileSync("git", args, { cwd: fileURLToPath(root), encoding: "utf8" }).trim(),
 ) {
@@ -28,13 +42,12 @@ export function checkRelease(
   git(["fetch", "--quiet", "origin", RELEASE_BRANCH]);
   const local = git(["rev-parse", "HEAD"]);
   const remote = git(["rev-parse", `origin/${RELEASE_BRANCH}`]);
-  if (local !== remote) {
-    const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
-    throw new Error(
-      `This checkout (${branch} at ${local.slice(0, 7)}) isn't ${RELEASE_BRANCH} as GitHub has it (${remote.slice(0, 7)}). Merge through a pull request, or check out origin/${RELEASE_BRANCH}, and try again.`,
-    );
-  }
-  return local;
+  if (local === remote) return { commit: local, newerMain: null };
+  if (isAncestor(git, local, remote)) return { commit: local, newerMain: remote };
+  const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
+  throw new Error(
+    `This checkout (${branch} at ${local.slice(0, 7)}) isn't ${RELEASE_BRANCH} as GitHub has it (${remote.slice(0, 7)}). Merge through a pull request, or check out origin/${RELEASE_BRANCH}, and try again.`,
+  );
 }
 
 const NO_CREDENTIALS = new Set([9106, 1001]);
@@ -111,13 +124,18 @@ export function createCloudflareCaller({ fetchImpl, env, log }) {
 /**
  * @param {object} options
  * @param {string} options.script The bundled Worker to upload.
+ * @param {string} [options.commit] The commit the bundle was built from, recorded on the version.
+ * @param {(since: string) => string[] | null} [options.findChanges] Files changed since a commit.
  * @param {typeof fetch} [options.fetchImpl]
  * @param {NodeJS.ProcessEnv} [options.env]
  * @param {typeof console.log} [options.log]
  * @param {(milliseconds: number) => Promise<unknown>} [options.pause]
+ * @returns {Promise<string | null>} the Worker's address, or null when nothing needed deploying
  */
 export async function deploy({
   script,
+  commit,
+  findChanges = listChangedFiles,
   fetchImpl = fetch,
   env = process.env,
   log = console.log,
@@ -143,6 +161,27 @@ export async function deploy({
     return newest.versions.map(({ version_id, percentage }) => ({ version_id, percentage }));
   }
 
+  // The version with the most traffic, which is all of it outside a rollout.
+  async function readLiveCommit(versions) {
+    const [live] = [...versions].sort((first, second) => second.percentage - first.percentage);
+    const version = await callCloudflare(
+      "live commit",
+      `${base}/scripts/${name}/versions/${live.version_id}`,
+      { method: "GET" },
+    );
+    const recorded = version?.annotations?.["workers/message"];
+    return COMMIT_PATTERN.test(recorded || "") ? recorded : null;
+  }
+
+  // Without a recorded commit, there's nothing to compare with, so it deploys.
+  async function isDeployNeeded(previousVersions) {
+    const liveCommit = previousVersions && (await readLiveCommit(previousVersions));
+    if (!liveCommit) return true;
+    const { isNeeded, reason } = decideDeploy(findChanges(liveCommit));
+    log(isNeeded ? reason : `::notice::${reason}`);
+    return isNeeded;
+  }
+
   async function readMigrationTag() {
     const scripts = await callCloudflare("migration tag", `${base}/scripts`, { method: "GET" });
     return scripts.find((stored) => stored.id === name)?.migration_tag;
@@ -160,6 +199,7 @@ export async function deploy({
             observability: { enabled: true },
             bindings: [STORE_BINDING],
             keep_bindings: ["secret_text"],
+            ...(commit && { annotations: { "workers/message": commit } }),
             ...(migrations && { migrations }),
           }),
         ],
@@ -199,6 +239,7 @@ export async function deploy({
 
   // The upload makes the new version live, so anything that goes wrong after it puts the
   // earlier one back.
+  /** @returns {Promise<never>} */
   async function restoreAfter(problem, previousVersions) {
     if (!previousVersions) throw new Error(`${problem}, and no earlier version exists.`);
     await rollBack(previousVersions).catch((error) => {
@@ -226,6 +267,7 @@ export async function deploy({
   }
 
   const previousVersions = await findLiveVersions();
+  if (!(await isDeployNeeded(previousVersions))) return null;
   const migrations = listPendingMigrations(await readMigrationTag());
   await uploadWorker(migrations);
   const url = await findNewVersionUrl(previousVersions);
@@ -261,14 +303,25 @@ async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor } = {
   return false;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+function readReleaseOrExit() {
   try {
-    console.log(`Deploying ${RELEASE_BRANCH} at ${checkRelease().slice(0, 7)}`);
+    return checkRelease();
   } catch (error) {
     console.error(`Not deploying: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
-  deploy({ script: await buildWorker() }).catch((error) => {
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const { commit, newerMain } = readReleaseOrExit();
+  if (newerMain) {
+    console.log(
+      `::notice::${RELEASE_BRANCH} has moved on to ${newerMain.slice(0, 7)}, whose deploy covers ${commit.slice(0, 7)}, so nothing was deployed.`,
+    );
+    process.exit(0);
+  }
+  console.log(`Deploying ${RELEASE_BRANCH} at ${commit.slice(0, 7)}`);
+  deploy({ script: await buildWorker(), commit }).catch((error) => {
     console.error(error.message);
     process.exit(1);
   });

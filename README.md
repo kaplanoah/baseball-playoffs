@@ -163,12 +163,14 @@ add:
 
 - a secret `CLOUDFLARE_API_TOKEN`: a Cloudflare token made from the **Edit
   Cloudflare Workers** template, with no IP filtering and a long expiry;
-- a variable `CLOUDFLARE_ACCOUNT_ID`.
+- a secret `CLOUDFLARE_ACCOUNT_ID`, so it stays out of the public deploy logs.
 
-A merge that changes only docs, tests, and tooling skips the deploy, since
-the Worker would be the same; `worker/deploy-scope.mjs` lists those files.
-Without the token, merges deploy nothing. Redeploy by hand with
-`npm run deploy:api`.
+Each deploy records its commit on the Worker's version. A merge skips the
+deploy when nothing but docs, tests, and tooling changed since the live
+version's commit, since the Worker would be the same; `worker/deploy-scope.mjs`
+lists those files. A merge that main has already moved past skips too, since
+the newer merge's deploy covers it. Without the token, merges deploy nothing.
+Redeploy by hand with `npm run deploy:api`.
 
 ## License
 
