@@ -1,5 +1,5 @@
 import { isEliminated } from "./bracket.js";
-import { rankTag, teamTag } from "./clubs.js";
+import { renderRankTag, renderTeamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
 import { formatOrdinal } from "./ordinal.js";
 import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
@@ -54,12 +54,12 @@ function describeStatus(game) {
 
 // Not a .team-name: its clipped overflow cuts off the slant of the italic's last letter in Safari.
 function renderClub(id) {
-  if (id) return teamTag(id);
+  if (id) return renderTeamTag(id);
   return html`<span class="club"><span class="dot unknown-club"></span><span class="tbd">TBD</span></span>`;
 }
 
 function renderNameLine(id) {
-  return html`<span class="name-line">${renderClub(id)}${id && rankTag(id)}</span>`;
+  return html`<span class="name-line">${renderClub(id)}${id && renderRankTag(id)}</span>`;
 }
 
 function renderSeed(id) {

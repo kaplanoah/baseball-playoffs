@@ -120,7 +120,7 @@ async function syncSubscription() {
   await saveSubscription(subscription);
 }
 
-async function runBusy(task) {
+async function showBusyDuring(task) {
   isBusy = true;
   renderNotifications();
   try {
@@ -159,7 +159,7 @@ async function turnOff() {
 
 function toggleNotifications() {
   if (isBusy) return;
-  runBusy(status === "on" ? turnOff : turnOn);
+  showBusyDuring(status === "on" ? turnOff : turnOn);
 }
 
 async function sendTest() {
@@ -179,7 +179,7 @@ function describeStartStatus() {
 export async function startNotifications() {
   findElement("notifySwitch").addEventListener("click", toggleNotifications);
   findElement("notifyTestBtn").addEventListener("click", () => {
-    if (!isBusy) runBusy(sendTest);
+    if (!isBusy) showBusyDuring(sendTest);
   });
   if (!canPush()) {
     setStatus(isIos() && !isStandalone() ? "homeScreen" : "unsupported");

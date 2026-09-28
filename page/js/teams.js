@@ -1,4 +1,4 @@
-// lastWS (null = never) is overridden by any tracked season's result; see lastTitle in clubs.js.
+// lastWS (null = never) is overridden by any tracked season's result; see findLastTitle in clubs.js.
 // firstSeason is only needed while a club has never won.
 export const TEAMS = {
   ARI: { name: "Diamondbacks", league: "NL", lastWS: 2001, color: "#A71930", color2: "#E3D4AD" },

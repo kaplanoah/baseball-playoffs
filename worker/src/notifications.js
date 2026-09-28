@@ -1,6 +1,6 @@
 import { findSeries } from "../../page/js/bracket.js";
 import { describeKey, isFoundEntry } from "../../page/js/changes.js";
-import { teamLabel } from "../../page/js/clubs.js";
+import { nameTeam } from "../../page/js/clubs.js";
 import { describeUpdate } from "../../page/js/entry-text.js";
 import { convertToText } from "../../page/js/html.js";
 import { groupUpdates } from "../../page/js/update-groups.js";
@@ -58,7 +58,7 @@ const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // The sentence's main clause is the title, and what explains it is the body.
 export function describeNotification(group, context) {
-  const markup = describeUpdate(group, { renderClub: teamLabel, ...context });
+  const markup = describeUpdate(group, { renderClub: nameTeam, ...context });
   if (!markup) return null;
   const [title, ...rest] = convertToText(markup).split(SENTENCE_BREAK);
   return { title, body: capitalize(rest.join(SENTENCE_BREAK)), tag: describeKey(group[0]) };

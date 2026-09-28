@@ -1,5 +1,5 @@
-import { seriesLabel } from "./bracket.js";
-import { teamLabel } from "./clubs.js";
+import { nameSeries } from "./bracket.js";
+import { nameTeam } from "./clubs.js";
 import { html } from "./html.js";
 import { formatOrdinal } from "./ordinal.js";
 import { TEAMS } from "./teams.js";
@@ -15,7 +15,7 @@ const BERTHS = {
   playoff: "a playoff spot",
 };
 
-const leagueOf = (id) => (TEAMS[id] ? TEAMS[id].league : "");
+const findLeague = (id) => (TEAMS[id] ? TEAMS[id].league : "");
 
 const isPair = (value) => Array.isArray(value) && value.length === 2;
 function renderSeriesScore(score) {
@@ -27,7 +27,7 @@ function formatGameScore(score) {
 
 // `via` entries are { team, won, opp, score: [own, opp] }, own score first even in a loss.
 function describeResult(result) {
-  const opponent = teamLabel(result.opp);
+  const opponent = nameTeam(result.opp);
   return result.won
     ? `beat the ${opponent} ${formatGameScore(result.score)}`
     : `lost to the ${opponent} ${formatGameScore([result.score[1], result.score[0]])}`;
@@ -41,7 +41,7 @@ function describeVia(entry, mover, other) {
   const parts = [];
   if (own && TEAMS[own.opp]) parts.push(describeResult(own));
   if (theirs && TEAMS[theirs.opp] && TEAMS[other])
-    parts.push(`${teamLabel(other)} ${describeResult(theirs)}`);
+    parts.push(`${nameTeam(other)} ${describeResult(theirs)}`);
   return parts.join(" and ");
 }
 
@@ -60,7 +60,7 @@ function findDivision(id, standings) {
 }
 
 function describeSpot(entry, context) {
-  const league = leagueOf(entry.in);
+  const league = findLeague(entry.in);
   let spot = entry.spot;
   let division = entry.div;
   if (!spot) {
@@ -85,7 +85,7 @@ function describeGamesBack(value) {
 
 function describeOutBack(entry) {
   if (entry.outAlive === false || entry.outBack == null) return "";
-  return `${teamLabel(entry.out)} ${describeGamesBack(entry.outBack)}`;
+  return `${nameTeam(entry.out)} ${describeGamesBack(entry.outBack)}`;
 }
 
 function describeFieldEntry(entry, context) {
@@ -100,7 +100,7 @@ function describeFieldEntry(entry, context) {
 }
 
 function describeSeedEntry(entry, { renderClub }) {
-  const where = `the ${leagueOf(entry.team)} ${entry.to} seed`;
+  const where = `the ${findLeague(entry.team)} ${entry.to} seed`;
   if (entry.over) {
     const sentence = html`${renderClub(entry.team)} passed the ${renderClub(entry.over)} for ${where}`;
     return appendVia(sentence, entry, entry.team, entry.over);
@@ -119,7 +119,7 @@ function describeSeriesStanding(score) {
 function describeGameEntry(entry, { renderClub }) {
   const game = entry.game ? `Game ${entry.game}` : "a game";
   const standing = describeSeriesStanding(entry.score);
-  const series = seriesLabel(entry.series);
+  const series = nameSeries(entry.series);
   const tail = standing
     ? html` &mdash; ${standing} the ${series} ${renderSeriesScore(entry.score)}`
     : ` of the ${series}`;
@@ -129,7 +129,7 @@ function describeGameEntry(entry, { renderClub }) {
 function describeClinchEntry(entry, { renderClub }) {
   const over = entry.over && html` over the ${renderClub(entry.over)}`;
   const score = isPair(entry.score) && html`, ${renderSeriesScore(entry.score)}`;
-  return html`${renderClub(entry.team)} win the ${seriesLabel(entry.series)}${score}${over}`;
+  return html`${renderClub(entry.team)} win the ${nameSeries(entry.series)}${score}${over}`;
 }
 
 // A win of its own that day doesn't save a club, and saying so heads off the question.
@@ -145,7 +145,7 @@ function describeEliminationEntry(entry, { renderClub }) {
 function describeBerthHeadline(entry, { renderClub }) {
   const berth =
     entry.what === "division"
-      ? `the ${entry.div || `${leagueOf(entry.team)} division`}`
+      ? `the ${entry.div || `${findLeague(entry.team)} division`}`
       : BERTHS[entry.what] || BERTHS.playoff;
   return html`${renderClub(entry.team)} clinch ${berth}`;
 }
@@ -155,7 +155,7 @@ function describeBerthEntry(entry, context) {
   const results = listResults(entry).map((result) =>
     result.team === entry.team
       ? describeResult(result)
-      : `${teamLabel(result.team)} ${describeResult(result)}`,
+      : `${nameTeam(result.team)} ${describeResult(result)}`,
   );
   const headline = describeBerthHeadline(entry, context);
   return results.length ? html`${headline} &mdash; ${results.join(", ")}` : headline;
@@ -199,7 +199,7 @@ function chooseArticle(score) {
 }
 
 const describeLoss = (result) =>
-  `${formatWinnerFirst(result.score)} loss to the ${teamLabel(result.opp)}`;
+  `${formatWinnerFirst(result.score)} loss to the ${nameTeam(result.opp)}`;
 
 const findOwnLoss = (entry) =>
   listResults(entry).find((result) => result.team === entry.team && !result.won);
@@ -210,7 +210,7 @@ const listOtherWins = (entry) =>
 function describeDespite(entry) {
   if (!isResult(entry.despite)) return "";
   const { score, opp } = entry.despite;
-  return ` despite their ${formatWinnerFirst(score)} win over the ${teamLabel(opp)}`;
+  return ` despite their ${formatWinnerFirst(score)} win over the ${nameTeam(opp)}`;
 }
 
 const isFinitePair = (entry) => Number.isFinite(entry.most) && Number.isFinite(entry.target);
@@ -241,7 +241,7 @@ function describeOwnDay(entry, win) {
   if (!loss || describeGame(loss) === describeGame(win)) return describeDespite(entry);
   if (entry.decider === win.team) return ` after their ${describeLoss(loss)}`;
   const score = formatWinnerFirst(loss.score);
-  return `, who also lost ${score} to the ${teamLabel(loss.opp)}`;
+  return `, who also lost ${score} to the ${nameTeam(loss.opp)}`;
 }
 
 function describeCredited(entry, index, win, target, { renderClub }) {
@@ -254,7 +254,7 @@ function describeCredited(entry, index, win, target, { renderClub }) {
 function describeWinningPart(win, credited, context) {
   const opponent = credited.some((entry) => entry.team === win.opp)
     ? context.renderClub(win.opp)
-    : teamLabel(win.opp);
+    : nameTeam(win.opp);
   const target = readWinTarget(credited, win);
   const total = target ? ` for their ${formatOrdinal(target)} win` : "";
   const beat = html`beat the ${opponent} ${formatGameScore(win.score)}${total}`;
@@ -273,7 +273,7 @@ function describeUncredited(entry, win, { renderClub }) {
   const withLoss = loss ? ` with ${chooseArticle(loss.score)} ${describeLoss(loss)}` : "";
   const byWins = wins.map(
     (result) =>
-      `the ${teamLabel(result.team)}' ${formatWinnerFirst(result.score)} win over the ${teamLabel(result.opp)}`,
+      `the ${nameTeam(result.team)}' ${formatWinnerFirst(result.score)} win over the ${nameTeam(result.opp)}`,
   );
   const by = byWins.length ? `${loss ? " and" : " by"} ${byWins.join(" and ")}` : "";
   return html`${renderClub(entry.team)} eliminated${withLoss}${by}${describeDespite(entry)}`;
@@ -291,7 +291,7 @@ function describeClinchGroup(berth, eliminations, context) {
   const eliminated = new Set(eliminations.map((entry) => entry.team));
   const rivalLosses = results
     .filter((result) => result.team !== berth.team && !eliminated.has(result.team))
-    .map((result) => `${teamLabel(result.team)} ${describeResult(result)}`);
+    .map((result) => `${nameTeam(result.team)} ${describeResult(result)}`);
   const uncredited = eliminations
     .filter((entry) => !credited.includes(entry))
     .map((entry) => describeUncredited(entry, win, context));
@@ -312,7 +312,7 @@ function describeTotals(eliminations, win) {
   const reaches = eliminations.map((entry, index) => {
     const tiebreaker = entry.most === entry.target ? " and lose the tiebreaker" : "";
     const most = index === 0 ? `can reach ${entry.most} wins at most` : entry.most;
-    return `${teamLabel(entry.team)} ${most}${tiebreaker}`;
+    return `${nameTeam(entry.team)} ${most}${tiebreaker}`;
   });
   return `for their ${formatOrdinal(target)} win${place}; ${reaches.join(", ")}`;
 }
@@ -334,7 +334,7 @@ function describeEliminationGroup(eliminations, context) {
     (first, second) => Number(second.team === win.opp) - Number(first.team === win.opp),
   );
   const clubs = joinWords(ordered.map((entry) => context.renderClub(entry.team)));
-  const beat = `${teamLabel(win.team)} beat the ${teamLabel(win.opp)} ${formatGameScore(win.score)}`;
+  const beat = `${nameTeam(win.team)} beat the ${nameTeam(win.opp)} ${formatGameScore(win.score)}`;
   const totals = describeTotals(ordered, win);
   return html`${clubs} eliminated &mdash; ${beat}${totals && ` ${totals}`}`;
 }

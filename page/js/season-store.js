@@ -1,6 +1,6 @@
-import { fullBracket } from "./bracket.js";
-import { sameJson } from "./compare.js";
-import { readingsCollection, sortParts } from "./readings.js";
+import { buildBracket } from "./bracket.js";
+import { isSameJson } from "./compare.js";
+import { nameReadingsCollection, sortParts } from "./readings.js";
 import { session, composeState } from "./session.js";
 import { TEAMS } from "./teams.js";
 
@@ -12,7 +12,7 @@ let unwatchStandings = null;
 let unwatchReadings = null;
 let deferredSeason = null;
 
-function emptySeason(year) {
+function createEmptySeason(year) {
   return { year, teams: {}, series: {}, ranking: [], log: [] };
 }
 
@@ -24,7 +24,7 @@ const keepKnownClubs = (teams) =>
   Object.fromEntries(Object.entries(teams || {}).filter(([id]) => TEAMS[id]));
 
 function normalizeSeason(doc, year) {
-  const season = doc || emptySeason(year);
+  const season = doc || createEmptySeason(year);
   season.teams = keepKnownClubs(season.teams);
   if (!season.series) season.series = {};
   season.ranking = Array.isArray(season.ranking) ? season.ranking.filter((id) => TEAMS[id]) : [];
@@ -44,7 +44,7 @@ function collectTrackedTitles(docs) {
     const doc = stored.data();
     if (!doc || !doc.teams || !doc.series) continue;
     const year = Number(doc.year ?? stored.id);
-    const champion = fullBracket({ ...doc, teams: keepKnownClubs(doc.teams) }).ws?.winner;
+    const champion = buildBracket({ ...doc, teams: keepKnownClubs(doc.teams) }).ws?.winner;
     if (champion && Number.isFinite(year) && !(titles[champion] >= year)) titles[champion] = year;
   }
   return titles;
@@ -99,7 +99,7 @@ export async function loadReadings(year) {
     let readings;
     try {
       const result = await session.db
-        .collection(readingsCollection(year))
+        .collection(nameReadingsCollection(year))
         .limit(READING_PARTS_LIMIT)
         .get();
       readings = readParts(result.docs);
@@ -122,7 +122,7 @@ export function watchStandings(year, onChange) {
     (snapshot) => {
       if (!snapshot.exists) return;
       const incoming = readDoc(snapshot);
-      if (sameJson(incoming, session.storedStandings)) return;
+      if (isSameJson(incoming, session.storedStandings)) return;
       session.storedStandings = incoming;
       composeState();
       onChange();
@@ -139,12 +139,12 @@ export function watchReadings(year, onChange) {
   }
   if (!session.db) return;
   unwatchReadings = session.db
-    .collection(readingsCollection(year))
+    .collection(nameReadingsCollection(year))
     .limit(READING_PARTS_LIMIT)
     .onSnapshot(
       (result) => {
         const incoming = readParts(result.docs);
-        if (sameJson(incoming, session.readings)) return;
+        if (isSameJson(incoming, session.readings)) return;
         session.readings = incoming;
         composeState();
         onChange();
@@ -154,7 +154,7 @@ export function watchReadings(year, onChange) {
 }
 
 function applySeason(incoming) {
-  if (sameJson(incoming, session.seasonDoc)) return false;
+  if (isSameJson(incoming, session.seasonDoc)) return false;
   session.seasonDoc = incoming;
   composeState();
   return true;

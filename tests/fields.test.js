@@ -13,7 +13,7 @@ const listGames = (schedule) => schedule.dates.flatMap((date) => date.games);
 const listClubs = (standings) => standings.records.flatMap((division) => division.teamRecords);
 
 test("every field the requests ask for has a rule", () => {
-  const requests = MLBSnapshot.mlbRequests(2026, Date.parse(EVENING.now));
+  const requests = MLBSnapshot.listMlbRequests(2026, Date.parse(EVENING.now));
   const requested = Object.values(requests).flatMap((request) =>
     new URL(request, MLBSnapshot.MLB_API).searchParams.get("fields").split(","),
   );

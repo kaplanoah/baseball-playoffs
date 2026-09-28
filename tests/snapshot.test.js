@@ -461,7 +461,7 @@ test("a postseason game counts as next before its opponent is known", () => {
 
 test("when to ask again: closely during games, otherwise sleep until the next", () => {
   const computePollDelay = (games, now = "2026-09-24T22:00:00Z") =>
-    MLBSnapshot.pollDelay({ slate: { today: { games }, nextDay: null } }, Date.parse(now));
+    MLBSnapshot.choosePollDelay({ slate: { today: { games }, nextDay: null } }, Date.parse(now));
   const MINUTE_MS = 60 * 1000;
   assert.equal(
     computePollDelay([{ state: "live" }, { state: "pre", start: "2026-09-25T02:10:00Z" }]),
@@ -490,13 +490,13 @@ test("when to ask again: closely during games, otherwise sleep until the next", 
     computePollDelay([{ state: "pre", start: "2026-09-24T22:05:00Z", tbd: true }]),
     MLBSnapshot.POLL_CHECK_MS,
   );
-  assert.equal(MLBSnapshot.pollDelay({ slate: null }), null);
+  assert.equal(MLBSnapshot.choosePollDelay({ slate: null }), null);
 });
 
 test("a game with no start time doesn't make the next ask come at once", () => {
   const games = [{ state: "pre" }, { state: "pre", start: "2026-09-25T17:05:00Z" }];
   assert.equal(
-    MLBSnapshot.pollDelay(
+    MLBSnapshot.choosePollDelay(
       { slate: { today: { games }, nextDay: null } },
       Date.parse("2026-09-24T22:00:00Z"),
     ),
@@ -510,16 +510,16 @@ test("an off day with the page open: one look an hour, not a poll", () => {
     now: Date.parse("2026-09-25T11:00:00Z"),
   });
   assert.equal(
-    MLBSnapshot.pollDelay(snapshot, Date.parse("2026-09-25T11:00:00Z")),
+    MLBSnapshot.choosePollDelay(snapshot, Date.parse("2026-09-25T11:00:00Z")),
     MLBSnapshot.POLL_CHECK_MS,
   );
 });
 
 test("what to fetch: a past season skips the schedule", () => {
   const now = Date.parse("2026-09-24T22:00:00Z");
-  assert.equal(MLBSnapshot.mlbRequests(2025, now).schedule, null);
+  assert.equal(MLBSnapshot.listMlbRequests(2025, now).schedule, null);
   assert.match(
-    MLBSnapshot.mlbRequests(2026, now, "2026-09-27").schedule,
+    MLBSnapshot.listMlbRequests(2026, now, "2026-09-27").schedule,
     /startDate=2026-09-20&endDate=2026-09-28/,
   );
 });
@@ -527,7 +527,7 @@ test("what to fetch: a past season skips the schedule", () => {
 test("what to fetch: in October the schedule reaches back to the regular season's last days", () => {
   const now = Date.parse("2026-10-20T16:00:00Z");
   assert.match(
-    MLBSnapshot.mlbRequests(2026, now, "2026-09-27").schedule,
+    MLBSnapshot.listMlbRequests(2026, now, "2026-09-27").schedule,
     /startDate=2026-09-24&endDate=2026-10-24/,
   );
 });
@@ -536,7 +536,7 @@ test("fetchSnapshot asks for exactly the requests it builds", async () => {
   const fixture = EVENING;
   const asked = [];
   const regularSeasonEnd = fixture.responses.season.seasons[0].regularSeasonEndDate;
-  const requests = MLBSnapshot.mlbRequests(2026, Date.parse(fixture.now), regularSeasonEnd);
+  const requests = MLBSnapshot.listMlbRequests(2026, Date.parse(fixture.now), regularSeasonEnd);
   const byPath = Object.fromEntries(
     Object.entries(requests).map(([key, path]) => [path, fixture.responses[key]]),
   );

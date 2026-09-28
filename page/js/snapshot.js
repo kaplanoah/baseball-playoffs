@@ -308,7 +308,7 @@ const EASTERN = new Intl.DateTimeFormat("en-CA", {
   hour: "2-digit",
   hourCycle: "h23",
 });
-export function easternDay(ms) {
+export function readEasternDay(ms) {
   const parts = {};
   for (const { type, value } of EASTERN.formatToParts(new Date(ms))) parts[type] = value;
   return {
@@ -322,8 +322,8 @@ function addDays(date, days) {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
-export function mlbRequests(season, now, regularSeasonEnd = null) {
-  const today = easternDay(now);
+export function listMlbRequests(season, now, regularSeasonEnd = null) {
+  const today = readEasternDay(now);
   // Four days back spans a postseason off day; after the regular season, its last days hold
   // every club's final game.
   const firstDay = [addDays(today.date, -4), regularSeasonEnd && addDays(regularSeasonEnd, -3)]
@@ -348,8 +348,8 @@ export function mlbRequests(season, now, regularSeasonEnd = null) {
 
 // The season's dates come first because they decide how far back the schedule reaches.
 export async function fetchSnapshot(getJson, season, now = Date.now()) {
-  const seasonDates = await getJson(mlbRequests(season, now).season);
-  const requests = mlbRequests(season, now, readRegularSeasonEnd(seasonDates));
+  const seasonDates = await getJson(listMlbRequests(season, now).season);
+  const requests = listMlbRequests(season, now, readRegularSeasonEnd(seasonDates));
   const [standings, postseason, schedule] = await Promise.all([
     getJson(requests.standings),
     getJson(requests.postseason),
@@ -486,7 +486,7 @@ const NIGHT_END_HOUR = 6;
 // Once they're all final, last night stays alongside until 6am, since its games still explain
 // what changes then.
 function buildSlate(games, clubGames, now) {
-  const clock = easternDay(now);
+  const clock = readEasternDay(now);
   const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
   const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
   const lastNight = addDays(clock.date, -1);
@@ -856,7 +856,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   const official = readOfficialField(grouped, records);
   const hasStandings = hasEveryDivision(responses.standings);
   const teams = official || (hasStandings ? projectField(responses.standings) : {});
-  const { series, log } = buildSeries(teams, grouped.gamesBySeries, easternDay(now).date);
+  const { series, log } = buildSeries(teams, grouped.gamesBySeries, readEasternDay(now).date);
   const clubGames = [
     ...games.filter((game) => game.type === "R"),
     ...listOpenSeriesGames(grouped.gamesBySeries, log),
@@ -881,7 +881,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
 
 // A start time passed with no first pitch is a delay, so it keeps the fast rate. The hourly
 // cap catches schedule changes made with no game on, like a rainout being rescheduled.
-export function pollDelay(snapshot, now = Date.now()) {
+export function choosePollDelay(snapshot, now = Date.now()) {
   const slate = snapshot && snapshot.slate;
   if (!slate) return null;
   const games = [slate.today, slate.nextDay].filter(Boolean).flatMap((day) => day.games);

@@ -47,15 +47,16 @@ const CALM_SPRING = createSpringShape(0.3, 1);
 const SPRING_SLICE_SECONDS = 1 / 480;
 
 // A smooth bump that peaks at 1 at `peak` seconds and dies away, and a bell around `center`.
-const bump = (seconds, peak) =>
+const computeBump = (seconds, peak) =>
   seconds <= 0 ? 0 : (seconds / peak) ** 3 * Math.exp(3 * (1 - seconds / peak));
-const bell = (seconds, center, width) => Math.exp(-(((seconds - center) / width) ** 2));
-const stretchX = (seconds, distance) =>
-  0.114 * bump(seconds, 0.15) - 0.00046 * distance * bell(seconds, 0.5, 0.13);
-const stretchY = (seconds, distance) =>
-  -0.157 * bump(seconds, 0.15) + 0.00055 * distance * bell(seconds, 0.52, 0.14);
-const leadPx = (seconds) => 7.6 * bump(seconds, 0.17);
-const barGrowPx = (seconds) => 8.7 * bump(seconds, 0.13) - 0.9 * bell(seconds, 0.38, 0.08);
+const computeBell = (seconds, center, width) => Math.exp(-(((seconds - center) / width) ** 2));
+const computeStretchX = (seconds, distance) =>
+  0.114 * computeBump(seconds, 0.15) - 0.00046 * distance * computeBell(seconds, 0.5, 0.13);
+const computeStretchY = (seconds, distance) =>
+  -0.157 * computeBump(seconds, 0.15) + 0.00055 * distance * computeBell(seconds, 0.52, 0.14);
+const computeLead = (seconds) => 7.6 * computeBump(seconds, 0.17);
+const computeBarGrowth = (seconds) =>
+  8.7 * computeBump(seconds, 0.13) - 0.9 * computeBell(seconds, 0.38, 0.08);
 
 const createSpring = (value) => ({ value, velocity: 0, target: value });
 
@@ -145,10 +146,10 @@ function readTravelShape(seconds) {
   const distance = Math.abs(motion.travel);
   const moving = distance > 0 ? 1 : 0;
   return {
-    scaleX: 1 + moving * stretchX(seconds, distance),
-    scaleY: 1 + moving * stretchY(seconds, distance),
-    lead: Math.sign(motion.travel) * leadPx(seconds),
-    grow: barGrowPx(seconds),
+    scaleX: 1 + moving * computeStretchX(seconds, distance),
+    scaleY: 1 + moving * computeStretchY(seconds, distance),
+    lead: Math.sign(motion.travel) * computeLead(seconds),
+    grow: computeBarGrowth(seconds),
   };
 }
 

@@ -36,7 +36,7 @@ export function findStandingsRow(id) {
 const countMostWins = (row) => SEASON_GAMES - Number(row.l);
 
 // The fewest and most wins the division's eventual winner can finish with.
-function rangeDivisionWinner(rows) {
+function findDivisionWinnerRange(rows) {
   const alive = rows.filter((row) => row.elim !== "E");
   return {
     least: Math.max(...alive.map((row) => Number(row.w))),
@@ -48,12 +48,12 @@ function rangeDivisionWinner(rows) {
 const isSettledAgainst = (row, range) =>
   Number(row.w) > range.most || range.least > countMostWins(row);
 
-const rangeClub = (row) => ({ least: Number(row.w), most: countMostWins(row) });
+const findWinRange = (row) => ({ least: Number(row.w), most: countMostWins(row) });
 
 function isDivisionSeedFinal(row, league, division) {
   return listDivisions()
     .filter(([name]) => name.startsWith(league) && name !== division)
-    .every(([, rows]) => isSettledAgainst(row, rangeDivisionWinner(rows)));
+    .every(([, rows]) => isSettledAgainst(row, findDivisionWinnerRange(rows)));
 }
 
 // Clubs that could still finish among the wild cards: in, still alive for one, or leading a
@@ -67,7 +67,7 @@ function listWildCardRivals(row, league) {
 }
 
 const isWildCardSeedFinal = (row, league) =>
-  listWildCardRivals(row, league).every((other) => isSettledAgainst(row, rangeClub(other)));
+  listWildCardRivals(row, league).every((other) => isSettledAgainst(row, findWinRange(other)));
 
 export function isSeedFinal(id) {
   const { state } = session;

@@ -1,4 +1,4 @@
-import { SEASON_GAMES, easternDay, hasWonDivision } from "./snapshot.js";
+import { SEASON_GAMES, readEasternDay, hasWonDivision } from "./snapshot.js";
 
 export const MAX_LOG = 50;
 
@@ -262,7 +262,7 @@ export const isFoundEntry = (entry) => FOUND_KINDS.has(entry.kind);
 // MLB's day, which runs past midnight UTC through the evening's games.
 function readEntryDay(entry) {
   const at = Date.parse(entry.at);
-  return Number.isNaN(at) ? String(entry.at) : easternDay(at).date;
+  return Number.isNaN(at) ? String(entry.at) : readEasternDay(at).date;
 }
 
 // A field or seed change can recur on a later day, so its key carries the day.

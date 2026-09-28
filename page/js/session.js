@@ -1,5 +1,5 @@
 import { composeLog } from "./readings.js";
-import { easternDay, hasKnownField } from "./snapshot.js";
+import { readEasternDay, hasKnownField } from "./snapshot.js";
 
 const FRESH_FINAL_MS = 10 * 60 * 1000;
 const APRIL = 4;
@@ -7,12 +7,12 @@ const APRIL = 4;
 // A season starts on the day spring training does, which is always before April, so the
 // first guess is only in doubt from January through March.
 export function guessSeasonYear(now = Date.now()) {
-  const { date, year } = easternDay(now);
+  const { date, year } = readEasternDay(now);
   return Number(date.slice(5, 7)) >= APRIL ? year : year - 1;
 }
 
 export const hasSpringStarted = (springStart, now = Date.now()) =>
-  !!springStart && easternDay(now).date >= springStart;
+  !!springStart && readEasternDay(now).date >= springStart;
 
 export const session = {
   db: null,
@@ -31,7 +31,7 @@ export const session = {
   isReordering: false,
 };
 
-export const seasonYear = () => session.currentSeason;
+export const readSeasonYear = () => session.currentSeason;
 
 function overlayLiveSnapshot(doc) {
   const { live } = session;

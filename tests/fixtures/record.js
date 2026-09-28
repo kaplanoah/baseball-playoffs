@@ -11,9 +11,9 @@ async function fetchJson(request) {
 async function recordFixture(season, name) {
   const now = Date.now();
   const fixture = { season, now: new Date(now).toISOString(), responses: {} };
-  const seasonDates = await fetchJson(MLBSnapshot.mlbRequests(season, now).season);
+  const seasonDates = await fetchJson(MLBSnapshot.listMlbRequests(season, now).season);
   const regularSeasonEnd = seasonDates.seasons?.[0]?.regularSeasonEndDate;
-  const requests = MLBSnapshot.mlbRequests(season, now, regularSeasonEnd);
+  const requests = MLBSnapshot.listMlbRequests(season, now, regularSeasonEnd);
   for (const [key, request] of Object.entries(requests)) {
     if (request) fixture.responses[key] = key === "season" ? seasonDates : await fetchJson(request);
   }

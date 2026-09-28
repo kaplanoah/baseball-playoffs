@@ -1,7 +1,13 @@
 // `since` is ten minutes before the snapshot: only a final newer than that leads the line.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { lastStampText, upNextText, stampWhen, stampWhenHtml, stampDay } from "../page/js/stamp.js";
+import {
+  describeLastStamp,
+  describeUpNextGame,
+  formatStampWhen,
+  renderStampWhen,
+  formatStampDay,
+} from "../page/js/stamp.js";
 import { normalizeSpaces } from "./text.js";
 import { EASTERN, useTimeZone } from "./time-zone.js";
 
@@ -83,8 +89,8 @@ function createContext(options = {}) {
   };
 }
 const describeLast = (slate, context = createContext()) =>
-  normalizeSpaces(lastStampText(slate, context));
-const describeUpNext = (slate, context = createContext()) => upNextText(slate, context);
+  normalizeSpaces(describeLastStamp(slate, context));
+const describeUpNext = (slate, context = createContext()) => describeUpNextGame(slate, context);
 
 test("the night's last final, with the day's clause", () => {
   const slate = {
@@ -359,8 +365,8 @@ test("in October a final says what it did to the series", () => {
 
 test("the day words beside a time", () => {
   const now = new Date(toEasternIso(TODAY, "12:00"));
-  const describeWhen = (iso) => normalizeSpaces(stampWhen(new Date(iso), now));
-  const describeDay = (iso) => stampDay(new Date(iso), now);
+  const describeWhen = (iso) => normalizeSpaces(formatStampWhen(new Date(iso), now));
+  const describeDay = (iso) => formatStampDay(new Date(iso), now);
   assert.equal(describeWhen(toEasternIso(TODAY, "13:15")), "1:15 PM");
   assert.equal(describeWhen(toEasternIso(YESTERDAY, "13:15")), "yesterday 1:15 PM");
   assert.equal(describeWhen(toEasternIso("2026-09-25", "13:15")), "tomorrow 1:15 PM");
@@ -397,7 +403,7 @@ test("no sentence is ever a bare matchup or 'under way with'", () => {
 
 test("the time as markup sets its AM/PM apart and leaves the rest alone", () => {
   const now = new Date(toEasternIso(TODAY, "12:00"));
-  const renderHtml = (iso) => normalizeSpaces(stampWhenHtml(new Date(iso), now));
+  const renderHtml = (iso) => normalizeSpaces(renderStampWhen(new Date(iso), now));
   assert.equal(renderHtml(toEasternIso(TODAY, "22:19")), '10:19<span class="ap">PM</span>');
   assert.equal(
     renderHtml(toEasternIso("2026-09-25", "13:08")),

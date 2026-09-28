@@ -1,5 +1,12 @@
 import { describeTeamStatus } from "./bracket.js";
-import { droughtLabel, lastTitle, rankedOrder, rankTag, teamLabel, teamTag } from "./clubs.js";
+import {
+  describeDrought,
+  findLastTitle,
+  listRankedOrder,
+  renderRankTag,
+  nameTeam,
+  renderTeamTag,
+} from "./clubs.js";
 import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 import { TEAMS } from "./teams.js";
@@ -23,20 +30,20 @@ function renderTitleSummary(id, won) {
   if (!won) return html`Never won WS`;
   return joinWithSeparator([
     html`<span>Last WS ${won}</span>`,
-    html`<span>${droughtLabel(id)}</span>`,
+    html`<span>${describeDrought(id)}</span>`,
   ]);
 }
 
 function renderRankItem(id, index) {
   const { league } = TEAMS[id];
   const seed = session.state.teams[id].seed;
-  const won = lastTitle(id);
+  const won = findLastTitle(id);
   const teamStatus = describeTeamStatus(session.state, id);
   return html`<li class="rank-item ${teamStatus.status === "out" ? "eliminated" : ""}" data-id="${id}">
       <span class="rank-card">
-        <button type="button" class="grip" aria-label="Move ${teamLabel(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
+        <button type="button" class="grip" aria-label="Move ${nameTeam(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
         <span class="rank-id">
-          ${teamTag(id)}
+          ${renderTeamTag(id)}
           <span class="meta-row">
             <span class="league-tag ${league}">${league}</span>
             <span class="rank-seed tabular">${seed} seed</span>
@@ -45,7 +52,7 @@ function renderRankItem(id, index) {
         </span>
         <span class="rank-cols">
           <span class="col-won tabular">${won || html`&mdash;`}</span>
-          <span class="col-drought">${droughtLabel(id)}</span>
+          <span class="col-drought">${describeDrought(id)}</span>
         </span>
         <span class="status-slot">${renderStatusChip(teamStatus)}</span>
       </span>
@@ -56,7 +63,7 @@ export function renderRanking() {
   const list = document.getElementById("rankList");
   const head = document.getElementById("rankHead");
   const gutter = document.getElementById("rankGutter");
-  const order = rankedOrder();
+  const order = listRankedOrder();
   if (!order.length) {
     head.hidden = true;
     setHtml(gutter, html``);
@@ -98,7 +105,7 @@ function moveWithKeyboard(list, event) {
   if (!grip || !step) return;
   event.preventDefault();
   const id = /** @type {HTMLElement} */ (grip.closest(".rank-item")).dataset.id;
-  const order = rankedOrder();
+  const order = listRankedOrder();
   const from = order.indexOf(id);
   const to = from + step;
   if (to < 0 || to >= order.length) return;
@@ -138,15 +145,15 @@ export function renderReference() {
     first[1].name.localeCompare(second[1].name),
   );
   const renderedRows = rows.map(([id, team]) => {
-    const won = lastTitle(id);
+    const won = findLastTitle(id);
     const seed = session.state.teams[id] && session.state.teams[id].seed;
     return html`<tr>
-      <td class="rank-col">${rankTag(id)}</td>
+      <td class="rank-col">${renderRankTag(id)}</td>
       <td class="seed-col">${seed || ""}</td>
-      <td>${teamTag(id)}</td>
+      <td>${renderTeamTag(id)}</td>
       <td class="lg-col"><span class="league-tag ${team.league}">${team.league}</span></td>
       <td class="tabular won-col">${won || html`&mdash;`}</td>
-      <td class="tabular">${droughtLabel(id)}</td>
+      <td class="tabular">${describeDrought(id)}</td>
     </tr>`;
   });
   setHtml(body, html`${renderedRows}`);

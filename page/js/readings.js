@@ -1,6 +1,6 @@
 import * as LogChanges from "./changes.js";
-import { sameJson } from "./compare.js";
-import { easternDay } from "./snapshot.js";
+import { isSameJson } from "./compare.js";
+import { readEasternDay } from "./snapshot.js";
 
 // Updates are rebuilt from these readings every time, so a fix to how changes.js finds them
 // reaches every update a kept reading covers. Readings are saved in parts, each one day's or
@@ -8,7 +8,7 @@ import { easternDay } from "./snapshot.js";
 
 const KEPT_DAYS = 14;
 
-export const readingsCollection = (year) => `readings-${year}`;
+export const nameReadingsCollection = (year) => `readings-${year}`;
 
 // Well under the Worker store's 64 KiB, so a busy day moves on to a new part before a write fails.
 const MAX_PART_LENGTH = 40 * 1024;
@@ -17,7 +17,7 @@ const MAX_PART_LENGTH = 40 * 1024;
 export const readReadingDay = (snapshot) =>
   snapshot.slate?.lastNight?.date ||
   snapshot.slate?.today?.date ||
-  easternDay(Date.parse(snapshot.asOf)).date;
+  readEasternDay(Date.parse(snapshot.asOf)).date;
 
 function listDayFinals(slate, day) {
   const slateDay = [slate?.today, slate?.lastNight].find((candidate) => candidate?.date === day);
@@ -55,7 +55,7 @@ function diffRecords(before, after) {
     const keys = new Set([...Object.keys(old), ...Object.keys(record)]);
     const fields = {};
     for (const key of keys) {
-      if (!sameJson(old[key], record[key])) fields[key] = record[key] ?? null;
+      if (!isSameJson(old[key], record[key])) fields[key] = record[key] ?? null;
     }
     if (Object.keys(fields).length) changes[id] = fields;
   }

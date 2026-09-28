@@ -6,7 +6,7 @@ import { TEAMS } from "./teams.js";
 function formatClock(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
-export function stampName(id) {
+export function formatStampName(id) {
   return TEAMS[id] ? TEAMS[id].name : String(id ?? "");
 }
 function describeFinal(game, day) {
@@ -16,14 +16,14 @@ function describeFinal(game, day) {
       ? [game.away, awayScore, game.home, homeScore]
       : [game.home, homeScore, game.away, awayScore];
   const when = `final at ${formatClock(game.end)}${day ? " " + day : ""}`;
-  return `${stampName(winner)} ${winnerScore} ${stampName(loser)} ${loserScore} ${when}`;
+  return `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore} ${when}`;
 }
 function describeLive(game) {
   const [awayScore, homeScore] = game.score || [0, 0];
-  return `${stampName(game.away)} @ ${stampName(game.home)} ${awayScore}-${homeScore} in the ${formatOrdinal(game.inning || 1)}`;
+  return `${formatStampName(game.away)} @ ${formatStampName(game.home)} ${awayScore}-${homeScore} in the ${formatOrdinal(game.inning || 1)}`;
 }
 function describeFirstPitch(game) {
-  return `${stampName(game.away)} @ ${stampName(game.home)} first pitch at ${formatClock(game.start)}`;
+  return `${formatStampName(game.away)} @ ${formatStampName(game.home)} first pitch at ${formatClock(game.start)}`;
 }
 function describeGame(game) {
   if (game.state === "final") return describeFinal(game);
@@ -108,7 +108,7 @@ function pickLeadGame(slate, started, context) {
   return pickGame(finals, context, PICK_ENDED);
 }
 
-export function lastStampText(slate, context) {
+export function describeLastStamp(slate, context) {
   const games = (slate.today && slate.today.games) || [];
   const started = games.filter((game) => game.state !== "pre");
   if (!started.length) return describeLastFinal(slate.lastFinal, context.now);
@@ -124,7 +124,7 @@ export function lastStampText(slate, context) {
   return joinClause(describeWithNote(pickLeadGame(slate, started, context)), describeSlate(games));
 }
 
-export function upNextText(slate, context) {
+export function describeUpNextGame(slate, context) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
   if (days.some((day) => (day.games || []).some((game) => game.state === "live"))) return null;
   for (const day of days) {
@@ -132,7 +132,7 @@ export function upNextText(slate, context) {
     const ahead = games.filter((game) => game.state === "pre");
     if (!ahead.length) continue;
     const game = pickGame(ahead, context, PICK_STARTS);
-    const matchup = `${stampName(game.away)} @ ${stampName(game.home)}`;
+    const matchup = `${formatStampName(game.away)} @ ${formatStampName(game.home)}`;
     const hasBegun = games.some((other) => other.state !== "pre");
     return {
       at: game.start,
@@ -144,18 +144,18 @@ export function upNextText(slate, context) {
   return null;
 }
 
-export function stampWhen(date, now = new Date()) {
+export function formatStampWhen(date, now = new Date()) {
   const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const day = stampDay(date, now);
+  const day = formatStampDay(date, now);
   return day === "today" ? time : `${day} ${time}`;
 }
 // Sets AM/PM apart so it can be styled smaller.
-export function stampWhenHtml(date, now = new Date()) {
-  const when = stampWhen(date, now);
+export function renderStampWhen(date, now = new Date()) {
+  const when = formatStampWhen(date, now);
   const parts = /^(.*\d)\s*(\D+)$/.exec(when);
   return parts ? html`${parts[1]}<span class="ap">${parts[2]}</span>` : html`${when}`;
 }
-export function stampDay(date, now = new Date()) {
+export function formatStampDay(date, now = new Date()) {
   const days = countDaysBetween(date, now);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
