@@ -1,5 +1,6 @@
 import { DAYS, countDaysBetween } from "./dates.js";
 import { html } from "./html.js";
+import { formatOrdinal } from "./ordinal.js";
 import { TEAMS } from "./teams.js";
 
 function formatClock(iso) {
@@ -8,12 +9,6 @@ function formatClock(iso) {
 export function stampName(id) {
   return TEAMS[id] ? TEAMS[id].name : String(id ?? "");
 }
-function formatOrdinal(number) {
-  const suffixes = ["th", "st", "nd", "rd"];
-  const lastTwoDigits = number % 100;
-  return number + (suffixes[(lastTwoDigits - 20) % 10] || suffixes[lastTwoDigits] || suffixes[0]);
-}
-
 function describeFinal(game, day) {
   const [awayScore, homeScore] = game.score || [0, 0];
   const [winner, winnerScore, loser, loserScore] =

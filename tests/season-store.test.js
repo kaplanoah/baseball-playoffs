@@ -22,10 +22,6 @@ function createStore(documents, { failUpdates = false } = {}) {
         exists: path in documents,
         data: () => documents[path],
       }),
-      set: async (data) => {
-        writes.push({ path, kind: "set", data });
-        documents[path] = data;
-      },
       update: async (fields) => {
         writes.push({ path, kind: "update", fields });
         if (failUpdates) throw Object.assign(new Error("try later"), { code: "unavailable" });
@@ -80,14 +76,15 @@ test("a failed save says so and never falls back to overwriting the season", asy
   assert.match(session.saveProblem, /Couldn't save/);
 });
 
-test("a season saved for the first time is created whole", async () => {
+test("a season saved for the first time is only updated, which the store creates", async () => {
   const documents = {};
   const { database, writes } = createStore(documents);
   session.db = database;
   await loadSeason(2026);
   await saveRanking(["NYY"]);
-  assert.equal(writes[0].kind, "set");
-  assert.deepEqual(documents["seasons/2026"].ranking, ["NYY"]);
+  assert.deepEqual(writes, [
+    { path: "seasons/2026", kind: "update", fields: { ranking: ["NYY"] } },
+  ]);
 });
 
 test("without a store, loading a season gives an empty one instead of failing", async () => {

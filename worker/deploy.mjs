@@ -197,27 +197,38 @@ export async function deploy({
     });
   }
 
+  // The upload makes the new version live, so anything that goes wrong after it puts the
+  // earlier one back.
+  async function restoreAfter(problem, previousVersions) {
+    if (!previousVersions) throw new Error(`${problem}, and no earlier version exists.`);
+    await rollBack(previousVersions).catch((error) => {
+      throw new Error(`${problem}, and the new version is still live: ${error.message}`);
+    });
+    throw new Error(`${problem}, so the earlier version is live again.`);
+  }
+
   // Deploy logs are public, and the address names the account's workers.dev subdomain.
   async function confirmWorkerAnswers(url, previousVersions) {
     if (await isWorkerAnswering(url, { fetchImpl, pause })) {
       log("worker check: ok");
       return;
     }
-    if (!previousVersions)
-      throw new Error("The Worker didn't answer, and no earlier version exists.");
-    await rollBack(previousVersions).catch((error) => {
-      throw new Error(
-        `The Worker didn't answer, and the new version is still live: ${error.message}`,
-      );
-    });
-    throw new Error("The Worker didn't answer, so the earlier version is live again.");
+    await restoreAfter("The Worker didn't answer", previousVersions);
+  }
+
+  async function findNewVersionUrl(previousVersions) {
+    try {
+      await enableWorkersDevRoute();
+      return await readWorkerUrl();
+    } catch (error) {
+      return restoreAfter(error instanceof Error ? error.message : String(error), previousVersions);
+    }
   }
 
   const previousVersions = await findLiveVersions();
   const migrations = listPendingMigrations(await readMigrationTag());
   await uploadWorker(migrations);
-  await enableWorkersDevRoute();
-  const url = await readWorkerUrl();
+  const url = await findNewVersionUrl(previousVersions);
   await confirmWorkerAnswers(url, previousVersions);
   return url;
 }

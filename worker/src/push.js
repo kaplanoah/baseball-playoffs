@@ -1,4 +1,5 @@
 import * as WebPush from "./web-push.js";
+import { respondError, respondJson } from "./responses.js";
 
 // Push subscriptions and the key that signs messages for them. Both are kept under keys the
 // store's own paths can't name, so the page's store never hands them out.
@@ -21,13 +22,6 @@ const TEST_MESSAGE = {
   body: "You'll hear here when something happens to a team in your ranking.",
   tag: "test",
 };
-
-const respondJson = (body, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-  });
-const respondError = (status, code, message) => respondJson({ error: { code, message } }, status);
 
 const isPushServiceHost = (host) =>
   PUSH_SERVICE_HOSTS.some((allowed) => host === allowed || host.endsWith(`.${allowed}`));

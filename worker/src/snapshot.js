@@ -1,4 +1,5 @@
 import * as MLBSnapshot from "../../page/js/snapshot.js";
+import { describeError, respondJson } from "./responses.js";
 
 const FIRST_SEASON = 1995;
 const LAST_SEASON = 2100;
@@ -7,14 +8,6 @@ const SEASON_RULE = `season must be a whole year between ${FIRST_SEASON} and ${L
 const UPSTREAM_TIMEOUT_MS = 8000;
 const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
 const SNAPSHOT_REUSE_MS = 10000;
-
-const describeError = (error) => (error instanceof Error ? error.message : String(error));
-
-const respondJson = (body, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" },
-  });
 
 // Reads MLB for the page, so every open page shares one trip to MLB at a time.
 export function createSnapshotServer({

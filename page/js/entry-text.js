@@ -1,6 +1,7 @@
 import { seriesLabel } from "./bracket.js";
 import { teamLabel } from "./clubs.js";
 import { html } from "./html.js";
+import { formatOrdinal } from "./ordinal.js";
 import { TEAMS } from "./teams.js";
 import { describeGame, findCommonGames, isResult, listResults } from "./update-groups.js";
 
@@ -187,12 +188,6 @@ function joinWords(items) {
   if (items.length < 2) return items;
   const separator = items.length > 2 ? ", and " : " and ";
   return [joinMarkup(items.slice(0, -1), ", "), separator, items[items.length - 1]];
-}
-
-function formatOrdinal(number) {
-  const lastTwo = number % 100;
-  if (lastTwo >= 11 && lastTwo <= 13) return `${number}th`;
-  return `${number}${["th", "st", "nd", "rd"][number % 10] || "th"}`;
 }
 
 const formatWinnerFirst = (score) => formatGameScore([Math.max(...score), Math.min(...score)]);

@@ -355,6 +355,24 @@ test("a failed check says so when there's nothing to go back to, or going back f
   );
 });
 
+test("a step that fails after the upload puts the live version back", async () => {
+  const { deploy } = await loadDeployModule();
+  const cloudflare = createFakeCloudflare({ refuse: "/mlb-live/subdomain" });
+  await assert.rejects(
+    deploy({
+      fetchImpl: cloudflare.fetchImpl,
+      env: ENV,
+      script: "",
+      log: () => {},
+      pause: skipPause,
+    }),
+    /workers.dev route failed: 10000: Authentication error, so the earlier version is live again/,
+  );
+  const calls = describeCalls(cloudflare.calls);
+  assert.equal(calls.at(-1), "POST /accounts/acct123/workers/scripts/mlb-live/deployments");
+  assert.deepEqual(JSON.parse(cloudflare.calls.at(-1).init.body).versions, LIVE_VERSIONS);
+});
+
 function createFakeGit({
   branch = "main",
   dirty = "",

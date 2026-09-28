@@ -1,6 +1,7 @@
 import { isEliminated } from "./bracket.js";
 import { rankTag, teamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
+import { formatOrdinal } from "./ordinal.js";
 import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
 import { session } from "./session.js";
 import { selectTab, wireTabs } from "./tabs.js";
@@ -24,12 +25,6 @@ let shownList = "today";
 
 const findGameTabs = () =>
   /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("#view-games [role=tab]")]);
-
-function formatOrdinal(number) {
-  const lastTwoDigits = number % 100;
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return `${number}th`;
-  return number + ({ 1: "st", 2: "nd", 3: "rd" }[number % 10] || "th");
-}
 
 // Game days are Eastern calendar dates, so they're read as dates, never as instants.
 function formatGameDay(date) {

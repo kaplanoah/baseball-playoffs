@@ -20,7 +20,7 @@
 - Tests: `tests/`. Every change to behavior comes with tests that fail without it, in the same PR.
 - Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript. `npm run deadcode` runs knip, which fails on unused files, exports, and dependencies: delete them rather than ignoring them.
 - Times show in the viewer's own time zone; only MLB's day (`easternDay`) is Eastern. Tests pass in any `TZ`: a test that asserts a time picks its zone with `tests/time-zone.js` or `test.use({ timezoneId })`.
-- The store returns documents frozen, with sorted keys. `update()` merges, so to remove a key, set it to `null`.
+- The store returns documents frozen, with sorted keys. The page can only `update()` a season's `ranking`, `seenAt`, `teams`, and `series`: each field it names is replaced whole, `null` removes one, and a missing season is created. Everything else is written by the Worker.
 
 ## Workflow
 
