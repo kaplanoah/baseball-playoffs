@@ -1,7 +1,8 @@
 import { TEAMS } from "./teams.js";
 
-// Which updates read as one: a clinch with the eliminations in its league that the same
-// update found, and eliminations that one game decided. Each group lists its lead first.
+// Which updates read as one: a clinch with the eliminations in its league that its game
+// decided or its update found, and eliminations that one game decided. Each group lists its
+// lead first.
 
 const isPair = (value) => Array.isArray(value) && value.length === 2;
 
@@ -28,16 +29,26 @@ export const findCommonGames = (entries) =>
 
 const leagueOf = (entry) => TEAMS[entry.team]?.league;
 
-const isSameUpdate = (first, second) =>
-  first.at === second.at && !!leagueOf(first) && leagueOf(first) === leagueOf(second);
+const isSameLeague = (first, second) => !!leagueOf(first) && leagueOf(first) === leagueOf(second);
 
-// A clinch with no game of its own came from what else the update found.
+// MLB can post a clinch minutes after the elimination the same game brought, so updates
+// that share a game group when found apart. The same clubs with the same score again are
+// a day away.
+const SAME_GAME_MS = 3 * 60 * 60 * 1000;
+
+const isNearby = (first, second) =>
+  Math.abs(Date.parse(first.at) - Date.parse(second.at)) <= SAME_GAME_MS;
+
+const sharesGame = (entries) =>
+  isNearby(entries[0], entries[entries.length - 1]) && findCommonGames(entries).length > 0;
+
+// A clinch with no game of its own came from what else its update found.
 const isClinchFor = (berth, elimination) =>
-  isSameUpdate(berth, elimination) &&
-  (!listResults(berth).length || findCommonGames([berth, elimination]).length > 0);
+  isSameLeague(berth, elimination) &&
+  (listResults(berth).length ? sharesGame([berth, elimination]) : berth.at === elimination.at);
 
 const joinsEliminations = (group, elimination) =>
-  isSameUpdate(group[0], elimination) && findCommonGames([...group, elimination]).length > 0;
+  isSameLeague(group[0], elimination) && sharesGame([...group, elimination]);
 
 function moveInto(groups, lead, entry) {
   groups.get(lead).push(entry);
