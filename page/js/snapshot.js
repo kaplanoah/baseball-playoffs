@@ -480,14 +480,20 @@ function listClubGames(games, day) {
   return { previous: listInOrder(previous), next: listInOrder(next) };
 }
 
+const NIGHT_END_HOUR = 6;
+
 // Before 6am Eastern, today is still last night while any of last night's games is unfinished.
+// Once they're all final, last night stays alongside until 6am, since its games still explain
+// what changes then.
 function buildSlate(games, clubGames, now) {
   const clock = easternDay(now);
   const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
   const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
   const lastNight = addDays(clock.date, -1);
+  const isNight = clock.hour < NIGHT_END_HOUR;
   const isLastNightUnfinished = listGamesOn(lastNight).some((game) => game.state !== "final");
-  const day = clock.hour < 6 && isLastNightUnfinished ? lastNight : clock.date;
+  const day = isNight && isLastNightUnfinished ? lastNight : clock.date;
+  const hasLastNightEnded = isNight && day !== lastNight;
 
   const nextDay = [...new Set(playable.map((game) => game.date))]
     .filter((date) => date > day)
@@ -506,6 +512,9 @@ function buildSlate(games, clubGames, now) {
       postponed: postponed.map(summarizeGame),
     },
     nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarizeGame) } : null,
+    lastNight: hasLastNightEnded
+      ? { date: lastNight, games: listGamesOn(lastNight).map(summarizeGame) }
+      : null,
     lastFinal: lastFinal ? summarizeGame(lastFinal) : null,
     ...listClubGames(clubGames, day),
   };

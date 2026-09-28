@@ -13,22 +13,15 @@ export const readingsCollection = (year) => `readings-${year}`;
 // Well under the Worker store's 64 KiB, so a busy day moves on to a new part before a write fails.
 const MAX_PART_LENGTH = 40 * 1024;
 
-// Once last night's games are all final the slate moves on to the new day, but a change
-// before 6am Eastern still comes from them, even the one that ended past midnight.
-const NIGHT_END_HOUR = 6;
-
-export function readReadingDay(snapshot) {
-  const clock = easternDay(Date.parse(snapshot.asOf));
-  if (!snapshot.slate) return clock.date;
-  return clock.hour < NIGHT_END_HOUR ? shiftDay(clock.date, -1) : snapshot.slate.today.date;
-}
+// A change before 6am Eastern comes from last night's games, even once the slate has moved on.
+export const readReadingDay = (snapshot) =>
+  snapshot.slate?.lastNight?.date ||
+  snapshot.slate?.today?.date ||
+  easternDay(Date.parse(snapshot.asOf)).date;
 
 function listDayFinals(slate, day) {
-  if (!slate) return [];
-  const today = slate.today.games.map((game) => ({ date: slate.today.date, ...game }));
-  return [...(slate.previous || []), ...today]
-    .filter((game) => game.state === "final" && game.date === day)
-    .map(({ date, ...game }) => game);
+  const slateDay = [slate?.today, slate?.lastNight].find((candidate) => candidate?.date === day);
+  return (slateDay?.games || []).filter((game) => game.state === "final");
 }
 
 // A reading keeps only what findChanges reads: the field, the standings without each club's

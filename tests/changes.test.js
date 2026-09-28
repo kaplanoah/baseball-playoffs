@@ -144,9 +144,21 @@ test("a doubleheader's change is explained by the game that made it, game 2 here
     { ...createFinal("TEX", "MIN", [4, 6]), start: "2026-09-24T22:05:00Z", doubleheader: 2 },
   ];
   const rangersLoss = { team: "TEX", won: false, opp: "MIN", score: [4, 6] };
-  assert.deepEqual(findTableChanges(before, after, TEAMS, TEAMS, games), [
-    { kind: "berth", team: "HOU", what: "division", div: "AL West", via: [rangersLoss] },
-  ]);
+  const clinch = {
+    kind: "berth",
+    team: "HOU",
+    what: "division",
+    div: "AL West",
+    via: [rangersLoss],
+  };
+  assert.deepEqual(findTableChanges(before, after, TEAMS, TEAMS, games), [clinch]);
+  // MLB can list game 2 with the earlier start time.
+  const [first, second] = games;
+  const listedEarly = [
+    { ...first, start: "2026-09-24T22:05:00Z" },
+    { ...second, start: "2026-09-24T17:05:00Z" },
+  ];
+  assert.deepEqual(findTableChanges(before, after, TEAMS, TEAMS, listedEarly), [clinch]);
 });
 
 // The Orioles chase the White Sox, the last wild card, and are one result from out.

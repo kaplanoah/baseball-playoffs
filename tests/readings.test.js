@@ -50,22 +50,33 @@ test("the first reading is the start, and a repeat adds nothing", () => {
 test("past midnight, a reading keeps the night's finals once the slate has moved on", () => {
   const fixture = JSON.parse(JSON.stringify(EVENING));
   const lastNight = fixture.responses.schedule.dates.find((date) => date.date === "2026-09-24");
+  const [firstGame] = lastNight.games;
+  const secondGame = {
+    ...structuredClone(firstGame),
+    gamePk: 1,
+    gameNumber: 2,
+    gameDate: "2026-09-24T21:00:00Z",
+  };
+  Object.assign(firstGame, { doubleHeader: "Y", gameNumber: 1 });
+  secondGame.doubleHeader = "Y";
+  lastNight.games.push(secondGame);
   for (const game of lastNight.games) {
     game.status = { abstractGameState: "Final", codedGameState: "F", detailedState: "Final" };
     game.teams.away.score ??= 1;
     game.teams.home.score ??= 2;
   }
-  const snapshot = MLBSnapshot.buildSnapshot(fixture.responses, {
-    season: 2026,
-    now: Date.parse("2026-09-25T05:12:00Z"),
-  });
-  assert.equal(snapshot.slate.today.date, "2026-09-25");
-  assert.equal(Readings.readReadingDay(snapshot), "2026-09-24");
-  const reading = Readings.createReading(snapshot);
+  const buildAt = (now) =>
+    MLBSnapshot.buildSnapshot(fixture.responses, { season: 2026, now: Date.parse(now) });
+
+  const pastMidnight = buildAt("2026-09-25T05:12:00Z");
+  assert.equal(pastMidnight.slate.today.date, "2026-09-25");
+  assert.equal(Readings.readReadingDay(pastMidnight), "2026-09-24");
+  const reading = Readings.createReading(pastMidnight);
   assert.equal(Object.keys(reading.games).length, lastNight.games.length);
   assert.ok("LAA-SEA-1" in reading.games);
+  assert.ok("STL-PIT-1" in reading.games && "STL-PIT-2" in reading.games);
 
-  const morning = { ...snapshot, asOf: "2026-09-25T10:00:00Z" };
+  const morning = buildAt("2026-09-25T10:00:00Z");
   assert.equal(Readings.readReadingDay(morning), "2026-09-25");
   assert.deepEqual(Readings.createReading(morning).games, {});
 });
