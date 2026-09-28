@@ -1,4 +1,4 @@
-import { hasWonDivision } from "./snapshot.js";
+import { SEASON_GAMES, hasWonDivision } from "./snapshot.js";
 
 export const MAX_LOG = 50;
 
@@ -44,12 +44,14 @@ function findLatestEnd(games) {
   return ends.sort((first, second) => Date.parse(first) - Date.parse(second)).pop() || null;
 }
 
+const dropEnd = ({ end, ...result }) => result;
+
 // `at` is when the change was noticed, so a change found after the last dismissal still
 // shows as new. `ended` is when the last game behind it ended: when the change happened.
 function createEntry(fields, results, at) {
   const games = results.filter(Boolean);
   const entry = { ...fields };
-  if (games.length) entry.via = games.map(({ end, ...result }) => result);
+  if (games.length) entry.via = games.map(dropEnd);
   const ended = findLatestEnd(games);
   if (ended) entry.ended = ended;
   entry.at = new Date(at).toISOString().replace(".000Z", "Z");
@@ -150,6 +152,30 @@ function findBerthWon(before, after, id) {
   return now && BERTH_RANKS[now] > (was ? BERTH_RANKS[was] : 0) ? now : null;
 }
 
+const DIVISION_BERTHS = new Set(["division", "bye"]);
+
+// A division is won once the last rival is out of it, so a rival's loss can win it for a
+// club that didn't play.
+function findRivalLosses(before, after, id, games) {
+  const rivals = Object.values(after).filter(
+    (row) =>
+      row.id !== id &&
+      row.div === after[id].div &&
+      row.elim === "E" &&
+      before[row.id]?.elim !== "E",
+  );
+  return rivals.map((row) => findLoss(games, row.id));
+}
+
+function findBerth(id, before, after, games, at) {
+  const berth = findBerthWon(before, after, id);
+  if (!berth) return null;
+  const fields = { kind: "berth", team: id, what: berth };
+  if (berth === "division") fields.div = after[id].div;
+  const rivalLosses = DIVISION_BERTHS.has(berth) ? findRivalLosses(before, after, id, games) : [];
+  return createEntry(fields, [findWin(games, id), ...rivalLosses], at);
+}
+
 function findChaser(oldRow, row, after) {
   if (oldRow.wce !== "E") return findLastWildCard(after, row.div.slice(0, 2));
   if (oldRow.elim !== "E")
@@ -157,25 +183,49 @@ function findChaser(oldRow, row, after) {
   return null;
 }
 
+// The race a club went out of, and the most wins it can reach against the chaser's.
+function describeRace(oldRow, after, id, chaser) {
+  if (!chaser) return {};
+  const race = oldRow.wce !== "E" ? "wildcard" : after[id].div;
+  const most = SEASON_GAMES - Number(after[id].l);
+  const target = Number(after[chaser].w);
+  return Number.isFinite(most) && Number.isFinite(target) ? { race, most, target } : { race };
+}
+
+const countPlayed = (row) => (row ? Number(row.w) + Number(row.l) : NaN);
+const hasNewResult = (before, after, id) => countPlayed(after[id]) > countPlayed(before[id]);
+
+// When a club's loss and its chaser's win both counted, the one the standings took in last
+// decided it. Taken in together, neither did.
+function findDecider(before, after, loss, chaserWin) {
+  if (!loss || !chaserWin || loss.opp === chaserWin.team) return {};
+  const isLossNew = hasNewResult(before, after, loss.team);
+  if (isLossNew === hasNewResult(before, after, chaserWin.team)) return {};
+  return { decider: isLossNew ? loss.team : chaserWin.team };
+}
+
+function findElimination(id, before, after, games, at) {
+  const chaser = findChaser(before[id], after[id], after);
+  const loss = findLoss(games, id);
+  const chaserWin = findWin(games, chaser);
+  /** @type {Record<string, any>} */
+  const fields = {
+    kind: "elim",
+    team: id,
+    ...describeRace(before[id], after, id, chaser),
+    ...findDecider(before, after, loss, chaserWin),
+  };
+  const ownWin = findWin(games, id);
+  if (ownWin) fields.despite = dropEnd(ownWin);
+  return createEntry(fields, [loss, chaserWin], at);
+}
+
 function findStandingsChanges(before, after, games, at) {
-  const changes = [];
-  const clubs = Object.entries(after).filter(([id]) => before[id]);
-  for (const [id, row] of clubs) {
-    const berth = findBerthWon(before, after, id);
-    if (!berth) continue;
-    const fields = { kind: "berth", team: id, what: berth };
-    if (berth === "division") fields.div = row.div;
-    changes.push(createEntry(fields, [findWin(games, id)], at));
-  }
-  for (const [id, row] of clubs) {
-    const oldRow = before[id];
-    if (!isOutOfIt(row) || isOutOfIt(oldRow)) continue;
-    const chaser = findChaser(oldRow, row, after);
-    changes.push(
-      createEntry({ kind: "elim", team: id }, [findLoss(games, id), findWin(games, chaser)], at),
-    );
-  }
-  return changes;
+  const clubs = Object.keys(after).filter((id) => before[id]);
+  const berths = clubs.map((id) => findBerth(id, before, after, games, at));
+  const eliminated = clubs.filter((id) => isOutOfIt(after[id]) && !isOutOfIt(before[id]));
+  const eliminations = eliminated.map((id) => findElimination(id, before, after, games, at));
+  return [...berths.filter(Boolean), ...eliminations];
 }
 
 const listGames = (reading) =>

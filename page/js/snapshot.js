@@ -569,7 +569,7 @@ function buildStandingsRow(id, record) {
 export const hasWonDivision = (row, divisionRows) =>
   row.lead && divisionRows.every((other) => other.id === row.id || other.elim === "E");
 
-const SEASON_GAMES = 162;
+export const SEASON_GAMES = 162;
 
 // MLB gives a club tied for the lead "-" instead of an elimination number, so a tie is
 // counted the way MLB counts the rest: a tie at the end doesn't clinch.

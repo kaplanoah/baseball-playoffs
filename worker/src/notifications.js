@@ -1,8 +1,9 @@
 import { findSeries } from "../../page/js/bracket.js";
 import { describeKey } from "../../page/js/changes.js";
 import { teamLabel } from "../../page/js/clubs.js";
-import { describeEntry } from "../../page/js/entry-text.js";
+import { describeUpdate } from "../../page/js/entry-text.js";
 import { convertToText } from "../../page/js/html.js";
+import { groupUpdates } from "../../page/js/update-groups.js";
 
 // Which new updates become notifications, and what they say.
 
@@ -32,6 +33,8 @@ function isAboutRanked(entry, ranking, state) {
   return clubs === null ? ranking.length > 0 : clubs.some((id) => id && ranking.includes(id));
 }
 
+// Grouped before the ranking is checked, so a ranked club's update brings along the
+// eliminations it caused.
 /**
  * @param {object} options
  * @param {Record<string, any>[]} options.before the updates before this snapshot was saved
@@ -40,29 +43,29 @@ function isAboutRanked(entry, ranking, state) {
  * @param {{ teams: object, series: object }} options.state
  * @param {number} options.now
  */
-export function findNotableEntries({ before, after, ranking, state, now }) {
+export function findNotableUpdates({ before, after, ranking, state, now }) {
   const known = new Set(before.map(describeKey));
-  return after.filter(
-    (entry) =>
-      !known.has(describeKey(entry)) &&
-      Date.parse(entry.at) >= now - RECENT_MS &&
-      isAboutRanked(entry, ranking, state),
+  const fresh = after.filter(
+    (entry) => !known.has(describeKey(entry)) && Date.parse(entry.at) >= now - RECENT_MS,
+  );
+  return groupUpdates(fresh).filter((group) =>
+    group.some((entry) => isAboutRanked(entry, ranking, state)),
   );
 }
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // The sentence's main clause is the title, and what explains it is the body.
-export function describeNotification(entry, context) {
-  const markup = describeEntry(entry, { renderClub: teamLabel, ...context });
+export function describeNotification(group, context) {
+  const markup = describeUpdate(group, { renderClub: teamLabel, ...context });
   if (!markup) return null;
   const [title, ...rest] = convertToText(markup).split(SENTENCE_BREAK);
-  return { title, body: capitalize(rest.join(SENTENCE_BREAK)), tag: describeKey(entry) };
+  return { title, body: capitalize(rest.join(SENTENCE_BREAK)), tag: describeKey(group[0]) };
 }
 
 // Past a few at once, the rest are summed up in one, so a busy night doesn't bury the phone.
-export function listNotifications(entries, context) {
-  const messages = entries.map((entry) => describeNotification(entry, context)).filter(Boolean);
+export function listNotifications(groups, context) {
+  const messages = groups.map((group) => describeNotification(group, context)).filter(Boolean);
   if (messages.length <= MAX_NOTIFIED) return messages;
   const shown = messages.slice(0, MAX_NOTIFIED - 1);
   const rest = messages.length - shown.length;

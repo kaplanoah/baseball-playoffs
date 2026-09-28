@@ -82,7 +82,7 @@ test("one White Sox win: the Orioles are out and the White Sox are in", () => {
     findTableChanges(BEFORE, after, TEAMS, TEAMS, [createFinal("CWS", "KC", [9, 1])]),
     [
       { kind: "berth", team: "CWS", what: "playoff", via: [whiteSoxWin] },
-      { kind: "elim", team: "BAL", via: [whiteSoxWin] },
+      { kind: "elim", team: "BAL", race: "wildcard", via: [whiteSoxWin] },
     ],
   );
 });
@@ -121,9 +121,68 @@ test("the Rangers pass the Astros: the spot, how far back, and the game", () => 
         outAlive: true,
         outBack: "0.5",
       },
-      { kind: "elim", team: "SEA", via: [rangersWin] },
+      { kind: "elim", team: "SEA", race: "AL West", via: [rangersWin] },
     ],
   );
+});
+
+test("a division won by a rival's loss names that loss", () => {
+  const before = updateRow(updateRow(BEFORE, "SEA", { elim: "E" }), "TEX", { elim: "1" });
+  const after = updateRow(before, "TEX", { elim: "E" });
+  const rangersLoss = { team: "TEX", won: false, opp: "MIN", score: [4, 6] };
+  assert.deepEqual(
+    findTableChanges(before, after, TEAMS, TEAMS, [createFinal("TEX", "MIN", [4, 6])]),
+    [{ kind: "berth", team: "HOU", what: "division", div: "AL West", via: [rangersLoss] }],
+  );
+});
+
+// The Orioles chase the White Sox, the last wild card, and are one result from out.
+const CHASE = updateRow(updateRow(BEFORE, "BAL", { w: 80, l: 78 }), "CWS", { w: 85, l: 75 });
+const ORIOLES_LOSS = { team: "BAL", won: false, opp: "NYY", score: [2, 4] };
+const WHITE_SOX_WIN = { team: "CWS", won: true, opp: "KC", score: [9, 1] };
+const CHASE_GAMES = [createFinal("NYY", "BAL", [4, 2]), createFinal("CWS", "KC", [9, 1])];
+
+function findChaseElimination(before, after) {
+  const eliminated = updateRow(after, "BAL", { wce: "E" });
+  return findTableChanges(before, eliminated, TEAMS, TEAMS, CHASE_GAMES)[0];
+}
+
+test("an elimination names the race and the most wins the club can reach", () => {
+  const before = updateRow(CHASE, "BAL", { l: 79 });
+  const after = updateRow(before, "CWS", { w: 86 });
+  assert.deepEqual(findChaseElimination(before, after), {
+    kind: "elim",
+    team: "BAL",
+    race: "wildcard",
+    most: 83,
+    target: 86,
+    decider: "CWS",
+    via: [ORIOLES_LOSS, WHITE_SOX_WIN],
+  });
+});
+
+test("of a loss and the chaser's win, the one the standings took in last decided it", () => {
+  const lossFirst = updateRow(CHASE, "BAL", { l: 79 });
+  assert.equal(
+    findChaseElimination(lossFirst, updateRow(lossFirst, "CWS", { w: 86 })).decider,
+    "CWS",
+  );
+  const winFirst = updateRow(CHASE, "CWS", { w: 86 });
+  assert.equal(
+    findChaseElimination(winFirst, updateRow(winFirst, "BAL", { l: 79 })).decider,
+    "BAL",
+  );
+  const bothAtOnce = updateRow(updateRow(CHASE, "BAL", { l: 79 }), "CWS", { w: 86 });
+  assert.equal(findChaseElimination(CHASE, bothAtOnce).decider, undefined);
+});
+
+test("an elimination keeps the club's own win that day, which didn't save it", () => {
+  const after = updateRow(CHASE, "CWS", { w: 86 });
+  const games = [createFinal("BAL", "NYY", [4, 2]), createFinal("CWS", "KC", [9, 1])];
+  const eliminated = updateRow(updateRow(after, "BAL", { w: 81 }), "BAL", { wce: "E" });
+  const [entry] = findTableChanges(CHASE, eliminated, TEAMS, TEAMS, games);
+  assert.deepEqual(entry.despite, { team: "BAL", won: true, opp: "NYY", score: [4, 2] });
+  assert.deepEqual(entry.via, [WHITE_SOX_WIN]);
 });
 
 test("MLB's division marker on a wild card club is only a playoff spot", () => {
