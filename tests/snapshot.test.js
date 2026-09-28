@@ -146,6 +146,75 @@ test("halfway: division series under way, the next game named, later rounds wait
   assert.equal(snapshot.log.filter((entry) => entry.kind === "clinch").length, 4);
 });
 
+const indexStandingsRows = (snapshot) =>
+  Object.fromEntries(
+    Object.values(snapshot.standings.divisions)
+      .flat()
+      .map((row) => [row.id, row]),
+  );
+
+test("a bracket just set: each club's next postseason game, opponent or not", () => {
+  const snapshot = buildSnapshot(
+    rewindFixture(SEASON_2025, "2025-09-30T00:00:00Z", {
+      unsetRounds: ["CS", "WS"],
+      unsetWildCardWinners: true,
+    }),
+    Date.parse("2025-09-29T16:00:00Z"),
+  );
+  const rows = indexStandingsRows(snapshot);
+  assert.deepEqual(rows.DET.next, {
+    at: "2025-09-30T17:08:00Z",
+    opp: "CLE",
+    home: false,
+    tbd: false,
+    postseason: true,
+  });
+  assert.deepEqual(rows.TOR.next, {
+    at: "2025-10-04T20:08:00Z",
+    home: true,
+    tbd: false,
+    postseason: true,
+  });
+  assert.equal(rows.KC.next, undefined);
+});
+
+test("halfway: a decided series' unneeded game isn't next, and a club that's out has none", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-10-08T12:00:00Z", { unsetRounds: ["CS", "WS"] });
+  const [unneeded] = fixture.responses.postseason.dates
+    .flatMap((day) => day.games)
+    .filter(
+      (game) => game.seriesDescription === "NL Wild Card Series" && game.teams.home.team.id === 119,
+    )
+    .map((game) => ({ ...game, gamePk: 1, seriesGameNumber: 3, gameDate: "2025-10-02T23:08:00Z" }));
+  unneeded.status = {
+    abstractGameState: "Preview",
+    codedGameState: "S",
+    detailedState: "Scheduled",
+  };
+  fixture.responses.postseason.dates.push({ games: [unneeded] });
+  const rows = indexStandingsRows(buildSnapshot(fixture, Date.parse("2025-10-08T14:00:00Z")));
+  assert.deepEqual(rows.LAD.next, {
+    at: "2025-10-09T01:08:00Z",
+    opp: "PHI",
+    home: true,
+    tbd: false,
+    postseason: true,
+  });
+  assert.deepEqual(rows.TOR.next, {
+    at: "2025-10-08T23:08:00Z",
+    opp: "NYY",
+    home: false,
+    tbd: false,
+    postseason: true,
+  });
+  assert.equal(rows.CLE.next, undefined);
+});
+
+test("2025: no club has a next game once the postseason is over", () => {
+  const rows = Object.values(indexStandingsRows(buildSnapshot(SEASON_2025)));
+  assert.ok(rows.every((row) => !row.next && !row.then));
+});
+
 test("September: seeds projected from the standings, placeholders ignored", () => {
   const snapshot = buildSnapshot(EVENING);
   assert.equal(snapshot.projected, true);

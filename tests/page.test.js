@@ -49,8 +49,36 @@ test("Next column: today, another day, home and away", () =>
       renderCell({ at: "2026-09-25T23:05:00Z", home: true, opp: "NYY" }),
       '<td class="next-cell">Fri 7:05 vs NYY</td>',
     );
-    assert.equal(renderCell(null), '<td class="next-cell"></td>');
+    assert.equal(renderCell(null), '<td class="next-cell">&mdash;</td>');
   }));
+
+test("Next column: a club that's out shows only a postseason game", () =>
+  checkAt(NOON, () => {
+    const renderCell = (next) => normalizeSpaces(renderNextCell({ next }, { isOut: true }));
+    const friday = { at: "2026-09-25T23:05:00Z", home: true, opp: "NYY" };
+    assert.equal(renderCell(friday), '<td class="next-cell">&mdash;</td>');
+    assert.equal(
+      renderCell({ ...friday, postseason: true }),
+      '<td class="next-cell">Fri 7:05 vs NYY</td>',
+    );
+  }));
+
+test("Next column: a postseason opponent not yet known", () =>
+  checkAt(NOON, () => {
+    const next = { at: "2026-09-25T23:05:00Z", home: true, postseason: true };
+    assert.equal(
+      normalizeSpaces(renderNextCell({ next })),
+      '<td class="next-cell">Fri 7:05 vs TBD</td>',
+    );
+  }));
+
+test("Next column: shown with a dash when no club has a game left", () => {
+  const block = String(
+    renderDivisionBlock("AL East", [{ id: "NYY", w: 94, l: 68, pct: ".580", gb: "-" }]),
+  );
+  assert.match(block, /<th class="left next-cell">Next<\/th>/);
+  assert.match(block, /<td class="next-cell">&mdash;<\/td>/);
+});
 
 test("update log: a seed pass, with the game behind it", () => {
   const text = describeEntry({
@@ -360,7 +388,7 @@ test("Next column: a game that has started gives way to the one after it", () =>
       renderCell({ next: today, then: friday }),
       '<td class="next-cell">Fri 1:05 @ BOS</td>',
     );
-    assert.equal(renderCell({ next: today }), '<td class="next-cell"></td>');
+    assert.equal(renderCell({ next: today }), '<td class="next-cell">&mdash;</td>');
   }));
 
 test("division header: a magic number only when there is a number", () => {
