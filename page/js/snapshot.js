@@ -535,7 +535,7 @@ function listStandingsRows(response) {
 
 // A postseason game can list a club before its opponent is known, so one known club is enough.
 function describeUpcomingGame(game, opponent, home) {
-  const upcoming = { at: game.start, home, tbd: game.tbd };
+  const upcoming = { at: game.start, date: game.date, home, tbd: game.tbd };
   if (opponent) upcoming.opp = opponent;
   if (game.type !== "R") upcoming.postseason = true;
   return upcoming;

@@ -62,8 +62,12 @@ export async function loadSeasonList() {
   return stored.includes(active) ? stored : [active, ...stored];
 }
 
+// A load for a year the viewer has since moved on from is dropped.
+const isStillActive = (year) => year === session.activeYear;
+
 export async function loadSeason(year) {
   const snapshot = session.db ? await session.db.doc(`seasons/${year}`).get() : null;
+  if (!isStillActive(year)) return;
   session.seasonDoc = normalizeSeason(readDoc(snapshot), year);
   composeState();
 }
@@ -71,12 +75,14 @@ export async function loadSeason(year) {
 export async function loadStandings(year) {
   session.storedStandings = null;
   if (session.db) {
+    let stored;
     try {
-      const snapshot = await session.db.doc(`standings/${year}`).get();
-      session.storedStandings = readDoc(snapshot);
+      stored = readDoc(await session.db.doc(`standings/${year}`).get());
     } catch {
-      session.storedStandings = null;
+      stored = null;
     }
+    if (!isStillActive(year)) return;
+    session.storedStandings = stored;
   }
   composeState();
 }
@@ -90,15 +96,18 @@ const readParts = (docs) => sortParts(docs.map((doc) => doc.data()));
 export async function loadReadings(year) {
   session.readings = null;
   if (session.db) {
+    let readings;
     try {
       const result = await session.db
         .collection(readingsCollection(year))
         .limit(READING_PARTS_LIMIT)
         .get();
-      session.readings = readParts(result.docs);
+      readings = readParts(result.docs);
     } catch {
-      session.readings = null;
+      readings = null;
     }
+    if (!isStillActive(year)) return;
+    session.readings = readings;
   }
   composeState();
 }
@@ -151,6 +160,17 @@ function applySeason(incoming) {
   return true;
 }
 
+// Saves echo back in order, and the echo of one while a newer save is on its way would put
+// back an order this page has moved on from.
+let unechoedRankings = [];
+
+function keepNewerRanking(incoming) {
+  const index = unechoedRankings.indexOf(incoming.ranking.join());
+  if (index === -1) return incoming;
+  unechoedRankings = unechoedRankings.slice(index + 1);
+  return unechoedRankings.length ? { ...incoming, ranking: session.seasonDoc.ranking } : incoming;
+}
+
 // A drag keeps the order it shows, so an update that arrives during one waits for it to end.
 export function watchSeason(year, onChange) {
   if (unwatchSeason) {
@@ -158,11 +178,12 @@ export function watchSeason(year, onChange) {
     unwatchSeason = null;
   }
   deferredSeason = null;
+  unechoedRankings = [];
   if (!session.db) return;
   unwatchSeason = session.db.doc(`seasons/${year}`).onSnapshot(
     (snapshot) => {
       if (!snapshot.exists) return;
-      const incoming = normalizeSeason(readDoc(snapshot), year);
+      const incoming = keepNewerRanking(normalizeSeason(readDoc(snapshot), year));
       if (session.isReordering) {
         deferredSeason = incoming;
         return;
@@ -173,10 +194,12 @@ export function watchSeason(year, onChange) {
   );
 }
 
-// The drag's own order wins over the one in the deferred update.
-export function applyDeferredSeason() {
+// A drag that moved a club keeps its own order over the one in the deferred update.
+export function applyDeferredSeason(hasMoved) {
   if (!deferredSeason) return;
-  const incoming = { ...deferredSeason, ranking: session.seasonDoc.ranking };
+  const incoming = hasMoved
+    ? { ...deferredSeason, ranking: session.seasonDoc.ranking }
+    : deferredSeason;
   deferredSeason = null;
   applySeason(incoming);
 }
@@ -209,7 +232,14 @@ export async function saveTeams(teams) {
 export async function saveRanking(order) {
   session.seasonDoc.ranking = order;
   session.state.ranking = order;
-  await writeSeason({ ranking: order });
+  const saved = order.join();
+  if (session.db) unechoedRankings.push(saved);
+  try {
+    await writeSeason({ ranking: order });
+  } catch (error) {
+    unechoedRankings = unechoedRankings.filter((pending) => pending !== saved);
+    throw error;
+  }
 }
 
 export async function saveSeenAt(at) {

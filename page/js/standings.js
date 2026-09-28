@@ -1,5 +1,5 @@
 import { rankTag, teamTag } from "./clubs.js";
-import { DAYS, countDaysBetween } from "./dates.js";
+import { DAYS, countDaysBetween, readGameDay } from "./dates.js";
 import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 
@@ -41,9 +41,10 @@ export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
   const next = findNextGame(row, now);
   if (!isNextShown(next, isOut)) return EMPTY_NEXT_CELL;
   const start = new Date(next.at);
-  if (Number.isNaN(start.getTime())) return EMPTY_NEXT_CELL;
+  const gameDay = readGameDay(next);
+  if (!gameDay) return EMPTY_NEXT_CELL;
   const day =
-    countDaysBetween(start, new Date(now)) === 0 ? "Today" : DAYS[start.getDay()].slice(0, 3);
+    countDaysBetween(gameDay, new Date(now)) === 0 ? "Today" : DAYS[gameDay.getDay()].slice(0, 3);
   const time = next.tbd
     ? ""
     : " " +

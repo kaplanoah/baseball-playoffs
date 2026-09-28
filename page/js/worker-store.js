@@ -36,13 +36,29 @@ async function requestJson(url, init = {}) {
     throw new StoreError("unavailable", error instanceof Error ? error.message : String(error));
   }
   if (response.status === 204) return null;
-  const body = await response.json().catch(() => ({}));
+  const body = await response.json().catch(() => null);
   if (!response.ok)
     throw new StoreError(
-      body.error?.code || `http_${response.status}`,
-      body.error?.message || `The store answered ${response.status}.`,
+      body?.error?.code || `http_${response.status}`,
+      body?.error?.message || `The store answered ${response.status}.`,
     );
+  // Something between the page and the Worker, like a captive portal, can answer instead.
+  if (!body || typeof body !== "object")
+    throw new StoreError("bad_payload", "The store's answer couldn't be read.");
   return body;
+}
+
+async function readData(url) {
+  const body = await requestJson(url);
+  if (!("data" in body)) throw new StoreError("bad_payload", "The store's answer had no document.");
+  return body.data;
+}
+
+async function readDocs(url) {
+  const body = await requestJson(url);
+  if (!Array.isArray(body.docs))
+    throw new StoreError("bad_payload", "The store's answer had no documents.");
+  return body.docs;
 }
 
 const sendJson = (method, data) => ({
@@ -75,8 +91,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   }
 
   async function readSnapshot(path) {
-    const { data } = await requestJson(findUrl(path));
-    return createSnapshot(readId(path), data);
+    return createSnapshot(readId(path), await readData(findUrl(path)));
   }
 
   async function refreshPath(path) {
@@ -98,7 +113,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     const watch = collectionWatches.get(name);
     const startedAt = ++clock;
     try {
-      const { docs } = await requestJson(findListUrl(name, watch.limit));
+      const docs = await readDocs(findListUrl(name, watch.limit));
       if (collectionWatches.get(name) !== watch) return;
       const docsById = new Map(docs.map(({ id, data }) => [id, data]));
       for (const [id, pushed] of watch.pushes) {
@@ -234,7 +249,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     return {
       limit: (count) => ({
         get: async () => {
-          const { docs } = await requestJson(findListUrl(name, count));
+          const docs = await readDocs(findListUrl(name, count));
           return { docs: docs.map(({ id, data }) => createSnapshot(id, data)) };
         },
         onSnapshot: (onNext, onError = () => {}) => watchCollection(name, count, onNext, onError),

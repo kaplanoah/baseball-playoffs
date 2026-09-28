@@ -194,6 +194,7 @@ test("a bracket just set: each club's next postseason game, opponent or not", ()
   const rows = indexStandingsRows(snapshot);
   assert.deepEqual(rows.DET.next, {
     at: "2025-09-30T17:08:00Z",
+    date: "2025-09-30",
     opp: "CLE",
     home: false,
     tbd: false,
@@ -201,6 +202,7 @@ test("a bracket just set: each club's next postseason game, opponent or not", ()
   });
   assert.deepEqual(rows.TOR.next, {
     at: "2025-10-04T20:08:00Z",
+    date: "2025-10-04",
     home: true,
     tbd: false,
     postseason: true,
@@ -225,6 +227,7 @@ test("halfway: a decided series' unneeded game isn't next, and a club that's out
   const rows = indexStandingsRows(buildSnapshot(fixture, Date.parse("2025-10-08T14:00:00Z")));
   assert.deepEqual(rows.LAD.next, {
     at: "2025-10-09T01:08:00Z",
+    date: "2025-10-08",
     opp: "PHI",
     home: true,
     tbd: false,
@@ -232,6 +235,7 @@ test("halfway: a decided series' unneeded game isn't next, and a club that's out
   });
   assert.deepEqual(rows.TOR.next, {
     at: "2025-10-08T23:08:00Z",
+    date: "2025-10-08",
     opp: "NYY",
     home: false,
     tbd: false,
@@ -313,11 +317,18 @@ test("September: the standings table the page draws", () => {
   // doubleheader's second game open.
   assert.deepEqual(east[1].next, {
     at: "2026-09-25T20:05:00Z",
+    date: "2026-09-25",
     opp: "BAL",
     home: true,
     tbd: false,
   });
-  assert.deepEqual(east[1].then, { at: "2026-09-25T20:10:00Z", opp: "BAL", home: true, tbd: true });
+  assert.deepEqual(east[1].then, {
+    at: "2026-09-25T20:10:00Z",
+    date: "2026-09-25",
+    opp: "BAL",
+    home: true,
+    tbd: true,
+  });
 });
 
 test("September: the day's games, in the shape the stamp reads", () => {

@@ -1,6 +1,7 @@
 // The page shows every time in the viewer's own time zone, while MLB's day stays Eastern.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readGameDay } from "../page/js/dates.js";
 import { easternDay } from "../page/js/snapshot.js";
 import { lastStampText } from "../page/js/stamp.js";
 import { renderNextCell } from "../page/js/standings.js";
@@ -58,6 +59,40 @@ test("the Next column names the viewer's own day and time", () => {
     assert.equal(
       checkInTimeZone(zone, () => normalizeSpaces(renderNextCell(row, { now: noon }))),
       `<td class="next-cell">${when} @ ATH</td>`,
+      zone,
+    );
+});
+
+test("a game's day is the viewer's own once its time is set, and MLB's until then", () => {
+  // 8:08 PM Eastern on October 1 is already October 2 in Berlin and Tokyo.
+  const timed = { at: "2026-10-02T00:08:00Z", date: "2026-10-01", tbd: false };
+  // MLB's placeholder time for a game with no time yet is the evening before out west.
+  const untimed = { at: "2026-09-29T07:33:00Z", date: "2026-09-29", tbd: true };
+  const expected = {
+    "America/New_York": ["10/1", "9/29"],
+    "Pacific/Honolulu": ["10/1", "9/29"],
+    "Europe/Berlin": ["10/2", "9/29"],
+    "Asia/Tokyo": ["10/2", "9/29"],
+  };
+  const formatDay = (game) => {
+    const day = readGameDay(game);
+    return `${day.getMonth() + 1}/${day.getDate()}`;
+  };
+  for (const [zone, days] of Object.entries(expected))
+    assert.deepEqual(
+      checkInTimeZone(zone, () => [formatDay(timed), formatDay(untimed)]),
+      days,
+      zone,
+    );
+});
+
+test("the Next column gives a game with no time yet MLB's day", () => {
+  const row = { next: { at: "2026-09-29T07:33:00Z", date: "2026-09-29", tbd: true, opp: "CLE" } };
+  const mondayAfternoon = Date.parse("2026-09-28T20:00:00Z");
+  for (const zone of ["America/New_York", "Pacific/Honolulu", "America/Anchorage"])
+    assert.equal(
+      checkInTimeZone(zone, () => normalizeSpaces(renderNextCell(row, { now: mondayAfternoon }))),
+      `<td class="next-cell">Tue @ CLE</td>`,
       zone,
     );
 });

@@ -323,6 +323,23 @@ test("markup in the shared store is shown as text", async ({ page }) => {
   await expect(page.locator("#injected")).toHaveCount(0);
 });
 
+test("a stored field short a league asks for the field instead of breaking the page", async ({
+  page,
+}) => {
+  const clubs = ["NYY", "TOR", "SEA", "BOS", "DET", "CLE", "HOU", "LAD", "MIL", "PHI", "CHC", "SD"];
+  const teams = Object.fromEntries(
+    clubs.map((id, index) => [id, { league: index < 7 ? "AL" : "NL", seed: (index % 6) + 1 }]),
+  );
+  await openApp(page, {
+    liveAvailable: false,
+    store: { "seasons/2026": { year: 2026, teams, series: {}, ranking: [], log: [] } },
+  });
+
+  await expect(page.getByRole("button", { name: "Set the field" })).toBeVisible();
+  await page.getByRole("tab", { name: "Ranking" }).click();
+  await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
+});
+
 test("the field setup dialog closes with Escape", async ({ page }) => {
   await openApp(page, { liveAvailable: false });
 
@@ -362,6 +379,22 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(updateTimes.nth(0)).toHaveText(/^8:30\sPM$/);
   await expect(updateTimes.nth(1)).toHaveText(/^Yesterday$/);
   await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
+});
+
+test("dismissing updates goes by the newest one's time, not this device's clock", async ({
+  page,
+}) => {
+  const app = await openApp(page, {
+    liveAvailable: false,
+    now: "2026-09-25T03:00:00Z",
+    store: { "seasons/2026": SEASON_WITH_TWO_UPDATES },
+  });
+
+  await page.getByRole("button", { name: "Dismiss updates" }).click();
+  await expect(page.locator("#updates")).toBeHidden();
+  await expect
+    .poll(async () => (await app.readDocument("seasons/2026"))?.seenAt)
+    .toBe("2026-09-25T00:40:00.000Z");
 });
 
 const ELIMINATED_AT_8_10 = (team, winner) => ({

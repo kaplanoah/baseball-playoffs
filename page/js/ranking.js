@@ -70,9 +70,24 @@ export function renderRanking() {
   // Rank numbers live outside the cards so they stay put while cards are dragged.
   const numbers = order.map((_, index) => html`<li class="rank-num tabular">${index + 1}</li>`);
   setHtml(gutter, html`${numbers}`);
+  const focusedId = findFocusedClub(list);
   setHtml(list, html`${order.map(renderRankItem)}`);
+  if (focusedId) focusGrip(list, focusedId);
   wireReordering(list);
 }
+
+// A redraw replaces the handle a keyboard user is on, so focus moves to its replacement.
+function findFocusedClub(list) {
+  const focused = document.activeElement;
+  if (!(focused instanceof HTMLElement) || !list.contains(focused)) return null;
+  if (!focused.classList.contains("grip")) return null;
+  return /** @type {HTMLElement} */ (focused.closest(".rank-item")).dataset.id;
+}
+
+const focusGrip = (list, id) =>
+  /** @type {HTMLElement | null} */ (
+    list.querySelector(`.rank-item[data-id="${id}"] .grip`)
+  )?.focus();
 
 const announceOrder = (list, order) =>
   list.dispatchEvent(new CustomEvent(REORDER_EVENT, { detail: { order } }));
@@ -89,9 +104,6 @@ function moveWithKeyboard(list, event) {
   if (to < 0 || to >= order.length) return;
   [order[from], order[to]] = [order[to], order[from]];
   announceOrder(list, order);
-  /** @type {HTMLElement | null} */ (
-    list.querySelector(`.rank-item[data-id="${id}"] .grip`)
-  )?.focus();
 }
 
 // Bound once: the list element survives re-renders.
