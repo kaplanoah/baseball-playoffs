@@ -1656,8 +1656,10 @@ table.ref th.won-col {
   header.top > div:first-child {
     order: 1;
   }
+  /* Here the button sits beside the title, not the stamp, so it keeps the header's own gap. */
   .settings-btn {
     order: 2;
+    margin-left: 0;
   }
   header.top {
     row-gap: 10px;
