@@ -135,12 +135,21 @@ jobs:
           # Claude can read files, and the review needs no git credentials on disk.
           persist-credentials: false
 
-      - if: steps.decision.outputs.review == 'true'
+      # A review takes about four minutes, so one still going at eight has stalled, and it gets
+      # one more try. The full output logs each turn and tool call as it happens, so a stall shows
+      # where it stopped; the review only reads this public repo and its pull request.
+      - name: Review
+        id: review
+        if: steps.decision.outputs.review == 'true'
+        continue-on-error: true
+        timeout-minutes: 8
         uses: anthropics/claude-code-action@756cc22e19660d20e8cc9496b4f242475a7f7790 # v1.0.235
-        with:
+        with: &review-inputs
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          show_full_output: true
           claude_args: |
+            --max-turns 60
             --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments:*)"
           prompt: |
             Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
@@ -177,6 +186,12 @@ jobs:
             Start it with "Claude reviewed ${{ github.event.pull_request.head.sha }}:", then say
             how many findings you posted inline, or that you found none. If a tool you needed to
             read the PR or its code wasn't allowed, name it and say what you couldn't check.
+
+      - name: Review again
+        if: steps.review.outcome == 'failure'
+        timeout-minutes: 8
+        uses: anthropics/claude-code-action@756cc22e19660d20e8cc9496b4f242475a7f7790 # v1.0.235
+        with: *review-inputs
 
   # The one check to require. It runs even when a job fails, because GitHub counts a
   # skipped required check as passing.
