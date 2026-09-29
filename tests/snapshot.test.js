@@ -15,6 +15,18 @@ const PLACEHOLDER = {
   CS: ["Lower Seed", "Higher Seed"],
   WS: ["Lower Seed League Champion", "Higher Seed League Champion"],
 };
+const DIVISION_SERIES_HOSTS = [136, 141, 143, 158];
+// A division series opponent not yet known is named for both clubs that could be it.
+const WILD_CARD_PLACEHOLDERS = {
+  147: "NYY/BOS",
+  111: "NYY/BOS",
+  114: "CLE/DET",
+  116: "CLE/DET",
+  112: "CHC/SD",
+  135: "CHC/SD",
+  119: "LAD/CIN",
+  113: "LAD/CIN",
+};
 function rewindFixture(fixture, cutoff, { unsetRounds = [], unsetWildCardWinners = false } = {}) {
   const copy = JSON.parse(JSON.stringify(fixture));
   let placeholderId = 9000;
@@ -44,15 +56,13 @@ function rewindFixture(fixture, cutoff, { unsetRounds = [], unsetWildCardWinners
         };
       }
       if (game.gameType === "D" && unsetWildCardWinners) {
-        // The wild card winner isn't known yet: "AL 4/5 Winner at Toronto".
-        const wildCardSide = [115, 116, 136, 141, 143, 158].includes(game.teams.home.team.id)
+        const wildCardSide = DIVISION_SERIES_HOSTS.includes(game.teams.home.team.id)
           ? "away"
           : "home";
         const wildCardTeamId = game.teams[wildCardSide].team.id;
-        const isFromFourFiveSeries = [147, 111, 112, 135].includes(wildCardTeamId); // NYY, BOS, CHC, SD: the 4/5 series
         game.teams[wildCardSide].team = {
           id: placeholderId++,
-          name: `${league} ${isFromFourFiveSeries ? "4/5" : "3/6"} Winner`,
+          name: WILD_CARD_PLACEHOLDERS[wildCardTeamId],
         };
       }
     }
@@ -210,20 +220,31 @@ test("a bracket just set: each club's next postseason game, opponent or not", ()
   assert.equal(rows.KC.next, undefined);
 });
 
-test("halfway: a decided series' unneeded game isn't next, and a club that's out has none", () => {
-  const fixture = rewindFixture(SEASON_2025, "2025-10-08T12:00:00Z", { unsetRounds: ["CS", "WS"] });
+// MLB can still list game 3 of a wild card series swept in two.
+function addUnneededGame(fixture, date) {
   const [unneeded] = fixture.responses.postseason.dates
     .flatMap((day) => day.games)
     .filter(
       (game) => game.seriesDescription === "NL Wild Card Series" && game.teams.home.team.id === 119,
     )
-    .map((game) => ({ ...game, gamePk: 1, seriesGameNumber: 3, gameDate: "2025-10-02T23:08:00Z" }));
+    .map((game) => ({
+      ...game,
+      gamePk: 1,
+      seriesGameNumber: 3,
+      officialDate: date,
+      gameDate: `${date}T23:08:00Z`,
+    }));
   unneeded.status = {
     abstractGameState: "Preview",
     codedGameState: "S",
     detailedState: "Scheduled",
   };
   fixture.responses.postseason.dates.push({ games: [unneeded] });
+}
+
+test("halfway: a decided series' unneeded game isn't next, and a club that's out has none", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-10-08T12:00:00Z", { unsetRounds: ["CS", "WS"] });
+  addUnneededGame(fixture, "2025-10-02");
   const rows = indexStandingsRows(buildSnapshot(fixture, Date.parse("2025-10-08T14:00:00Z")));
   assert.deepEqual(rows.LAD.next, {
     at: "2025-10-09T01:08:00Z",
@@ -242,6 +263,16 @@ test("halfway: a decided series' unneeded game isn't next, and a club that's out
     postseason: true,
   });
   assert.equal(rows.CLE.next, undefined);
+});
+
+test("halfway: a decided series' unneeded game isn't in the list of next games", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-10-08T12:00:00Z", { unsetRounds: ["CS", "WS"] });
+  addUnneededGame(fixture, "2025-10-10");
+  fixture.responses.schedule = { dates: [] };
+  const { slate } = buildSnapshot(fixture, Date.parse("2025-10-08T14:00:00Z"));
+  assert.ok(slate.next.some((game) => game.home === "LAD" || game.away === "LAD"));
+  assert.ok(slate.next.every((game) => game.home !== "CIN" && game.away !== "CIN"));
+  assert.ok(slate.previous.some((game) => game.home === "LAD" && game.away === "CIN"));
 });
 
 test("2025: no club has a next game once the postseason is over", () => {
