@@ -302,11 +302,15 @@ test.describe("in Europe/London", () => {
   });
 });
 
+const WILD_CARD_SERIES = ["AL_WC1", "AL_WC2", "NL_WC1", "NL_WC2"];
+
 test("under a card whose game is under way, the score, inning, and outs show instead of the next game", async ({
   page,
 }) => {
   const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
   const start = "2026-09-24T23:08:00Z";
+  for (const seriesId of WILD_CARD_SERIES)
+    snapshot.series[seriesId].next = { at: start, date: "2026-09-24", tbd: false, game: 1 };
   snapshot.slate.today.games.push(
     {
       away: "NYY",
@@ -358,7 +362,34 @@ test("under a card whose game is under way, the score, inning, and outs show ins
   await expect(delayed).toHaveCount(1);
   await expect(delayed).toHaveCSS("color", await readColor(page, "--gold"));
   await expect(delayed.locator(".out-light")).toHaveCount(0);
-  await expect(notes.filter({ hasText: /^Next game Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game today\u20227:08\sPM$/ })).toHaveCount(1);
+});
+
+test("under a card whose series already counts the game, the next game shows even while the slate reads it as under way", async ({
+  page,
+}) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  for (const seriesId of WILD_CARD_SERIES)
+    snapshot.series[seriesId].next = {
+      at: "2026-09-25T23:08:00Z",
+      date: "2026-09-25",
+      tbd: false,
+      game: 2,
+    };
+  snapshot.slate.today.games.push({
+    away: "PHI",
+    home: "ATL",
+    state: "live",
+    start: "2026-09-24T23:08:00Z",
+    score: [3, 5],
+    inning: 9,
+    half: "middle",
+  });
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  const notes = page.locator("#bracketWrap .card-note");
+
+  await expect(notes.filter({ hasText: /^Next game tomorrow\u20227:08\sPM$/ })).toHaveCount(4);
+  await expect(page.locator("#bracketWrap .card-note.live")).toHaveCount(0);
 });
 
 const readColor = (page, token) =>

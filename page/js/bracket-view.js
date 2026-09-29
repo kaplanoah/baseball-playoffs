@@ -146,9 +146,15 @@ const isPlayedBetween = (game, series) =>
   !!series.teamB &&
   [game.away, game.home].sort().join() === [series.teamA, series.teamB].sort().join();
 
+// The series and the slate come from separate MLB feeds, so a game the series already counts can
+// still read as under way on the slate for a while.
 function findLiveGame(series) {
+  const next = (session.state.series[series.id] || {}).next;
+  if (!next) return null;
   const games = session.state.slate?.today?.games || [];
-  return games.find((game) => game.state === "live" && isPlayedBetween(game, series)) || null;
+  const isNextGameUnderWay = (game) =>
+    game.state === "live" && isPlayedBetween(game, series) && game.start === next.at;
+  return games.find(isNextGameUnderWay) || null;
 }
 
 // The runs read in the card's row order, top row first.
