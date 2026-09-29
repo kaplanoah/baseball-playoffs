@@ -450,6 +450,26 @@ test("a rainout is neither a final nor on the slate", () => {
   );
 });
 
+test("a game in warmup hasn't started, though MLB calls it live", () => {
+  const fixture = JSON.parse(JSON.stringify(EVENING));
+  const day = fixture.responses.schedule.dates.find(
+    (scheduleDate) => scheduleDate.date === "2026-09-24",
+  );
+  const warmingUp = day.games.find((game) => game.status.abstractGameState === "Live");
+  warmingUp.status = {
+    ...warmingUp.status,
+    abstractGameState: "Live",
+    codedGameState: "P",
+    detailedState: "Warmup",
+  };
+  warmingUp.linescore = { currentInning: 1, inningState: "Top", inningHalf: "Top", outs: 0 };
+  const { slate } = buildSnapshot(fixture);
+  const game = slate.today.games.find((summary) => summary.start === warmingUp.gameDate);
+  assert.equal(game.state, "pre");
+  assert.equal(game.inning, undefined);
+  assert.equal(game.outs, undefined);
+});
+
 test("a delay before or during a game carries its cause", () => {
   const fixture = JSON.parse(JSON.stringify(EVENING));
   const day = fixture.responses.schedule.dates.find(

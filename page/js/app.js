@@ -1,4 +1,4 @@
-import { watchBracketSpace } from "./bracket-view.js";
+import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "./html.js";
@@ -31,7 +31,7 @@ import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
 import { renderUpdates } from "./updates.js";
 import { createWorkerStore } from "./worker-store.js";
 
-const STAMP_REFRESH_MS = 60 * 1000;
+const CLOCK_REFRESH_MS = 60 * 1000;
 const SPRING_CHECK_MS = 60 * 60 * 1000;
 
 // Browsers treat any keydown as keyboard navigation, so Shift alone would ring the last-clicked element.
@@ -186,14 +186,16 @@ function wireControls() {
     );
 }
 
-function refreshStampEveryMinute() {
+// The stamp's times and the bracket's countdowns to first pitch read the clock.
+function refreshClockEveryMinute() {
   setInterval(() => {
     try {
       renderStamp();
+      renderBracket();
     } catch {
       /* try again next minute */
     }
-  }, STAMP_REFRESH_MS);
+  }, CLOCK_REFRESH_MS);
 }
 
 async function boot() {
@@ -205,7 +207,7 @@ async function boot() {
   renderAll();
   watchBracketSpace();
   watchActiveSeason();
-  refreshStampEveryMinute();
+  refreshClockEveryMinute();
   watchPageVisibility();
   startLive();
   startNotifications();

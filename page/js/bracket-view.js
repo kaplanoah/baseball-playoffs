@@ -148,13 +148,27 @@ const isPlayedBetween = (game, series) =>
 
 // The series and the slate come from separate MLB feeds, so a game the series already counts can
 // still read as under way on the slate for a while.
-function findLiveGame(series) {
+function findNextSlateGame(series) {
   const next = (session.state.series[series.id] || {}).next;
-  if (!next) return null;
+  if (series.winner || !next) return null;
   const games = session.state.slate?.today?.games || [];
-  const isNextGameUnderWay = (game) =>
-    game.state === "live" && isPlayedBetween(game, series) && game.start === next.at;
-  return games.find(isNextGameUnderWay) || null;
+  return games.find((game) => isPlayedBetween(game, series) && game.start === next.at) || null;
+}
+
+const FIRST_PITCH_COUNTDOWN_MS = 30 * 60 * 1000;
+const MS_PER_MINUTE = 60 * 1000;
+
+const renderFirstPitchPart = (text, isDelayed = false) =>
+  html`<div class="card-note live ${isDelayed ? "delayed" : ""}"><span class="live-part">${text}</span></div>`;
+
+// First pitch often comes a few minutes after the scheduled start.
+function renderFirstPitchNote(game, now) {
+  if (game.tbd) return null;
+  const msToStart = Date.parse(game.start) - now;
+  if (msToStart > FIRST_PITCH_COUNTDOWN_MS) return null;
+  if (game.delay) return renderFirstPitchPart(game.delay, true);
+  if (msToStart <= 0) return renderFirstPitchPart("Warmup");
+  return renderFirstPitchPart(`First pitch in ${Math.ceil(msToStart / MS_PER_MINUTE)} min`);
 }
 
 // The runs read in the card's row order, top row first.
@@ -173,8 +187,10 @@ function renderLiveNote(series, game) {
 
 function renderCardNote(series, champLine) {
   if (champLine) return html`<div class="card-note champ">${champLine}</div>`;
-  const liveGame = findLiveGame(series);
-  if (liveGame) return renderLiveNote(series, liveGame);
+  const game = findNextSlateGame(series);
+  if (game?.state === "live") return renderLiveNote(series, game);
+  const firstPitchNote = game?.state === "pre" && renderFirstPitchNote(game, Date.now());
+  if (firstPitchNote) return firstPitchNote;
   const note = describeNextGame(series);
   return note ? html`<div class="card-note">${note}</div>` : html``;
 }
@@ -379,11 +395,14 @@ export function renderBracket() {
   const growth = NARROW.matches ? measureGrowth(wrap) : 0;
   const stage = NARROW.matches ? renderStackedStage(bracket, growth) : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
+  const hadFocus = wrap.contains(document.activeElement);
   setHtml(
     wrap,
     html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
   );
-  wrap.querySelector(".tree-scroll").scrollLeft = scrollLeft;
+  const scroller = /** @type {HTMLElement} */ (wrap.querySelector(".tree-scroll"));
+  scroller.scrollLeft = scrollLeft;
+  if (hadFocus) scroller.focus({ preventScroll: true });
   renderedGrowth = growth;
   renderBanner(bracket);
 }
