@@ -393,6 +393,67 @@ test("under a card whose series already counts the game, the next game shows eve
   await expect(page.locator("#bracketWrap .card-note.live")).toHaveCount(0);
 });
 
+// The page's clock reads 8:44:43 PM Eastern.
+const buildFirstPitchSnapshot = (start, slateGame = {}) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  for (const seriesId of WILD_CARD_SERIES)
+    snapshot.series[seriesId].next = { at: start, date: "2026-09-24", tbd: false, game: 1 };
+  snapshot.slate.today.games.push({ away: "NYY", home: "BOS", state: "pre", start, ...slateGame });
+  return snapshot;
+};
+
+test("in the half hour before first pitch, a card counts down the minutes on the viewer's clock", async ({
+  page,
+}) => {
+  const snapshot = buildFirstPitchSnapshot("2026-09-25T01:02:00Z");
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  const notes = page.locator("#bracketWrap .card-note");
+
+  const countdown = notes.filter({ hasText: /^First pitch in 18 min$/ });
+  await expect(countdown).toHaveCount(1);
+  await expect(countdown).toHaveCSS("color", await readColor(page, "--copper-ink"));
+  await expect(notes.filter({ hasText: /^Next game today\u20229:02\sPM$/ })).toHaveCount(3);
+
+  await page.clock.runFor(60 * 1000);
+  await expect(notes.filter({ hasText: /^First pitch in 17 min$/ })).toHaveCount(1);
+});
+
+test("more than a half hour before first pitch, a card shows its next game", async ({ page }) => {
+  const snapshot = buildFirstPitchSnapshot("2026-09-25T01:20:00Z");
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+
+  await expect(
+    page.locator("#bracketWrap .card-note").filter({ hasText: /^Next game today\u20229:20\sPM$/ }),
+  ).toHaveCount(4);
+});
+
+test("past its start, a game still before its first pitch reads as warmup", async ({ page }) => {
+  const snapshot = buildFirstPitchSnapshot("2026-09-25T00:40:00Z");
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+
+  const note = page.locator("#bracketWrap .card-note").filter({ hasText: /^Warmup$/ });
+  await expect(note).toHaveCount(1);
+  await expect(note).toHaveCSS("color", await readColor(page, "--copper-ink"));
+});
+
+test("a delayed start shows its delay instead of a countdown", async ({ page }) => {
+  const snapshot = buildFirstPitchSnapshot("2026-09-25T01:02:00Z", { delay: "Delayed: Rain" });
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+
+  const note = page.locator("#bracketWrap .card-note").filter({ hasText: /^Delayed: Rain$/ });
+  await expect(note).toHaveCount(1);
+  await expect(note).toHaveCSS("color", await readColor(page, "--gold"));
+});
+
+test("redrawing the bracket each minute keeps keyboard focus on it", async ({ page }) => {
+  await openApp(page);
+  const bracket = page.getByRole("region", { name: "Bracket" });
+  await bracket.focus();
+
+  await page.clock.runFor(60 * 1000);
+  await expect(bracket).toBeFocused();
+});
+
 const readColor = (page, token) =>
   page.evaluate((name) => {
     const probe = document.createElement("span");

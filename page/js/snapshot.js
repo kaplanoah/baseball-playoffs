@@ -362,12 +362,14 @@ export async function fetchSnapshot(getJson, season, now = Date.now()) {
   return buildSnapshot({ season: seasonDates, standings, postseason, schedule }, { season, now });
 }
 
-// Postponed and cancelled games read "Final" in abstractGameState, so check the coded state first.
+// Postponed and cancelled games read "Final" in abstractGameState, and warmup reads "Live", so
+// check the coded state first.
 function readGameState(status) {
   const isCalledOff =
     ["C", "D", "T", "U"].includes(status.codedGameState) ||
     /postpon|cancel|suspend/i.test(status.detailedState || "");
   if (isCalledOff) return "off";
+  if (["S", "P"].includes(status.codedGameState)) return "pre";
   if (status.abstractGameState === "Live") return "live";
   if (status.abstractGameState === "Final") return "final";
   return "pre";
