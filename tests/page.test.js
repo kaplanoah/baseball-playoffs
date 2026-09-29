@@ -608,7 +608,7 @@ test("games list: a delay shows under the start time or the score", () => {
   assert.match(String(renderGameList(slate, "today")), /class="game-row pre delayed"/);
 });
 
-test("games list: each club's rank, seed, record, and race", () => {
+test("games list: each club's seed, record, and race, without its rank", () => {
   session.state = { teams: { NYY: { league: "AL", seed: 4 } }, ranking: ["NYY"] };
   session.standings = {
     divisions: {
@@ -638,9 +638,10 @@ test("games list: each club's rank, seed, record, and race", () => {
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Sat, Sep 26",
-    "Orioles 79-82 3 - 7 Final Yankees #1 4 seed 93-68 w",
+    "Orioles 79-82 3 - 7 Final Yankees 4 seed 93-68 w",
   ]);
   const rendered = String(renderGameList(slate, "today"));
+  assert.doesNotMatch(rendered, /rank-tag/);
   assert.equal(rendered.match(/class="seed-lock"/g)?.length, 1);
   assert.match(rendered, /title="Clinched a wild card spot">w</);
 });

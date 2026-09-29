@@ -1,5 +1,5 @@
 import { isEliminated } from "./bracket.js";
-import { renderRankTag, renderTeamTag } from "./clubs.js";
+import { renderTeamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
 import { formatOrdinal } from "./ordinal.js";
 import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
@@ -58,10 +58,6 @@ function renderClub(id) {
   return html`<span class="club"><span class="dot unknown-club"></span><span class="tbd">TBD</span></span>`;
 }
 
-function renderNameLine(id) {
-  return html`<span class="name-line">${renderClub(id)}${id && renderRankTag(id)}</span>`;
-}
-
 function renderSeed(id) {
   const team = session.state && session.state.teams && session.state.teams[id];
   if (!team || !team.seed) return html``;
@@ -88,7 +84,7 @@ function isOut(id) {
 }
 
 function renderSide(id, side, hasWon) {
-  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderNameLine(id)}${renderFacts(id)}</span>`;
+  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
 }
 
 function renderScore(game, awayLost, homeLost) {
