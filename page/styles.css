@@ -1217,34 +1217,42 @@ table.ref td .team-name {
 body.kbd .rank-item .grip:focus {
   outline-offset: -2px;
 }
+/* Two lines: the club, then its league and World Series history. A row too short for two keeps the
+   club, league, and drought on one. */
 .rank-id {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.rank-name {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "club club"
+    "league history";
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  column-gap: 8px;
+  row-gap: 5px;
 }
-.rank-name .team-name {
+.rank-id .club {
+  grid-area: club;
+}
+.rank-id .team-name {
   font-size: 0.86rem;
   line-height: 16px;
 }
+.rank-item .league-tag {
+  grid-area: league;
+  font-size: 0.6rem;
+}
 .rank-drought {
   display: none;
-  margin-left: auto;
+  grid-area: drought;
+  justify-self: end;
   font-size: 0.68rem;
   color: var(--ink-dim);
   white-space: nowrap;
 }
-/* Light text on dark reads further left than the dark dot above it, so it sits 2px in. */
 .rank-ws {
+  grid-area: history;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-left: 2px;
   white-space: nowrap;
   font-size: 0.68rem;
   line-height: 14px;
@@ -1257,9 +1265,9 @@ body.kbd .rank-item .grip:focus {
 }
 @container (max-height: 47px) {
   .rank-id {
-    gap: 2px;
+    row-gap: 2px;
   }
-  .rank-name .team-name {
+  .rank-id .team-name {
     font-size: 0.82rem;
     line-height: 15px;
   }
@@ -1268,15 +1276,18 @@ body.kbd .rank-item .grip:focus {
     line-height: 13px;
   }
 }
-/* Too short for two lines, a row keeps the name, drought, and chip on one. */
 @container (max-height: 39px) {
+  .rank-id {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas: "club league drought";
+  }
   .rank-ws {
     display: none;
   }
   .rank-drought {
     display: inline;
   }
-  .rank-name .team-name {
+  .rank-id .team-name {
     font-size: 0.8rem;
   }
 }
@@ -1365,7 +1376,7 @@ body.kbd .rank-item .grip:focus {
 }
 .settings-version {
   margin: 0;
-  font-size: 0.6rem;
+  font-size: 0.66rem;
   letter-spacing: 0.02em;
   color: var(--ink-dim);
   white-space: nowrap;
@@ -1487,7 +1498,8 @@ body.kbd .rank-item .grip:focus {
   }
 }
 /* Wide screens show everything at once: the settings on the left, the ranking filling the right.
-   The ranking's heading gets its own grid row, so the settings start level with the list. */
+   The ranking's heading gets its own grid row so the list can fill the rest; the settings start
+   level with that heading, under the header's line. */
 @media (min-width: 900px) {
   .settings-panel {
     width: min(920px, calc(100% - 48px));
@@ -1516,9 +1528,10 @@ body.kbd .rank-item .grip:focus {
   }
   .settings-controls {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2 / 4;
     align-self: start;
     margin-right: 24px;
+    border-top: 0;
   }
   .settings-ranking {
     display: contents;

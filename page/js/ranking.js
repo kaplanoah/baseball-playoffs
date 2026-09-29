@@ -35,10 +35,13 @@ function renderTitleSummary(id) {
 
 // A club that's out looks like the rest: the ranking says who you're for, not who's still playing.
 function renderRankItem(id, index) {
+  const { league } = TEAMS[id];
   return html`<li class="rank-item" data-id="${id}">
       <button type="button" class="grip" aria-label="Move ${nameTeam(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
       <span class="rank-id">
-        <span class="rank-name">${renderTeamTag(id)}<span class="rank-drought tabular">${describeDrought(id)}</span></span>
+        ${renderTeamTag(id)}
+        <span class="league-tag ${league}">${league}</span>
+        <span class="rank-drought tabular">${describeDrought(id)}</span>
         <span class="rank-ws tabular">${renderTitleSummary(id)}</span>
       </span>
       ${renderStatusChip(describeTeamStatus(session.state, id))}
