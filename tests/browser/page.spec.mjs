@@ -48,6 +48,7 @@ const PHONE = { width: 390, height: 844 };
 const CREAM = "rgb(241, 234, 212)";
 const GREEN = "rgb(127, 168, 143)";
 const TAUPE = "rgb(138, 122, 106)";
+const GOLD = "rgb(244, 193, 92)";
 
 test("the Games tab bolds each winner and dims only the clubs that are out", async ({ page }) => {
   await openApp(page);
@@ -104,6 +105,7 @@ test("on a phone, the bracket stacks the AL above the NL, each running left to r
   const nl = bracket.locator(".league-head.nl");
   await expect(al).toHaveText("American League");
   await expect(nl).toHaveText("National League");
+  await expect(al).toHaveCSS("text-align", "left");
   const alTop = (await al.boundingBox()).y;
   const nlTop = (await nl.boundingBox()).y;
   expect(alTop).toBeLessThan(nlTop);
@@ -142,17 +144,50 @@ test("on a wide screen, the AL and NL face each other across the World Series", 
   expect(alcs.x).toBeLessThan(worldSeries.x);
   expect(worldSeries.x).toBeLessThan(nlcs.x);
   expect(alcs.y).toBe(worldSeries.y);
-  await expect(bracket.locator(".league-head")).toHaveCount(0);
+  await expect(
+    bracket.locator(".series.world .bestof span").filter({ hasText: "World Series" }),
+  ).toHaveCSS("color", GOLD);
+});
+
+test("on a wide screen, a centered league bar spans each league's three columns", async ({
+  page,
+}) => {
+  await openApp(page);
+  const bracket = page.locator("#bracketWrap");
+  const findBox = (round, index) =>
+    bracket.locator(".box").filter({ hasText: round }).nth(index).boundingBox();
+  const al = bracket.locator(".league-head.al");
+  const nl = bracket.locator(".league-head.nl");
+  await expect(al).toHaveText("American League");
+  await expect(nl).toHaveText("National League");
+  await expect(al).toHaveCSS("text-align", "center");
+  await expect(nl).toHaveCSS("text-align", "center");
+
+  const alBar = await al.boundingBox();
+  const nlBar = await nl.boundingBox();
+  const alWildCard = await findBox("Wild Card", 0);
+  const alcs = await findBox("Championship Series", 0);
+  const nlcs = await findBox("Championship Series", 1);
+  const nlWildCard = await findBox("Wild Card", 2);
+  expect(alBar.y).toBe(nlBar.y);
+  expect(alBar.x).toBe(alWildCard.x);
+  expect(alBar.x + alBar.width).toBe(alcs.x + alcs.width);
+  expect(nlBar.x).toBe(nlcs.x);
+  expect(nlBar.x + nlBar.width).toBe(nlWildCard.x + nlWildCard.width);
+  expect(alWildCard.y - (alBar.y + alBar.height)).toBe(18);
 });
 
 test("narrowing the window to phone width switches to the stacked bracket", async ({ page }) => {
   await openApp(page);
-  await expect(page.locator("#bracketWrap .lg-label").first()).toBeVisible();
+  const al = page.locator("#bracketWrap .league-head.al");
+  const nl = page.locator("#bracketWrap .league-head.nl");
+  await expect(al).toHaveCSS("text-align", "center");
+  expect((await al.boundingBox()).y).toBe((await nl.boundingBox()).y);
 
   await page.setViewportSize(PHONE);
 
-  await expect(page.locator("#bracketWrap .league-head")).toHaveCount(2);
-  await expect(page.locator("#bracketWrap .lg-label")).toHaveCount(0);
+  await expect(al).toHaveCSS("text-align", "left");
+  expect((await al.boundingBox()).y).toBeLessThan((await nl.boundingBox()).y);
 });
 
 test("renders the bracket, standings and stamp from the Worker's snapshot", async ({ page }) => {
