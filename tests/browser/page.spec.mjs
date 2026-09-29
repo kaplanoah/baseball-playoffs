@@ -341,6 +341,16 @@ test("under a card whose game is under way, the score, inning, and outs show ins
   await expect(batting.getByRole("img", { name: "1 out" })).toBeVisible();
   await expect(batting.locator(".out-light")).toHaveCount(2);
   await expect(batting.locator(".out-light.on")).toHaveCount(1);
+  const [score, inning, lights] = await Promise.all(
+    [
+      batting.locator(".live-part").nth(0),
+      batting.locator(".live-part").nth(1),
+      batting.locator(".out-lights"),
+    ].map((part) => part.boundingBox()),
+  );
+  const spaceBeforeInning = inning.x - (score.x + score.width);
+  const spaceBeforeLights = lights.x - (inning.x + inning.width);
+  expect(spaceBeforeLights).toBeGreaterThan(spaceBeforeInning);
   const betweenHalves = notes.filter({ hasText: /^4-1 Mid 5th$/ });
   await expect(betweenHalves).toHaveCount(1);
   await expect(betweenHalves.locator(".out-light")).toHaveCount(0);
