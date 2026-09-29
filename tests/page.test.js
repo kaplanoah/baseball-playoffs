@@ -686,7 +686,14 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
     "Guardians 1 - 0 Bot 7th Red Sox",
   ]);
   assert.deepEqual(describeGameList(slate, "next"), ["Sat, Oct 3", "TBD 1:08 PM Rays"]);
-  assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season."]);
+  assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season"]);
+});
+
+test("games list: an empty list says so without a closing period", () => {
+  const slate = { today: { date: "2026-09-29", games: [] }, previous: [], next: [] };
+  assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season"]);
+  assert.deepEqual(describeGameList(slate, "today"), ["No games today"]);
+  assert.deepEqual(describeGameList(slate, "next"), ["No games scheduled yet"]);
 });
 
 test("games list: a delay shows under the start time or the score", () => {
@@ -893,10 +900,10 @@ test("games list: a season with no live data says why", () => {
   try {
     session.currentSeason = 2026;
     session.activeYear = 2025;
-    assert.deepEqual(describeGameList(null, "today"), ["Games show for the current season only."]);
+    assert.deepEqual(describeGameList(null, "today"), ["Games show for the current season only"]);
     session.activeYear = 2026;
     assert.deepEqual(describeGameList(null, "today"), [
-      "Games appear here as soon as the page can reach MLB.",
+      "Games appear here as soon as the page can reach MLB",
     ]);
   } finally {
     Object.assign(session, { activeYear, currentSeason });
