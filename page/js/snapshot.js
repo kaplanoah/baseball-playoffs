@@ -687,23 +687,24 @@ function projectField(response) {
   return teams;
 }
 
-// MLB lists every possible postseason game in advance under placeholders ("AL 4/5 Winner").
-// A wild card host is the 3 seed if it won its division, else the 4.
-function findSeriesId(game, wildCardClubs, champions) {
+// MLB lists every possible postseason game in advance under placeholders ("AL 4/5 Winner",
+// then "NYY/BOS" once the wild card clubs are set). A wild card host is the 3 seed if it won its
+// division, else the 4. The 1 seed, the club with the league's best record, plays every game of DS1.
+function findSeriesId(game, { champions, bestRecords }) {
   if (game.type === "W") return "WS";
   const { league } = game;
   if (!league) return null;
   const names = `${game.away.name} | ${game.home.name}`;
-  const cameFrom = (key) =>
-    [game.away.id, game.home.id].some((id) => id && wildCardClubs[`${league}_${key}`].has(id));
+  const bestRecord = bestRecords[league];
   switch (game.type) {
     case "F":
       if (/#3 Seed|Wild Card #3/.test(names)) return `${league}_WC1`;
       if (/Wild Card #[12]/.test(names)) return `${league}_WC2`;
       return champions.has(game.home.id) ? `${league}_WC1` : `${league}_WC2`;
     case "D":
-      if (/4\/5|#1 Seed/.test(names) || cameFrom("WC2")) return `${league}_DS1`;
-      if (/3\/6|#2 Seed/.test(names) || cameFrom("WC1")) return `${league}_DS2`;
+      if (/4\/5|#1 Seed/.test(names) || (bestRecord && isPlayedBy(game, bestRecord)))
+        return `${league}_DS1`;
+      if (/3\/6|#2 Seed/.test(names) || (bestRecord && hasClub(game))) return `${league}_DS2`;
       return null;
     case "L":
       return `${league}_CS`;
@@ -712,28 +713,13 @@ function findSeriesId(game, wildCardClubs, champions) {
   }
 }
 
-function groupPostseason(games, champions) {
-  const wildCardClubs = {
-    AL_WC1: new Set(),
-    AL_WC2: new Set(),
-    NL_WC1: new Set(),
-    NL_WC2: new Set(),
-  };
+function groupPostseason(games, clinches) {
   const gamesBySeries = {};
-  const addGame = (seriesId, game) => {
+  for (const game of games) {
+    const seriesId = findSeriesId(game, clinches);
     if (seriesId) (gamesBySeries[seriesId] = gamesBySeries[seriesId] || []).push(game);
-  };
-  // Division series are told apart by which wild card series their clubs came from.
-  for (const game of games.filter((candidate) => candidate.type === "F")) {
-    const seriesId = findSeriesId(game, wildCardClubs, champions);
-    addGame(seriesId, game);
-    if (!seriesId) continue;
-    for (const id of [game.away.id, game.home.id]) if (id) wildCardClubs[seriesId].add(id);
   }
-  for (const game of games.filter((candidate) => candidate.type !== "F")) {
-    addGame(findSeriesId(game, wildCardClubs, champions), game);
-  }
-  return { gamesBySeries, wildCardClubs };
+  return gamesBySeries;
 }
 
 function isFieldComplete(teams) {
@@ -747,7 +733,7 @@ function isFieldComplete(teams) {
 }
 
 // Every wild card game is at the higher seed; the 1 and 2 seeds play no wild card game.
-function readOfficialField({ gamesBySeries, wildCardClubs }, records) {
+function readOfficialField(gamesBySeries, records) {
   const teams = {};
   const seatClub = (id, league, seed) => {
     if (!id) return;
@@ -765,8 +751,8 @@ function readOfficialField({ gamesBySeries, wildCardClubs }, records) {
       seatClub(game.home.id, league, higherSeed);
       seatClub(game.away.id, league, lowerSeed);
     }
-    const playedWildCard = (id) =>
-      wildCardClubs[`${league}_WC1`].has(id) || wildCardClubs[`${league}_WC2`].has(id);
+    const wildCardGames = [...listSeriesGames("WC1"), ...listSeriesGames("WC2")];
+    const playedWildCard = (id) => wildCardGames.some((game) => isPlayedBy(game, id));
     for (const [key, seed] of [
       ["DS1", 1],
       ["DS2", 2],
@@ -820,13 +806,13 @@ function tallySeries(seriesId, games, round, teamA, teamB, today) {
 }
 
 // A decided series can still list the games it didn't need.
-function listOpenSeriesGames(gamesBySeries, log) {
+function listNeededPostseasonGames(gamesBySeries, log) {
   const decided = new Set(
     log.filter((entry) => entry.kind === "clinch").map((entry) => entry.series),
   );
-  return Object.entries(gamesBySeries)
-    .filter(([seriesId]) => !decided.has(seriesId))
-    .flatMap(([, games]) => games);
+  return Object.entries(gamesBySeries).flatMap(([seriesId, games]) =>
+    decided.has(seriesId) ? games.filter((game) => game.state === "final") : games,
+  );
 }
 
 function buildSeries(teams, gamesBySeries, today) {
@@ -847,28 +833,33 @@ const readSpringStart = (seasonDates) => seasonDates?.seasons?.[0]?.springStartD
 const readRegularSeasonEnd = (seasonDates) =>
   seasonDates?.seasons?.[0]?.regularSeasonEndDate || null;
 
+const readLeague = (division) => LEAGUES.find((league) => division.startsWith(league));
+
+// MLB marks the club that clinched its league's best record "z".
 function readRecords(standings) {
   const records = {};
   const champions = new Set();
-  for (const { id, record } of listStandingsRows(standings)) {
+  const bestRecords = {};
+  for (const { id, division, record } of listStandingsRows(standings)) {
     records[id] = { w: record.wins, l: record.losses };
     if (record.divisionRank === "1" && record.divisionLeader) champions.add(id);
+    if (record.clinchIndicator === "z") bestRecords[readLeague(division)] = id;
   }
-  return { records, champions };
+  return { records, clinches: { champions, bestRecords } };
 }
 
 export function buildSnapshot(responses, { season, now = Date.now() }) {
   const games = responses.schedule ? listScheduledGames(responses.schedule) : [];
   const postseasonGames = listScheduledGames(responses.postseason);
-  const { records, champions } = readRecords(responses.standings);
-  const grouped = groupPostseason(postseasonGames, champions);
-  const official = readOfficialField(grouped, records);
+  const { records, clinches } = readRecords(responses.standings);
+  const gamesBySeries = groupPostseason(postseasonGames, clinches);
+  const official = readOfficialField(gamesBySeries, records);
   const hasStandings = hasEveryDivision(responses.standings);
   const teams = official || (hasStandings ? projectField(responses.standings) : {});
-  const { series, log } = buildSeries(teams, grouped.gamesBySeries, readEasternDay(now).date);
+  const { series, log } = buildSeries(teams, gamesBySeries, readEasternDay(now).date);
   const clubGames = [
     ...games.filter((game) => game.type === "R"),
-    ...listOpenSeriesGames(grouped.gamesBySeries, log),
+    ...listNeededPostseasonGames(gamesBySeries, log),
   ];
 
   return {
@@ -881,9 +872,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     series,
     log,
     standings: hasStandings ? buildStandings(responses.standings, clubGames) : null,
-    slate: responses.schedule
-      ? buildSlate(games, listScheduledGames(responses.schedule, responses.postseason), now)
-      : null,
+    slate: responses.schedule ? buildSlate(games, clubGames, now) : null,
     missing: findMissingFields(responses),
   };
 }
