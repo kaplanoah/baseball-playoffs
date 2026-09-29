@@ -144,18 +144,41 @@ test("under each card, the next game shows as just its day and date", async ({ p
   await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
 });
 
-test("on a phone, each league's first cards sit close under its league line", async ({ page }) => {
-  await page.setViewportSize(PHONE);
-  await openApp(page);
-  const bracket = page.locator("#bracketWrap");
-  const alLine = bracket.locator(".league-head.al");
-  await expect(alLine).toBeVisible();
+const readStackedSpaces = (page) =>
+  page.evaluate(() => {
+    const readBox = (element) => element.getBoundingClientRect();
+    const banner = readBox(document.getElementById("banner"));
+    const line = readBox(document.querySelector("#bracketWrap .league-head.al"));
+    const [upperCard, lowerCard] = [...document.querySelectorAll("#bracketWrap .box")].map(readBox);
+    return {
+      aboveLeague: line.top - banner.bottom,
+      belowLine: upperCard.top - line.bottom,
+      betweenRows: lowerCard.top - upperCard.bottom - 20,
+    };
+  });
 
-  const line = await alLine.boundingBox();
-  const firstCard = await bracket.locator(".box").first().boundingBox();
-  const gap = firstCard.y - (line.y + line.height);
-  expect(gap).toBeGreaterThan(0);
-  expect(gap).toBeLessThanOrEqual(14);
+test("on a phone too short for the bracket, its spaces are at their tightest", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await openApp(page);
+  await expect(page.locator("#bracketWrap .league-head.al")).toBeVisible();
+
+  expect(await readStackedSpaces(page)).toEqual({
+    aboveLeague: 18,
+    belowLine: 11,
+    betweenRows: 13,
+  });
+});
+
+test("on a taller phone, every space in the bracket grows by the same factor", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 960 });
+  await openApp(page);
+  await expect(page.locator("#bracketWrap .league-head.al")).toBeVisible();
+
+  const { aboveLeague, belowLine, betweenRows } = await readStackedSpaces(page);
+  const growth = betweenRows / 13;
+  expect(growth).toBeGreaterThan(1.5);
+  expect(belowLine / 11).toBeCloseTo(growth, 0);
+  expect(aboveLeague / 18).toBeCloseTo(growth, 0);
 });
 
 const readCardTops = (page, round) =>
@@ -278,7 +301,7 @@ test("on a laptop too narrow for the whole bracket, the stacked bracket fills do
     spaceBottom: innerHeight - parseFloat(getComputedStyle(document.body).paddingBottom),
   }));
   expect(spaceBottom - stageBottom).toBeGreaterThanOrEqual(0);
-  expect(spaceBottom - stageBottom).toBeLessThan(3);
+  expect(spaceBottom - stageBottom).toBeLessThan(8);
   expect(await readCardTops(page, "Wild Card")).toEqual(
     await readCardTops(page, "Division Series"),
   );
@@ -776,9 +799,9 @@ const expectBracketToFillHeight = async (page) => {
       const { stageBottom, tabBarTop } = await readBracketFit(page);
       return tabBarTop - stageBottom;
     })
-    .toBeGreaterThanOrEqual(12);
+    .toBeGreaterThanOrEqual(14);
   const { stageBottom, lowestNoteBottom, tabBarTop } = await readBracketFit(page);
-  expect(tabBarTop - stageBottom).toBeLessThan(15);
+  expect(tabBarTop - stageBottom).toBeLessThan(22);
   expect(stageBottom - lowestNoteBottom).toBeLessThan(4);
 };
 

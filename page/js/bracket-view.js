@@ -65,11 +65,14 @@ const STACKED = {
   columnGap: 32,
   worldSeriesWidth: 240,
   noteHeight: 20,
-  headerHeight: 30,
-  tabBarClearance: 12,
-  minGap: 12,
-  maxGap: 60,
+  lineHeight: 19,
+  tabBarClearance: 14,
+  maxGrowth: 3,
 };
+/* The tightest spaces, which all grow by one factor to fill the screen's height. The page's margin
+   above the bracket, nav.tabs's on phones in styles.css, supplies the first aboveLeague. The NL's
+   line sits betweenRows below the AL's last note. */
+const SPACES = { aboveLeague: 18, belowLine: 11, betweenRows: 13 };
 // A row of level cards and their notes.
 const SERIES_HEIGHT = CARD.height + STACKED.noteHeight;
 
@@ -209,7 +212,7 @@ function renderWideStage(bracket) {
 
 const isShown = (element) => element.getClientRects().length > 0;
 
-let renderedGap = 0;
+let renderedGrowth = 0;
 
 // A floating tab bar's transform is left out, since the bar stretches while it moves.
 function findSpaceBottom() {
@@ -221,21 +224,31 @@ function findSpaceBottom() {
   return tabBarTop - STACKED.tabBarClearance;
 }
 
-// The rows of cards spread out so the lowest notes end at the bottom of the screen's space.
-function measureGap(wrap) {
-  if (!isShown(wrap)) return renderedGap || STACKED.minGap;
+// Solves the stage's height, the grown spaces plus the lines and rows, for the space it has.
+function measureGrowth(wrap) {
+  if (!isShown(wrap)) return renderedGrowth || 1;
   const top = wrap.getBoundingClientRect().top + scrollY;
-  const bottom = findSpaceBottom();
-  const gap = Math.floor((bottom - top - 2 * STACKED.headerHeight - 4 * SERIES_HEIGHT) / 3);
-  return Math.min(STACKED.maxGap, Math.max(STACKED.minGap, gap));
+  const fixedHeight = 2 * STACKED.lineHeight + 4 * SERIES_HEIGHT;
+  const growingHeight = SPACES.aboveLeague + 2 * SPACES.belowLine + 3 * SPACES.betweenRows;
+  const growth = (findSpaceBottom() - top - fixedHeight + SPACES.aboveLeague) / growingHeight;
+  const bounded = Math.min(STACKED.maxGrowth, Math.max(1, growth));
+  return Math.floor(bounded * 100) / 100;
+}
+
+function sizeSpaces(growth) {
+  return {
+    top: Math.floor(SPACES.aboveLeague * (growth - 1)),
+    belowLine: Math.floor(SPACES.belowLine * growth),
+    betweenRows: Math.floor(SPACES.betweenRows * growth),
+  };
 }
 
 // Each wild card card sits level with the division card it feeds.
-function placeLeague(top, gap) {
-  const firstY = top + STACKED.headerHeight;
-  const rowY = [firstY, firstY + SERIES_HEIGHT + gap];
+function placeLeague(top, spaces) {
+  const firstY = top + STACKED.lineHeight + spaces.belowLine;
+  const rowY = [firstY, firstY + SERIES_HEIGHT + spaces.betweenRows];
   const championshipY = Math.round((rowY[0] + rowY[1]) / 2);
-  return { top, rowY, championshipY };
+  return { top, rowY, championshipY, bottom: rowY[1] + SERIES_HEIGHT };
 }
 
 function drawLeagueConnectors(place) {
@@ -275,13 +288,13 @@ function renderLeague(key, league, place) {
   ];
 }
 
-function renderStackedStage(bracket, gap) {
-  const leagueHeight = STACKED.headerHeight + 2 * SERIES_HEIGHT + gap;
-  const al = placeLeague(0, gap);
-  const nl = placeLeague(leagueHeight + gap, gap);
+function renderStackedStage(bracket, growth) {
+  const spaces = sizeSpaces(growth);
+  const al = placeLeague(spaces.top, spaces);
+  const nl = placeLeague(al.bottom + spaces.betweenRows, spaces);
   const worldSeriesY = Math.round((al.championshipY + nl.championshipY) / 2);
   const width = findColumnLeft(STACKED, 3) + STACKED.worldSeriesWidth;
-  const height = 2 * leagueHeight + gap;
+  const height = nl.bottom;
   return html`<div class="bracket-stage" style="width:${width}px; height:${height}px;">
     <svg class="bracket-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
     ${renderLeague("al", bracket.al, al)}
@@ -304,31 +317,31 @@ export function renderBracket() {
   noFieldNote.hidden = hasField;
   if (!hasField) {
     setHtml(wrap, html``);
-    renderedGap = 0;
+    renderedGrowth = 0;
     renderBanner(null);
     return;
   }
 
-  const gap = NARROW.matches ? measureGap(wrap) : 0;
-  const stage = NARROW.matches ? renderStackedStage(bracket, gap) : renderWideStage(bracket);
+  const growth = NARROW.matches ? measureGrowth(wrap) : 0;
+  const stage = NARROW.matches ? renderStackedStage(bracket, growth) : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
   setHtml(
     wrap,
     html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
   );
   wrap.querySelector(".tree-scroll").scrollLeft = scrollLeft;
-  renderedGap = gap;
+  renderedGrowth = growth;
   renderBanner(bracket);
 }
 
-/* Redraws when the whole wide bracket starts or stops fitting, and while stacked when the gaps'
+/* Redraws when the whole wide bracket starts or stops fitting, and while stacked when the spaces'
    share of the screen changes: the screen resizes, the bracket tab shows, or content above the
    bracket grows or shrinks. */
 export function watchBracketSpace() {
   const wrap = document.getElementById("bracketWrap");
   const redrawIfResized = () => {
-    if (!NARROW.matches || !renderedGap || !isShown(wrap)) return;
-    if (measureGap(wrap) !== renderedGap) renderBracket();
+    if (!NARROW.matches || !renderedGrowth || !isShown(wrap)) return;
+    if (measureGrowth(wrap) !== renderedGrowth) renderBracket();
   };
   NARROW.addEventListener("change", renderBracket);
   addEventListener("resize", redrawIfResized);
