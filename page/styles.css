@@ -987,12 +987,13 @@ nav.tabs + .updates {
 .card-note.live {
   font-style: normal;
 }
-/* The space between parts is widened to match the lights, which have no space before them. */
+/* The lights have no space or side bearing before them, so their margin is a little wider than the
+   space between parts to look the same. */
 .card-note.live .live-part + .live-part {
   margin-left: 0.5em;
 }
 .card-note.live .out-lights {
-  margin-left: 1.1em;
+  margin-left: 1.17em;
 }
 .card-note.champ {
   margin-top: 8px;
