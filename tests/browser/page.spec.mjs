@@ -46,6 +46,19 @@ test("the Games tab lists today's games and each club's previous and next game",
   await expect(shownGames.locator(".game-row").first()).toContainText("Game 1");
 });
 
+test("a game under way shows its outs as two lights beside the inning", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const liveStatuses = page.locator("#games-today .game-row.live .game-status");
+
+  await expect(liveStatuses.first()).toHaveText("Top 9th");
+  await expect(liveStatuses.first().getByRole("img", { name: "1 out" })).toBeVisible();
+  await expect(liveStatuses.nth(1).getByRole("img", { name: "2 outs" })).toBeVisible();
+  await expect(liveStatuses.nth(2).getByRole("img", { name: "0 outs" })).toBeVisible();
+  await expect(liveStatuses.nth(2).locator(".out-light.on")).toHaveCount(0);
+  await expect(liveStatuses.nth(1).locator(".out-light.on")).toHaveCount(2);
+});
+
 const readPagesPosition = (page) =>
   page
     .locator("#gamePages")
@@ -243,13 +256,23 @@ test("under each card, the next game shows as just its day and date", async ({ p
   await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
 });
 
-test("under a card whose game is under way, the score and inning show instead of the next game", async ({
+test("under a card whose game is under way, the score, inning, and outs show instead of the next game", async ({
   page,
 }) => {
   const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
   const start = "2026-09-24T23:08:00Z";
   snapshot.slate.today.games.push(
-    { away: "NYY", home: "BOS", state: "live", start, score: [2, 3], inning: 4, half: "top" },
+    {
+      away: "NYY",
+      home: "BOS",
+      state: "live",
+      start,
+      score: [2, 3],
+      inning: 4,
+      half: "top",
+      outs: 1,
+    },
+    { away: "PHI", home: "ATL", state: "live", start, score: [4, 1], inning: 5, half: "middle" },
     {
       away: "SD",
       home: "CHC",
@@ -257,19 +280,29 @@ test("under a card whose game is under way, the score and inning show instead of
       start,
       score: [1, 1],
       inning: 6,
+      half: "top",
+      outs: 2,
       delay: "Delayed: Rain",
     },
   );
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   const notes = page.locator("#bracketWrap .card-note");
 
-  const leading = notes.filter({ hasText: /^Red Sox lead 3-2, Top 4th$/ });
-  await expect(leading).toHaveCount(1);
-  await expect(leading).toHaveCSS("color", await readColor(page, "--copper-ink"));
-  const delayed = notes.filter({ hasText: /^Tied 1-1, Delayed: Rain$/ });
+  const batting = notes.filter({ hasText: /^3-2 Top 4th$/ });
+  await expect(batting).toHaveCount(1);
+  await expect(batting).toHaveCSS("color", await readColor(page, "--copper-ink"));
+  await expect(batting).toHaveCSS("font-style", "normal");
+  await expect(batting.getByRole("img", { name: "1 out" })).toBeVisible();
+  await expect(batting.locator(".out-light")).toHaveCount(2);
+  await expect(batting.locator(".out-light.on")).toHaveCount(1);
+  const betweenHalves = notes.filter({ hasText: /^4-1 Mid 5th$/ });
+  await expect(betweenHalves).toHaveCount(1);
+  await expect(betweenHalves.locator(".out-light")).toHaveCount(0);
+  const delayed = notes.filter({ hasText: /^1-1 Delayed: Rain$/ });
   await expect(delayed).toHaveCount(1);
   await expect(delayed).toHaveCSS("color", await readColor(page, "--gold"));
-  await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(2);
+  await expect(delayed.locator(".out-light")).toHaveCount(0);
+  await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(1);
 });
 
 const readColor = (page, token) =>

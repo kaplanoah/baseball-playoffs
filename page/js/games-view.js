@@ -6,7 +6,8 @@ import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
 import { session } from "./session.js";
 import { selectTab, wireTabs } from "./tabs.js";
 
-const HALF_INNING_LABELS = { top: "Top", bottom: "Bot" };
+const HALF_INNING_LABELS = { top: "Top", middle: "Mid", bottom: "Bot", end: "End" };
+const OUT_LIGHTS = 2;
 const CLINCH_TITLES = {
   z: "Clinched the best record in the league",
   y: "Clinched the division",
@@ -51,6 +52,17 @@ function describeStart(game) {
 
 export function describeInning(game) {
   return [HALF_INNING_LABELS[game.half], formatOrdinal(game.inning || 1)].filter(Boolean).join(" ");
+}
+
+// The third out ends the half, so only the first two get a light.
+export function renderOutLights(game) {
+  if (game.state !== "live" || game.delay || game.outs == null) return html``;
+  const lights = Array.from(
+    { length: OUT_LIGHTS },
+    (_, index) => html`<span class="out-light ${index < game.outs ? "on" : ""}"></span>`,
+  );
+  const label = game.outs === 1 ? "1 out" : `${game.outs} outs`;
+  return html`<span class="out-lights" role="img" aria-label="${label}">${lights}</span>`;
 }
 
 function describeStatus(game) {
@@ -106,7 +118,7 @@ function renderMiddle(game, awayLost, homeLost) {
   const headline = game.score
     ? renderScore(game, awayLost, homeLost)
     : html`<span class="game-time">${game.state === "off" ? game.detail || "Postponed" : describeStart(game)}</span>`;
-  return html`<span class="game-middle">${headline}<span class="game-status">${describeStatus(game)}${doubleheader}</span></span>`;
+  return html`<span class="game-middle">${headline}<span class="game-status">${describeStatus(game)}${renderOutLights(game)}${doubleheader}</span></span>`;
 }
 
 function renderGame(game) {

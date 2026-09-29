@@ -704,6 +704,25 @@ table.st .seed-cell {
 .game-row.off .game-time {
   color: var(--ink-dim);
 }
+.game-status .out-lights {
+  margin-left: 0.6em;
+}
+/* A scoreboard's lights for the first two outs, centered on the lowercase letters beside them. */
+.out-lights {
+  --light: 6.5px;
+  display: inline-flex;
+  gap: 0.3em;
+  vertical-align: calc(0.32em - var(--light) / 2);
+}
+.out-light {
+  width: var(--light);
+  height: var(--light);
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.out-light.on {
+  background: currentColor;
+}
 .game-status .doubleheader {
   color: var(--gold);
 }
@@ -975,6 +994,16 @@ button.ghost {
 }
 .card-note.delayed {
   color: var(--gold);
+}
+.card-note.live {
+  font-style: normal;
+}
+/* The space between parts is widened to match the lights, which have no space before them. */
+.card-note.live .live-part + .live-part {
+  margin-left: 0.5em;
+}
+.card-note.live .out-lights {
+  margin-left: 1.1em;
 }
 .card-note.champ {
   margin-top: 8px;
