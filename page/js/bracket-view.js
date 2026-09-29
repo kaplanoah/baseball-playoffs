@@ -6,9 +6,9 @@ import {
   nameTeam,
   renderTeamTag,
 } from "./clubs.js";
-import { readGameDay } from "./dates.js";
+import { countDaysBetween, readGameDay } from "./dates.js";
 import { describeInning, renderOutLights } from "./games-view.js";
-import { html, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const findRank = (id) => {
@@ -89,14 +89,30 @@ function drawConnector(x1, y1, x2, y2) {
   return `M ${alignToPixel(x1)} ${alignToPixel(y1)} H ${alignToPixel(midX)} V ${alignToPixel(y2)} H ${alignToPixel(x2)}`;
 }
 
+function describeGameDay(day, now) {
+  const daysAway = countDaysBetween(now, day);
+  if (daysAway === 0) return "today";
+  if (daysAway === 1) return "tomorrow";
+  const weekday = day.toLocaleDateString(undefined, { weekday: "short" });
+  const date = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `${weekday} ${date}`;
+}
+
+function describeStartTime(game) {
+  const start = new Date(game.at);
+  if (game.tbd || Number.isNaN(start.getTime())) return "time TBD";
+  return start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
 function describeNextGame(series) {
   const next = (session.state.series[series.id] || {}).next;
   if (series.winner || !next) return "";
   const day = readGameDay(next);
   if (!day) return "";
-  const weekday = day.toLocaleDateString(undefined, { weekday: "short" });
-  const date = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return `Next game ${weekday} ${date}`;
+  return joinWithSeparator([
+    `Next game ${describeGameDay(day, new Date())}`,
+    describeStartTime(next),
+  ]);
 }
 
 const readWinningPercentage = (team) =>

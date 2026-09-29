@@ -241,19 +241,65 @@ test("on a phone, the bracket stacks the AL above the NL, each running left to r
   expect(worldSeries.y).toBeLessThan(nlcs.y);
 });
 
-test("under each card, the next game shows as just its day and date", async ({ page }) => {
+test("under each card, the next game shows its day, as today or tomorrow when it can, and its start time", async ({
+  page,
+}) => {
   const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
   snapshot.series.AL_WC1.next = {
+    at: "2026-09-25T01:10:00Z",
+    date: "2026-09-24",
+    tbd: false,
+    game: 1,
+  };
+  snapshot.series.AL_WC2.next = {
     at: "2026-09-25T23:08:00Z",
     date: "2026-09-25",
+    tbd: false,
+    game: 1,
+  };
+  snapshot.series.NL_WC1.next = {
+    at: "2026-09-25T07:33:00Z",
+    date: "2026-09-25",
+    tbd: true,
+    game: 1,
+  };
+  snapshot.series.NL_DS1.next = {
+    at: "2026-10-03T20:08:00Z",
+    date: "2026-10-03",
     tbd: false,
     game: 1,
   };
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   const notes = page.locator("#bracketWrap .card-note");
 
-  await expect(notes.filter({ hasText: /^Next game Fri Sep 25$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
+  await expect(notes.filter({ hasText: /^Next game today\u20229:10\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game tomorrow\u20227:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game tomorrow\u2022time TBD$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game Sat Oct 3\u20224:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game Sat Oct 3\u2022time TBD$/ })).toHaveCount(3);
+  await expect(notes.filter({ hasText: /^Next game Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
+});
+
+// The page's clock reads 8:44 PM Eastern, which is already the next morning in London.
+test.describe("in Europe/London", () => {
+  test.use({ timezoneId: "Europe/London" });
+
+  test("a card's next game reads its day and time by the viewer's own clock", async ({ page }) => {
+    const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+    snapshot.series.AL_WC1.next = {
+      at: "2026-09-25T17:10:00Z",
+      date: "2026-09-25",
+      tbd: false,
+      game: 1,
+    };
+    await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+
+    await expect(
+      page
+        .locator("#bracketWrap .card-note")
+        .filter({ hasText: /^Next game today\u20226:10\sPM$/ }),
+    ).toHaveCount(1);
+  });
 });
 
 test("under a card whose game is under way, the score, inning, and outs show instead of the next game", async ({
@@ -302,7 +348,7 @@ test("under a card whose game is under way, the score, inning, and outs show ins
   await expect(delayed).toHaveCount(1);
   await expect(delayed).toHaveCSS("color", await readColor(page, "--gold"));
   await expect(delayed.locator(".out-light")).toHaveCount(0);
-  await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
 });
 
 const readColor = (page, token) =>
