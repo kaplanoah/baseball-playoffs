@@ -149,12 +149,13 @@
 
   <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="view">
     <div class="game-tabs" role="tablist" aria-label="Games">
+      <span class="game-tabs-thumb" aria-hidden="true"></span>
       <button
         type="button"
         role="tab"
         id="games-tab-previous"
         data-tab="previous"
-        aria-controls="gamesList"
+        aria-controls="games-previous"
         aria-selected="false"
         tabindex="-1"
       >
@@ -165,7 +166,7 @@
         role="tab"
         id="games-tab-today"
         data-tab="today"
-        aria-controls="gamesList"
+        aria-controls="games-today"
         aria-selected="true"
         class="active"
       >
@@ -176,14 +177,28 @@
         role="tab"
         id="games-tab-next"
         data-tab="next"
-        aria-controls="gamesList"
+        aria-controls="games-next"
         aria-selected="false"
         tabindex="-1"
       >
         Next
       </button>
     </div>
-    <div id="gamesList" role="tabpanel" aria-labelledby="games-tab-today"></div>
+    <div id="gamePages" class="game-pages">
+      <div
+        id="games-previous"
+        class="game-page"
+        role="tabpanel"
+        aria-labelledby="games-tab-previous"
+      ></div>
+      <div
+        id="games-today"
+        class="game-page"
+        role="tabpanel"
+        aria-labelledby="games-tab-today"
+      ></div>
+      <div id="games-next" class="game-page" role="tabpanel" aria-labelledby="games-tab-next"></div>
+    </div>
   </section>
 
   <section id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" class="view">

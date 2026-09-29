@@ -16,15 +16,23 @@ const CLINCH_TITLES = {
 // Trimmed to the drawing, so sized in em its base sits on the text's baseline like a letter.
 const SEED_LOCK = html`<svg class="seed-lock" viewBox="1.5 1.3 9 12.4" role="img" aria-label="seed final"><path d="M3.5 7V4.5a2.5 2.5 0 0 1 5 0V7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="2.2" y="7.2" width="7.6" height="5.8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
 const EMPTY_LIST_TEXT = {
-  previous: "No earlier games this season.",
-  today: "No games today.",
-  next: "No games scheduled yet.",
+  previous: "No earlier games this season",
+  today: "No games today",
+  next: "No games scheduled yet",
 };
+const GAME_LISTS = ["previous", "today", "next"];
 
 let shownList = "today";
+// The list a tapped tab is scrolling to; the lists passed on the way there aren't chosen.
+let scrollTarget = null;
+let pagesWidth = 0;
 
 const findGameTabs = () =>
   /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("#view-games [role=tab]")]);
+const findGameTabList = () =>
+  /** @type {HTMLElement} */ (document.querySelector("#view-games [role=tablist]"));
+const findGamePages = () => document.getElementById("gamePages");
+const findGamePage = (list) => document.getElementById(`games-${list}`);
 
 // Game days are Eastern calendar dates, so they're read as dates, never as instants.
 function formatGameDay(date) {
@@ -151,9 +159,8 @@ function listGames(slate, list) {
 }
 
 function describeMissingSlate() {
-  if (session.activeYear !== session.currentSeason)
-    return "Games show for the current season only.";
-  return "Games appear here as soon as the page can reach MLB.";
+  if (session.activeYear !== session.currentSeason) return "Games show for the current season only";
+  return "Games appear here as soon as the page can reach MLB";
 }
 
 export function renderGameList(slate, list) {
@@ -168,16 +175,87 @@ export function renderGameList(slate, list) {
 
 export function renderGames() {
   const slate = session.state && session.state.slate;
-  setHtml(document.getElementById("gamesList"), renderGameList(slate, shownList));
+  for (const list of GAME_LISTS) setHtml(findGamePage(list), renderGameList(slate, list));
 }
 
-function showGameList(list) {
+// The pages are as tall as the shown list, so a short list doesn't leave a long one's scroll room.
+function fitPagesToShownList() {
+  findGamePages().style.height = `${findGamePage(shownList).offsetHeight}px`;
+}
+
+function markShownList(list) {
   shownList = list;
   selectTab(findGameTabs(), list);
-  document.getElementById("gamesList").setAttribute("aria-labelledby", `games-tab-${list}`);
-  renderGames();
+  for (const other of GAME_LISTS) findGamePage(other).inert = other !== list;
+  fitPagesToShownList();
+}
+
+/** @param {number} position runs from 0 at the first list to 2 at the last, between them mid-swipe */
+function paintSwipe(position) {
+  findGameTabList().style.setProperty("--swipe", String(position));
+  for (const [index, button] of findGameTabs().entries()) {
+    const nearness = Math.max(0, 1 - Math.abs(index - position));
+    button.style.setProperty("--nearness", String(nearness));
+  }
+}
+
+const readSwipePosition = (pages) => pages.scrollLeft / pages.clientWidth;
+
+function followSwipe() {
+  const pages = findGamePages();
+  if (!pages.clientWidth) return;
+  const position = readSwipePosition(pages);
+  paintSwipe(position);
+  const nearest = GAME_LISTS[Math.round(position)];
+  if (scrollTarget === nearest && Math.abs(position - Math.round(position)) < 0.01)
+    scrollTarget = null;
+  if (!scrollTarget && nearest !== shownList) markShownList(nearest);
+}
+
+const findListLeft = (pages, list) => GAME_LISTS.indexOf(list) * pages.clientWidth;
+
+function scrollToList(list, behavior) {
+  const pages = findGamePages();
+  pages.scrollTo({ left: findListLeft(pages, list), behavior });
+}
+
+const prefersReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function showGameList(list) {
+  const pages = findGamePages();
+  markShownList(list);
+  if (Math.abs(pages.scrollLeft - findListLeft(pages, list)) < 1) return;
+  scrollTarget = list;
+  scrollToList(list, prefersReducedMotion() ? "instant" : "smooth");
+}
+
+// A hidden view's pages lose their scroll position, so they find the shown list again whenever
+// they come back into view or change width.
+function realignPages() {
+  const { clientWidth } = findGamePages();
+  if (clientWidth === pagesWidth) return;
+  pagesWidth = clientWidth;
+  scrollTarget = null;
+  scrollToList(shownList, "instant");
+  paintSwipe(GAME_LISTS.indexOf(shownList));
+  fitPagesToShownList();
+}
+
+function wireSwipe() {
+  const pages = findGamePages();
+  const releaseScrollTarget = () => (scrollTarget = null);
+  const releaseOnSidewaysWheel = (event) => event.deltaX && releaseScrollTarget();
+  pages.addEventListener("scroll", followSwipe, { passive: true });
+  pages.addEventListener("pointerdown", releaseScrollTarget);
+  pages.addEventListener("wheel", releaseOnSidewaysWheel, { passive: true });
+  new ResizeObserver(realignPages).observe(pages);
+  const pageObserver = new ResizeObserver(fitPagesToShownList);
+  for (const list of GAME_LISTS) pageObserver.observe(findGamePage(list));
 }
 
 export function wireGameTabs() {
   wireTabs(findGameTabs(), showGameList);
+  markShownList(shownList);
+  paintSwipe(GAME_LISTS.indexOf(shownList));
+  wireSwipe();
 }

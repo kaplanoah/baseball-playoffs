@@ -28,19 +28,94 @@ test("the Games tab lists today's games and each club's previous and next game",
 }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
-  const games = page.locator("#gamesList");
-  await expect(games.locator(".game-row")).toHaveCount(12);
-  await expect(games.locator(".game-row.live").first()).toContainText("Top 9th");
+  const shownGames = page.locator(".game-page:not([inert])");
+  await expect(shownGames).toHaveId("games-today");
+  await expect(shownGames.locator(".game-row")).toHaveCount(12);
+  await expect(shownGames.locator(".game-row.live").first()).toContainText("Top 9th");
 
   await page.getByRole("tab", { name: "Previous" }).click();
-  await expect(games.locator(".game-row")).toHaveCount(15);
-  await expect(games).toContainText("Game 2");
+  await expect(shownGames).toHaveId("games-previous");
+  await expect(shownGames.locator(".game-row")).toHaveCount(15);
+  await expect(shownGames).toContainText("Game 2");
 
   await page.getByRole("tab", { name: "Previous" }).press("End");
   await expect(page.getByRole("tab", { name: "Next" })).toBeFocused();
   await expect(page.getByRole("tab", { name: "Next" })).toHaveAttribute("aria-selected", "true");
-  await expect(games.locator(".game-row")).toHaveCount(15);
-  await expect(games.locator(".game-row").first()).toContainText("Game 1");
+  await expect(shownGames).toHaveId("games-next");
+  await expect(shownGames.locator(".game-row")).toHaveCount(15);
+  await expect(shownGames.locator(".game-row").first()).toContainText("Game 1");
+});
+
+const readPagesPosition = (page) =>
+  page
+    .locator("#gamePages")
+    .evaluate((pages) => Math.round((pages.scrollLeft / pages.clientWidth) * 100) / 100);
+
+async function readThumbOffset(page, tabName) {
+  const thumb = await page.locator(".game-tabs-thumb").boundingBox();
+  const tab = await page.getByRole("tab", { name: tabName }).boundingBox();
+  return Math.abs(thumb.x + thumb.width / 2 - (tab.x + tab.width / 2));
+}
+
+test("on a phone, swiping the games sideways moves between the lists and slides the tab thumb", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+
+  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth / 4));
+  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-previous")).not.toHaveAttribute("inert");
+  await expect(page.locator("#games-today")).toHaveAttribute("inert");
+  await expect.poll(() => readThumbOffset(page, "Previous")).toBeLessThan(1);
+
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(2);
+  await expect(page.getByRole("tab", { name: "Next" })).toHaveAttribute("aria-selected", "true");
+  await expect.poll(() => readThumbOffset(page, "Next")).toBeLessThan(1);
+});
+
+test("the Games lists are only as tall as the one shown", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const pages = page.locator("#gamePages");
+  const readHeight = async (locator) => (await locator.boundingBox()).height;
+
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect
+    .poll(() => readHeight(pages))
+    .toBe(await readHeight(page.locator("#games-previous")));
+  await page.getByRole("tab", { name: "Today" }).click();
+  await expect.poll(() => readHeight(pages)).toBe(await readHeight(page.locator("#games-today")));
+});
+
+test("the Games tab finds today's list again after another tab was shown", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+
+  await page.getByRole("tab", { name: "Bracket" }).click();
+  await page.getByRole("tab", { name: "Games" }).click();
+
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("a game still to come is as tall as a finished one", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const readRowHeight = async (state) =>
+    (await page.locator(`#games-today .game-row.${state}`).first().boundingBox()).height;
+
+  expect(await readRowHeight("pre")).toBe(await readRowHeight("final"));
 });
 
 const PHONE = { width: 390, height: 844 };
@@ -58,7 +133,7 @@ test("the Games tab bolds each winner and dims only the clubs that are out", asy
   await page.getByRole("tab", { name: "Previous" }).click();
   const findSide = (away, home, side) =>
     page
-      .locator("#gamesList .game-row")
+      .locator("#games-previous .game-row")
       .filter({ hasText: away })
       .filter({ hasText: home })
       .locator(`.game-side.${side}`);
