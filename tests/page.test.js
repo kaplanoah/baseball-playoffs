@@ -2,7 +2,7 @@ import { beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { composeState, session } from "../page/js/session.js";
-import { renderDivisionBlock, renderNextCell } from "../page/js/standings.js";
+import { renderDivisionBlock, renderFieldBlock, renderNextCell } from "../page/js/standings.js";
 import { describeTeamStatus, nameSeries } from "../page/js/bracket.js";
 import { describeDrought, listRankedOrder } from "../page/js/clubs.js";
 import { describeRace, isSeedFinal } from "../page/js/race.js";
@@ -400,6 +400,120 @@ test("division header: a magic number only when there is a number", () => {
   assert.doesNotMatch(renderHead({ magic: "-" }), /magic/);
   assert.doesNotMatch(renderHead({ magic: null }), /magic/);
   assert.match(renderHead({ clinched: true, magic: "3" }), /clinched/);
+});
+
+const AL_SEEDS = { TB: 1, CLE: 2, TEX: 3, NYY: 4, BOS: 5, CWS: 6 };
+
+function buildAlStandings(changes = {}) {
+  const row = (id, w, l, fields) => ({
+    id,
+    w,
+    l,
+    pct: (w / (w + l)).toFixed(3).slice(1),
+    ...fields,
+    ...changes[id],
+  });
+  return {
+    "AL East": [
+      row("TB", 95, 60, { gb: "-", elim: "-", lead: true, magic: "2", clinch: "x" }),
+      row("NYY", 89, 66, { gb: "6.0", elim: "2", wcgb: "+9.5", wce: "-", wcrank: "1" }),
+      row("BOS", 84, 72, { gb: "11.5", elim: "E", wcgb: "+4.0", wce: "-", wcrank: "2" }),
+      row("TOR", 77, 79, { gb: "18.5", elim: "E", wcgb: "3.0", wce: "3", wcrank: "4" }),
+      row("BAL", 75, 81, { gb: "20.5", elim: "E", wcgb: "5.0", wce: "2", wcrank: "6" }),
+    ],
+    "AL Central": [
+      row("CLE", 81, 75, { gb: "-", elim: "-", lead: true, magic: "6" }),
+      row("CWS", 80, 76, { gb: "1.0", elim: "6", wcgb: "-", wce: "-", wcrank: "3" }),
+      row("MIN", 73, 83, { gb: "8.0", elim: "E", wcgb: "7.0", wce: "E", wcrank: "7" }),
+    ],
+    "AL West": [
+      row("TEX", 78, 78, { gb: "-", elim: "-", lead: true, magic: "2" }),
+      row("HOU", 77, 79, { gb: "1.0", elim: "6", wcgb: "3.0", wce: "4", wcrank: "5" }),
+    ],
+  };
+}
+
+const listFieldRows = (rendered) =>
+  [
+    ...String(rendered).matchAll(/class="team-name">([^<]+)<|>(Wild cards)<|class="(cutline)"/g),
+  ].map(([, name, label, cutline]) => name || label || cutline);
+
+test("playoff field: division leaders by seed, then the wild cards, then the clubs still chasing", () => {
+  session.state = {
+    teams: Object.fromEntries(Object.entries(AL_SEEDS).map(([id, seed]) => [id, { seed }])),
+  };
+  assert.deepEqual(listFieldRows(renderFieldBlock("AL", buildAlStandings())), [
+    "Rays",
+    "Guardians",
+    "Rangers",
+    "Wild cards",
+    "Yankees",
+    "Red Sox",
+    "White Sox",
+    "cutline",
+    "Blue Jays",
+    "Astros",
+    "Orioles",
+  ]);
+});
+
+test("playoff field: every live chaser shows, and eliminated clubs fill in to three", () => {
+  session.state = {
+    teams: Object.fromEntries(Object.entries(AL_SEEDS).map(([id, seed]) => [id, { seed }])),
+  };
+  const listChasers = (changes) =>
+    listFieldRows(renderFieldBlock("AL", buildAlStandings(changes))).slice(8);
+  assert.deepEqual(listChasers({ MIN: { wce: "5" } }), ["Blue Jays", "Astros", "Orioles", "Twins"]);
+  const withOneAlive = listChasers({ HOU: { wce: "E" }, BAL: { wce: "E" } });
+  assert.deepEqual(withOneAlive, ["Blue Jays", "Astros", "Orioles"]);
+  const rendered = String(
+    renderFieldBlock("AL", buildAlStandings({ HOU: { wce: "E" }, BAL: { wce: "E" } })),
+  );
+  assert.equal(rendered.match(/<tr class="eliminated">/g)?.length, 2);
+});
+
+test("playoff field: each leader's lead over second place and its magic number", () => {
+  session.state = {
+    teams: Object.fromEntries(Object.entries(AL_SEEDS).map(([id, seed]) => [id, { seed }])),
+  };
+  // Seed through M#, one entry per cell.
+  const describeLeader = (rendered, name) => {
+    const row = String(rendered)
+      .split("<tr")
+      .find((markup) => markup.includes(`>${name}<`));
+    return [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
+      .map(([, cell]) => stripTags(cell).trim())
+      .slice(1, 8);
+  };
+  const rendered = renderFieldBlock("AL", buildAlStandings({ CLE: { clinched: true } }));
+  assert.deepEqual(describeLeader(rendered, "Rays"), [
+    "1",
+    "Rays",
+    "95",
+    "60",
+    ".613",
+    "+6.0",
+    "2",
+  ]);
+  assert.deepEqual(describeLeader(rendered, "Guardians"), [
+    "2",
+    "Guardians",
+    "81",
+    "75",
+    ".519",
+    "+1.0",
+    "&mdash;",
+  ]);
+  assert.match(String(rendered), /<td class="elim-num clinched mid">&mdash;<\/td>/);
+  const tied = renderFieldBlock("AL", buildAlStandings({ HOU: { gb: "-" } }));
+  assert.deepEqual(describeLeader(tied, "Rangers").slice(5), ["&mdash;", "2"]);
+});
+
+test("standings rows keep room for a rank tag whether or not the club is ranked", () => {
+  session.state = { teams: { TB: { seed: 1 } }, ranking: ["TB"] };
+  const rendered = String(renderDivisionBlock("AL East", buildAlStandings()["AL East"]));
+  assert.equal(rendered.match(/<td class="rank-cell"><span class="rank-slot">/g)?.length, 5);
+  assert.equal(rendered.match(/class="rank-tag/g)?.length, 1);
 });
 
 test("text from the shared store or MLB is shown as text, never as markup", () => {
