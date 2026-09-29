@@ -109,6 +109,30 @@ test("the Games tab finds today's list again after another tab was shown", async
   await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
 });
 
+test("each day of games is closed by lines, with its date in open space above it", async ({
+  page,
+}) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const later = snapshot.slate.next.slice(8).map((game) => ({ ...game, date: "2026-09-26" }));
+  snapshot.slate.next = [...snapshot.slate.next.slice(0, 8), ...later];
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Next" }).click();
+  const shownGames = page.locator("#games-next");
+  const days = shownGames.locator(".game-list");
+  const dates = shownGames.locator(".game-day");
+  await expect(days).toHaveCount(2);
+
+  await expect(dates.first()).toHaveCSS("font-size", "10.24px");
+  await expect(days.first()).toHaveCSS("border-top-width", "1px");
+  await expect(days.first().locator(".game-row").last()).toHaveCSS("border-bottom-width", "1px");
+  const firstDay = await days.first().boundingBox();
+  const secondDate = await dates.nth(1).boundingBox();
+  const secondDay = await days.nth(1).boundingBox();
+  expect(secondDate.y - (firstDay.y + firstDay.height)).toBe(30);
+  expect(secondDay.y - (secondDate.y + secondDate.height)).toBe(8);
+});
+
 test("a game still to come is as tall as a finished one", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
