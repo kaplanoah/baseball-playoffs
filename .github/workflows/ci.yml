@@ -88,6 +88,27 @@ jobs:
             playwright-report/
             test-results/
 
+  # A pull request's title sets the next version once it's squash merged (worker/release.mjs). The
+  # title comes from GitHub rather than the event, so a re-run checks an edited title.
+  title:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+      # Naming the shell adds pipefail, so a failed diff can't pass as no changes.
+      - name: Check the title
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh pr diff "$PR" --name-only | node worker/check-pr-title.mjs "$(gh pr view "$PR" --json title --jq .title)"
+
   # Reviews every push to a pull request, so fixes for its comments are reviewed too. It
   # passes when there's nothing to review, such as a push to main, since check fails on a
   # skipped job.
@@ -197,7 +218,7 @@ jobs:
   # skipped required check as passing.
   check:
     if: always()
-    needs: [lint, format, typecheck, deadcode, test, browser, review]
+    needs: [lint, format, typecheck, deadcode, test, browser, title, review]
     runs-on: ubuntu-latest
     steps:
       - name: Require every job to pass
