@@ -243,6 +243,63 @@ test("under each card, the next game shows as just its day and date", async ({ p
   await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
 });
 
+test("under a card whose game is under way, the score and inning show instead of the next game", async ({
+  page,
+}) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const start = "2026-09-24T23:08:00Z";
+  snapshot.slate.today.games.push(
+    { away: "NYY", home: "BOS", state: "live", start, score: [2, 3], inning: 4, half: "top" },
+    {
+      away: "SD",
+      home: "CHC",
+      state: "live",
+      start,
+      score: [1, 1],
+      inning: 6,
+      delay: "Delayed: Rain",
+    },
+  );
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  const notes = page.locator("#bracketWrap .card-note");
+
+  const leading = notes.filter({ hasText: /^Red Sox lead 3-2, Top 4th$/ });
+  await expect(leading).toHaveCount(1);
+  await expect(leading).toHaveCSS("color", await readColor(page, "--copper-ink"));
+  const delayed = notes.filter({ hasText: /^Tied 1-1, Delayed: Rain$/ });
+  await expect(delayed).toHaveCount(1);
+  await expect(delayed).toHaveCSS("color", await readColor(page, "--gold"));
+  await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(2);
+});
+
+const readColor = (page, token) =>
+  page.evaluate((name) => {
+    const probe = document.createElement("span");
+    probe.style.color = `var(${name})`;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, token);
+
+test("on a phone, the World Series card scrolls all the way to the middle of the screen", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const scroller = page.locator(".tree-scroll");
+  await expect(scroller).toBeVisible();
+  await scroller.evaluate((element) => (element.scrollLeft = element.scrollWidth));
+  await page.waitForTimeout(300);
+
+  const worldSeries = await page
+    .locator("#bracketWrap .box")
+    .filter({ has: page.locator(".world") })
+    .boundingBox();
+  expect(Math.abs(worldSeries.x + worldSeries.width / 2 - PHONE.width / 2)).toBeLessThan(2);
+  expect((await readBracketFit(page)).pageOverflow).toBe(0);
+});
+
 const readStackedSpaces = (page) =>
   page.evaluate(() => {
     const readBox = (element) => element.getBoundingClientRect();

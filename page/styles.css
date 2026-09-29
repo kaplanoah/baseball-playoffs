@@ -948,6 +948,9 @@ button.ghost {
 .stacked .box {
   scroll-snap-align: start;
 }
+.stacked .box:has(.world) {
+  scroll-snap-align: center;
+}
 /* A stacked bar runs past the screen's edge, so a centered name would start off screen. */
 .stacked .league-head {
   text-align: left;
@@ -966,6 +969,12 @@ button.ghost {
   text-align: left;
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--ink-dim) 72%, transparent);
+}
+.card-note.live {
+  color: var(--copper-ink);
+}
+.card-note.delayed {
+  color: var(--gold);
 }
 .card-note.champ {
   margin-top: 8px;
