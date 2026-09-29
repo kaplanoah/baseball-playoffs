@@ -1,4 +1,4 @@
-import { renderRankTag, renderTeamTag } from "./clubs.js";
+import { listRankedOrder, renderRankTag, renderTeamTag } from "./clubs.js";
 import { DAYS, countDaysBetween, readGameDay } from "./dates.js";
 import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
@@ -6,12 +6,16 @@ import { session } from "./session.js";
 const DIVISION_ORDER = ["AL East", "AL Central", "AL West", "NL East", "NL Central", "NL West"];
 const DIVISION_ELIMINATION_TITLE =
   "Division elimination number: combined wins by the division leader and losses by this team that would end its division chances. A dash means clinched, E means out.";
+const MAGIC_NUMBER_TITLE =
+  "Division magic number: combined wins by this team and losses by the club closest behind it that would clinch the division. A dash means clinched.";
 const WILD_CARD_ELIMINATION_TITLE =
   "Wild card elimination number: combined wins by the team holding the last spot and losses by this team that would end its wild card chances. A dash means clinched, E means out.";
 
 // Shared column classes, sized in styles.css, line the columns up across every table.
 const COLUMNS = html`<colgroup><col class="c-rank"><col class="c-seed"><col class="c-team"><col class="c-w"><col class="c-l"><col class="c-pct"><col class="c-gb"><col class="c-e"><col></colgroup>`;
 const COLUMN_COUNT = 9;
+const WILD_CARD_SPOTS = 3;
+const MIN_CHASERS = 3;
 
 const EMPTY_NEXT_CELL = html`<td class="next-cell">&mdash;</td>`;
 
@@ -54,11 +58,22 @@ export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
   return html`<td class="next-cell">${day}${time} ${next.home ? "vs" : "@"} ${next.opp || "TBD"}</td>`;
 }
 
-function renderStandingsRow(row, cells, { out = false, cut = false } = {}) {
-  const seed = session.state.teams[row.id] && session.state.teams[row.id].seed;
-  const rowMarkup = html`<tr class="${out ? "eliminated" : "alive"} ${cut ? "cut" : ""}">
-    <td class="rank-cell">${renderRankTag(row.id)}</td>
-    <td class="seed-cell">${seed || ""}</td>
+const readSeed = (id) => session.state.teams[id] && session.state.teams[id].seed;
+
+// An unranked club gets an empty slot, so every row is a rank tag's height and tables side by
+// side line up whichever clubs are ranked.
+function renderRankCell(id) {
+  const isRanked = listRankedOrder().includes(id);
+  return html`<td class="rank-cell">${isRanked ? renderRankTag(id) : html`<span class="rank-slot"></span>`}</td>`;
+}
+
+function renderStandingsRow(row, cells, { out = false, cut = false, groupEnd = false } = {}) {
+  const rowClass = [out ? "eliminated" : "alive", cut && "cut", groupEnd && "group-end"]
+    .filter(Boolean)
+    .join(" ");
+  const rowMarkup = html`<tr class="${rowClass}">
+    ${renderRankCell(row.id)}
+    <td class="seed-cell">${readSeed(row.id) || ""}</td>
     <td class="team">${renderTeamTag(row.id)}</td>
     ${cells}
   </tr>`;
@@ -90,6 +105,14 @@ function renderRaceCells(row, gamesBack, eliminationNumber, isOut) {
   return html`${renderRecordCells(row)}${renderGamesBackCell(gamesBack)}${renderEliminationCell(eliminationNumber)}${renderNextCell(row, { isOut })}`;
 }
 
+function renderTable(title, head, body) {
+  return html`<div class="st-scroll" tabindex="0" role="region" aria-label="${title} standings"><table class="st">
+      ${COLUMNS}
+      ${head}
+      <tbody>${body}</tbody>
+    </table></div>`;
+}
+
 export function renderDivisionBlock(name, rows) {
   const league = name.slice(0, 2);
   const renderRow = (row) => {
@@ -101,12 +124,23 @@ export function renderDivisionBlock(name, rows) {
     <div class="div-title">
       <span class="${league}">${name}</span><span class="title-right">${renderDivisionTag(rows[0] || {})}</span>
     </div>
-    <div class="st-scroll" tabindex="0" role="region" aria-label="${name} standings"><table class="st">
-      ${COLUMNS}
-      ${renderHeader("GB", "E#", DIVISION_ELIMINATION_TITLE)}
-      <tbody>${rows.map(renderRow)}</tbody>
-    </table></div>
+    ${renderTable(name, renderHeader("GB", "E#", DIVISION_ELIMINATION_TITLE), rows.map(renderRow))}
   </div>`;
+}
+
+const listLeagueDivisions = (league, divisions) =>
+  DIVISION_ORDER.filter((division) => division.startsWith(league)).map(
+    (division) => divisions[division] || [],
+  );
+
+const compareLeaders = (first, second) =>
+  (readSeed(first.id) || 99) - (readSeed(second.id) || 99) ||
+  Number(second.pct) - Number(first.pct);
+
+function listLeaders(league, divisions) {
+  return listLeagueDivisions(league, divisions)
+    .flatMap((rows) => rows.filter((row) => row.lead))
+    .sort(compareLeaders);
 }
 
 // Eliminated clubs go last: MLB's wildCardRank can rank one above a live
@@ -118,25 +152,65 @@ function compareWildCardRows(first, second) {
 }
 
 function listWildCardPool(league, divisions) {
-  return DIVISION_ORDER.filter((division) => division.startsWith(league))
-    .flatMap((division) => (divisions[division] || []).filter((row) => !row.lead))
-    .sort(compareWildCardRows)
-    .slice(0, 7);
+  return listLeagueDivisions(league, divisions)
+    .flatMap((rows) => rows.filter((row) => !row.lead))
+    .sort(compareWildCardRows);
 }
 
-function renderWildCardBlock(league, pool) {
-  const renderRow = (row, index) => {
+// Every club still alive for a wild card, and never fewer than three, so the race below the
+// line keeps its shape once most of it is out.
+function listChasers(chasers) {
+  const aliveCount = chasers.filter((row) => row.wce !== "E").length;
+  return chasers.slice(0, Math.max(MIN_CHASERS, aliveCount));
+}
+
+// The leader's edge on the club behind it, which MLB gives only as that club's games back.
+function describeDivisionLead(leader, divisions) {
+  const rows = Object.values(divisions).find((division) => division.includes(leader)) || [];
+  const second = rows.find((row) => row !== leader);
+  if (!second || !/^\d/.test(second.gb || "")) return second ? second.gb : null;
+  return `+${second.gb}`;
+}
+
+function renderMagicCell(leader) {
+  if (leader.clinched) return renderEliminationCell("-");
+  if (/^\d+$/.test(leader.magic || "")) return renderEliminationCell(leader.magic);
+  return html`<td class="elim-num mid"></td>`;
+}
+
+function renderFieldHead() {
+  return html`<thead><tr>
+        <th></th><th>Seed</th><th class="left">Division leaders</th><th class="mid">W</th><th class="mid">L</th><th class="mid pct">PCT</th><th>Lead</th>
+        <th class="mid" title="${MAGIC_NUMBER_TITLE}">M#</th><th class="left next-cell">Next</th>
+      </tr></thead>`;
+}
+
+const WILD_CARD_HEAD = html`<tr class="wild-card-head">
+    <th></th><th></th><th class="left">Wild cards</th><th></th><th></th><th></th><th>WCGB</th>
+    <th class="mid" title="${WILD_CARD_ELIMINATION_TITLE}">WCE</th><th></th>
+  </tr>`;
+
+export function renderFieldBlock(league, divisions) {
+  const leaders = listLeaders(league, divisions);
+  const pool = listWildCardPool(league, divisions);
+  const holders = pool.slice(0, WILD_CARD_SPOTS);
+  const chasers = listChasers(pool.slice(WILD_CARD_SPOTS));
+  const renderLeaderRow = (row, index) => {
+    const cells = html`${renderRecordCells(row)}${renderGamesBackCell(describeDivisionLead(row, divisions))}${renderMagicCell(row)}${renderNextCell(row)}`;
+    return renderStandingsRow(row, cells, { groupEnd: index === leaders.length - 1 });
+  };
+  const renderWildCardRow = (row, { cut = false } = {}) => {
     const isOut = row.wce === "E";
     const cells = renderRaceCells(row, row.wcgb, row.wce, isOut);
-    return renderStandingsRow(row, cells, { cut: index === 2, out: isOut });
+    return renderStandingsRow(row, cells, { cut, out: isOut });
   };
+  const body = html`${leaders.map(renderLeaderRow)}${WILD_CARD_HEAD}${holders.map((row, index) =>
+    renderWildCardRow(row, { cut: index === holders.length - 1 && chasers.length > 0 }),
+  )}${chasers.map((row) => renderWildCardRow(row))}`;
+  const title = `${league} Playoff Field`;
   return html`<div class="div-block">
-    <div class="div-title"><span class="${league}">${league} Wild Card</span></div>
-    <div class="st-scroll" tabindex="0" role="region" aria-label="${league} Wild Card standings"><table class="st">
-      ${COLUMNS}
-      ${renderHeader("WCGB", "WCE", WILD_CARD_ELIMINATION_TITLE)}
-      <tbody>${pool.map(renderRow)}</tbody>
-    </table></div>
+    <div class="div-title"><span class="${league}">${title}</span><span class="title-right"></span></div>
+    ${renderTable(title, renderFieldHead(), body)}
   </div>`;
 }
 
@@ -151,18 +225,17 @@ export function renderStandings() {
     );
     return;
   }
+  const fields = ["AL", "NL"]
+    .filter((league) => listLeaders(league, divisions).length)
+    .map((league) => renderFieldBlock(league, divisions));
   const blocks = DIVISION_ORDER.filter(
     (division) => divisions[division] && divisions[division].length,
   ).map((division) => renderDivisionBlock(division, divisions[division]));
-  const races = ["AL", "NL"]
-    .map((league) => [league, listWildCardPool(league, divisions)])
-    .filter(([, pool]) => pool.length)
-    .map(([league, pool]) => renderWildCardBlock(league, pool));
   setHtml(
     wrap,
     html`
+    <div class="field-grid">${fields}</div>
     <div class="stand-head">Divisions</div>
-    <div class="div-grid">${blocks}</div>
-    ${races.length > 0 && html`<div class="stand-head second">Wild Card</div><div class="wc-grid">${races}</div>`}`,
+    <div class="div-grid">${blocks}</div>`,
   );
 }

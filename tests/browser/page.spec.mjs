@@ -206,6 +206,27 @@ test("renders the bracket, standings and stamp from the Worker's snapshot", asyn
   expect(await app.readDocument("seasons/2026")).toBeNull();
 });
 
+test("standings open on each league's playoff field, and every table lines up", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+
+  const fields = page.locator("#standingsWrap .field-grid .div-block");
+  await expect(fields).toHaveCount(2);
+  await expect(fields.first()).toContainText("AL Playoff Field");
+  await expect(fields.first().locator(".wild-card-head")).toHaveText(/Wild cards/);
+
+  const readHeights = (selector) =>
+    page
+      .locator(selector)
+      .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
+  const tableHeights = await readHeights("#standingsWrap .div-grid table.st");
+  expect(tableHeights).toHaveLength(6);
+  expect(new Set(tableHeights).size).toBe(1);
+  expect(new Set(await readHeights("#standingsWrap .div-title")).size).toBe(1);
+});
+
 test("says when live scores can't be reached, and tries again", async ({ page }) => {
   const app = await openApp(page, { liveAvailable: false });
 

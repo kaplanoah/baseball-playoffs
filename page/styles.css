@@ -272,26 +272,27 @@ section.view.active {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.11em;
-  color: var(--copper-ink);
-  margin: 0 0 20px;
+  color: var(--ink-dim);
+  margin: 21px 0 15px;
   padding-bottom: 7px;
   border-bottom: 1px solid var(--divider);
-}
-.stand-head.second {
-  margin-top: 36px;
 }
 #standingsWrap {
   max-width: 1400px;
 }
 .div-grid,
-.wc-grid {
+.field-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 30px 36px;
+  gap: 16px 28px;
+}
+/* The leagues' fields can run to different lengths, and neither box should pad itself to match. */
+.field-grid {
+  align-items: start;
 }
 @media (min-width: 780px) {
   .div-grid,
-  .wc-grid {
+  .field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Filling down each column puts the AL divisions on the left and the NL on the right. */
@@ -308,7 +309,7 @@ section.view.active {
 }
 .div-title {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   font-size: 0.74rem;
@@ -318,10 +319,12 @@ section.view.active {
   border-bottom: 1px solid var(--divider);
   padding: 7px 10px;
 }
+/* Always a tag's height, so a clinched tag's border can't make one title bar taller than its neighbor. */
 .title-right {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 11px;
+  height: 19px;
 }
 .div-title .AL {
   color: var(--al);
@@ -431,8 +434,12 @@ table.st tr.eliminated td.next-cell {
   font-size: 0.7rem;
   color: var(--ink-mid);
 }
-table.st tr.cut td {
+table.st tr.cut td,
+table.st tr.group-end td {
   border-bottom: 0;
+}
+table.st tr.wild-card-head th {
+  padding-top: 5px;
 }
 /* A gradient, not a dashed border: a collapsed table restarts dashes at every column edge. */
 table.st tr.cutline td {
@@ -450,6 +457,11 @@ table.st tr.cutline td {
 }
 table.st .rank-cell {
   width: 34px;
+}
+/* The slot is there for unranked clubs too, and sets every row to a rank tag's height. */
+table.st .rank-slot {
+  height: 19px;
+  vertical-align: middle;
 }
 table.st .seed-cell {
   width: 28px;
@@ -1488,11 +1500,11 @@ table.ref th.won-col {
     min-width: max-content;
   }
   .div-grid,
-  .wc-grid {
-    gap: 18px;
+  .field-grid {
+    gap: 15px;
   }
   .stand-head {
-    margin-bottom: 15px;
+    margin-bottom: 14px;
   }
 
   #view-reference {
