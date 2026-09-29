@@ -140,8 +140,10 @@ test("under each card, the next game shows as just its day and date", async ({ p
   await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
 });
 
-test("on a phone, each league's first card sits close under its league line", async ({ page }) => {
-  await page.setViewportSize(PHONE);
+test("on a phone too short to fit the bracket, each league's first card sits close under its league line", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 600 });
   await openApp(page);
   const bracket = page.locator("#bracketWrap");
   const alLine = bracket.locator(".league-head.al");
@@ -658,7 +660,7 @@ const readBracketFit = (page) =>
     const stage = document.querySelector(".bracket-stage").getBoundingClientRect();
     return {
       stageBottom: stage.bottom + scrollY,
-      spaceBottom: innerHeight - parseFloat(getComputedStyle(document.body).paddingBottom),
+      tabBarTop: document.getElementById("tabBar").getBoundingClientRect().top,
       scrollLeft: scroller.scrollLeft,
       bracketOverflow: scroller.scrollWidth - scroller.clientWidth,
       pageOverflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
@@ -668,12 +670,12 @@ const readBracketFit = (page) =>
 const expectBracketToFillHeight = async (page) => {
   await expect
     .poll(async () => {
-      const { stageBottom, spaceBottom } = await readBracketFit(page);
-      return spaceBottom - stageBottom;
+      const { stageBottom, tabBarTop } = await readBracketFit(page);
+      return tabBarTop - stageBottom;
     })
-    .toBeGreaterThanOrEqual(0);
-  const { stageBottom, spaceBottom } = await readBracketFit(page);
-  expect(spaceBottom - stageBottom).toBeLessThan(4);
+    .toBeGreaterThanOrEqual(8);
+  const { stageBottom, tabBarTop } = await readBracketFit(page);
+  expect(tabBarTop - stageBottom).toBeLessThan(12);
 };
 
 test("on a phone, the bracket fills the height above the tab bar and swipes sideways", async ({

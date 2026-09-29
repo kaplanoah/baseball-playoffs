@@ -66,6 +66,7 @@ const STACKED = {
   worldSeriesWidth: 240,
   noteHeight: 20,
   headerHeight: 30,
+  tabBarClearance: 8,
   minSlotHeight: 132,
   maxSlotHeight: 180,
 };
@@ -224,13 +225,15 @@ const isShown = (element) => element.getClientRects().length > 0;
 
 let renderedSlotHeight = 0;
 
-// The four wild card slots share the height from the bracket's top to the page's bottom padding,
-// which clears the floating tab bar.
+// The four wild card slots share the height from the bracket's top to just above the floating tab
+// bar. Its transform is left out, since the bar stretches while it moves.
 function measureSlotHeight(wrap) {
   if (!isShown(wrap)) return renderedSlotHeight || STACKED.minSlotHeight;
   const top = wrap.getBoundingClientRect().top + scrollY;
-  const bottomPadding = parseFloat(getComputedStyle(document.body).paddingBottom);
-  const slotHeight = Math.floor((innerHeight - top - bottomPadding - 2 * STACKED.headerHeight) / 4);
+  const tabBar = document.getElementById("tabBar");
+  const tabBarTop = innerHeight - parseFloat(getComputedStyle(tabBar).bottom) - tabBar.offsetHeight;
+  const bottom = tabBarTop - STACKED.tabBarClearance;
+  const slotHeight = Math.floor((bottom - top - 2 * STACKED.headerHeight) / 4);
   return Math.min(STACKED.maxSlotHeight, Math.max(STACKED.minSlotHeight, slotHeight));
 }
 
