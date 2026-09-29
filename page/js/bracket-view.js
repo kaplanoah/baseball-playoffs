@@ -7,7 +7,7 @@ import {
   renderTeamTag,
 } from "./clubs.js";
 import { readGameDay } from "./dates.js";
-import { html, joinWithSeparator, setHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const findRank = (id) => {
@@ -52,31 +52,35 @@ const CARD = { width: 209, height: 90, topSlotY: 41, dividerY: 57 };
    its connector runs straight into the top slot. */
 const WIDE = {
   columnGap: 20,
-  stageHeight: 413, // room for a next-game note under the lowest cards
+  stageHeight: 343, // room for a next-game note under the lowest cards
   wildCard1Y: 37,
   division1Y: 53,
-  middleY: 173,
-  division2Y: 293,
-  wildCard2Y: 277,
+  middleY: 138,
+  division2Y: 223,
+  wildCard2Y: 207,
 };
 
-// Phones: AL above NL, rounds left to right, swiped sideways.
+// Screens too narrow for the whole wide bracket: AL above NL, rounds left to right, swiped sideways.
 const STACKED = {
   columnGap: 32,
   worldSeriesWidth: 240,
   noteHeight: 20,
-  headerHeight: 34,
-  minSlotHeight: 132,
-  maxSlotHeight: 180,
+  lineHeight: 19,
+  tabBarClearance: 14,
+  maxGrowth: 3,
 };
-const DIVISION_DROP = CARD.dividerY - CARD.topSlotY;
-// Each wild card slot holds its card, the division card dropped beside it, and that card's note.
-const SERIES_HEIGHT = DIVISION_DROP + CARD.height + STACKED.noteHeight;
-
-const PHONE = matchMedia("(max-width: 779px)");
+/* The tightest spaces, which all grow by one factor to fill the screen's height. The page's margin
+   above the bracket, nav.tabs's on phones in styles.css, supplies the first aboveLeague. The NL's
+   line sits betweenRows below the AL's last note. */
+const SPACES = { aboveLeague: 18, belowLine: 11, betweenRows: 13 };
+// A row of level cards and their notes.
+const SERIES_HEIGHT = CARD.height + STACKED.noteHeight;
 
 const findColumnLeft = (layout, index) => index * (CARD.width + layout.columnGap);
 const findColumnRight = (layout, index) => findColumnLeft(layout, index) + CARD.width;
+
+const PAGE_GUTTER = 18; // body's side padding in styles.css
+const NARROW = matchMedia(`(max-width: ${findColumnRight(WIDE, 6) + 2 * PAGE_GUTTER - 1}px)`);
 const alignToPixel = (value) => Math.round(value) + 0.5; // a 1px stroke centered on .5 fills one pixel row
 
 function drawConnector(x1, y1, x2, y2) {
@@ -89,27 +93,9 @@ function describeNextGame(series) {
   if (series.winner || !next) return "";
   const day = readGameDay(next);
   if (!day) return "";
-  const timeKnown = next.tbd === false && next.at;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.round((day.getTime() - today.getTime()) / 86400000);
-
-  const time = timeKnown
-    ? ", " + new Date(next.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : "";
-  if (days === 0) return `Next game today${time}`;
-  if (days === 1) return `Next game tomorrow${time}`;
-
-  // Drop the weekday once a time is shown, to keep the note on one line.
-  const date = day.toLocaleDateString(
-    undefined,
-    timeKnown
-      ? { month: "short", day: "numeric" }
-      : { weekday: "short", month: "short", day: "numeric" },
-  );
-  const note = `Next game ${date}${time}`;
-  return days < 0 ? note : joinWithSeparator([note, `${days} days`]);
+  const weekday = day.toLocaleDateString(undefined, { weekday: "short" });
+  const date = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `Next game ${weekday} ${date}`;
 }
 
 const readWinningPercentage = (team) =>
@@ -206,11 +192,12 @@ function renderWideCards(bracket) {
 
 const LEAGUE_NAMES = { al: "American League", nl: "National League" };
 
-// Each bar spans its league's three columns.
+// Each bar spans its league's three columns. Its name sticks to the left edge while the bar
+// scrolls past, and leaves with the bar.
 function renderLeagueHeader(league, layout, top, firstColumn = 0) {
   const left = findColumnLeft(layout, firstColumn);
   const width = findColumnRight(layout, firstColumn + 2) - left;
-  return html`<div class="league-head ${league}" style="top:${top}px; left:${left}px; width:${width}px;">${LEAGUE_NAMES[league]}</div>`;
+  return html`<div class="league-head ${league}" style="top:${top}px; left:${left}px; width:${width}px;"><span class="league-name">${LEAGUE_NAMES[league]}</span></div>`;
 }
 
 function renderWideStage(bracket) {
@@ -225,38 +212,53 @@ function renderWideStage(bracket) {
 
 const isShown = (element) => element.getClientRects().length > 0;
 
-let renderedSlotHeight = 0;
+let renderedGrowth = 0;
 
-// The four wild card slots share the height from the bracket's top to the page's bottom padding,
-// which clears the floating tab bar.
-function measureSlotHeight(wrap) {
-  if (!isShown(wrap)) return renderedSlotHeight || STACKED.minSlotHeight;
-  const top = wrap.getBoundingClientRect().top + scrollY;
-  const bottomPadding = parseFloat(getComputedStyle(document.body).paddingBottom);
-  const slotHeight = Math.floor((innerHeight - top - bottomPadding - 2 * STACKED.headerHeight) / 4);
-  return Math.min(STACKED.maxSlotHeight, Math.max(STACKED.minSlotHeight, slotHeight));
+// A floating tab bar's transform is left out, since the bar stretches while it moves.
+function findSpaceBottom() {
+  const tabBar = document.getElementById("tabBar");
+  const tabBarStyle = getComputedStyle(tabBar);
+  if (tabBarStyle.position !== "fixed")
+    return innerHeight - parseFloat(getComputedStyle(document.body).paddingBottom);
+  const tabBarTop = innerHeight - parseFloat(tabBarStyle.bottom) - tabBar.offsetHeight;
+  return tabBarTop - STACKED.tabBarClearance;
 }
 
-function placeLeague(top, slotHeight) {
-  const firstY = top + STACKED.headerHeight + Math.floor((slotHeight - SERIES_HEIGHT) / 2);
-  const wildCardY = [firstY, firstY + slotHeight];
-  const divisionY = wildCardY.map((y) => y + DIVISION_DROP);
-  const championshipY = Math.round((divisionY[0] + divisionY[1]) / 2);
-  return { top, wildCardY, divisionY, championshipY };
+// Solves the stage's height, the grown spaces plus the lines and rows, for the space it has.
+function measureGrowth(wrap) {
+  if (!isShown(wrap)) return renderedGrowth || 1;
+  const top = wrap.getBoundingClientRect().top + scrollY;
+  const fixedHeight = 2 * STACKED.lineHeight + 4 * SERIES_HEIGHT;
+  const growingHeight = SPACES.aboveLeague + 2 * SPACES.belowLine + 3 * SPACES.betweenRows;
+  const growth = (findSpaceBottom() - top - fixedHeight + SPACES.aboveLeague) / growingHeight;
+  const bounded = Math.min(STACKED.maxGrowth, Math.max(1, growth));
+  return Math.floor(bounded * 100) / 100;
+}
+
+function sizeSpaces(growth) {
+  return {
+    top: Math.floor(SPACES.aboveLeague * (growth - 1)),
+    belowLine: Math.floor(SPACES.belowLine * growth),
+    betweenRows: Math.floor(SPACES.betweenRows * growth),
+  };
+}
+
+// Each wild card card sits level with the division card it feeds.
+function placeLeague(top, spaces) {
+  const firstY = top + STACKED.lineHeight + spaces.belowLine;
+  const rowY = [firstY, firstY + SERIES_HEIGHT + spaces.betweenRows];
+  const championshipY = Math.round((rowY[0] + rowY[1]) / 2);
+  return { top, rowY, championshipY, bottom: rowY[1] + SERIES_HEIGHT };
 }
 
 function drawLeagueConnectors(place) {
   const left = (index) => findColumnLeft(STACKED, index);
   const right = (index) => findColumnRight(STACKED, index);
   const championshipIn = place.championshipY + CARD.dividerY;
-  return [
-    ...place.wildCardY.map((y, index) =>
-      drawConnector(right(0), y + CARD.dividerY, left(1), place.divisionY[index] + CARD.topSlotY),
-    ),
-    ...place.divisionY.map((y) =>
-      drawConnector(right(1), y + CARD.dividerY, left(2), championshipIn),
-    ),
-  ];
+  return place.rowY.flatMap((y) => [
+    drawConnector(right(0), y + CARD.dividerY, left(1), y + CARD.topSlotY),
+    drawConnector(right(1), y + CARD.dividerY, left(2), championshipIn),
+  ]);
 }
 
 function drawStackedConnectors(places, worldSeriesY) {
@@ -278,21 +280,21 @@ function renderLeague(key, league, place) {
   const left = (index) => findColumnLeft(STACKED, index);
   return [
     renderLeagueHeader(key, STACKED, place.top),
-    renderSeriesCard(league.wc[1], place.wildCardY[0], left(0)),
-    renderSeriesCard(league.wc[0], place.wildCardY[1], left(0)),
-    renderSeriesCard(league.ds[0], place.divisionY[0], left(1)),
-    renderSeriesCard(league.ds[1], place.divisionY[1], left(1)),
+    renderSeriesCard(league.wc[1], place.rowY[0], left(0)),
+    renderSeriesCard(league.wc[0], place.rowY[1], left(0)),
+    renderSeriesCard(league.ds[0], place.rowY[0], left(1)),
+    renderSeriesCard(league.ds[1], place.rowY[1], left(1)),
     renderSeriesCard(league.cs[0], place.championshipY, left(2), describeAdvance(league.champion)),
   ];
 }
 
-function renderStackedStage(bracket, slotHeight) {
-  const leagueHeight = STACKED.headerHeight + 2 * slotHeight;
-  const al = placeLeague(0, slotHeight);
-  const nl = placeLeague(leagueHeight, slotHeight);
+function renderStackedStage(bracket, growth) {
+  const spaces = sizeSpaces(growth);
+  const al = placeLeague(spaces.top, spaces);
+  const nl = placeLeague(al.bottom + spaces.betweenRows, spaces);
   const worldSeriesY = Math.round((al.championshipY + nl.championshipY) / 2);
   const width = findColumnLeft(STACKED, 3) + STACKED.worldSeriesWidth;
-  const height = 2 * leagueHeight;
+  const height = nl.bottom;
   return html`<div class="bracket-stage" style="width:${width}px; height:${height}px;">
     <svg class="bracket-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
     ${renderLeague("al", bracket.al, al)}
@@ -315,33 +317,33 @@ export function renderBracket() {
   noFieldNote.hidden = hasField;
   if (!hasField) {
     setHtml(wrap, html``);
-    renderedSlotHeight = 0;
+    renderedGrowth = 0;
     renderBanner(null);
     return;
   }
 
-  const slotHeight = PHONE.matches ? measureSlotHeight(wrap) : 0;
-  const stage = PHONE.matches ? renderStackedStage(bracket, slotHeight) : renderWideStage(bracket);
+  const growth = NARROW.matches ? measureGrowth(wrap) : 0;
+  const stage = NARROW.matches ? renderStackedStage(bracket, growth) : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
   setHtml(
     wrap,
-    html`<div class="tree-scroll" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
+    html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
   );
   wrap.querySelector(".tree-scroll").scrollLeft = scrollLeft;
-  renderedSlotHeight = slotHeight;
+  renderedGrowth = growth;
   renderBanner(bracket);
 }
 
-/* Redraws when crossing into or out of phone width, and on a phone when the slots' share of the
-   screen changes: the screen resizes, the bracket tab shows, or content above the bracket grows
-   or shrinks. */
+/* Redraws when the whole wide bracket starts or stops fitting, and while stacked when the spaces'
+   share of the screen changes: the screen resizes, the bracket tab shows, or content above the
+   bracket grows or shrinks. */
 export function watchBracketSpace() {
   const wrap = document.getElementById("bracketWrap");
   const redrawIfResized = () => {
-    if (!PHONE.matches || !renderedSlotHeight || !isShown(wrap)) return;
-    if (measureSlotHeight(wrap) !== renderedSlotHeight) renderBracket();
+    if (!NARROW.matches || !renderedGrowth || !isShown(wrap)) return;
+    if (measureGrowth(wrap) !== renderedGrowth) renderBracket();
   };
-  PHONE.addEventListener("change", renderBracket);
+  NARROW.addEventListener("change", renderBracket);
   addEventListener("resize", redrawIfResized);
   new ResizeObserver(redrawIfResized).observe(document.body);
 }
