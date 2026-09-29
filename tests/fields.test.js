@@ -53,6 +53,21 @@ test("a field the code can do without on one game is missing only once it's gone
   ]);
 });
 
+test("live games that stop giving their half inning or outs are flagged", () => {
+  const responses = copy(EVENING.responses);
+  const live = listGames(responses.schedule).filter(
+    (game) => game.status.abstractGameState === "Live",
+  );
+  for (const game of live) {
+    game.linescore.inningState = "Top of the inning";
+    delete game.linescore.outs;
+  }
+  assert.deepEqual(MLBSnapshot.findMissingFields(responses), [
+    "linescore.inningState",
+    "linescore.outs",
+  ]);
+});
+
 test("a postseason series that stops naming its league is flagged", () => {
   const responses = copy(EVENING.responses);
   listGames(responses.postseason)[0].seriesDescription = "Wild Card Series";

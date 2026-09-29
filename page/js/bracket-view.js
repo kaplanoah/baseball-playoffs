@@ -7,7 +7,7 @@ import {
   renderTeamTag,
 } from "./clubs.js";
 import { readGameDay } from "./dates.js";
-import { describeInning } from "./games-view.js";
+import { describeInning, renderOutLights } from "./games-view.js";
 import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 
@@ -135,22 +135,24 @@ function findLiveGame(series) {
   return games.find((game) => game.state === "live" && isPlayedBetween(game, series)) || null;
 }
 
-function describeLiveScore(game) {
-  const [awayScore, homeScore] = game.score || [0, 0];
-  const high = Math.max(awayScore, homeScore);
-  const low = Math.min(awayScore, homeScore);
-  if (high === low) return `Tied ${high}-${low}`;
-  return `${nameTeam(awayScore > homeScore ? game.away : game.home)} lead ${high}-${low}`;
+// The runs read in the card's row order, top row first.
+function describeLiveScore(series, game) {
+  const [firstSide, secondSide] = orderRows(series);
+  const readRuns = (side) => {
+    const id = side === "A" ? series.teamA : series.teamB;
+    return game.away === id ? game.score[0] : game.score[1];
+  };
+  return `${readRuns(firstSide)}-${readRuns(secondSide)}`;
 }
 
-function renderLiveNote(game) {
-  return html`<div class="card-note live ${game.delay ? "delayed" : ""}">${describeLiveScore(game)}, ${game.delay || describeInning(game)}</div>`;
+function renderLiveNote(series, game) {
+  return html`<div class="card-note live ${game.delay ? "delayed" : ""}"><span class="live-part tabular">${describeLiveScore(series, game)}</span> <span class="live-part">${game.delay || describeInning(game)}</span>${renderOutLights(game)}</div>`;
 }
 
 function renderCardNote(series, champLine) {
   if (champLine) return html`<div class="card-note champ">${champLine}</div>`;
   const liveGame = findLiveGame(series);
-  if (liveGame) return renderLiveNote(liveGame);
+  if (liveGame) return renderLiveNote(series, liveGame);
   const note = describeNextGame(series);
   return note ? html`<div class="card-note">${note}</div>` : html``;
 }

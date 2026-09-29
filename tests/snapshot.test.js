@@ -352,8 +352,32 @@ test("September: the day's games, in the shape the stamp reads", () => {
     slate.today.games.filter((game) => game.state === "live").map((game) => game.half),
     ["top", "bottom", "top", "bottom"],
   );
+  assert.deepEqual(
+    slate.today.games.filter((game) => game.state === "live").map((game) => game.outs),
+    [1, 2, 0, 1],
+  );
   assert.equal(slate.nextDay.date, "2026-09-25");
   assert.equal(slate.lastFinal.away, "HOU");
+});
+
+test("between halves, a live game says whether it's the middle or end of the inning, with no outs", () => {
+  const responses = JSON.parse(JSON.stringify(EVENING.responses));
+  const liveGames = responses.schedule.dates
+    .flatMap((date) => date.games)
+    .filter((game) => game.status.abstractGameState === "Live");
+  liveGames[0].linescore = { ...liveGames[0].linescore, inningState: "Middle", outs: 3 };
+  liveGames[1].linescore = { ...liveGames[1].linescore, inningState: "End", outs: 3 };
+  const { slate } = buildSnapshot({ ...EVENING, responses });
+  const live = slate.today.games.filter((game) => game.state === "live");
+  assert.deepEqual(
+    live.map(({ half, outs }) => ({ half, outs })),
+    [
+      { half: "middle", outs: undefined },
+      { half: "end", outs: undefined },
+      { half: "top", outs: 0 },
+      { half: "bottom", outs: 1 },
+    ],
+  );
 });
 
 test("before 6am Eastern the day being played is still last night while a game is unfinished", () => {

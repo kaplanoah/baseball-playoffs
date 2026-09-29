@@ -69,7 +69,8 @@ const GAME_FIELDS = [
   "seriesDescription",
   "linescore",
   "currentInning",
-  "isTopInning",
+  "inningState",
+  "outs",
   "doubleHeader",
   "gameNumber",
   "gameInfo",
@@ -110,6 +111,8 @@ const hasPlayed = (record) => record.wins + record.losses > 0;
 const isFinal = (game) => readGameState(game.status || {}) === "final";
 const hasStarted = (game) => ["live", "final"].includes(readGameState(game.status || {}));
 const isLive = (game) => readGameState(game.status || {}) === "live";
+const HALF_INNINGS = { Top: "top", Middle: "middle", Bottom: "bottom", End: "end" };
+const isHalfInning = (value) => Object.hasOwn(HALF_INNINGS, value);
 
 // With `onSome`, a field is only missing when no item it applies to has it.
 /**
@@ -170,7 +173,8 @@ const FIELD_RULES = {
   ],
   scheduleGame: [
     requireField("linescore.currentInning", isNumber, hasStarted, true),
-    requireField("linescore.isTopInning", isBoolean, isLive, true),
+    requireField("linescore.inningState", isHalfInning, isLive, true),
+    requireField("linescore.outs", isNumber, isLive, true),
   ],
   postseasonGame: [
     requireField("seriesGameNumber", isNumber),
@@ -384,10 +388,13 @@ function estimateEnd(game) {
   return new Date(firstPitch + minutes * 60000).toISOString().replace(".000Z", "Z");
 }
 
+// Between halves MLB says "Middle" or "End", with the third out still counted.
 function readHalfInning(linescore) {
-  if (!linescore || !isBoolean(linescore.isTopInning)) return null;
-  return linescore.isTopInning ? "top" : "bottom";
+  const state = linescore && linescore.inningState;
+  return isHalfInning(state) ? HALF_INNINGS[state] : null;
 }
+
+const isBatting = (game) => game.half === "top" || game.half === "bottom";
 
 function normalizeGame(game) {
   const readSide = (key) => {
@@ -408,6 +415,7 @@ function normalizeGame(game) {
     home: readSide("home"),
     inning: game.linescore ? game.linescore.currentInning : undefined,
     half: readHalfInning(game.linescore),
+    outs: game.linescore ? game.linescore.outs : undefined,
     detail: status.detailedState,
     delay: describeDelay(status),
     doubleheader: game.doubleHeader && game.doubleHeader !== "N" ? game.gameNumber : null,
@@ -449,6 +457,7 @@ function summarizeGame(game) {
     summary.score = [game.away.score || 0, game.home.score || 0];
   if (game.state === "live") summary.inning = game.inning || 1;
   if (game.state === "live" && game.half) summary.half = game.half;
+  if (game.state === "live" && isBatting(game) && isNumber(game.outs)) summary.outs = game.outs;
   if (game.state === "final") summary.end = game.end;
   if (game.state === "off") summary.detail = game.detail;
   if (game.delay) summary.delay = game.delay;
