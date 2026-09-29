@@ -52,15 +52,15 @@ const CARD = { width: 209, height: 90, topSlotY: 41, dividerY: 57 };
    its connector runs straight into the top slot. */
 const WIDE = {
   columnGap: 20,
-  stageHeight: 413, // room for a next-game note under the lowest cards
+  stageHeight: 343, // room for a next-game note under the lowest cards
   wildCard1Y: 37,
   division1Y: 53,
-  middleY: 173,
-  division2Y: 293,
-  wildCard2Y: 277,
+  middleY: 138,
+  division2Y: 223,
+  wildCard2Y: 207,
 };
 
-// Phones: AL above NL, rounds left to right, swiped sideways.
+// Screens too narrow for the whole wide bracket: AL above NL, rounds left to right, swiped sideways.
 const STACKED = {
   columnGap: 32,
   worldSeriesWidth: 240,
@@ -73,10 +73,11 @@ const STACKED = {
 // A row of level cards and their notes.
 const SERIES_HEIGHT = CARD.height + STACKED.noteHeight;
 
-const PHONE = matchMedia("(max-width: 779px)");
-
 const findColumnLeft = (layout, index) => index * (CARD.width + layout.columnGap);
 const findColumnRight = (layout, index) => findColumnLeft(layout, index) + CARD.width;
+
+const PAGE_GUTTER = 18; // body's side padding in styles.css
+const NARROW = matchMedia(`(max-width: ${findColumnRight(WIDE, 6) + 2 * PAGE_GUTTER - 1}px)`);
 const alignToPixel = (value) => Math.round(value) + 0.5; // a 1px stroke centered on .5 fills one pixel row
 
 function drawConnector(x1, y1, x2, y2) {
@@ -210,14 +211,21 @@ const isShown = (element) => element.getClientRects().length > 0;
 
 let renderedGap = 0;
 
-// The rows of cards spread out so the lowest notes end just above the floating tab bar. Its
-// transform is left out, since the bar stretches while it moves.
+// A floating tab bar's transform is left out, since the bar stretches while it moves.
+function findSpaceBottom() {
+  const tabBar = document.getElementById("tabBar");
+  const tabBarStyle = getComputedStyle(tabBar);
+  if (tabBarStyle.position !== "fixed")
+    return innerHeight - parseFloat(getComputedStyle(document.body).paddingBottom);
+  const tabBarTop = innerHeight - parseFloat(tabBarStyle.bottom) - tabBar.offsetHeight;
+  return tabBarTop - STACKED.tabBarClearance;
+}
+
+// The rows of cards spread out so the lowest notes end at the bottom of the screen's space.
 function measureGap(wrap) {
   if (!isShown(wrap)) return renderedGap || STACKED.minGap;
   const top = wrap.getBoundingClientRect().top + scrollY;
-  const tabBar = document.getElementById("tabBar");
-  const tabBarTop = innerHeight - parseFloat(getComputedStyle(tabBar).bottom) - tabBar.offsetHeight;
-  const bottom = tabBarTop - STACKED.tabBarClearance;
+  const bottom = findSpaceBottom();
   const gap = Math.floor((bottom - top - 2 * STACKED.headerHeight - 4 * SERIES_HEIGHT) / 3);
   return Math.min(STACKED.maxGap, Math.max(STACKED.minGap, gap));
 }
@@ -301,28 +309,28 @@ export function renderBracket() {
     return;
   }
 
-  const gap = PHONE.matches ? measureGap(wrap) : 0;
-  const stage = PHONE.matches ? renderStackedStage(bracket, gap) : renderWideStage(bracket);
+  const gap = NARROW.matches ? measureGap(wrap) : 0;
+  const stage = NARROW.matches ? renderStackedStage(bracket, gap) : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
   setHtml(
     wrap,
-    html`<div class="tree-scroll" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
+    html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
   );
   wrap.querySelector(".tree-scroll").scrollLeft = scrollLeft;
   renderedGap = gap;
   renderBanner(bracket);
 }
 
-/* Redraws when crossing into or out of phone width, and on a phone when the gaps' share of the
-   screen changes: the screen resizes, the bracket tab shows, or content above the bracket grows
-   or shrinks. */
+/* Redraws when the whole wide bracket starts or stops fitting, and while stacked when the gaps'
+   share of the screen changes: the screen resizes, the bracket tab shows, or content above the
+   bracket grows or shrinks. */
 export function watchBracketSpace() {
   const wrap = document.getElementById("bracketWrap");
   const redrawIfResized = () => {
-    if (!PHONE.matches || !renderedGap || !isShown(wrap)) return;
+    if (!NARROW.matches || !renderedGap || !isShown(wrap)) return;
     if (measureGap(wrap) !== renderedGap) renderBracket();
   };
-  PHONE.addEventListener("change", renderBracket);
+  NARROW.addEventListener("change", renderBracket);
   addEventListener("resize", redrawIfResized);
   new ResizeObserver(redrawIfResized).observe(document.body);
 }

@@ -885,19 +885,17 @@ button.ghost {
 .series.world .bestof span:first-child {
   color: var(--gold);
 }
-@media (max-width: 779px) {
-  .tree-scroll {
-    scroll-snap-type: x proximity;
-    scroll-padding-inline: 18px;
-    overscroll-behavior-x: contain;
-  }
-  .box {
-    scroll-snap-align: start;
-  }
-  /* A phone's bar runs past the screen's edge, so a centered name would start off screen. */
-  .league-head {
-    text-align: left;
-  }
+.tree-scroll.stacked {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 18px;
+  overscroll-behavior-x: contain;
+}
+.stacked .box {
+  scroll-snap-align: start;
+}
+/* A stacked bar runs past the screen's edge, so a centered name would start off screen. */
+.stacked .league-head {
+  text-align: left;
 }
 
 /* Outside the card's box so it can't change the connector geometry. */
