@@ -4,6 +4,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: build
     groups:
       dev-tools:
         patterns: ["*"]
@@ -11,6 +13,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: build
     groups:
       actions:
         patterns: ["*"]

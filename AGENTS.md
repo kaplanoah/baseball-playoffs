@@ -28,6 +28,7 @@
 - Never push to another session's branch.
 - Don't spend time curating commit history. Squash merges make it irrelevant.
 - Refer to PRs by number, not branch.
+- Start every PR title with a type. The squash merge carries it to `main`, where it sets the next version (`worker/release.mjs`): `feat:` for something new to see or do (minor), `fix:` for fixes and polish (patch), `refactor:` for code the Worker runs with no visible change (patch), `build:` for dependencies, the build, and the deploy (patch), and `docs:`, `test:`, `ci:`, or `chore:` for changes the deploy skips (no version). Add `!` after the type, as in `feat!:`, for a major change: a new address, lost data, or something that's gone. A PR that mixes kinds takes the biggest bump. CI's `title` job checks it.
 - `npm run set-app-key` gives the Worker its `APP_KEY` and prints the page's address. `--rotate` replaces the key, which changes the address; do that only when the user asks.
 - The repo is public. Never commit secrets, keys, account IDs, real Worker addresses or subdomains, or personal data; use placeholders in tests and docs.
 - The Cloudflare token lives only in the cloud environment's API credentials and the repo's `production` GitHub environment. Never ask for it in chat or put it in environment variables, code, or commits.

@@ -17,6 +17,7 @@ const SKIPPED_FILES = new Set([
   "playwright.config.mjs",
   "tsconfig.json",
   "types/globals.d.ts",
+  "worker/check-pr-title.mjs",
   "worker/set-app-key.mjs",
 ]);
 const SKIPPED_FOLDERS = ["tests/"];
@@ -26,7 +27,7 @@ const isSkipped = (path) =>
   SKIPPED_FILES.has(path) ||
   SKIPPED_FOLDERS.some((folder) => path.startsWith(folder));
 
-const findDeployedChanges = (paths) => paths.filter((path) => !isSkipped(path));
+export const findDeployedChanges = (paths) => paths.filter((path) => !isSkipped(path));
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const runGit = (args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });

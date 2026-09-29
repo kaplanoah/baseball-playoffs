@@ -98,7 +98,7 @@ const requestVersion = (bundle) =>
 
 test("the bundle serves the release it was built from", async () => {
   const { buildWorker } = await import("../worker/build.mjs");
-  const release = { commit: "abc1234", pullRequest: 81, builtAt: "2026-09-28T00:10:41.000Z" };
+  const release = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41.000Z" };
   const response = await requestVersion(await importBundle(await buildWorker({ release })));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "application/json");
@@ -111,20 +111,14 @@ test("a bundle built without a release has no version file", async () => {
   assert.equal(response.status, 404);
 });
 
-test("the release names the commit, its pull request, and when it was built", async () => {
+test("the release names the version, the commit, and when it was built", async () => {
   const { readRelease } = await import("../worker/build.mjs");
-  const git = () => "b102733\nTell a team that lost today from one that's out (#81)\n";
+  const git = (args) => (args[0] === "log" && args[1] === "-1" ? "b102733\n" : "");
   assert.deepEqual(readRelease(git, new Date("2026-09-28T00:10:41Z")), {
+    version: "2.12.2",
     commit: "b102733",
-    pullRequest: 81,
     builtAt: "2026-09-28T00:10:41.000Z",
   });
-});
-
-test("a commit that isn't a squash merge has no pull request", async () => {
-  const { readRelease } = await import("../worker/build.mjs");
-  const release = readRelease(() => "abc1234\nMerge abc into def\n");
-  assert.equal(release.pullRequest, null);
 });
 
 test("without git, the build has no release", async () => {

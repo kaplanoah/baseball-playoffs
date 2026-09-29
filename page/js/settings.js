@@ -31,11 +31,11 @@ function formatReleaseTime(iso) {
   });
 }
 
-// The pull request's number reads as the version; the commit is there on hover.
-/** @param {{ commit: string, pullRequest: number | null, builtAt: string }} release */
-function renderRelease({ commit, pullRequest, builtAt }) {
+// The commit is there on hover, and stands in for a version the build couldn't work out.
+/** @param {{ version: string | null, commit: string, builtAt: string }} release */
+function renderRelease({ version, commit, builtAt }) {
   const note = findElement("versionNote");
-  const name = pullRequest ? `v${pullRequest}` : commit;
+  const name = version ? `v${version}` : commit;
   setHtml(note, joinWithSeparator([name, `Released ${formatReleaseTime(builtAt)}`]));
   note.title = `Commit ${commit}`;
   note.hidden = false;
