@@ -1,7 +1,7 @@
 import { test, expect, openApp, openSettings, chooseSeason } from "./harness.mjs";
 
 const PHONE = { width: 390, height: 844 };
-const RELEASE = { commit: "abc1234", pullRequest: 81, builtAt: "2026-09-28T00:10:41Z" };
+const RELEASE = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41Z" };
 
 /** @param {import("@playwright/test").Page} page */
 const serveRelease = (page, release) =>
@@ -105,7 +105,7 @@ test("under the title, settings name the release and when it came out, in the vi
   await openSettings(page);
 
   const version = page.locator("#versionNote");
-  await expect(version).toHaveText("v81\u2022Released Sep 27, 8:10 PM");
+  await expect(version).toHaveText("v2.13.0\u2022Released Sep 27, 8:10 PM");
   await expect(version).toHaveAttribute("title", "Commit abc1234");
   const title = await page.locator("#settingsTitle").boundingBox();
   expect((await version.boundingBox()).y).toBeGreaterThan(title.y + title.height - 1);
@@ -120,11 +120,13 @@ test("a release from an earlier year names its year", async ({ page }) => {
   await openApp(page);
   await openSettings(page);
 
-  await expect(page.locator("#versionNote")).toHaveText("v81\u2022Released Oct 2, 2025, 11:00 AM");
+  await expect(page.locator("#versionNote")).toHaveText(
+    "v2.13.0\u2022Released Oct 2, 2025, 11:00 AM",
+  );
 });
 
-test("a release built outside a pull request names its commit", async ({ page }) => {
-  await serveRelease(page, { ...RELEASE, pullRequest: null });
+test("a release without a version names its commit", async ({ page }) => {
+  await serveRelease(page, { ...RELEASE, version: null });
   await openApp(page);
   await openSettings(page);
 

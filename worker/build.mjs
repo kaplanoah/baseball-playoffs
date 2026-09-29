@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { readPageFiles } from "./page-files.mjs";
+import { readVersion } from "./release.mjs";
 
 const root = new URL("../", import.meta.url);
 const OUTPUT = fileURLToPath(new URL("worker/dist/worker.mjs", root));
@@ -13,24 +14,18 @@ const BANNER =
 const runGit = (args) => execFileSync("git", args, { cwd: fileURLToPath(root), encoding: "utf8" });
 
 /**
- * Names the commit being built, for the page's settings. Squash merges end their subject with
- * the pull request's number. Only deploys go live, so the build time is the deploy time.
- * @returns {{ commit: string, pullRequest: number | null, builtAt: string } | null}
+ * Names the commit being built and its version, for the page's settings. Only deploys go live, so
+ * the build time is the deploy time.
+ * @returns {{ version: string | null, commit: string, builtAt: string } | null}
  */
 export function readRelease(git = runGit, now = new Date()) {
-  let log;
+  let commit;
   try {
-    log = git(["log", "-1", "--format=%h%n%s"]);
+    commit = git(["log", "-1", "--format=%h"]).trim();
   } catch {
     return null;
   }
-  const [commit, subject = ""] = log.trim().split("\n");
-  const pullRequest = subject.match(/\(#(\d+)\)$/)?.[1];
-  return {
-    commit,
-    pullRequest: pullRequest ? Number(pullRequest) : null,
-    builtAt: now.toISOString(),
-  };
+  return { version: readVersion(git), commit, builtAt: now.toISOString() };
 }
 
 function listBundledFiles(release) {

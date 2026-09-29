@@ -147,8 +147,15 @@ then `npm run check`. `npm run format` fixes formatting.
 The Worker carries the page. Every deploy bundles both from the source it
 deploys, so there is nothing to rebuild by hand. `npm run build` writes the
 bundle to `worker/dist/`, which git ignores, if you want to look at it. The
-bundle records the commit it was built from, its pull request, and when, and
-the page's settings show them.
+bundle records its version, the commit it was built from, and when, and the
+page's settings show them.
+
+Versions follow [semantic versioning](https://semver.org). Each pull request's
+title starts with a type: `feat:` for a new feature, `fix:`, `refactor:`, or
+`build:` for a patch, and `docs:`, `test:`, `ci:`, or `chore:` for changes that
+don't deploy. A `!` after the type, as in `feat!:`, marks a major change. The
+build works out the version from these titles on `main`, counting from 2.12.2,
+so there are no tags to keep.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page picks up a
