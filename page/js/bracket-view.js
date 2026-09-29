@@ -7,6 +7,7 @@ import {
   renderTeamTag,
 } from "./clubs.js";
 import { readGameDay } from "./dates.js";
+import { describeInning } from "./games-view.js";
 import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 
@@ -124,8 +125,32 @@ function orderRows(series) {
   return series.round === "WC" || series.round === "DS" ? ["B", "A"] : ["A", "B"];
 }
 
+const isPlayedBetween = (game, series) =>
+  !!series.teamA &&
+  !!series.teamB &&
+  [game.away, game.home].sort().join() === [series.teamA, series.teamB].sort().join();
+
+function findLiveGame(series) {
+  const games = session.state.slate?.today?.games || [];
+  return games.find((game) => game.state === "live" && isPlayedBetween(game, series)) || null;
+}
+
+function describeLiveScore(game) {
+  const [awayScore, homeScore] = game.score || [0, 0];
+  const high = Math.max(awayScore, homeScore);
+  const low = Math.min(awayScore, homeScore);
+  if (high === low) return `Tied ${high}-${low}`;
+  return `${nameTeam(awayScore > homeScore ? game.away : game.home)} lead ${high}-${low}`;
+}
+
+function renderLiveNote(game) {
+  return html`<div class="card-note live ${game.delay ? "delayed" : ""}">${describeLiveScore(game)}, ${game.delay || describeInning(game)}</div>`;
+}
+
 function renderCardNote(series, champLine) {
   if (champLine) return html`<div class="card-note champ">${champLine}</div>`;
+  const liveGame = findLiveGame(series);
+  if (liveGame) return renderLiveNote(liveGame);
   const note = describeNextGame(series);
   return note ? html`<div class="card-note">${note}</div>` : html``;
 }
@@ -293,15 +318,20 @@ function renderStackedStage(bracket, growth) {
   const al = placeLeague(spaces.top, spaces);
   const nl = placeLeague(al.bottom + spaces.betweenRows, spaces);
   const worldSeriesY = Math.round((al.championshipY + nl.championshipY) / 2);
-  const width = findColumnLeft(STACKED, 3) + STACKED.worldSeriesWidth;
+  const worldSeriesLeft = findColumnLeft(STACKED, 3);
+  const linesWidth = worldSeriesLeft + STACKED.worldSeriesWidth;
   const height = nl.bottom;
-  return html`<div class="bracket-stage" style="width:${width}px; height:${height}px;">
-    <svg class="bracket-lines" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
+  // Running half the scroller's width past the World Series card's middle lets the card scroll to
+  // the screen's middle.
+  const worldSeriesMiddle = worldSeriesLeft + STACKED.worldSeriesWidth / 2;
+  const stageWidth = `max(${linesWidth}px, calc(${worldSeriesMiddle}px + 50%))`;
+  return html`<div class="bracket-stage" style="width:${stageWidth}; height:${height}px;">
+    <svg class="bracket-lines" width="${linesWidth}" height="${height}" viewBox="0 0 ${linesWidth} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
     ${renderLeague("al", bracket.al, al)}
     ${renderSeriesCard(
       bracket.ws,
       worldSeriesY,
-      findColumnLeft(STACKED, 3),
+      worldSeriesLeft,
       describeWorldSeriesWin(bracket.ws),
       STACKED.worldSeriesWidth,
     )}

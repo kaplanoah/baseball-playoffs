@@ -49,7 +49,7 @@ function describeStart(game) {
   return new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-function describeInning(game) {
+export function describeInning(game) {
   return [HALF_INNING_LABELS[game.half], formatOrdinal(game.inning || 1)].filter(Boolean).join(" ");
 }
 
