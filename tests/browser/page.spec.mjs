@@ -160,24 +160,19 @@ const readCardTops = (page, round) =>
     .filter({ hasText: round })
     .evaluateAll((boxes) => boxes.map((box) => box.getBoundingClientRect().top));
 
-for (const { screen, viewport } of [
-  { screen: "phone", viewport: PHONE },
-  { screen: "wide screen", viewport: { width: 1280, height: 720 } },
-]) {
-  test(`on a ${screen}, each wild card card sits level with the division card it feeds`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(viewport);
-    await openApp(page);
-    await expect(page.locator("#bracketWrap .bracket-stage")).toBeVisible();
+test("on a phone, each wild card card sits level with the division card it feeds", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await expect(page.locator("#bracketWrap .bracket-stage")).toBeVisible();
 
-    const wildCardTops = await readCardTops(page, "Wild Card");
-    const divisionTops = await readCardTops(page, "Division Series");
+  const wildCardTops = await readCardTops(page, "Wild Card");
+  const divisionTops = await readCardTops(page, "Division Series");
 
-    expect(wildCardTops).toHaveLength(4);
-    expect(wildCardTops.toSorted()).toEqual(divisionTops.toSorted());
-  });
-}
+  expect(wildCardTops).toHaveLength(4);
+  expect(wildCardTops.toSorted()).toEqual(divisionTops.toSorted());
+});
 
 test("on a phone, a league's name stays at the left while its line scrolls sideways", async ({
   page,

@@ -48,13 +48,16 @@ function renderMatchupRow(series, side) {
 const CARD = { width: 209, height: 90, topSlotY: 41, dividerY: 57 };
 
 /* Desktop: AL on the left and NL on the right, meeting at the World Series in the middle. Each
-   wild card card sits level with its division card, so every column centers on the same line. */
+   wild card card sits dividerY - topSlotY above its division card, so its connector runs straight
+   into the top slot. */
 const WIDE = {
   columnGap: 20,
-  stageHeight: 384, // room for a next-game note under the lowest cards
-  topY: 24,
-  middleY: 144,
-  bottomY: 264,
+  stageHeight: 400, // room for a next-game note under the lowest cards
+  wildCard1Y: 24,
+  division1Y: 40,
+  middleY: 160,
+  division2Y: 280,
+  wildCard2Y: 264,
 };
 
 // Phones: AL above NL, rounds left to right, swiped sideways.
@@ -159,22 +162,24 @@ function renderColumnLabels() {
 function drawWideConnectors() {
   const left = (index) => findColumnLeft(WIDE, index);
   const right = (index) => findColumnRight(WIDE, index);
-  const topOut = WIDE.topY + CARD.dividerY;
-  const bottomOut = WIDE.bottomY + CARD.dividerY;
+  const wildCard1Out = WIDE.wildCard1Y + CARD.dividerY;
+  const wildCard2Out = WIDE.wildCard2Y + CARD.dividerY;
+  const division1Out = WIDE.division1Y + CARD.dividerY;
+  const division2Out = WIDE.division2Y + CARD.dividerY;
   const middleOut = WIDE.middleY + CARD.dividerY;
-  const topSlot = WIDE.topY + CARD.topSlotY;
-  const bottomSlot = WIDE.bottomY + CARD.topSlotY;
+  const division1Slot = WIDE.division1Y + CARD.topSlotY;
+  const division2Slot = WIDE.division2Y + CARD.topSlotY;
 
   return [
-    drawConnector(right(0), topOut, left(1), topSlot),
-    drawConnector(right(0), bottomOut, left(1), bottomSlot),
-    drawConnector(right(1), topOut, left(2), middleOut),
-    drawConnector(right(1), bottomOut, left(2), middleOut),
+    drawConnector(right(0), wildCard1Out, left(1), division1Slot),
+    drawConnector(right(0), wildCard2Out, left(1), division2Slot),
+    drawConnector(right(1), division1Out, left(2), middleOut),
+    drawConnector(right(1), division2Out, left(2), middleOut),
     drawConnector(right(2), middleOut, left(3), middleOut),
-    drawConnector(left(6), topOut, right(5), topSlot),
-    drawConnector(left(6), bottomOut, right(5), bottomSlot),
-    drawConnector(left(5), topOut, right(4), middleOut),
-    drawConnector(left(5), bottomOut, right(4), middleOut),
+    drawConnector(left(6), wildCard1Out, right(5), division1Slot),
+    drawConnector(left(6), wildCard2Out, right(5), division2Slot),
+    drawConnector(left(5), division1Out, right(4), middleOut),
+    drawConnector(left(5), division2Out, right(4), middleOut),
     drawConnector(left(4), middleOut, right(3), middleOut),
   ].map((path) => html`<path d="${path}"/>`);
 }
@@ -184,17 +189,17 @@ function renderWideCards(bracket) {
   const { al, nl, ws } = bracket;
   const left = (index) => findColumnLeft(WIDE, index);
   return [
-    renderSeriesCard(al.wc[1], WIDE.topY, left(0)),
-    renderSeriesCard(al.wc[0], WIDE.bottomY, left(0)),
-    renderSeriesCard(al.ds[0], WIDE.topY, left(1)),
-    renderSeriesCard(al.ds[1], WIDE.bottomY, left(1)),
+    renderSeriesCard(al.wc[1], WIDE.wildCard1Y, left(0)),
+    renderSeriesCard(al.wc[0], WIDE.wildCard2Y, left(0)),
+    renderSeriesCard(al.ds[0], WIDE.division1Y, left(1)),
+    renderSeriesCard(al.ds[1], WIDE.division2Y, left(1)),
     renderSeriesCard(al.cs[0], WIDE.middleY, left(2), describeAdvance(al.champion)),
     renderSeriesCard(ws, WIDE.middleY, left(3), describeWorldSeriesWin(ws)),
     renderSeriesCard(nl.cs[0], WIDE.middleY, left(4), describeAdvance(nl.champion)),
-    renderSeriesCard(nl.ds[0], WIDE.topY, left(5)),
-    renderSeriesCard(nl.ds[1], WIDE.bottomY, left(5)),
-    renderSeriesCard(nl.wc[1], WIDE.topY, left(6)),
-    renderSeriesCard(nl.wc[0], WIDE.bottomY, left(6)),
+    renderSeriesCard(nl.ds[0], WIDE.division1Y, left(5)),
+    renderSeriesCard(nl.ds[1], WIDE.division2Y, left(5)),
+    renderSeriesCard(nl.wc[1], WIDE.wildCard1Y, left(6)),
+    renderSeriesCard(nl.wc[0], WIDE.wildCard2Y, left(6)),
   ];
 }
 
