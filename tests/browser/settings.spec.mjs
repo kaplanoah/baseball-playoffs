@@ -109,6 +109,10 @@ test("under the title, settings name the release and when it came out, in the vi
   await expect(version).toHaveAttribute("title", "Commit abc1234");
   const title = await page.locator("#settingsTitle").boundingBox();
   expect((await version.boundingBox()).y).toBeGreaterThan(title.y + title.height - 1);
+  const noteSize = await page
+    .locator("#notifyNote")
+    .evaluate((note) => getComputedStyle(note).fontSize);
+  await expect(version).toHaveCSS("font-size", noteSize);
 });
 
 test("a release from an earlier year names its year", async ({ page }) => {
@@ -209,7 +213,9 @@ test("the ranking has no tab of its own; settings hold it, numbered 1 to 12", as
   await openSettings(page);
   const settings = page.getByRole("dialog", { name: "Settings" });
   await expect(settings.getByRole("heading", { name: "Ranking" })).toBeVisible();
-  await expect(settings).toContainText("Who you want to win the World Series, first to last.");
+  await expect(settings.locator(".ranking-note")).toHaveText(
+    "Who you want to win the World Series.",
+  );
   await expect(settings.locator("#rankList .rank-item")).toHaveCount(12);
   await expect(settings.locator("#rankNumbers li")).toHaveText(
     Array.from({ length: 12 }, (_, index) => String(index + 1)),
@@ -301,7 +307,58 @@ test("on a wide screen, the settings and the whole ranking show side by side wit
   const controls = await page.locator(".settings-controls").boundingBox();
   const list = await page.locator("#rankList").boundingBox();
   expect(controls.x + controls.width).toBeLessThan(list.x);
-  expect(Math.abs(controls.y - list.y)).toBeLessThan(1);
+});
+
+test("on a wide screen, the settings start right under the header, level with the ranking's heading", async ({
+  page,
+}) => {
+  await page.setViewportSize(LAPTOP);
+  await openApp(page);
+  await openSettings(page);
+
+  const header = await page.locator(".sheet-top").boundingBox();
+  const controls = await page.locator(".settings-controls").boundingBox();
+  const [season] = await readCenters(page.locator(".control-row > span").first());
+  const [ranking] = await readCenters(page.locator("#rankingTitle"));
+  expect(Math.abs(controls.y - (header.y + header.height))).toBeLessThan(1);
+  expect(Math.abs(season - ranking)).toBeLessThan(2);
+});
+
+test("each ranked club shows its league at the start of its second line", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await openSettings(page);
+  await waitForSheetToRise(page);
+  await scrollSettingsToEnd(page);
+
+  const rows = page.locator("#rankList .rank-item");
+  const leagues = await rows.evaluateAll((items) =>
+    items.map((item) => item.querySelector(".league-tag").textContent),
+  );
+  expect(leagues).toHaveLength(12);
+  expect(new Set(leagues)).toEqual(new Set(["AL", "NL"]));
+
+  const first = rows.first();
+  const dot = await first.locator(".dot").boundingBox();
+  const league = await first.locator(".league-tag").boundingBox();
+  const history = await first.locator(".rank-ws").boundingBox();
+  expect(league.y).toBeGreaterThan(dot.y + dot.height);
+  expect(Math.abs(league.x - dot.x)).toBeLessThan(1);
+  expect(history.x).toBeGreaterThan(league.x + league.width);
+});
+
+test("a row too short for two lines keeps its league beside the club", async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 });
+  await openApp(page);
+  await openSettings(page);
+  await scrollSettingsToEnd(page);
+
+  const first = page.locator("#rankList .rank-item").first();
+  await expect(first.locator(".rank-ws")).toBeHidden();
+  await expect(first.locator(".rank-drought")).toBeVisible();
+  const [name] = await readCenters(first.locator(".team-name"));
+  const [league] = await readCenters(first.locator(".league-tag"));
+  expect(Math.abs(name - league)).toBeLessThan(2);
 });
 
 test("a club that's out looks like the rest, and its chip just says Out", async ({ page }) => {
