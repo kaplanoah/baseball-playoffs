@@ -102,11 +102,10 @@ export function findSeriesBetween(state, first, second) {
   );
 }
 
-// `round` is the round the club went out in.
+/** @returns {"champion" | "out" | "alive"} */
 export function describeTeamStatus(state, id) {
-  if (buildBracket(state).ws?.winner === id) return { status: "champion", round: null };
-  const loss = findLoss(state, id);
-  return loss ? { status: "out", round: loss.round } : { status: "alive", round: null };
+  if (buildBracket(state).ws?.winner === id) return "champion";
+  return findLoss(state, id) ? "out" : "alive";
 }
 
 export function nameSeries(id) {

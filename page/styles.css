@@ -863,17 +863,6 @@ nav.tabs + .updates {
   font-size: 0.92rem;
   margin-top: 10px;
 }
-button.ghost {
-  font: inherit;
-  font-size: 0.88rem;
-  background: none;
-  border: 1px solid var(--card-border);
-  color: var(--ink);
-  border-radius: 6px;
-  padding: 7px 16px;
-  cursor: pointer;
-}
-
 .rank-slot {
   display: inline-flex;
   justify-content: flex-end;
@@ -1097,7 +1086,6 @@ button.ghost {
   gap: 10px;
 }
 .matchup-row .team-name,
-.rank-id .team-name,
 table.st td.team .team-name,
 table.ref td .team-name {
   font-size: 0.84rem;
@@ -1127,77 +1115,78 @@ table.ref td .team-name {
   color: var(--gold-ink);
 }
 
-.rank-body {
+/* The rank numbers sit in their own column so they stay put while rows move. Each number takes
+   the same share of the height as its row, and a 1px pad and clear top edge match the list's
+   borders, so each one centers on its row. */
+.rank-frame {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  gap: 16px;
-  max-width: 640px;
+  gap: 10px;
+  margin-left: -6px;
 }
-/* Its 7px gap matches .rank-list's so each number centers on the card beside it. */
-.rank-gutter {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.rank-numbers {
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  flex: none;
+  width: 24px;
+  margin: 0;
+  padding: 1px 0;
+  list-style: none;
 }
-.rank-gutter .rank-num {
+.rank-numbers li {
   flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--copper-ink);
+}
+.rank-numbers li + li {
+  border-top: 1px solid transparent;
 }
 .rank-list {
   flex: 1;
   min-width: 0;
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
 }
+.rank-empty {
+  padding: 14px 16px;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+/* The twelve rows share the list's height, and each row sizes its text to the height it gets. */
 .rank-item {
-  display: flex;
-  align-items: stretch;
-}
-.rank-num {
-  width: 28px;
-  flex: none;
-  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: flex-end;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--copper-ink);
+  column-gap: 2px;
+  padding-right: 14px;
+  background: var(--bg);
 }
-.rank-card {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 58px;
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 6px;
-  padding: 0 16px 0 12px;
+.rank-item + .rank-item {
+  border-top: 1px solid var(--divider);
 }
-.rank-item.dragging .rank-card {
+.rank-item.dragging {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 .rank-item.drag-ghost {
   opacity: 0.35;
-}
-.rank-item.eliminated .rank-card {
-  background: transparent;
-}
-.rank-item.eliminated .team-name,
-.rank-item.eliminated .rank-cols {
-  color: var(--ink-dim);
-}
-.rank-item.eliminated .dot {
-  opacity: 0.55;
 }
 .grip {
   flex: none;
@@ -1206,10 +1195,9 @@ table.ref td .team-name {
   border: 0;
   line-height: inherit;
   color: color-mix(in srgb, var(--ink-dim) 62%, transparent);
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   letter-spacing: -2px;
   cursor: grab;
-  padding: 0 2px;
 }
 .grip:hover {
   color: var(--ink);
@@ -1217,88 +1205,81 @@ table.ref td .team-name {
 .grip:active {
   cursor: grabbing;
 }
+.rank-item .grip {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+/* The list clips its rows, so the handle's focus ring sits inside it. */
+body.kbd .rank-item .grip:focus {
+  outline-offset: -2px;
+}
 .rank-id {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  position: relative;
-  top: 1px;
+  gap: 5px;
 }
-/* A whole-pixel line height keeps the chips on the pixel grid: 15 + 6 + 19 = 40 in a 58px card. */
-.rank-id .team-name {
-  line-height: 15px;
-}
-.rank-id .meta-row {
+.rank-name {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
-.rank-seed {
-  font-size: 0.7rem;
-  color: var(--ink-dim);
+.rank-name .team-name {
+  font-size: 0.86rem;
+  line-height: 16px;
 }
-.rank-ws {
+.rank-drought {
   display: none;
-  font-size: 0.7rem;
-  line-height: 15px;
+  margin-left: auto;
+  font-size: 0.68rem;
   color: var(--ink-dim);
-}
-.rank-ws > span {
   white-space: nowrap;
 }
-.rank-cols {
-  margin-left: auto;
-  flex: none;
-  display: flex;
-  align-items: center;
-  font-size: 0.76rem;
+/* Light text on dark reads further left than the dark dot above it, so it sits 2px in. */
+.rank-ws {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 2px;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  line-height: 14px;
   color: var(--ink-dim);
 }
-.rank-cols .col-won {
-  width: 74px;
-  text-align: center;
+.rank-item .status-chip {
+  height: 19px;
+  padding: 0 7px;
+  font-size: 0.6rem;
 }
-.rank-cols .col-drought {
-  width: 104px;
-  text-align: right;
+@container (max-height: 47px) {
+  .rank-id {
+    gap: 2px;
+  }
+  .rank-name .team-name {
+    font-size: 0.82rem;
+    line-height: 15px;
+  }
+  .rank-ws {
+    font-size: 0.64rem;
+    line-height: 13px;
+  }
 }
-.rank-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin: 0 0 7px;
-}
-.rank-head[hidden] {
-  display: none;
-}
-.rank-head .rank-num {
-  visibility: hidden;
-}
-.rank-head-card {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid transparent;
-  padding: 0 12px;
-}
-.rank-head .rank-cols {
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ink-dim);
+/* Too short for two lines, a row keeps the name, drought, and chip on one. */
+@container (max-height: 39px) {
+  .rank-ws {
+    display: none;
+  }
+  .rank-drought {
+    display: inline;
+  }
+  .rank-name .team-name {
+    font-size: 0.8rem;
+  }
 }
 
-.status-slot {
-  flex: none;
-  width: 72px;
-  margin-left: 14px;
-  display: flex;
-  justify-content: flex-end;
-}
 .status-chip.alive {
   background: color-mix(in srgb, var(--ink) 15%, transparent);
   color: var(--ink);
@@ -1311,16 +1292,28 @@ table.ref td .team-name {
   background: var(--gold);
   color: var(--gold-ink);
 }
+/* Settings run the full height of the screen. The ranking section is exactly one sheet tall, less
+   the pinned header, the gap above it, and the bottom padding, so scrolling down to it shows all
+   twelve rows at once. */
 .settings-panel {
+  --head-height: 64px;
+  --section-gap: 14px;
+  --bottom-padding: 22px;
   width: calc(100% - 24px);
   max-width: 420px;
-  margin: 12vh auto auto;
+  height: calc(100% - 48px);
+  max-height: none;
+  margin: 24px auto;
   padding: 0;
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+  container-type: size;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: calc(var(--head-height) + var(--section-gap));
+  overscroll-behavior: contain;
 }
 .settings-panel::backdrop {
   background: rgba(0, 0, 0, 0.6);
@@ -1328,8 +1321,24 @@ table.ref td .team-name {
 .settings-body {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px 22px 22px;
+  gap: var(--section-gap);
+  padding: 0 22px var(--bottom-padding);
+}
+.sheet-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: var(--head-height);
+  margin-inline: -22px;
+  padding-inline: 22px;
+  background: var(--card);
+  transition: box-shadow 0.2s;
+}
+.sheet-top.scrolled {
+  box-shadow: 0 1px 0 var(--divider);
 }
 .sheet-grabber {
   display: none;
@@ -1339,12 +1348,30 @@ table.ref td .team-name {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 44px;
+}
+.settings-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
 }
 .settings-head h2 {
   font-size: 1.05rem;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+.settings-version {
+  margin: 0;
+  font-size: 0.6rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.settings-version[hidden] {
+  display: none;
 }
 .settings-done {
   display: flex;
@@ -1376,82 +1403,135 @@ table.ref td .team-name {
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.settings-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.settings-controls {
+  border-block: 1px solid var(--divider);
+  scroll-snap-align: start;
 }
-.settings-section[hidden] {
-  display: none;
-}
-.settings-section h3 {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-dim);
-}
-.setting-row {
+.control-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 50px;
-  padding-left: 12px;
-  background: var(--bg);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
+  min-height: 56px;
+  padding-block: 8px;
   font-size: 0.82rem;
 }
-.setting-row select {
+.control-row + .control-row {
+  border-top: 1px solid var(--divider);
+}
+.control-row[hidden] {
+  display: none;
+}
+.control-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.control-note {
+  font-size: 0.66rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+.control-note:empty {
+  display: none;
+}
+.select-field {
   font: inherit;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   color: var(--ink);
-  border: 0;
-  border-radius: 10px;
-  padding: 14px 32px 14px 16px;
+  background: var(--bg)
+    url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa88f' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 10px center / 10px 6px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 7px 32px 7px 12px;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  background: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa88f' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-    no-repeat right 12px center / 10px 6px;
 }
-.setting-note,
-.notify-text p {
-  color: var(--ink-dim);
-  font-size: 0.7rem;
-  line-height: 1.5;
-  margin: 0;
+@media (hover: hover) {
+  .select-field:hover {
+    border-color: var(--ink-dim);
+  }
 }
-.notify-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  background: var(--bg);
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-.notify-text {
-  flex: 1;
-  min-width: 0;
-}
-.settings-version {
+.settings-ranking {
+  flex: none;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  color: var(--ink-dim);
-  font-size: 0.65rem;
-  line-height: 1.6;
-  font-variant-numeric: tabular-nums;
+  gap: 8px;
+  height: calc(100cqh - var(--head-height) - var(--section-gap) - var(--bottom-padding));
+  scroll-snap-align: start;
+}
+.ranking-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ranking-heading h3 {
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.ranking-note {
   margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--ink-dim);
 }
-.settings-version[hidden] {
-  display: none;
+/* On a short sheet the note would squeeze each row to one line, so it gives way. */
+@container (max-height: 640px) {
+  .ranking-note {
+    display: none;
+  }
 }
-.notify-text button.ghost {
-  font-size: 0.76rem;
-  padding: 5px 10px;
-  margin-top: 8px;
+/* Wide screens show everything at once: the settings on the left, the ranking filling the right.
+   The ranking's heading gets its own grid row, so the settings start level with the list. */
+@media (min-width: 900px) {
+  .settings-panel {
+    width: min(920px, calc(100% - 48px));
+    max-width: none;
+    overflow: hidden;
+    scroll-snap-type: none;
+  }
+  .settings-body {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 330px minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0;
+  }
+  .settings-body::before {
+    content: "";
+    grid-column: 2;
+    grid-row: 2 / 4;
+    border-left: 1px solid var(--divider);
+  }
+  .sheet-top {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    position: static;
+    box-shadow: 0 1px 0 var(--divider);
+  }
+  .settings-controls {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: start;
+    margin-right: 24px;
+  }
+  .settings-ranking {
+    display: contents;
+  }
+  .ranking-heading {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 20px 0 8px 24px;
+  }
+  .rank-frame {
+    grid-column: 2;
+    grid-row: 3;
+    margin-left: 18px;
+  }
 }
 .switch {
   position: relative;
@@ -1502,18 +1582,10 @@ table.ref td .team-name {
   .settings-panel[open] {
     animation: none;
   }
-  .settings-btn {
+  .settings-btn,
+  .sheet-top {
     transition: none;
   }
-}
-.rank-hint {
-  color: var(--ink-dim);
-  font-size: 0.76rem;
-  margin: 0 0 14px;
-}
-.rank-hint,
-.rank-head {
-  max-width: 640px;
 }
 table.ref {
   max-width: 800px;
@@ -1608,42 +1680,6 @@ table.ref th.won-col {
     white-space: nowrap;
   }
 
-  .rank-cols {
-    display: none;
-  }
-  .status-slot {
-    width: auto;
-    margin-left: auto;
-    padding-left: 10px;
-  }
-  .rank-num {
-    width: 22px;
-  }
-  .rank-body {
-    margin-left: -8px;
-  }
-  #rankHead {
-    display: none;
-  }
-  .rank-hint {
-    margin-bottom: 12px;
-  }
-  .rank-id {
-    gap: 0;
-  }
-  .rank-id .meta-row {
-    margin-top: 8px;
-  }
-  .rank-ws {
-    display: block;
-    margin-top: 5px;
-  }
-  .rank-card {
-    height: auto;
-    min-height: 58px;
-    padding-block: 11px;
-  }
-
   .head-right {
     display: contents;
   }
@@ -1694,11 +1730,13 @@ table.ref th.won-col {
     margin-top: 0;
   }
 
-  /* On phones, settings rises from the bottom as a sheet. */
+  /* On phones, settings rise from the bottom as a sheet as tall as the screen allows. */
   .settings-panel {
+    --head-height: 57px;
+    --bottom-padding: max(22px, env(safe-area-inset-bottom));
     width: 100%;
     max-width: none;
-    max-height: calc(100% - 44px - env(safe-area-inset-top));
+    height: calc(100% - 44px - env(safe-area-inset-top));
     margin: auto 0 0;
     border-width: 1px 0 0;
     border-radius: 22px 22px 0 0;
@@ -1708,20 +1746,27 @@ table.ref th.won-col {
     animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .settings-body {
-    padding: 8px 18px max(22px, env(safe-area-inset-bottom));
+    padding-inline: 18px;
+  }
+  .sheet-top {
+    justify-content: flex-start;
+    margin-inline: -18px;
+    padding-inline: 18px;
   }
   .sheet-grabber {
     display: block;
     width: 36px;
     height: 5px;
-    margin: 0 auto -8px;
+    margin: 8px auto 0;
     border-radius: 3px;
     background: color-mix(in srgb, var(--ink) 25%, transparent);
   }
   .settings-head {
     position: relative;
     justify-content: center;
-    min-height: 44px;
+  }
+  .settings-title {
+    align-items: center;
   }
   .settings-head h2 {
     font-size: 0.9rem;
@@ -1864,7 +1909,7 @@ table.ref th.won-col {
     position: absolute;
     top: 5px;
     left: 5px;
-    width: var(--pill-width, 20%);
+    width: var(--pill-width, 25%);
     height: var(--tab-height);
     overflow: hidden;
     border-radius: 999px;

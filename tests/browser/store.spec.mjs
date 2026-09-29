@@ -1,8 +1,8 @@
-import { test, expect, openApp } from "./harness.mjs";
+import { test, expect, openApp, openSettings } from "./harness.mjs";
 
 test("the page saves to the Worker's store, and loads from it", async ({ page }) => {
   const app = await openApp(page);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
   const firstItem = page.locator("#rankList .rank-item").first();
   const movedClubId = await firstItem.getAttribute("data-id");
@@ -14,7 +14,7 @@ test("the page saves to the Worker's store, and loads from it", async ({ page })
     .toBe(movedClubId);
 
   await page.reload();
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   await expect(page.locator("#rankList .rank-item").nth(1)).toHaveAttribute("data-id", movedClubId);
 });
 
@@ -27,7 +27,7 @@ test("a change from another device shows up without a reload", async ({ page }) 
   const app = await openApp(page);
   await app.updateFromWorker();
   await expect.poll(() => app.countOpenSockets()).toBeGreaterThan(0);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
 
   const season = await app.readDocument("seasons/2026");
   const reversed = (await listShownRanking(page)).reverse();
@@ -45,7 +45,7 @@ test("a change from another device leaves keyboard focus on the club it was on",
   const app = await openApp(page);
   await app.updateFromWorker();
   await expect.poll(() => app.countOpenSockets()).toBeGreaterThan(0);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   const grip = page.locator("#rankList .rank-item").nth(2).locator(".grip");
   await grip.focus();
 
@@ -66,7 +66,7 @@ test("a page that loses its connection catches up when it reconnects", async ({ 
   const app = await openApp(page);
   await app.updateFromWorker();
   await expect.poll(() => app.countOpenSockets()).toBe(1);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
 
   await app.dropConnections();
   const season = await app.readDocument("seasons/2026");

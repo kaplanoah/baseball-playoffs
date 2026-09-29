@@ -1,7 +1,8 @@
-// The settings panel behind the header's sliders button: the season, notifications, and which
-// version of the page this is. Phones show it as a sheet from the bottom, wider screens as a modal.
+// The settings panel behind the header's sliders button: the season, notifications, the ranking,
+// and which release of the page this is. Phones show it as a sheet from the bottom, wider screens
+// as a modal.
 
-import { html, joinWithSeparator, setHtml } from "./html.js";
+import { joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -15,22 +16,28 @@ export function renderSeasonLabel() {
   const tag = findElement("yearTag");
   tag.hidden = !isShowingPastSeason();
   tag.textContent = String(session.activeYear);
-  findElement("seasonNote").textContent = isShowingPastSeason()
-    ? "A finished season."
-    : "This season, updated live.";
 }
 
-const formatBuildTime = (iso) =>
-  new Date(iso).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+// A release from an earlier year names its year; this year's go without.
+function formatReleaseTime(iso) {
+  const released = new Date(iso);
+  const isThisYear = released.getFullYear() === new Date().getFullYear();
+  return released.toLocaleString([], {
+    year: isThisYear ? undefined : "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
+// The pull request's number reads as the version; the commit is there on hover.
 /** @param {{ commit: string, pullRequest: number | null, builtAt: string }} release */
 function renderRelease({ commit, pullRequest, builtAt }) {
   const note = findElement("versionNote");
-  const name = pullRequest ? joinWithSeparator([`#${pullRequest}`, commit]) : commit;
-  setHtml(
-    note,
-    html`<span>Version ${name}</span><span>Deployed ${formatBuildTime(builtAt)}</span>`,
-  );
+  const name = pullRequest ? `v${pullRequest}` : commit;
+  setHtml(note, joinWithSeparator([name, `Released ${formatReleaseTime(builtAt)}`]));
+  note.title = `Commit ${commit}`;
   note.hidden = false;
 }
 
@@ -49,10 +56,25 @@ function closeOnBackdropClick(event) {
   if (event.target === event.currentTarget) findDialog().close();
 }
 
+// A line under the pinned header shows once the settings have scrolled under it.
+function markScrolled() {
+  const dialog = findDialog();
+  dialog.querySelector(".sheet-top").classList.toggle("scrolled", dialog.scrollTop > 0);
+}
+
+// Settings open at the top each time, with the ranking below them.
+function openSettings() {
+  const dialog = findDialog();
+  dialog.showModal();
+  dialog.scrollTop = 0;
+  markScrolled();
+}
+
 export function startSettings() {
   const dialog = findDialog();
-  findElement("settingsBtn").addEventListener("click", () => dialog.showModal());
+  findElement("settingsBtn").addEventListener("click", openSettings);
   findElement("settingsDoneBtn").addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", closeOnBackdropClick);
+  dialog.addEventListener("scroll", markScrolled);
   showRelease();
 }

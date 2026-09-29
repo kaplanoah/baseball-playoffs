@@ -41,7 +41,9 @@ function stubPushManager(endpoint) {
   };
 }
 
-test("notifications can be turned on, tested, and turned off", async ({ page }) => {
+test("notifications can be turned on and off, with no note while the switch works", async ({
+  page,
+}) => {
   await page.addInitScript(stubPushManager, DEVICE_ENDPOINT);
   const app = await openApp(page);
   await openSettings(page);
@@ -49,20 +51,17 @@ test("notifications can be turned on, tested, and turned off", async ({ page }) 
   const toggle = page.getByRole("switch", { name: "Notifications" });
   const note = page.locator("#notifyNote");
   await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await expect(note).toHaveText(/when something happens to a team in your ranking/);
+  await expect(note).toBeHidden();
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   expect(app.countSubscriptions()).toBe(1);
-
-  await page.getByRole("button", { name: "Send a test" }).click();
-  await expect(note).toHaveText("Sent. It should arrive in a few seconds.");
-  expect(app.listPushes()).toEqual([DEVICE_ENDPOINT]);
+  await expect(note).toBeHidden();
+  await expect(page.getByRole("button", { name: /test/i })).toHaveCount(0);
 
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   expect(app.countSubscriptions()).toBe(0);
-  await expect(page.getByRole("button", { name: "Send a test" })).toBeHidden();
 });
 
 test("blocked notifications point to the browser's site settings", async ({ page }) => {

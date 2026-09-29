@@ -2,6 +2,7 @@ import {
   test,
   expect,
   openApp,
+  openSettings,
   buildFixtureSnapshot,
   chooseSeason,
   EVENING_FIXTURE,
@@ -626,7 +627,7 @@ test("with no field yet, the bracket says it fills in once MLB projects one", as
 
   await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Set the field" })).toHaveCount(0);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   await expect(page.locator("#rankList")).toHaveText(
     "The ranking fills in once there's a playoff field.",
   );
@@ -646,7 +647,7 @@ test("the bracket and standings scroll from the keyboard, even in Safari", async
 test("the ranking can be reordered from the keyboard, and saves", async ({ page }) => {
   const app = await openApp(page);
   await expect.poll(() => app.countSnapshotRequests()).toBe(1);
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
 
   const firstItem = page.locator("#rankList .rank-item").first();
@@ -665,7 +666,7 @@ test("a save that fails says so under the title", async ({ page }) => {
   const app = await openApp(page);
   await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   app.failWrites();
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
 
   await page.locator("#rankList .grip").first().focus();
@@ -708,7 +709,7 @@ test("a stored field short a league says there's no field instead of breaking th
   });
 
   await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
-  await page.getByRole("tab", { name: "Ranking" }).click();
+  await openSettings(page);
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
 });
 
@@ -918,15 +919,18 @@ test("on a phone, dragging along the tab bar picks the tab it's released on", as
   await page.setViewportSize(PHONE);
   await openApp(page);
   const from = await page.getByRole("tab", { name: "Bracket" }).boundingBox();
-  const to = await page.getByRole("tab", { name: "Ranking" }).boundingBox();
+  const to = await page.getByRole("tab", { name: "Standings" }).boundingBox();
 
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
   await page.mouse.up();
 
-  await expect(page.getByRole("tab", { name: "Ranking" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#view-ranking")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Standings" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#view-standings")).toBeVisible();
 });
 
 test("on a phone, a screen reader's bare click still switches tabs", async ({ page }) => {
@@ -973,7 +977,7 @@ test("on a phone, dragging back to the tab that's showing leaves the page where 
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
   const scrolled = await page.evaluate(() => scrollY);
   const from = await page.getByRole("tab", { name: "Bracket" }).boundingBox();
-  const to = await page.getByRole("tab", { name: "Ranking" }).boundingBox();
+  const to = await page.getByRole("tab", { name: "Standings" }).boundingBox();
 
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
