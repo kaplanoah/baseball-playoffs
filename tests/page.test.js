@@ -615,11 +615,11 @@ function buildPostseasonState() {
   };
 }
 
-test("a club's status names the round it went out in", () => {
+test("a club is out whichever round it lost in, and alive until then", () => {
   const state = buildPostseasonState();
-  assert.deepEqual(describeTeamStatus(state, "DET"), { status: "out", round: "WC" });
-  assert.deepEqual(describeTeamStatus(state, "NYY"), { status: "out", round: "DS" });
-  assert.deepEqual(describeTeamStatus(state, "BOS"), { status: "alive", round: null });
+  assert.equal(describeTeamStatus(state, "DET"), "out");
+  assert.equal(describeTeamStatus(state, "NYY"), "out");
+  assert.equal(describeTeamStatus(state, "BOS"), "alive");
 });
 
 // One line of text per game, with a space wherever a tag was.

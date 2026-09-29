@@ -101,22 +101,6 @@
         <button
           type="button"
           role="tab"
-          id="tab-ranking"
-          data-tab="ranking"
-          aria-controls="view-ranking"
-          aria-selected="false"
-          tabindex="-1"
-        >
-          <span class="tab-icon" aria-hidden="true"
-            ><svg viewBox="0 0 256 256" fill="currentColor">
-              <path
-                d="M237.28,97.87A14.18,14.18,0,0,0,224.76,88l-60.25-4.87-23.22-56.2a14.37,14.37,0,0,0-26.58,0L91.49,83.11,31.24,88a14.18,14.18,0,0,0-12.52,9.89A14.43,14.43,0,0,0,23,113.32L69,152.93l-14,59.25a14.4,14.4,0,0,0,5.59,15,14.1,14.1,0,0,0,15.91.6L128,196.12l51.58,31.71a14.1,14.1,0,0,0,15.91-.6,14.4,14.4,0,0,0,5.59-15l-14-59.25L233,113.32A14.43,14.43,0,0,0,237.28,97.87Zm-12.14,6.37-48.69,42a6,6,0,0,0-1.92,5.92l14.88,62.79a2.35,2.35,0,0,1-.95,2.57,2.24,2.24,0,0,1-2.6.1L131.14,184a6,6,0,0,0-6.28,0L70.14,217.61a2.24,2.24,0,0,1-2.6-.1,2.35,2.35,0,0,1-1-2.57l14.88-62.79a6,6,0,0,0-1.92-5.92l-48.69-42a2.37,2.37,0,0,1-.73-2.65,2.28,2.28,0,0,1,2.07-1.65l63.92-5.16a6,6,0,0,0,5.06-3.69l24.63-59.6a2.35,2.35,0,0,1,4.38,0l24.63,59.6a6,6,0,0,0,5.06,3.69l63.92,5.16a2.28,2.28,0,0,1,2.07,1.65A2.37,2.37,0,0,1,225.14,104.24Z"
-              /></svg></span
-          ><span class="tab-label">Ranking</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
           id="tab-reference"
           data-tab="reference"
           aria-controls="view-reference"
@@ -201,28 +185,6 @@
     </div>
   </section>
 
-  <section id="view-ranking" role="tabpanel" aria-labelledby="tab-ranking" class="view">
-    <p class="rank-hint">
-      Drag a card by its handle, or focus the handle and use the arrow keys, to order the field by
-      who you want to win the World Series. Order saves automatically and shows as a rank tag on the
-      bracket.
-    </p>
-    <div class="rank-head" id="rankHead" hidden>
-      <span class="rank-num">0</span>
-      <span class="rank-head-card">
-        <span class="rank-cols">
-          <span class="col-won">Last WS win</span>
-          <span class="col-drought">WS drought</span>
-        </span>
-        <span class="status-slot"></span>
-      </span>
-    </div>
-    <div class="rank-body">
-      <ol class="rank-gutter" id="rankGutter" aria-hidden="true"></ol>
-      <ul class="rank-list" id="rankList"></ul>
-    </div>
-  </section>
-
   <section id="view-standings" role="tabpanel" aria-labelledby="tab-standings" class="view">
     <div id="standingsWrap"></div>
   </section>
@@ -245,33 +207,33 @@
 
   <dialog id="settingsDialog" class="settings-panel" aria-labelledby="settingsTitle">
     <div class="settings-body">
-      <span class="sheet-grabber" aria-hidden="true"></span>
-      <div class="settings-head">
-        <h2 id="settingsTitle">Settings</h2>
-        <button type="button" class="settings-done" id="settingsDoneBtn">
-          <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
-            <path
-              d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
-            />
-          </svg>
-          <span class="settings-done-label">Done</span>
-        </button>
-      </div>
-      <section class="settings-section" aria-labelledby="seasonTitle">
-        <h3 id="seasonTitle">Season</h3>
-        <label class="setting-row">
-          <span>Showing</span>
-          <select id="yearSel" aria-label="Season"></select>
-        </label>
-        <p class="setting-note" id="seasonNote"></p>
-      </section>
-      <section class="settings-section" id="notifyCard" aria-labelledby="notifyTitle" hidden>
-        <h3 id="notifyTitle">Notifications</h3>
-        <div class="notify-card">
-          <div class="notify-text">
-            <p id="notifyNote" role="status"></p>
-            <button type="button" class="ghost" id="notifyTestBtn" hidden>Send a test</button>
+      <div class="sheet-top">
+        <span class="sheet-grabber" aria-hidden="true"></span>
+        <div class="settings-head">
+          <div class="settings-title">
+            <h2 id="settingsTitle">Settings</h2>
+            <p class="settings-version" id="versionNote" hidden></p>
           </div>
+          <button type="button" class="settings-done" id="settingsDoneBtn">
+            <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+              <path
+                d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
+              />
+            </svg>
+            <span class="settings-done-label">Done</span>
+          </button>
+        </div>
+      </div>
+      <div class="settings-controls">
+        <label class="control-row">
+          <span>Season</span>
+          <select id="yearSel" class="select-field" aria-label="Season"></select>
+        </label>
+        <div class="control-row" id="notifyRow" hidden>
+          <span class="control-label">
+            <span id="notifyTitle">Notifications</span>
+            <span class="control-note" id="notifyNote" role="status"></span>
+          </span>
           <button
             type="button"
             role="switch"
@@ -284,8 +246,17 @@
             <span class="switch-knob" aria-hidden="true"></span>
           </button>
         </div>
+      </div>
+      <section class="settings-ranking" aria-labelledby="rankingTitle">
+        <div class="ranking-heading">
+          <h3 id="rankingTitle">Ranking</h3>
+          <p class="ranking-note">Who you want to win the World Series, first to last.</p>
+        </div>
+        <div class="rank-frame">
+          <ol class="rank-numbers" id="rankNumbers" aria-hidden="true"></ol>
+          <ul class="rank-list" id="rankList"></ul>
+        </div>
       </section>
-      <p class="settings-version" id="versionNote" hidden></p>
     </div>
   </dialog>
 

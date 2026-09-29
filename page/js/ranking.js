@@ -20,63 +20,45 @@ const STATUS_CHIPS = {
 };
 const MOVES = { ArrowUp: -1, ArrowDown: 1 };
 
-function renderStatusChip({ status, round }) {
+function renderStatusChip(status) {
   const chip = STATUS_CHIPS[status];
-  const label = round ? joinWithSeparator([chip.label, round]) : chip.label;
-  return html`<span class="status-chip ${chip.className}">${label}</span>`;
+  return html`<span class="status-chip ${chip.className}">${chip.label}</span>`;
 }
 
-function renderTitleSummary(id, won) {
-  if (!won) return html`Never won WS`;
+function renderTitleSummary(id) {
+  const won = findLastTitle(id);
   return joinWithSeparator([
-    html`<span>Last WS ${won}</span>`,
+    html`<span>${won ? `Last WS ${won}` : "Never won WS"}</span>`,
     html`<span>${describeDrought(id)}</span>`,
   ]);
 }
 
+// A club that's out looks like the rest: the ranking says who you're for, not who's still playing.
 function renderRankItem(id, index) {
-  const { league } = TEAMS[id];
-  const seed = session.state.teams[id].seed;
-  const won = findLastTitle(id);
-  const teamStatus = describeTeamStatus(session.state, id);
-  return html`<li class="rank-item ${teamStatus.status === "out" ? "eliminated" : ""}" data-id="${id}">
-      <span class="rank-card">
-        <button type="button" class="grip" aria-label="Move ${nameTeam(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
-        <span class="rank-id">
-          ${renderTeamTag(id)}
-          <span class="meta-row">
-            <span class="league-tag ${league}">${league}</span>
-            <span class="rank-seed tabular">${seed} seed</span>
-          </span>
-          <span class="rank-ws tabular">${renderTitleSummary(id, won)}</span>
-        </span>
-        <span class="rank-cols">
-          <span class="col-won tabular">${won || html`&mdash;`}</span>
-          <span class="col-drought">${describeDrought(id)}</span>
-        </span>
-        <span class="status-slot">${renderStatusChip(teamStatus)}</span>
+  return html`<li class="rank-item" data-id="${id}">
+      <button type="button" class="grip" aria-label="Move ${nameTeam(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
+      <span class="rank-id">
+        <span class="rank-name">${renderTeamTag(id)}<span class="rank-drought tabular">${describeDrought(id)}</span></span>
+        <span class="rank-ws tabular">${renderTitleSummary(id)}</span>
       </span>
+      ${renderStatusChip(describeTeamStatus(session.state, id))}
     </li>`;
 }
 
 export function renderRanking() {
   const list = document.getElementById("rankList");
-  const head = document.getElementById("rankHead");
-  const gutter = document.getElementById("rankGutter");
+  const numbers = document.getElementById("rankNumbers");
   const order = listRankedOrder();
   if (!order.length) {
-    head.hidden = true;
-    setHtml(gutter, html``);
+    setHtml(numbers, html``);
     setHtml(
       list,
-      html`<li class="rank-item">The ranking fills in once there's a playoff field.</li>`,
+      html`<li class="rank-empty">The ranking fills in once there's a playoff field.</li>`,
     );
     return;
   }
-  head.hidden = false;
-  // Rank numbers live outside the cards so they stay put while cards are dragged.
-  const numbers = order.map((_, index) => html`<li class="rank-num tabular">${index + 1}</li>`);
-  setHtml(gutter, html`${numbers}`);
+  // Rank numbers live outside the rows so they stay put while rows are dragged.
+  setHtml(numbers, html`${order.map((_, index) => html`<li class="tabular">${index + 1}</li>`)}`);
   const focusedId = findFocusedClub(list);
   setHtml(list, html`${order.map(renderRankItem)}`);
   if (focusedId) focusGrip(list, focusedId);

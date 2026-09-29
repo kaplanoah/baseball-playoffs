@@ -1,10 +1,7 @@
 // The settings panel's notifications switch: subscribes this device to the Worker's pushes about
-// the teams in the ranking.
+// the teams in the ranking. A note shows under it only when the switch can't do its job.
 
 const NOTES = {
-  loading: "",
-  off: "Get a notification when something happens to a team in your ranking.",
-  on: "On for this device. You'll hear about the teams in your ranking.",
   blockedOnIos:
     "Notifications are blocked for this page. Turn them on in Settings > Notifications.",
   blockedInBrowser:
@@ -13,8 +10,6 @@ const NOTES = {
     "To get notifications on an iPhone, add this page to your Home Screen and open it from there.",
   unsupported: "This browser can't show notifications.",
   failed: "Couldn't change notifications. Try again in a moment.",
-  testSent: "Sent. It should arrive in a few seconds.",
-  testFailed: "Couldn't send a test. Try turning notifications off and on again.",
 };
 
 const SWITCHABLE = new Set(["off", "on", "failed"]);
@@ -41,7 +36,7 @@ const canPush = () =>
 // iOS keeps a Home Screen page's permission in its Settings app; other browsers keep it per site.
 function describeStatus() {
   if (status === "blocked") return isIos() ? NOTES.blockedOnIos : NOTES.blockedInBrowser;
-  return NOTES[status];
+  return NOTES[status] ?? "";
 }
 
 function renderNotifications() {
@@ -50,10 +45,8 @@ function renderNotifications() {
   toggle.hidden = !SWITCHABLE.has(status) && status !== "blocked";
   toggle.setAttribute("aria-checked", String(isOn));
   /** @type {HTMLButtonElement} */ (toggle).disabled = isBusy || status === "blocked";
-  findElement("notifyTestBtn").hidden = !isOn;
-  /** @type {HTMLButtonElement} */ (findElement("notifyTestBtn")).disabled = isBusy;
   findElement("notifyNote").textContent = note || describeStatus();
-  findElement("notifyCard").hidden = status === "loading";
+  findElement("notifyRow").hidden = status === "loading";
 }
 
 function setStatus(next, message = "") {
@@ -162,15 +155,6 @@ function toggleNotifications() {
   showBusyDuring(status === "on" ? turnOff : turnOn);
 }
 
-async function sendTest() {
-  try {
-    await requestPush("push/test", sendEndpoint("POST", subscription.endpoint));
-    setStatus("on", NOTES.testSent);
-  } catch {
-    setStatus("on", NOTES.testFailed);
-  }
-}
-
 function describeStartStatus() {
   if (Notification.permission === "denied") return "blocked";
   return subscription && Notification.permission === "granted" ? "on" : "off";
@@ -178,9 +162,6 @@ function describeStartStatus() {
 
 export async function startNotifications() {
   findElement("notifySwitch").addEventListener("click", toggleNotifications);
-  findElement("notifyTestBtn").addEventListener("click", () => {
-    if (!isBusy) showBusyDuring(sendTest);
-  });
   if (!canPush()) {
     setStatus(isIos() && !isStandalone() ? "homeScreen" : "unsupported");
     return;

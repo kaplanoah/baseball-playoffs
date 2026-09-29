@@ -80,12 +80,8 @@ export async function openApp(
     snapshotRequests: 0,
     transformSnapshot: (snapshot) => snapshot,
     failWrites: false,
-    pushes: [],
   };
-  const fetchImpl = async (url) => {
-    harness.pushes.push(url);
-    return new Response(null, { status: 201 });
-  };
+  const fetchImpl = async () => new Response(null, { status: 201 });
   const loadSnapshot = async (season) =>
     harness.transformSnapshot(structuredClone(snapshotsBySeason[season]));
   const seasonStore = new SeasonStore(
@@ -144,7 +140,6 @@ export async function openApp(
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,
-    listPushes: () => harness.pushes,
     countSubscriptions: () =>
       [...context.stored.keys()].filter((key) => key.startsWith("push:subscription:")).length,
     /** @param {(snapshot: any) => any} transform */
