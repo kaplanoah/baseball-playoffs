@@ -882,6 +882,12 @@ button.ghost {
   text-transform: uppercase;
   letter-spacing: 0.09em;
 }
+/* Its offset counts from inside .tree-scroll's padding, so 0 keeps it where it rests. */
+.league-name {
+  display: inline-block;
+  position: sticky;
+  left: 0;
+}
 .league-head.al {
   color: var(--al);
 }

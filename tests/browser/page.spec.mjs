@@ -140,10 +140,8 @@ test("under each card, the next game shows as just its day and date", async ({ p
   await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
 });
 
-test("on a phone too short to fit the bracket, each league's first card sits close under its league line", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 600 });
+test("on a phone, each league's first cards sit close under its league line", async ({ page }) => {
+  await page.setViewportSize(PHONE);
   await openApp(page);
   const bracket = page.locator("#bracketWrap");
   const alLine = bracket.locator(".league-head.al");
@@ -154,6 +152,45 @@ test("on a phone too short to fit the bracket, each league's first card sits clo
   const gap = firstCard.y - (line.y + line.height);
   expect(gap).toBeGreaterThan(0);
   expect(gap).toBeLessThanOrEqual(14);
+});
+
+const readCardTops = (page, round) =>
+  page
+    .locator("#bracketWrap .box")
+    .filter({ hasText: round })
+    .evaluateAll((boxes) => boxes.map((box) => box.getBoundingClientRect().top));
+
+for (const { screen, viewport } of [
+  { screen: "phone", viewport: PHONE },
+  { screen: "wide screen", viewport: { width: 1280, height: 720 } },
+]) {
+  test(`on a ${screen}, each wild card card sits level with the division card it feeds`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await openApp(page);
+    await expect(page.locator("#bracketWrap .bracket-stage")).toBeVisible();
+
+    const wildCardTops = await readCardTops(page, "Wild Card");
+    const divisionTops = await readCardTops(page, "Division Series");
+
+    expect(wildCardTops).toHaveLength(4);
+    expect(wildCardTops.toSorted()).toEqual(divisionTops.toSorted());
+  });
+}
+
+test("on a phone, a league's name stays at the left while its line scrolls sideways", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const name = page.locator("#bracketWrap .league-head.al .league-name");
+  await expect(name).toBeVisible();
+  const restingLeft = (await name.boundingBox()).x;
+
+  await page.locator(".tree-scroll").evaluate((scroller) => (scroller.scrollLeft = 300));
+
+  await expect.poll(async () => (await name.boundingBox()).x).toBe(restingLeft);
 });
 
 test("on a wide screen, the AL and NL face each other across the World Series", async ({
@@ -660,6 +697,11 @@ const readBracketFit = (page) =>
     const stage = document.querySelector(".bracket-stage").getBoundingClientRect();
     return {
       stageBottom: stage.bottom + scrollY,
+      lowestNoteBottom: Math.max(
+        ...[...document.querySelectorAll(".card-note")].map(
+          (note) => note.getBoundingClientRect().bottom + scrollY,
+        ),
+      ),
       tabBarTop: document.getElementById("tabBar").getBoundingClientRect().top,
       scrollLeft: scroller.scrollLeft,
       bracketOverflow: scroller.scrollWidth - scroller.clientWidth,
@@ -673,15 +715,16 @@ const expectBracketToFillHeight = async (page) => {
       const { stageBottom, tabBarTop } = await readBracketFit(page);
       return tabBarTop - stageBottom;
     })
-    .toBeGreaterThanOrEqual(8);
-  const { stageBottom, tabBarTop } = await readBracketFit(page);
-  expect(tabBarTop - stageBottom).toBeLessThan(12);
+    .toBeGreaterThanOrEqual(12);
+  const { stageBottom, lowestNoteBottom, tabBarTop } = await readBracketFit(page);
+  expect(tabBarTop - stageBottom).toBeLessThan(15);
+  expect(stageBottom - lowestNoteBottom).toBeLessThan(4);
 };
 
 test("on a phone, the bracket fills the height above the tab bar and swipes sideways", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.setViewportSize({ width: 390, height: 900 });
   await openApp(page);
   await expect(page.locator(".bracket-stage")).toBeVisible();
   await expectBracketToFillHeight(page);
@@ -693,7 +736,7 @@ test("on a phone, the bracket fills the height above the tab bar and swipes side
 test("on a phone, the bracket redraws for a new screen height and keeps its sideways scroll", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.setViewportSize({ width: 390, height: 960 });
   await openApp(page);
   await expect(page.locator(".bracket-stage")).toBeVisible();
   await page.locator(".tree-scroll").evaluate((scroller) => (scroller.scrollLeft = 300));
@@ -701,7 +744,7 @@ test("on a phone, the bracket redraws for a new screen height and keeps its side
   const { scrollLeft } = await readBracketFit(page);
   expect(scrollLeft).toBeGreaterThan(0);
 
-  await page.setViewportSize({ width: 390, height: 940 });
+  await page.setViewportSize({ width: 390, height: 900 });
 
   await expectBracketToFillHeight(page);
   expect((await readBracketFit(page)).scrollLeft).toBe(scrollLeft);
@@ -710,7 +753,7 @@ test("on a phone, the bracket redraws for a new screen height and keeps its side
 test("on a phone, a bracket drawn while another tab showed fills the height once shown", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 1000 });
+  await page.setViewportSize({ width: 390, height: 900 });
   await openApp(page);
   await page.getByRole("tab", { name: "Standings" }).click();
   await page.reload();
