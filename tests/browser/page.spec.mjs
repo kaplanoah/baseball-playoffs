@@ -125,6 +125,35 @@ test("on a phone, the bracket stacks the AL above the NL, each running left to r
   expect(worldSeries.y).toBeLessThan(nlcs.y);
 });
 
+test("under each card, the next game shows as just its day and date", async ({ page }) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  snapshot.series.AL_WC1.next = {
+    at: "2026-09-25T23:08:00Z",
+    date: "2026-09-25",
+    tbd: false,
+    game: 1,
+  };
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  const notes = page.locator("#bracketWrap .card-note");
+
+  await expect(notes.filter({ hasText: /^Next game Fri Sep 25$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Next game Tue Sep 29$/ })).toHaveCount(3);
+});
+
+test("on a phone, each league's first card sits close under its league line", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const bracket = page.locator("#bracketWrap");
+  const alLine = bracket.locator(".league-head.al");
+  await expect(alLine).toBeVisible();
+
+  const line = await alLine.boundingBox();
+  const firstCard = await bracket.locator(".box").first().boundingBox();
+  const gap = firstCard.y - (line.y + line.height);
+  expect(gap).toBeGreaterThan(0);
+  expect(gap).toBeLessThanOrEqual(14);
+});
+
 test("on a wide screen, the AL and NL face each other across the World Series", async ({
   page,
 }) => {

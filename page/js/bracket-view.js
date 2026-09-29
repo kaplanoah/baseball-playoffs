@@ -7,7 +7,7 @@ import {
   renderTeamTag,
 } from "./clubs.js";
 import { readGameDay } from "./dates.js";
-import { html, joinWithSeparator, setHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { session } from "./session.js";
 
 const findRank = (id) => {
@@ -65,7 +65,7 @@ const STACKED = {
   columnGap: 32,
   worldSeriesWidth: 240,
   noteHeight: 20,
-  headerHeight: 34,
+  headerHeight: 30,
   minSlotHeight: 132,
   maxSlotHeight: 180,
 };
@@ -89,27 +89,9 @@ function describeNextGame(series) {
   if (series.winner || !next) return "";
   const day = readGameDay(next);
   if (!day) return "";
-  const timeKnown = next.tbd === false && next.at;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days = Math.round((day.getTime() - today.getTime()) / 86400000);
-
-  const time = timeKnown
-    ? ", " + new Date(next.at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : "";
-  if (days === 0) return `Next game today${time}`;
-  if (days === 1) return `Next game tomorrow${time}`;
-
-  // Drop the weekday once a time is shown, to keep the note on one line.
-  const date = day.toLocaleDateString(
-    undefined,
-    timeKnown
-      ? { month: "short", day: "numeric" }
-      : { weekday: "short", month: "short", day: "numeric" },
-  );
-  const note = `Next game ${date}${time}`;
-  return days < 0 ? note : joinWithSeparator([note, `${days} days`]);
+  const weekday = day.toLocaleDateString(undefined, { weekday: "short" });
+  const date = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return `Next game ${weekday} ${date}`;
 }
 
 const readWinningPercentage = (team) =>
