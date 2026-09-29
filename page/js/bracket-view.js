@@ -47,17 +47,17 @@ function renderMatchupRow(series, side) {
 // Card metrics must match styles.css.
 const CARD = { width: 209, height: 90, topSlotY: 41, dividerY: 57 };
 
-/* Desktop: AL on the left and NL on the right, meeting at the World Series in the middle. Each
-   wild card card sits dividerY - topSlotY above its division card, so its connector runs straight
-   into the top slot. */
+/* Desktop: AL on the left and NL on the right under their league bars, meeting at the World
+   Series in the middle. Each wild card card sits dividerY - topSlotY above its division card, so
+   its connector runs straight into the top slot. */
 const WIDE = {
   columnGap: 20,
-  stageHeight: 400, // room for a next-game note under the lowest cards
-  wildCard1Y: 24,
-  division1Y: 40,
-  middleY: 160,
-  division2Y: 280,
-  wildCard2Y: 264,
+  stageHeight: 413, // room for a next-game note under the lowest cards
+  wildCard1Y: 37,
+  division1Y: 53,
+  middleY: 173,
+  division2Y: 293,
+  wildCard2Y: 277,
 };
 
 // Phones: AL above NL, rounds left to right, swiped sideways.
@@ -160,23 +160,6 @@ const describeAdvance = (champion) => (champion ? `${nameTeam(champion)} advance
 const describeWorldSeriesWin = (ws) =>
   ws.winner ? `${nameTeam(ws.winner)} win the World Series` : "";
 
-const COLUMN_LABELS = [
-  ["AL Wild Card", "al"],
-  ["AL Division", "al"],
-  ["AL Championship", "al"],
-  ["World Series", "champ"],
-  ["NL Championship", "nl"],
-  ["NL Division", "nl"],
-  ["NL Wild Card", "nl"],
-];
-
-function renderColumnLabels() {
-  return COLUMN_LABELS.map(
-    ([text, className], index) =>
-      html`<div class="lg-label ${className}" style="left:${findColumnLeft(WIDE, index)}px; width:${CARD.width}px;">${text}</div>`,
-  );
-}
-
 function drawWideConnectors() {
   const left = (index) => findColumnLeft(WIDE, index);
   const right = (index) => findColumnRight(WIDE, index);
@@ -221,21 +204,23 @@ function renderWideCards(bracket) {
   ];
 }
 
-function renderWideStage(bracket) {
-  const width = findColumnRight(WIDE, 6);
-  return html`<div class="bracket-inner" style="width:${width}px;">
-    <div class="lg-labels-row">${renderColumnLabels()}</div>
-    <div class="bracket-stage" style="height:${WIDE.stageHeight}px;">
-      <svg class="bracket-lines" width="${width}" height="${WIDE.stageHeight}" viewBox="0 0 ${width} ${WIDE.stageHeight}">${drawWideConnectors()}</svg>
-      ${renderWideCards(bracket)}
-    </div>
-  </div>`;
-}
-
 const LEAGUE_NAMES = { al: "American League", nl: "National League" };
 
-function renderLeagueHeader(league, top) {
-  return html`<div class="league-head ${league}" style="top:${top}px; width:${findColumnRight(STACKED, 2)}px;">${LEAGUE_NAMES[league]}</div>`;
+// Each bar spans its league's three columns.
+function renderLeagueHeader(league, layout, top, firstColumn = 0) {
+  const left = findColumnLeft(layout, firstColumn);
+  const width = findColumnRight(layout, firstColumn + 2) - left;
+  return html`<div class="league-head ${league}" style="top:${top}px; left:${left}px; width:${width}px;">${LEAGUE_NAMES[league]}</div>`;
+}
+
+function renderWideStage(bracket) {
+  const width = findColumnRight(WIDE, 6);
+  return html`<div class="bracket-stage" style="width:${width}px; height:${WIDE.stageHeight}px;">
+    <svg class="bracket-lines" width="${width}" height="${WIDE.stageHeight}" viewBox="0 0 ${width} ${WIDE.stageHeight}">${drawWideConnectors()}</svg>
+    ${renderLeagueHeader("al", WIDE, 0)}
+    ${renderLeagueHeader("nl", WIDE, 0, 4)}
+    ${renderWideCards(bracket)}
+  </div>`;
 }
 
 const isShown = (element) => element.getClientRects().length > 0;
@@ -292,7 +277,7 @@ function drawStackedConnectors(places, worldSeriesY) {
 function renderLeague(key, league, place) {
   const left = (index) => findColumnLeft(STACKED, index);
   return [
-    renderLeagueHeader(key, place.top),
+    renderLeagueHeader(key, STACKED, place.top),
     renderSeriesCard(league.wc[1], place.wildCardY[0], left(0)),
     renderSeriesCard(league.wc[0], place.wildCardY[1], left(0)),
     renderSeriesCard(league.ds[0], place.divisionY[0], left(1)),
