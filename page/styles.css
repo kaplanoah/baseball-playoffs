@@ -567,15 +567,7 @@ table.st .seed-cell {
   font-size: 0.8rem;
   font-weight: 500;
 }
-.name-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 100%;
-}
 .game-side.home .club,
-.game-side.home .name-line,
 .game-side.home .game-facts {
   flex-direction: row-reverse;
 }
@@ -604,16 +596,6 @@ table.st .seed-cell {
   margin-left: 1ch;
   position: relative;
   top: 1px;
-}
-.name-line .rank-slot {
-  width: auto;
-}
-.name-line .rank-tag {
-  min-width: 22px;
-  height: 15px;
-  padding: 0 3px;
-  font-size: 0.56rem;
-  line-height: 1;
 }
 .race.clinched {
   color: var(--gold);
