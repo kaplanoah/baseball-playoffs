@@ -843,39 +843,13 @@ button.ghost {
   margin-inline: -18px;
   padding-inline: 18px;
 }
-.bracket-inner {
-  position: relative;
-}
-.lg-labels-row {
-  position: relative;
-  height: 20px;
-  margin-bottom: 8px;
-}
-.lg-label {
-  position: absolute;
-  top: 0;
-  text-align: center;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-}
-.lg-label.al {
-  color: var(--al);
-}
-.lg-label.nl {
-  color: var(--nl);
-}
-.lg-label.champ {
-  color: var(--gold);
-}
-
 .bracket-stage {
   position: relative;
 }
 .league-head {
   position: absolute;
-  left: 0;
   height: 19px;
+  text-align: center;
   border-bottom: 0.5px solid currentColor;
   font-size: 0.72rem;
   line-height: 16px;
@@ -908,6 +882,9 @@ button.ghost {
 .box {
   position: absolute;
 }
+.series.world .bestof span:first-child {
+  color: var(--gold);
+}
 @media (max-width: 779px) {
   .tree-scroll {
     scroll-snap-type: x proximity;
@@ -917,8 +894,9 @@ button.ghost {
   .box {
     scroll-snap-align: start;
   }
-  .series.world .bestof span:first-child {
-    color: var(--gold);
+  /* A phone's bar runs past the screen's edge, so a centered name would start off screen. */
+  .league-head {
+    text-align: left;
   }
 }
 
