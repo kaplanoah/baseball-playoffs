@@ -159,8 +159,9 @@ build works out the version from these titles on `main`, counting from 2.12.2,
 so there are no tags to keep.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
-deploy puts the previous version back and fails. An open page picks up a
-deploy the next time it loads.
+deploy puts the previous version back and fails. An open page reloads itself
+for a deploy the next time it comes back into view, and after half an hour
+away, so a home-screen app never needs quitting to catch up.
 
 ### Deploying on merge
 

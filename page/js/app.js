@@ -8,6 +8,7 @@ import { startLive, watchPageVisibility } from "./live.js";
 import { startNotifications } from "./notifications.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
+import { watchReturns } from "./resume.js";
 import {
   applyDeferredSeason,
   loadReadings,
@@ -199,6 +200,7 @@ function refreshClockEveryMinute() {
 }
 
 async function boot() {
+  watchReturns();
   trackKeyboardFocus();
   wireControls();
   session.db = createWorkerStore();
