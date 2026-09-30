@@ -36,12 +36,15 @@ export async function reloadIfReplaced() {
   }
 }
 
+// A long absence stays on record through a drag, so the next tick after it reloads.
 function catchUpOnReturn() {
   if (document.hidden) return;
-  const awayMs = Date.now() - activeAt;
+  if (Date.now() - activeAt >= LONG_AWAY_MS) {
+    reloadPage();
+    return;
+  }
   activeAt = Date.now();
-  if (awayMs >= LONG_AWAY_MS) reloadPage();
-  else reloadIfReplaced();
+  reloadIfReplaced();
 }
 
 function tick() {

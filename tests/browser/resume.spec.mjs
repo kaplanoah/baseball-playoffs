@@ -1,4 +1,4 @@
-import { test, expect, openApp, EVENING_FIXTURE } from "./harness.mjs";
+import { test, expect, openApp, openSettings, EVENING_FIXTURE } from "./harness.mjs";
 
 const RELEASE = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41Z" };
 const NEXT_RELEASE = { version: "2.13.1", commit: "def5678", builtAt: "2026-09-28T02:00:00Z" };
@@ -104,4 +104,27 @@ test("live scores the page can't read reload it once a newer release is out", as
 
   await expectReload(page, () => page.clock.runFor(2 * MINUTE_MS));
   expect(app.countSnapshotRequests()).toBeGreaterThan(requestsBefore);
+});
+
+test("a page that wakes mid-drag after half an hour reloads once the drag ends", async ({
+  page,
+}) => {
+  await serveReleases(page);
+  const app = await openApp(page);
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await openSettings(page);
+  const grip = page.locator("#rankList .grip").first();
+  const box = await grip.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 3, { steps: 5 });
+  await markPage(page);
+
+  await sleepUnannounced(page, 31);
+  expect(await isSameLoad(page)).toBe(true);
+
+  await expectReload(page, async () => {
+    await page.mouse.up();
+    await page.clock.runFor(15 * 1000);
+  });
 });
