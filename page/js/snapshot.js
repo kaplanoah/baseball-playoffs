@@ -455,6 +455,7 @@ function summarizeGame(game) {
   const summary = { away: game.away.id, home: game.home.id, state: game.state, start: game.start };
   if (game.tbd) summary.tbd = true;
   if (game.doubleheader) summary.doubleheader = game.doubleheader;
+  if (game.type !== "R") summary.postseason = true;
   if (game.state === "live" || game.state === "final")
     summary.score = [game.away.score || 0, game.home.score || 0];
   if (game.state === "live") summary.inning = game.inning || 1;

@@ -1,6 +1,7 @@
 import { listRankedOrder, renderRankTag, renderTeamTag } from "./clubs.js";
 import { DAYS, countDaysBetween, readGameDay } from "./dates.js";
 import { html, setHtml } from "./html.js";
+import { formatOrdinal } from "./ordinal.js";
 import { session } from "./session.js";
 
 const DIVISION_ORDER = ["AL East", "AL Central", "AL West", "NL East", "NL Central", "NL West"];
@@ -41,7 +42,49 @@ function findNextGame(row, now) {
 // A club out of the table's race still shows a postseason game, since it only has one while alive.
 const isNextShown = (next, isOut) => next && next.at && (!isOut || next.postseason);
 
+const isPlayedBy = (game, id) => game.away === id || game.home === id;
+const hasPassedStart = (game, now) => !game.tbd && Date.parse(game.start) <= now;
+// MLB can call a start delayed before its scheduled time.
+const isAboutToStart = (game, now) =>
+  game.state === "pre" && (!!game.delay || hasPassedStart(game, now));
+
+// A club's standings row lists only games still to come, so its game under way comes from the slate.
+function findGameUnderWay(id, now) {
+  const games = (session.state?.slate?.today?.games || []).filter((game) => isPlayedBy(game, id));
+  return (
+    games.find((game) => game.state === "live") ||
+    games.find((game) => isAboutToStart(game, now)) ||
+    null
+  );
+}
+
+const describeOpponent = (game, id) => (game.home === id ? `vs ${game.away}` : `@ ${game.home}`);
+
+function describeMargin(game, id) {
+  const [awayRuns, homeRuns] = game.score;
+  const margin = game.home === id ? homeRuns - awayRuns : awayRuns - homeRuns;
+  if (margin === 0) return "Tied";
+  return margin > 0 ? `Up ${margin}` : `Down ${-margin}`;
+}
+
+function describeGameUnderWay(game, id) {
+  const opponent = describeOpponent(game, id);
+  if (game.state === "pre") return game.delay ? `Today ${opponent}` : `Warmup ${opponent}`;
+  const matchup = `${describeMargin(game, id)} ${opponent}`;
+  return game.delay ? matchup : `${matchup} in the ${formatOrdinal(game.inning || 1)}`;
+}
+
+function renderGameUnderWayCell(game, id) {
+  const text = describeGameUnderWay(game, id);
+  if (game.delay)
+    return html`<td class="next-cell live delayed">${text} &mdash; ${game.delay}</td>`;
+  return html`<td class="next-cell live">${text}</td>`;
+}
+
 export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
+  const gameUnderWay = findGameUnderWay(row.id, now);
+  if (gameUnderWay && (!isOut || gameUnderWay.postseason))
+    return renderGameUnderWayCell(gameUnderWay, row.id);
   const next = findNextGame(row, now);
   if (!isNextShown(next, isOut)) return EMPTY_NEXT_CELL;
   const start = new Date(next.at);
