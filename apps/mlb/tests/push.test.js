@@ -5,7 +5,7 @@ import * as MLBSnapshot from "../page/js/snapshot.js";
 import worker from "../worker/src/index.js";
 import { SeasonStore } from "../worker/src/store.js";
 import { decodeBase64Url } from "../../../shared/worker/web-push.js";
-import { createDurableObjectContext } from "./durable-object-context.js";
+import { createDurableObjectContext } from "../../../tests/durable-object-context.js";
 import { createBrowserKeys, readPushMessage } from "../../../tests/push-reader.js";
 
 const APP_KEY = "k3y";

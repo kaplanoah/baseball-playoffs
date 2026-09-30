@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import worker from "../worker/src/index.js";
 import { SeasonStore } from "../worker/src/store.js";
-import { createDurableObjectContext } from "./durable-object-context.js";
+import { createDurableObjectContext } from "../../../tests/durable-object-context.js";
 
 const APP_KEY = "k3y";
 const ORIGIN = "https://mlb-live.example";
