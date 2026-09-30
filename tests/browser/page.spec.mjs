@@ -119,22 +119,18 @@ const openShortToday = async (page) => {
   await page.getByRole("tab", { name: "Games" }).click();
 };
 
-test("on a phone, the space below a short list of games swipes too, without adding scroll room", async ({
+const readListsTop = (page) =>
+  page.evaluate(() => {
+    const bar = document.getElementById("gameTabsBar");
+    return document.getElementById("gamePages").getBoundingClientRect().top - bar.offsetHeight;
+  });
+
+test("on a phone, the space below a short list of games swipes too, and scrolls only as far as the pill", async ({
   page,
 }) => {
   await page.setViewportSize(PHONE);
   await openShortToday(page);
   await expect(page.locator("#games-today .game-row")).toHaveCount(2);
-  const readScrollRoom = () =>
-    page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
-  const scrollRoomWithoutGames = await page.evaluate(() => {
-    const pages = document.getElementById("gamePages");
-    const { height } = pages.style;
-    pages.style.height = "0px";
-    const room = document.documentElement.scrollHeight - innerHeight;
-    pages.style.height = height;
-    return room;
-  });
 
   const lastRow = await page.locator("#games-today .game-row").last().boundingBox();
   const isSwipedBelowGames = await page.evaluate(
@@ -142,7 +138,60 @@ test("on a phone, the space below a short list of games swipes too, without addi
     lastRow.y + lastRow.height + 200,
   );
   expect(isSwipedBelowGames).toBe(true);
-  expect(await readScrollRoom()).toBe(scrollRoomWithoutGames);
+
+  await page.evaluate(() => scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
+  expect(Math.abs(await readListsTop(page))).toBeLessThanOrEqual(1);
+});
+
+test("on a phone, the Games pill stays at the top while the games scroll under it", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const pill = page.getByRole("tablist", { name: "Games" });
+  const pillTop = (await pill.boundingBox()).y;
+  expect(pillTop).toBeGreaterThan(100);
+
+  await page.evaluate(() => scrollTo({ top: 600, behavior: "instant" }));
+
+  await expect.poll(async () => (await pill.boundingBox()).y).toBe(10);
+  await expect(page.locator("#gameTabsBar")).toHaveClass(/stuck/);
+  const coveringPillCenter = await page.evaluate(() => {
+    const box = document.querySelector(".game-tabs").getBoundingClientRect();
+    return document
+      .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+      ?.closest(".game-tabs");
+  });
+  expect(coveringPillCenter).not.toBeNull();
+});
+
+test("on a phone, a list swiped in from far down another starts just under the pill, and stays put", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect(page.locator("#games-previous")).not.toHaveAttribute("inert");
+  await page.evaluate(() => scrollTo({ top: 700, behavior: "instant" }));
+  const readFirstDateY = async () =>
+    (await page.locator("#games-today .game-day").first().boundingBox()).y;
+  const pillBottom = await page.evaluate(
+    () => document.getElementById("gameTabsBar").getBoundingClientRect().bottom,
+  );
+
+  await expect.poll(readFirstDateY).toBeCloseTo(pillBottom, 0);
+  await page
+    .locator("#gamePages")
+    .evaluate((pages) => (pages.scrollLeft = pages.clientWidth * 0.5));
+  expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
+  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth));
+
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+  expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
+  expect(Math.abs(await readListsTop(page))).toBeLessThanOrEqual(1);
+  await expect(page.locator("#games-today")).toHaveCSS("transform", "none");
 });
 
 test("on a phone, a swipe that comes to rest between two lists goes on to the nearer once let go", async ({
@@ -198,20 +247,49 @@ test("a tapped Games tab keeps its list while the lists are still on their way",
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#games-previous")).not.toHaveAttribute("inert");
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 });
 
-test("the Games tab finds today's list again after another tab was shown", async ({ page }) => {
+test("the Games tab opens on today's list after another tab was shown", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(2);
 
   await page.getByRole("tab", { name: "Bracket" }).click();
   await page.getByRole("tab", { name: "Games" }).click();
 
   await expect.poll(() => readPagesPosition(page)).toBe(1);
   await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("the Games tab goes back to today's list when the page is opened again", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(0);
+
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+});
+
+test("a doubleheader game's number is set apart from its status", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const status = page
+    .locator("#games-previous .game-status")
+    .filter({ has: page.locator(".doubleheader") })
+    .filter({ hasText: "Final" })
+    .first();
+
+  await expect(status).toHaveText(/^Final\s*\u2022\s*Game \d$/);
+  await expect(status.locator(".sep")).toHaveCount(1);
 });
 
 test("each day of games is closed by lines, with its date in open space above it", async ({
