@@ -11,8 +11,8 @@ import { html } from "../../../shared/page/html.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { formatStampName } from "../page/js/stamp.js";
 import { renderEntryText, renderUpdateText } from "../page/js/updates.js";
-import { normalizeSpaces, stripTags } from "./text.js";
-import { EASTERN, useTimeZone } from "./time-zone.js";
+import { normalizeSpaces, stripTags } from "../../../tests/text.js";
+import { EASTERN, useTimeZone } from "../../../tests/time-zone.js";
 
 // The expected times below are what a viewer in Eastern time sees.
 useTimeZone(EASTERN);

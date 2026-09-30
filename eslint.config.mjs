@@ -38,7 +38,7 @@ export default [
     },
   },
   {
-    files: ["apps/*/page/sw.js"],
+    files: ["apps/*/page/sw.js", "shared/page/push-worker.js"],
     languageOptions: { globals: globals.serviceworker },
   },
   {

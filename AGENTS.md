@@ -13,7 +13,7 @@
 
 ## Repo
 
-- Apps: one per league, each in `apps/<app>/` with its own `page/`, `worker/`, and `tests/`, and deployed as its own Worker, named in `apps/<app>/worker/wrangler.toml`. `apps/mlb/` is baseball, Worker `mlb-live`; `apps/wnba/` is the WNBA, Worker `wnba-app`, which reads the league's own feeds (`page/js/snapshot.js` says which) with the browser headers they require, and whose page saves nothing to the store. Paths below are inside an app's folder, except `shared/` and the ones named as the root's.
+- Apps: one per league, each in `apps/<app>/` with its own `page/`, `worker/`, and `tests/`, and deployed as its own Worker, named in `apps/<app>/worker/wrangler.toml`. `apps/mlb/` is baseball, Worker `mlb-live`; `apps/wnba/` is the WNBA, Worker `wnba-app`, which reads the league's own feeds (`page/js/snapshot.js` says which) with the browser headers they require, and whose page saves nothing to the store and follows the phone's dark (Walnut) or light (Maple) setting, in its own self-hosted fonts. Paths below are inside an app's folder, except `shared/` and the ones named as the root's.
 - Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
 - Build page markup with the `html` template from `shared/page/html.js` and write it with `setHtml`. Both escape stored and fetched text, and lint rejects any other `innerHTML` write.
 - Separate items in a line of facts with `joinWithSeparator` from `shared/page/html.js`; lint rejects a bullet or middle dot typed by hand. Design mockups are one plain HTML artifact page that works on a phone, never a design canvas, and copy the app's existing styles, separators, and colors from its `page/styles.css` instead of inventing new ones.
@@ -22,7 +22,7 @@
 - Tooling: the root `worker/` builds, versions, and deploys every app (`apps.mjs`, `build.mjs`, `deploy.mjs`, `deploy-scope.mjs`, `release.mjs`, `set-app-key.mjs`); its tests are in the root `tests/`.
 - Tests: each app's `tests/`, with its browser tests in `tests/browser/`. Every change to behavior comes with tests that fail without it, in the same PR.
 - Commands: `npm ci` once, then `npm run check`. `npm run format` fixes formatting. Types are checked from JSDoc by `npm run typecheck`; the code stays plain JavaScript. `npm run deadcode` runs knip, which fails on unused files, exports, and dependencies: delete them rather than ignoring them.
-- Times show in the viewer's own time zone; only the league's day (`readEasternDay`) is Eastern. Tests pass in any `TZ`: a test that asserts a time picks its zone with `apps/mlb/tests/time-zone.js` or `test.use({ timezoneId })`.
+- Times show in the viewer's own time zone; only a league's own day is Eastern (MLB's `readEasternDay`, and the WNBA's day for a game without a set time). Tests pass in any `TZ`: a test that asserts a time picks its zone with the root's `tests/time-zone.js` or `test.use({ timezoneId })`.
 - The store returns documents frozen, with sorted keys. The page can only `update()` a season's `ranking` and `seenAt`: each field it names is replaced whole, `null` removes one, and a missing season is created. Everything else is written by the Worker.
 
 ## Workflow

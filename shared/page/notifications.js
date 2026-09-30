@@ -1,5 +1,5 @@
-// The settings panel's notifications switch: subscribes this device to the Worker's pushes about
-// the teams in the ranking. A note shows under it only when the switch can't do its job.
+// The settings panel's notifications switch: subscribes this device to the Worker's pushes. A note
+// shows under it only when the switch can't do its job.
 
 const NOTES = {
   blockedOnIos:

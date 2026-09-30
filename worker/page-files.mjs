@@ -13,8 +13,9 @@ const TEXT_TYPES = {
   ".js": "text/javascript; charset=utf-8",
   ".svg": "image/svg+xml",
   ".webmanifest": "application/manifest+json",
+  ".txt": "text/plain; charset=utf-8",
 };
-const BINARY_TYPES = { ".png": "image/png" };
+const BINARY_TYPES = { ".png": "image/png", ".woff2": "font/woff2" };
 
 function readPageFile(fullPath) {
   const extension = extname(fullPath);
