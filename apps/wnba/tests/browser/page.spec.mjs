@@ -41,8 +41,25 @@ test("the page follows the phone's dark or light setting", async ({ page }) => {
   expect(await readBackground()).toBe("rgb(233, 212, 176)");
 });
 
+test("the page offers a maple icon in light mode and a walnut one in dark mode", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openApp(page);
+  const homeScreenIcon = page.locator("#homeScreenIcon");
+  await expect(homeScreenIcon).toHaveAttribute("href", "icon-light-180.png");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(homeScreenIcon).toHaveAttribute("href", "icon-180.png");
+  for (const href of ["icon-180.png", "icon-light-180.png", "icon.svg", "icon-light.svg"]) {
+    const answer = await page.request.get(href);
+    expect(answer.ok(), href).toBe(true);
+  }
+});
+
 test("the page uses its own fonts, served with it", async ({ page }) => {
   await openApp(page);
+  // The bracket's wins are the first text in Barlow Condensed, so its font loads once they show.
+  await expect(page.locator('[data-series="1-0"] .wins').first()).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const loaded = await page.evaluate(() =>
     [...document.fonts].filter((font) => font.status === "loaded").map((font) => font.family),
