@@ -689,6 +689,39 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season"]);
 });
 
+test("games list: a game still to play names its starters, with their arm and ERA", () => {
+  const slate = {
+    today: {
+      date: "2026-09-29",
+      games: [
+        {
+          away: "BOS",
+          home: "NYY",
+          state: "pre",
+          start: "2026-09-30T00:08:00Z",
+          starters: [
+            { id: 801139, name: "Tolle", hand: "L", era: "3.03" },
+            { id: 693645, name: "Schlittler", hand: "R", era: "1.95" },
+          ],
+        },
+        {
+          away: "CHC",
+          home: "SD",
+          state: "pre",
+          start: "2026-09-30T02:08:00Z",
+          starters: [{ id: 571510 }, { id: 650633, name: "King", hand: "R", era: null }],
+        },
+      ],
+    },
+  };
+  assert.deepEqual(describeGameList(slate, "today"), [
+    "Tue, Sep 29",
+    "Red Sox Tolle L 3.03 ERA 8:08 PM Yankees Schlittler R 1.95 ERA",
+    "Cubs 10:08 PM Padres King R",
+  ]);
+  assert.match(String(renderGameList(slate, "today")), /title="Throws left-handed">L</);
+});
+
 test("games list: an empty list says so without a closing period", () => {
   const slate = { today: { date: "2026-09-29", games: [] }, previous: [], next: [] };
   assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season"]);

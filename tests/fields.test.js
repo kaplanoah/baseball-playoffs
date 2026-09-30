@@ -13,8 +13,11 @@ const listGames = (schedule) => schedule.dates.flatMap((date) => date.games);
 const listClubs = (standings) => standings.records.flatMap((division) => division.teamRecords);
 
 test("every field the requests ask for has a rule", () => {
-  const requests = MLBSnapshot.listMlbRequests(2026, Date.parse(EVENING.now));
-  const requested = Object.values(requests).flatMap((request) =>
+  const requests = [
+    ...Object.values(MLBSnapshot.listMlbRequests(2026, Date.parse(EVENING.now))),
+    MLBSnapshot.listPitcherRequest(2026, [1]),
+  ];
+  const requested = requests.flatMap((request) =>
     new URL(request, MLBSnapshot.MLB_API).searchParams.get("fields").split(","),
   );
   assert.deepEqual(
@@ -86,4 +89,16 @@ test("no games or standings yet is fine; no dates or records at all is not", () 
     MLBSnapshot.findMissingFields({ season: {}, standings: {}, postseason: {}, schedule: null }),
     ["seasons", "records", "dates"],
   );
+});
+
+test("a starter MLB describes without his name or arm is flagged, and an ERA only once none has one", () => {
+  const withLine = (era) => ({ stats: [{ splits: [{ stat: { era } }] }] });
+  const describe = (people) =>
+    MLBSnapshot.findMissingFields({ ...EVENING.responses, pitchers: { people } });
+  const complete = { id: 1, useLastName: "King", pitchHand: { code: "R" }, ...withLine("3.21") };
+  const rookie = { id: 2, useLastName: "Tolle", pitchHand: { code: "L" } };
+  assert.deepEqual(describe([complete, rookie]), []);
+  assert.deepEqual(describe([{ ...complete, useLastName: undefined }]), ["useLastName"]);
+  assert.deepEqual(describe([{ ...complete, pitchHand: {} }]), ["pitchHand.code"]);
+  assert.deepEqual(describe([{ ...complete, ...withLine(undefined) }, rookie]), ["era"]);
 });

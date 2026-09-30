@@ -22,6 +22,7 @@ const EMPTY_LIST_TEXT = {
   next: "No games scheduled yet",
 };
 const GAME_LISTS = ["previous", "today", "next"];
+const ARMS = { L: "Throws left-handed", R: "Throws right-handed" };
 
 let shownList = "today";
 // The list a tapped tab is scrolling to; the lists passed on the way there aren't chosen.
@@ -97,14 +98,24 @@ function renderFacts(id) {
   return html`<span class="game-facts">${renderSeed(id)}${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${renderRace(row)}</span>`;
 }
 
+function renderStarter(starter) {
+  if (!starter?.name) return html``;
+  const arm =
+    ARMS[starter.hand] &&
+    html`<span class="starter-arm" title="${ARMS[starter.hand]}">${starter.hand}</span>`;
+  const era =
+    starter.era && html`<span class="starter-era tabular"><b>${starter.era}</b> ERA</span>`;
+  return html`<span class="starter" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${arm}${era}</span>`;
+}
+
 function isOut(id) {
   const { state } = session;
   const isOutOfPostseason = Boolean(state && state.teams) && isEliminated(state, id);
   return isOutOfPostseason || describeRace(findStandingsRow(id))?.standing === "out";
 }
 
-function renderSide(id, side, hasWon) {
-  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
+function renderSide(id, side, hasWon, starter) {
+  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}${renderStarter(starter)}</span>`;
 }
 
 function renderScore(game, awayLost, homeLost) {
@@ -128,10 +139,11 @@ function renderGame(game) {
   const homeLost = isFinal && homeScore < awayScore;
   const awayWon = isFinal && awayScore > homeScore;
   const homeWon = isFinal && homeScore > awayScore;
+  const [awayStarter, homeStarter] = game.starters || [];
   return html`<li class="game-row ${game.state} ${game.delay ? "delayed" : ""}">
-    ${renderSide(game.away, "away", awayWon)}
+    ${renderSide(game.away, "away", awayWon, awayStarter)}
     ${renderMiddle(game, awayLost, homeLost)}
-    ${renderSide(game.home, "home", homeWon)}
+    ${renderSide(game.home, "home", homeWon, homeStarter)}
   </li>`;
 }
 
