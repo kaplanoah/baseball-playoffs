@@ -207,6 +207,35 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
   await expect(eliminated).toHaveCSS("text-decoration-line", "none");
 });
 
+test("the bracket leaves a score empty until the club wins a game, and gives each TBD row one too", async ({
+  page,
+}) => {
+  await openApp(page);
+  const bracket = page.locator("#bracketWrap");
+
+  await expect(bracket.locator(".matchup-row")).toHaveCount(22);
+  await expect(bracket.locator(".matchup-row:has(.tbd) .nscore")).toHaveCount(10);
+  await expect(bracket.locator(".nscore")).toHaveText(Array(22).fill(""));
+});
+
+test("a club's score shows its wins once it has one, at the height of an empty score", async ({
+  page,
+}) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+  const wildCard = page.locator("#bracketWrap .series").filter({ hasText: "Reds" });
+  const readScore = (club) =>
+    wildCard.locator(".matchup-row").filter({ hasText: club }).locator(".nscore");
+
+  await expect(readScore("Dodgers")).toHaveText("2");
+  await expect(readScore("Reds")).toHaveText("");
+  const filled = await readScore("Dodgers").boundingBox();
+  const empty = await readScore("Reds").boundingBox();
+  expect(empty.height).toBe(filled.height);
+});
+
 test("on a phone, the bracket stacks the AL above the NL, each running left to right into the World Series", async ({
   page,
 }) => {
@@ -889,6 +918,12 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(updateTimes.nth(0)).toHaveText(/^8:30\sPM$/);
   await expect(updateTimes.nth(1)).toHaveText(/^Yesterday$/);
   await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
+});
+
+test("the update list leaves 18px below it", async ({ page }) => {
+  await openApp(page, { liveAvailable: false, store: { "seasons/2026": SEASON_WITH_TWO_UPDATES } });
+
+  await expect(page.locator("#updates")).toHaveCSS("margin-bottom", "18px");
 });
 
 test("dismissing updates goes by the newest one's time, not this device's clock", async ({

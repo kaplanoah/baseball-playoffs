@@ -31,17 +31,22 @@ function findPreferredSide(series) {
   return null;
 }
 
+// A club with no wins yet, or no club yet, gets an empty score.
+const renderSeriesWins = (wins, isWinner = false) =>
+  html`<span class="nscore tabular ${isWinner ? "lead" : ""}">${wins || ""}</span>`;
+
 function renderMatchupRow(series, side) {
   const id = side === "A" ? series.teamA : series.teamB;
   const wins = side === "A" ? series.winsA : series.winsB;
-  if (!id) return html`<div class="matchup-row"><span class="tbd">TBD</span></div>`;
+  if (!id)
+    return html`<div class="matchup-row"><span class="tbd">TBD</span>${renderSeriesWins(0)}</div>`;
   const isWinner = series.winner === id;
   const isLoser = series.winner && series.winner !== id;
   const isPreferred = findPreferredSide(series) === side;
   const seed = session.state.teams[id] && session.state.teams[id].seed;
   return html`<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
     <div class="team-id">${renderRankTag(id, isPreferred)}${renderSeedMark(seed)}${renderTeamTag(id)}</div>
-    <span class="nscore tabular ${isWinner ? "lead" : ""}">${wins}</span>
+    ${renderSeriesWins(wins, isWinner)}
   </div>`;
 }
 
