@@ -1,4 +1,4 @@
-import { decodeBase64Url, encodeBase64Url } from "../worker/src/web-push.js";
+import { decodeBase64Url, encodeBase64Url } from "../shared/worker/web-push.js";
 
 // A browser's side of Web Push, to read what the Worker sends: its keys, and decryption of an
 // aes128gcm body that holds one record.

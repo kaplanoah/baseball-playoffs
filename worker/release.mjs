@@ -1,10 +1,16 @@
-// Names releases with semantic versions. Each squash merge's title starts with a type that says
-// how far it moves the version, so main's history alone gives every commit's version: no tags,
-// and nothing written back to the repo.
-import { findDeployedChanges } from "./deploy-scope.mjs";
+// Names each app's releases with semantic versions. Each squash merge's title starts with a type
+// that says how far it moves the version, so main's history alone gives every commit's version:
+// no tags, and nothing written back to the repo. A merge that changes only other apps' folders
+// leaves an app's version where it was.
+import { findDeployedChanges, isOnlyForOtherApps } from "./deploy-scope.mjs";
 
-// Worked out by sorting every pull request before versioning began into the types below.
-const BASELINE = { commit: "ccc75f8c1d899d98c35153d55921b6d52d43d5bc", version: "2.12.2" };
+// Worked out by sorting every pull request before versioning began into the types below. An app
+// not listed counts from FIRST_VERSION at the merge that added its folder.
+const BASELINES = {
+  mlb: { commit: "ccc75f8c1d899d98c35153d55921b6d52d43d5bc", version: "2.12.2" },
+};
+const FIRST_VERSION = "1.0.0";
+const RECORD_SEPARATOR = "\x1e";
 
 /** @typedef {"major" | "minor" | "patch" | null} Bump */
 
@@ -73,26 +79,52 @@ const readBump = (subject) => {
 };
 
 /**
- * The version of HEAD, from the merges on main's first-parent history since the baseline.
+ * @param {string} app
+ * @param {(args: string[]) => string} git
+ */
+function findBaseline(app, git) {
+  if (BASELINES[app]) return BASELINES[app];
+  const [commit] = git(["log", "--first-parent", "--reverse", "--format=%H", "--", `apps/${app}/`])
+    .split("\n")
+    .filter(Boolean);
+  return commit ? { commit, version: FIRST_VERSION } : null;
+}
+
+/** @param {string} log each merge's subject, then the files it changed */
+const readMerges = (log) =>
+  log
+    .split(RECORD_SEPARATOR)
+    .filter((record) => record.trim())
+    .map((record) => {
+      const [subject, ...files] = record.split("\n").filter(Boolean);
+      return { subject, files };
+    });
+
+/**
+ * The app's version at HEAD, from the merges on main's first-parent history since its baseline.
+ * @param {string} app
  * @param {(args: string[]) => string} git
  * @returns {string | null} null when HEAD's history doesn't reach the baseline
  */
-export function readVersion(git) {
-  let subjects;
+export function readVersion(app, git) {
+  let baseline;
+  let log;
   try {
-    git(["merge-base", "--is-ancestor", BASELINE.commit, "HEAD"]);
-    subjects = git([
+    baseline = findBaseline(app, git);
+    if (!baseline) return null;
+    git(["merge-base", "--is-ancestor", baseline.commit, "HEAD"]);
+    log = git([
       "log",
       "--first-parent",
       "--reverse",
-      "--format=%s",
-      `${BASELINE.commit}..HEAD`,
+      `--format=${RECORD_SEPARATOR}%s`,
+      "--name-only",
+      `${baseline.commit}..HEAD`,
     ]);
   } catch {
     return null;
   }
-  return subjects
-    .split("\n")
-    .filter(Boolean)
-    .reduce((version, subject) => bumpVersion(version, readBump(subject)), BASELINE.version);
+  return readMerges(log)
+    .filter(({ files }) => !isOnlyForOtherApps(files, app))
+    .reduce((version, { subject }) => bumpVersion(version, readBump(subject)), baseline.version);
 }

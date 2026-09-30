@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import * as WebPush from "../worker/src/web-push.js";
+import * as WebPush from "../shared/worker/web-push.js";
 import { createBrowserKeys, readPushMessage } from "./push-reader.js";
 
 const decode = WebPush.decodeBase64Url;
