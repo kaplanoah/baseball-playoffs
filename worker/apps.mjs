@@ -26,5 +26,30 @@ export function checkAppName(app, apps = listApps()) {
   throw new Error(`${named}The apps are: ${apps.join(", ")}.`);
 }
 
+// A command with an app named runs for that one, and with none, for them all.
+/** @param {string | undefined} named */
+export const listNamedApps = (named, apps = listApps()) =>
+  named ? [checkAppName(named, apps)] : apps;
+
+/**
+ * For a command line: the apps it names, or a clean message and a failed exit when it names one
+ * there isn't.
+ * @param {string | undefined} named
+ * @param {{ apps?: string[], log?: (message: string) => void, exit?: (code: number) => void }} [options]
+ * @returns {string[]}
+ */
+export function listAppsOrExit(
+  named,
+  { apps = listApps(), log = console.error, exit = (code) => process.exit(code) } = {},
+) {
+  try {
+    return listNamedApps(named, apps);
+  } catch (error) {
+    log(error instanceof Error ? error.message : String(error));
+    exit(1);
+    return [];
+  }
+}
+
 /** @param {string} app */
 export const findPageRoot = (app) => fileURLToPath(new URL("page/", findAppRoot(app)));

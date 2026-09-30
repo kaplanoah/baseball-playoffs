@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { checkAppName, findAppRoot, findPageRoot, listApps } from "./apps.mjs";
+import { findAppRoot, findPageRoot, listAppsOrExit } from "./apps.mjs";
 import { readPageFiles } from "./page-files.mjs";
 import { readVersion } from "./release.mjs";
 
@@ -77,8 +77,7 @@ export async function buildWorker(app, { release = readRelease(app) } = {}) {
 
 // With no app named, builds them all.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [named] = process.argv.slice(2);
-  for (const app of named ? [checkAppName(named)] : listApps()) {
+  for (const app of listAppsOrExit(process.argv[2])) {
     const built = await buildWorker(app);
     const output = findOutput(app);
     mkdirSync(path.dirname(output), { recursive: true });

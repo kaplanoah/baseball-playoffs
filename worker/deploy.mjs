@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { checkAppName, findAppRoot, listApps } from "./apps.mjs";
+import { findAppRoot, listAppsOrExit } from "./apps.mjs";
 import { buildWorker } from "./build.mjs";
 import { decideDeploy, listChangedFiles } from "./deploy-scope.mjs";
 
@@ -327,6 +327,7 @@ function readReleaseOrExit() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const apps = listAppsOrExit(process.argv[2]);
   const { commit, newerMain } = readReleaseOrExit();
   if (newerMain) {
     console.log(
@@ -335,10 +336,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(0);
   }
   console.log(`Deploying ${RELEASE_BRANCH} at ${commit.slice(0, 7)}`);
-  const [named] = process.argv.slice(2);
   let hasFailed = false;
   // One app's failed deploy doesn't hold back the others; each puts its own earlier version back.
-  for (const app of named ? [checkAppName(named)] : listApps()) {
+  for (const app of apps) {
     try {
       await deploy({ app, script: await buildWorker(app), commit, log: createAppLog(app) });
     } catch (error) {

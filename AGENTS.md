@@ -13,7 +13,7 @@
 
 ## Repo
 
-- Apps: one per league, each in `apps/<app>/` with its own `page/`, `worker/`, and `tests/`, and deployed as its own Worker, named in `apps/<app>/worker/wrangler.toml`. `apps/mlb/` is baseball, Worker `mlb-live`. Paths below are inside an app's folder unless they start with the repo's root folders `worker/` or `tests/`.
+- Apps: one per league, each in `apps/<app>/` with its own `page/`, `worker/`, and `tests/`, and deployed as its own Worker, named in `apps/<app>/worker/wrangler.toml`. `apps/mlb/` is baseball, Worker `mlb-live`. Paths below are inside an app's folder, except the ones named as the root's.
 - Page: `page/`. `page/js/app.js` is the entry module; shared page data lives in `page/js/session.js`.
 - Build page markup with the `html` template from `page/js/html.js` and write it with `setHtml`. Both escape stored and fetched text, and lint rejects any other `innerHTML` write.
 - Separate items in a line of facts with `joinWithSeparator` from `page/js/html.js`; lint rejects a bullet or middle dot typed by hand. Design mockups are one plain HTML artifact page that works on a phone, never a design canvas, and copy the app's existing styles, separators, and colors from its `page/styles.css` instead of inventing new ones.
