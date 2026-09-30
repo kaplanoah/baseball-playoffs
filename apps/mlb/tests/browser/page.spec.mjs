@@ -330,8 +330,7 @@ test("a game still to come shows its start time centered in its row, under the T
   expect(Math.abs(findCenterX(timeBox) - findCenterX(todayBox))).toBeLessThan(1);
 });
 
-// The fixture's field: AL TB 1, CLE 2, TEX 3, NYY 4, BOS 5, CWS 6; NL MIL 1, LAD 2, ATL 3, SD 4,
-// CHC 5, PHI 6. Each series' teamA is its higher seed or its first feeder's winner.
+// A series' teamA is its higher seed or its first feeder's winner, not the game's away club.
 const openPostseasonDay = async (page, series, games) => {
   const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
   const start = "2026-09-24T18:08:00Z";
