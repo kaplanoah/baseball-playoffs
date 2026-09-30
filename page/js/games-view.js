@@ -1,4 +1,4 @@
-import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
+import { findSeriesBetween, isEliminated } from "./bracket.js";
 import { renderTeamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
 import { formatOrdinal } from "./ordinal.js";
@@ -136,10 +136,12 @@ function findGameSeries(game) {
   return findSeriesBetween(state, game.away, game.home);
 }
 
-// "Series" is left off the wild card round, the one long name, to leave the clubs room.
+// Short names, since the label shares the row's middle with the time or score.
 function nameRound(series) {
   const [league] = series.id.split("_");
-  return series.round === "WC" ? `${league} Wild Card` : nameSeries(series.id);
+  if (series.round === "WC") return `${league} WC`;
+  if (series.round === "WS") return "WS";
+  return `${league}${series.round}`;
 }
 
 // The saved series counts only finished games, so a game under way shows the series as it stood

@@ -708,20 +708,18 @@ table.st .seed-cell {
   border-radius: 3px;
   color: var(--ink-dim);
 }
+/* The smaller number and letters sit a hair high on the name's baseline, so they read level. */
 .starter-era {
+  position: relative;
+  top: -0.25px;
   color: var(--ink-dim);
   white-space: nowrap;
 }
-/* The smaller number and letters sit a hair high on the name's baseline, so they read level. */
 .starter-era b {
-  position: relative;
-  top: -0.25px;
   font-size: 0.55rem;
   font-weight: 400;
 }
 .starter-era-label {
-  position: relative;
-  top: -0.5px;
   font-size: 0.53rem;
 }
 /* A character width from the word, like the number, and a pixel low so it reads level with the text. */
