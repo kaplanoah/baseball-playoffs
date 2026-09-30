@@ -567,6 +567,38 @@ test("a live answer without standings leaves the saved field showing", () => {
   }
 });
 
+test("each series keeps whichever of the saved and live records has counted more games", () => {
+  const teams = { CWS: { league: "AL", seed: 6 }, HOU: { league: "AL", seed: 3 } };
+  const gameTwo = { at: "2026-10-01T00:08:00Z", date: "2026-09-30", tbd: false, game: 2 };
+  const gameOne = { ...gameTwo, at: "2026-09-30T00:08:00Z", date: "2026-09-29", game: 1 };
+  const savedSeries = {
+    AL_WC1: { winsA: 0, winsB: 1, next: gameTwo },
+    AL_WC2: { winsA: 0, winsB: 0, next: gameOne },
+  };
+  const liveSeries = {
+    AL_WC1: { winsA: 0, winsB: 0, next: gameOne },
+    AL_WC2: { winsA: 1, winsB: 0, next: gameTwo },
+  };
+  const { activeYear } = session;
+  const live = { season: 2026, asOf: "2026-09-30T00:23:00Z", slate: null, log: [] };
+  try {
+    Object.assign(session, { activeYear: 2026, readings: null });
+    session.seasonDoc = { year: 2026, teams, series: savedSeries, ranking: [], log: [] };
+    session.live = { ...live, projected: false, standings: null, teams, series: liveSeries };
+    composeState();
+    assert.deepEqual(session.state.series, {
+      AL_WC1: savedSeries.AL_WC1,
+      AL_WC2: liveSeries.AL_WC2,
+    });
+    const otherField = { ...teams, NYY: { league: "AL", seed: 4 } };
+    session.live = { ...session.live, teams: otherField };
+    composeState();
+    assert.deepEqual(session.state.series, liveSeries);
+  } finally {
+    Object.assign(session, { activeYear, live: null, seasonDoc: null });
+  }
+});
+
 test("last year's champion is defending while this year's is undecided, whatever year is shown", () => {
   const final2025 = JSON.parse(
     readFileSync(`${import.meta.dirname}/fixtures/2025-final.json`, "utf8"),
@@ -680,7 +712,7 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Fri, Sep 25",
-    "Orioles 4 - 2 Final Game 1 Yankees",
+    "Orioles 4 - 2 Final &bull; Game 1 Yankees",
     "Orioles After Game 1 Game 2 Yankees",
     "Blue Jays Postponed Orioles",
     "Guardians 1 - 0 Bot 7th Red Sox",

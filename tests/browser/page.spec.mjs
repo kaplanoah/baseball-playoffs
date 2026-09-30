@@ -95,7 +95,9 @@ test("on a phone, swiping the games sideways moves between the lists and slides 
   await expect.poll(() => readThumbOffset(page, "Next")).toBeLessThan(1);
 });
 
-test("the Games lists are only as tall as the one shown", async ({ page }) => {
+test("the Games lists are as tall as the shown one when it runs past the screen", async ({
+  page,
+}) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
@@ -110,17 +112,184 @@ test("the Games lists are only as tall as the one shown", async ({ page }) => {
   await expect.poll(() => readHeight(pages)).toBe(await readHeight(page.locator("#games-today")));
 });
 
-test("the Games tab finds today's list again after another tab was shown", async ({ page }) => {
+const openShortToday = async (page) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  snapshot.slate.today = { ...snapshot.slate.today, games: snapshot.slate.today.games.slice(0, 2) };
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  await page.getByRole("tab", { name: "Games" }).click();
+};
+
+const readListsTop = (page) =>
+  page.evaluate(() => {
+    const bar = document.getElementById("gameTabsBar");
+    return document.getElementById("gamePages").getBoundingClientRect().top - bar.offsetHeight;
+  });
+
+test("on a phone, the space below a short list of games swipes too, and scrolls only as far as the pill", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openShortToday(page);
+  await expect(page.locator("#games-today .game-row")).toHaveCount(2);
+
+  const lastRow = await page.locator("#games-today .game-row").last().boundingBox();
+  const isSwipedBelowGames = await page.evaluate(
+    (y) => Boolean(document.elementFromPoint(195, y)?.closest("#gamePages")),
+    lastRow.y + lastRow.height + 200,
+  );
+  expect(isSwipedBelowGames).toBe(true);
+
+  await page.evaluate(() => scrollTo({ top: document.body.scrollHeight, behavior: "instant" }));
+  expect(Math.abs(await readListsTop(page))).toBeLessThanOrEqual(1);
+});
+
+test("on a phone, the Games pill stays at the top while the games scroll under it", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const pill = page.getByRole("tablist", { name: "Games" });
+  const pillTop = (await pill.boundingBox()).y;
+  expect(pillTop).toBeGreaterThan(100);
+
+  await page.evaluate(() => scrollTo({ top: 600, behavior: "instant" }));
+
+  await expect.poll(async () => (await pill.boundingBox()).y).toBe(10);
+  await expect(page.locator("#gameTabsBar")).toHaveClass(/stuck/);
+  const coveringPillCenter = await page.evaluate(() => {
+    const box = document.querySelector(".game-tabs").getBoundingClientRect();
+    return document
+      .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+      ?.closest(".game-tabs");
+  });
+  expect(coveringPillCenter).not.toBeNull();
+});
+
+test("on a phone, a list swiped in from far down another starts just under the pill, and stays put", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect(page.locator("#games-previous")).not.toHaveAttribute("inert");
+  await page.evaluate(() => scrollTo({ top: 700, behavior: "instant" }));
+  const readFirstDateY = async () =>
+    (await page.locator("#games-today .game-day").first().boundingBox()).y;
+  const pillBottom = await page.evaluate(
+    () => document.getElementById("gameTabsBar").getBoundingClientRect().bottom,
+  );
+
+  await expect.poll(readFirstDateY).toBeCloseTo(pillBottom, 0);
+  await page
+    .locator("#gamePages")
+    .evaluate((pages) => (pages.scrollLeft = pages.clientWidth * 0.5));
+  expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
+  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth));
+
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+  expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
+  expect(Math.abs(await readListsTop(page))).toBeLessThanOrEqual(1);
+  await expect(page.locator("#games-today")).toHaveCSS("transform", "none");
+});
+
+test("on a phone, a swipe that comes to rest between two lists goes on to the nearer once let go", async ({
+  page,
+}) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
+  const pages = page.locator("#gamePages");
+  await pages.evaluate((element) => (element.style.scrollSnapType = "none"));
+
+  await pages.dispatchEvent("touchstart", {
+    touches: [{ identifier: 0, clientX: 195, clientY: 400 }],
+  });
+  await pages.evaluate((element) => (element.scrollLeft = element.clientWidth * 0.3));
+  await page.waitForTimeout(400);
+  expect(await readPagesPosition(page)).toBe(0.3);
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+
+  await pages.evaluate((element) => {
+    const elsewhere = new Touch({ identifier: 1, target: document.body });
+    element.dispatchEvent(new TouchEvent("touchend", { touches: [elsewhere], bubbles: true }));
+  });
+  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-today")).toHaveAttribute("inert");
+
+  await pages.evaluate((element) => (element.scrollLeft = element.clientWidth * 0.96));
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("a tapped Games tab keeps its list while the lists are still on their way", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+
+  await page.locator("#gamePages").evaluate((pages) => {
+    pages.scrollTo = () => {};
+    pages.dispatchEvent(new Event("scroll"));
+  });
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await page.waitForTimeout(400);
+
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+});
+
+test("the Games tab opens on today's list after another tab was shown", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(2);
 
   await page.getByRole("tab", { name: "Bracket" }).click();
   await page.getByRole("tab", { name: "Games" }).click();
 
   await expect.poll(() => readPagesPosition(page)).toBe(1);
   await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("the Games tab goes back to today's list when the page is opened again", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(0);
+
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+});
+
+test("a doubleheader game's number is set apart from its status", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const status = page
+    .locator("#games-previous .game-status")
+    .filter({ has: page.locator(".doubleheader") })
+    .filter({ hasText: "Final" })
+    .first();
+
+  await expect(status).toHaveText(/^Final\s*\u2022\s*Game \d$/);
+  await expect(status.locator(".sep")).toHaveCount(1);
 });
 
 test("each day of games is closed by lines, with its date in open space above it", async ({
@@ -145,6 +314,16 @@ test("each day of games is closed by lines, with its date in open space above it
   const secondDay = await days.nth(1).boundingBox();
   expect(secondDate.y - (firstDay.y + firstDay.height)).toBe(30);
   expect(secondDay.y - (secondDate.y + secondDate.height)).toBe(8);
+});
+
+test("a game still to come shows its start time centered in its row", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator("#games-today .game-row.pre").first();
+  const rowBox = await row.boundingBox();
+  const timeBox = await row.locator(".game-time").boundingBox();
+
+  expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
 });
 
 test("a game still to come is as tall as a finished one", async ({ page }) => {
@@ -205,6 +384,35 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
     .first();
   await expect(eliminated).toHaveCSS("color", TAUPE);
   await expect(eliminated).toHaveCSS("text-decoration-line", "none");
+});
+
+test("the bracket leaves a score empty until the club wins a game, and gives each TBD row one too", async ({
+  page,
+}) => {
+  await openApp(page);
+  const bracket = page.locator("#bracketWrap");
+
+  await expect(bracket.locator(".matchup-row")).toHaveCount(22);
+  await expect(bracket.locator(".matchup-row:has(.tbd) .nscore")).toHaveCount(10);
+  await expect(bracket.locator(".nscore")).toHaveText(Array(22).fill(""));
+});
+
+test("a club's score shows its wins once it has one, at the height of an empty score", async ({
+  page,
+}) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+  const wildCard = page.locator("#bracketWrap .series").filter({ hasText: "Reds" });
+  const readScore = (club) =>
+    wildCard.locator(".matchup-row").filter({ hasText: club }).locator(".nscore");
+
+  await expect(readScore("Dodgers")).toHaveText("2");
+  await expect(readScore("Reds")).toHaveText("");
+  const filled = await readScore("Dodgers").boundingBox();
+  const empty = await readScore("Reds").boundingBox();
+  expect(empty.height).toBe(filled.height);
 });
 
 test("on a phone, the bracket stacks the AL above the NL, each running left to right into the World Series", async ({
@@ -889,6 +1097,12 @@ test("the update list shows when a change happened, not when the page noticed it
   await expect(updateTimes.nth(0)).toHaveText(/^8:30\sPM$/);
   await expect(updateTimes.nth(1)).toHaveText(/^Yesterday$/);
   await expect(page.locator("#updates .updates-count")).toHaveText("2 updates since yesterday");
+});
+
+test("the update list leaves 18px below it", async ({ page }) => {
+  await openApp(page, { liveAvailable: false, store: { "seasons/2026": SEASON_WITH_TWO_UPDATES } });
+
+  await expect(page.locator("#updates")).toHaveCSS("margin-bottom", "18px");
 });
 
 test("dismissing updates goes by the newest one's time, not this device's clock", async ({

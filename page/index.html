@@ -132,41 +132,43 @@
   </section>
 
   <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="view">
-    <div class="game-tabs" role="tablist" aria-label="Games">
-      <span class="game-tabs-thumb" aria-hidden="true"></span>
-      <button
-        type="button"
-        role="tab"
-        id="games-tab-previous"
-        data-tab="previous"
-        aria-controls="games-previous"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        Previous
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="games-tab-today"
-        data-tab="today"
-        aria-controls="games-today"
-        aria-selected="true"
-        class="active"
-      >
-        Today
-      </button>
-      <button
-        type="button"
-        role="tab"
-        id="games-tab-next"
-        data-tab="next"
-        aria-controls="games-next"
-        aria-selected="false"
-        tabindex="-1"
-      >
-        Next
-      </button>
+    <div id="gameTabsBar" class="game-tabs-bar">
+      <div class="game-tabs" role="tablist" aria-label="Games">
+        <span class="game-tabs-thumb" aria-hidden="true"></span>
+        <button
+          type="button"
+          role="tab"
+          id="games-tab-previous"
+          data-tab="previous"
+          aria-controls="games-previous"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="games-tab-today"
+          data-tab="today"
+          aria-controls="games-today"
+          aria-selected="true"
+          class="active"
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="games-tab-next"
+          data-tab="next"
+          aria-controls="games-next"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          Next
+        </button>
+      </div>
     </div>
     <div id="gamePages" class="game-pages">
       <div
