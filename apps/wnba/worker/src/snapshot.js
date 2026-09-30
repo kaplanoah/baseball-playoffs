@@ -76,7 +76,8 @@ export function createSnapshotServer({
 
   async function fetchResponses(season) {
     const scoreboard = await fetchFeed(WNBASnapshot.REQUESTS.scoreboard).catch(() => null);
-    const finals = countFinals(scoreboard);
+    // A scoreboard that didn't answer counts no finals, so it leaves the count as it was.
+    const finals = scoreboard ? countFinals(scoreboard) : lastFinals;
     const hasNewFinal = lastFinals !== null && finals > lastFinals;
     lastFinals = finals;
     const [schedule, bracket, standings] = await Promise.all([

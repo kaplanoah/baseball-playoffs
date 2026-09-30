@@ -17,17 +17,18 @@ const FEEDS = {
 };
 
 /**
- * Answers the league's feeds from the fixture, counting reads, unless a feed is told to refuse.
- * @param {{ refuse?: Record<string, "page" | "error"> }} [options]
+ * Answers the league's feeds from the fixture, or from `answers` in its place, counting reads,
+ * unless a feed is told to refuse.
+ * @param {{ refuse?: Record<string, "page" | "error">, answers?: Record<string, any> }} [options]
  */
-function createLeague({ refuse = {} } = {}) {
+function createLeague({ refuse = {}, answers = {} } = {}) {
   const reads = [];
   const fetchImpl = async (url, init) => {
     const feed = FEEDS[url];
     reads.push({ feed, headers: init.headers });
     if (refuse[feed] === "page") return new Response("<!DOCTYPE html><html></html>");
     if (refuse[feed] === "error") return new Response("", { status: 503 });
-    return new Response(JSON.stringify(AFTERNOON.responses[feed]));
+    return new Response(JSON.stringify(answers[feed] ?? AFTERNOON.responses[feed]));
   };
   return {
     reads,
@@ -86,6 +87,48 @@ test("the schedule, bracket, and standings are read again only after a while", a
     ["scoreboard", "schedule", "bracket", "standings"].map(league.countReads),
     [3, 1, 2, 1],
   );
+});
+
+// Today's scoreboard with its first game finished.
+function finishFirstGame(scoreboard) {
+  const finished = structuredClone(scoreboard);
+  Object.assign(finished.scoreboard.games[0], { gameStatus: 3, gameStatusText: "Final" });
+  return finished;
+}
+
+const countSlowReads = (league) => ["schedule", "bracket"].map(league.countReads);
+
+test("a game that ends has the schedule and bracket read again right away", async () => {
+  const answers = {};
+  const league = createLeague({ answers });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  answers.scoreboard = finishFirstGame(AFTERNOON.responses.scoreboard);
+  now += 11 * 1000;
+  await server.loadSnapshot(2026);
+
+  assert.deepEqual(countSlowReads(league), [2, 2]);
+});
+
+test("a scoreboard that misses a read doesn't look like a game ending once it's back", async () => {
+  /** @type {Record<string, "page" | "error">} */
+  const refuse = {};
+  const answers = { scoreboard: finishFirstGame(AFTERNOON.responses.scoreboard) };
+  const league = createLeague({ refuse, answers });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  refuse.scoreboard = "error";
+  now += 11 * 1000;
+  await server.loadSnapshot(2026);
+  delete refuse.scoreboard;
+  now += 11 * 1000;
+  await server.loadSnapshot(2026);
+
+  assert.deepEqual(countSlowReads(league), [1, 1]);
 });
 
 test("a slow feed that stops answering keeps its last good answer", async () => {
