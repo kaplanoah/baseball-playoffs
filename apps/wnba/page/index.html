@@ -2,20 +2,246 @@
 <html lang="en">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Playoffs" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#e9d4b0" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1d1511" media="(prefers-color-scheme: dark)" />
   <title>WNBA Playoffs</title>
   <meta
     name="description"
     content="Track the WNBA playoffs: the bracket, the games, and the standings."
   />
-  <style>
-    body {
-      margin: 0;
-      padding: 32px 18px;
-      background: #1d1511;
-      color: #f1e9df;
-      font: 16px system-ui, sans-serif;
-    }
-  </style>
-  <h1>WNBA Playoffs</h1>
-  <p>The page is on its way. Its Worker already keeps the playoffs up to date.</p>
+  <link
+    rel="preload"
+    href="fonts/saira-condensed-700.woff2"
+    as="font"
+    type="font/woff2"
+    crossorigin
+  />
+  <link rel="preload" href="fonts/barlow-400.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="shared/chrome.css" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <header class="top">
+    <div class="title-row">
+      <h1>WNBA Playoffs</h1>
+      <span class="year-tag" id="yearTag"></span>
+    </div>
+    <div class="head-right">
+      <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
+      <button
+        type="button"
+        class="settings-btn"
+        id="settingsBtn"
+        aria-label="Settings"
+        aria-haspopup="dialog"
+      >
+        <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+          <path
+            d="M40,86H74.6a30,30,0,0,0,58.8,0H216a6,6,0,0,0,0-12H133.4a30,30,0,0,0-58.8,0H40a6,6,0,0,0,0,12Zm64-24A18,18,0,1,1,86,80,18,18,0,0,1,104,62ZM216,170H197.4a30,30,0,0,0-58.8,0H40a6,6,0,0,0,0,12h98.6a30,30,0,0,0,58.8,0H216a6,6,0,0,0,0-12Zm-48,24a18,18,0,1,1,18-18A18,18,0,0,1,168,194Z"
+          />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <div class="tab-bar" id="tabBar">
+      <span class="tab-glass" id="tabGlass" aria-hidden="true"><span class="tab-glow"></span></span>
+      <div class="tab-list" role="tablist" aria-label="Views">
+        <button
+          type="button"
+          role="tab"
+          id="tab-bracket"
+          data-tab="bracket"
+          aria-controls="view-bracket"
+          aria-selected="true"
+          class="active"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M232,66H206V48a6,6,0,0,0-6-6H56a6,6,0,0,0-6,6V66H24A14,14,0,0,0,10,80V96a38,38,0,0,0,38,38h5.14A78,78,0,0,0,122,189.75V218H96a6,6,0,0,0,0,12h64a6,6,0,0,0,0-12H134V189.75c32.44-2.52,59.43-25.3,68.62-55.75H208a38,38,0,0,0,38-38V80A14,14,0,0,0,232,66ZM48,122A26,26,0,0,1,22,96V80a2,2,0,0,1,2-2H50v34a80.87,80.87,0,0,0,.65,10Zm146-10.9c0,36.62-29.38,66.63-65.5,66.9A66,66,0,0,1,62,112V54H194ZM234,96a26,26,0,0,1-26,26h-2.77a78.45,78.45,0,0,0,.77-10.9V78h26a2,2,0,0,1,2,2Z"
+              /></svg></span
+          ><span class="tab-label">Bracket</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-games"
+          data-tab="games"
+          aria-controls="view-games"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M88,130a26,26,0,1,0,26,26A26,26,0,0,0,88,130Zm0,40a14,14,0,1,1,14-14A14,14,0,0,1,88,170Zm160-48H221.83A102,102,0,0,0,18,128v24a70.08,70.08,0,0,0,70,70h40a70.08,70.08,0,0,0,70-70V134h50a6,6,0,0,0,0-12Zm-62,30a58.07,58.07,0,0,1-58,58h-.85A70,70,0,0,0,158,152V134h28Zm-34-30a6,6,0,0,0-6,6v24a58,58,0,0,1-116,0V128a90,90,0,0,1,179.8-6Z"
+              /></svg></span
+          ><span class="tab-label">Games</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-standings"
+          data-tab="standings"
+          aria-controls="view-standings"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M238,56v64a6,6,0,0,1-12,0V70.48l-85.76,85.76a6,6,0,0,1-8.48,0L96,120.49,28.24,188.24a6,6,0,0,1-8.48-8.48l72-72a6,6,0,0,1,8.48,0L136,143.51,217.52,62H168a6,6,0,0,1,0-12h64A6,6,0,0,1,238,56Z"
+              /></svg></span
+          ><span class="tab-label">Standings</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-teams"
+          data-tab="teams"
+          aria-controls="view-teams"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          <span class="tab-icon" aria-hidden="true"
+            ><svg viewBox="0 0 256 256" fill="currentColor">
+              <path
+                d="M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z"
+              /></svg></span
+          ><span class="tab-label">Teams</span>
+        </button>
+      </div>
+      <span class="tab-pill" aria-hidden="true"><span class="tab-pill-row"></span></span>
+    </div>
+  </nav>
+  <div class="edge-fade" aria-hidden="true"></div>
+
+  <section id="view-bracket" role="tabpanel" aria-labelledby="tab-bracket" class="view active">
+    <div id="bracketWrap"></div>
+  </section>
+
+  <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="view">
+    <div id="gamesWrap"></div>
+  </section>
+
+  <section id="view-standings" role="tabpanel" aria-labelledby="tab-standings" class="view">
+    <div id="standingsWrap"></div>
+  </section>
+
+  <section id="view-teams" role="tabpanel" aria-labelledby="tab-teams" class="view">
+    <div id="teamsWrap"></div>
+  </section>
+
+  <dialog id="settingsDialog" class="settings-panel" aria-labelledby="settingsTitle">
+    <div class="settings-body">
+      <div class="sheet-top">
+        <span class="sheet-grabber" aria-hidden="true"></span>
+        <div class="settings-head">
+          <div class="settings-title">
+            <h2 id="settingsTitle">Settings</h2>
+            <p class="settings-version" id="versionNote" hidden></p>
+          </div>
+          <button type="button" class="settings-done" id="settingsDoneBtn">
+            <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+              <path
+                d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
+              />
+            </svg>
+            <span class="settings-done-label">Done</span>
+          </button>
+        </div>
+      </div>
+      <div class="settings-controls">
+        <div class="control-row" id="notifyRow" hidden>
+          <span class="control-label">
+            <span id="notifyTitle">Notifications</span>
+            <span class="control-note" id="notifyNote" role="status"></span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            class="switch"
+            id="notifySwitch"
+            aria-checked="false"
+            aria-labelledby="notifyTitle"
+            hidden
+          >
+            <span class="switch-knob" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <svg class="svg-defs" aria-hidden="true">
+    <filter
+      id="glassLens"
+      x="0"
+      y="0"
+      width="348"
+      height="62"
+      filterUnits="userSpaceOnUse"
+      primitiveUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB"
+    >
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" edgeMode="duplicate" result="frosted" />
+      <feImage x="0" y="0" width="348" height="62" result="map" preserveAspectRatio="none" />
+      <feDisplacementMap
+        in="frosted"
+        in2="map"
+        scale="-20"
+        xChannelSelector="R"
+        yChannelSelector="G"
+        result="bentRed"
+      />
+      <feDisplacementMap
+        in="frosted"
+        in2="map"
+        scale="-21.2"
+        xChannelSelector="R"
+        yChannelSelector="G"
+        result="bentGreen"
+      />
+      <feDisplacementMap
+        in="frosted"
+        in2="map"
+        scale="-22.4"
+        xChannelSelector="R"
+        yChannelSelector="G"
+        result="bentBlue"
+      />
+      <feColorMatrix
+        in="bentRed"
+        type="matrix"
+        values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"
+        result="red"
+      />
+      <feColorMatrix
+        in="bentGreen"
+        type="matrix"
+        values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"
+        result="green"
+      />
+      <feColorMatrix
+        in="bentBlue"
+        type="matrix"
+        values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"
+        result="blue"
+      />
+      <feBlend in="red" in2="green" mode="screen" result="redGreen" />
+      <feBlend in="redGreen" in2="blue" mode="screen" />
+    </filter>
+  </svg>
+
+  <script type="importmap">
+    { "imports": { "#shared/": "./shared/" } }
+  </script>
+  <script type="module" src="js/app.js"></script>
 </html>

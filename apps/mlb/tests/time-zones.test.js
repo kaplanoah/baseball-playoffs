@@ -5,8 +5,8 @@ import { readGameDay } from "../page/js/dates.js";
 import { readEasternDay } from "../page/js/snapshot.js";
 import { describeLastStamp } from "../page/js/stamp.js";
 import { renderNextCell } from "../page/js/standings.js";
-import { normalizeSpaces } from "./text.js";
-import { checkInTimeZone } from "./time-zone.js";
+import { normalizeSpaces } from "../../../tests/text.js";
+import { checkInTimeZone } from "../../../tests/time-zone.js";
 
 const MARINERS_WIN = {
   away: "HOU",
