@@ -72,8 +72,11 @@ test("today's games come first, then the days ahead, then results newest first",
 
 test("a game without a set time falls on the league's day, even out west", () => {
   const tbd = SEASON.games.find((game) => game.id === "1042600201");
-  const day = checkInTimeZone("America/Los_Angeles", () => readGameDay(tbd));
-  assert.deepEqual([day.getMonth() + 1, day.getDate()], [10, 4]);
+  const readDay = () => {
+    const day = readGameDay(tbd);
+    return [day.getMonth() + 1, day.getDate()];
+  };
+  assert.deepEqual(checkInTimeZone("America/Los_Angeles", readDay), [10, 4]);
 });
 
 test("a live game shows its clock and who's in the bonus, and stays with today's", () =>
