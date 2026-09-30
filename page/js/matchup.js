@@ -13,10 +13,10 @@ import { session } from "./session.js";
 const ARMS = { L: "Lefty", R: "Righty" };
 const SIDES = ["away", "home"];
 const TAPE = [
-  { key: "era", label: "Prevents runs", unit: "ERA", format: (line) => line.era },
-  { key: "k9", label: "Strikes out", unit: "K/9", format: (line) => line.k9.toFixed(1) },
-  { key: "bb9", label: "Avoids walks", unit: "BB/9", format: (line) => line.bb9.toFixed(1) },
-  { key: "speed", label: "Fastball speed", unit: "mph", format: (line) => line.speed.toFixed(1) },
+  { key: "era", label: "ERA", format: (line) => line.era },
+  { key: "k9", label: "K/9", format: (line) => line.k9.toFixed(1) },
+  { key: "bb9", label: "BB/9", format: (line) => line.bb9.toFixed(1) },
+  { key: "speed", label: "Fastball mph", format: (line) => line.speed.toFixed(1) },
 ];
 
 // Each opening counts, so a sheet reopened on another game ignores the first one's answers.
@@ -72,7 +72,7 @@ function renderTapeSide(side, measure, leader) {
     beaten != null &&
     html`<span class="tape-bar"><i class="${leader === side.key ? "lead" : ""}" style="width: ${beaten}%"></i></span>`;
   return html`<div class="tape-side ${side.key}">
-    <span class="tape-value tabular">${measure.format(line)} <small>${measure.unit}</small></span>${bar}
+    <span class="tape-value tabular">${measure.format(line)}</span>${bar}
   </div>`;
 }
 
@@ -89,7 +89,7 @@ function renderTape(sides) {
   });
   return html`<div class="tape">
     ${rows}
-    <p class="tape-note">Bars: the share of this season's ${counted.count} starters, pitchers with ${counted.minimum} or more starts, he beats</p>
+    <p class="tape-note">Bars are the share of this season's ${counted.count} starters, pitchers with ${counted.minimum} or more starts, he beats</p>
   </div>`;
 }
 

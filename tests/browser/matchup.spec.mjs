@@ -87,11 +87,14 @@ test("each bar is the share of starters he beats, gold for whichever starter ran
 }) => {
   const sheet = await openMatchup(page);
   const eraRow = sheet.locator(".tape-row").first();
-  await expect(eraRow.locator(".tape-value")).toHaveText(["3.66 ERA", "4.02 ERA"]);
+  await expect(eraRow.locator(".tape-value")).toHaveText(["3.66", "4.02"]);
+  await expect(sheet.locator(".tape-label")).toHaveText(["ERA", "K/9", "BB/9", "Fastball mph"]);
   await expect(eraRow.locator(".away .tape-bar i")).toHaveClass("lead");
   await expect(eraRow.locator(".home .tape-bar i")).not.toHaveClass("lead");
   await expect(eraRow.locator(".away .tape-bar i")).toHaveAttribute("style", "width: 65%");
-  await expect(sheet.locator(".tape-note")).toContainText("141 starters, pitchers with 17 or more");
+  await expect(sheet.locator(".tape-note")).toContainText(
+    "Bars are the share of this season's 141 starters, pitchers with 17 or more",
+  );
 });
 
 test("the pitches run slowest to fastest, leaving out the ones he barely throws", async ({

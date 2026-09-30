@@ -1818,11 +1818,6 @@ body.kbd .rank-item .grip:focus {
   font-size: 0.72rem;
   font-weight: 500;
 }
-.tape-value small {
-  font-size: 0.56rem;
-  font-weight: 400;
-  color: var(--ink-dim);
-}
 .tape-bar {
   position: relative;
   width: 100%;
