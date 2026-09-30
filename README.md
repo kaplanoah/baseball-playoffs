@@ -1,6 +1,6 @@
 # MLB Postseason
 
-[![CI](https://img.shields.io/github/actions/workflow/status/kaplanoah/mlb-app/ci.yml?branch=main&label=CI&logo=github&logoColor=white)](https://github.com/kaplanoah/mlb-app/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/kaplanoah/sports-apps/ci.yml?branch=main&label=CI&logo=github&logoColor=white)](https://github.com/kaplanoah/sports-apps/actions/workflows/ci.yml)
 
 A private web page that tracks the MLB postseason. It shows the bracket, your
 ranking of who you want to win the World Series, the standings, each team's
@@ -19,7 +19,7 @@ Open [Claude Code on the web](https://claude.ai/code), paste this prompt, and
 follow Claude's instructions.
 
 ```
-Set up the MLB postseason tracker from https://github.com/kaplanoah/mlb-app
+Set up the MLB postseason tracker from https://github.com/kaplanoah/sports-apps
 for me. Clone it (branch main), read the "Setup (for Claude Code)"
 section of its README, and guide me through it one step at a time.
 ```
