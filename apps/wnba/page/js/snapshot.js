@@ -136,12 +136,17 @@ function mergeGames(schedule, scoreboard) {
   );
 }
 
+// A team not known yet has a seed of 0 in the feeds, and goes after the one that is, as in the bracket.
+const readSeedOrder = (side) => (side.team ? side.seed : Infinity);
+
 // Without the bracket, a series still counts its wins from the games it has finished.
 function countSeriesFromGames(games) {
   const series = {};
   for (const game of games) {
     if (!game.series) continue;
-    const [top, bottom] = [game.home, game.away].sort((first, second) => first.seed - second.seed);
+    const [top, bottom] = [game.home, game.away].sort(
+      (first, second) => readSeedOrder(first) - readSeedOrder(second),
+    );
     series[game.series] ??= {
       id: game.series,
       round: game.round,

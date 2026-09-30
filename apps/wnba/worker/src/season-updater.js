@@ -18,14 +18,16 @@ const nameSeasonKey = (year) => `seasons/${year}`;
 export const loadCurrentSnapshot = (loadSnapshot, now) =>
   loadSnapshot(new Date(now).getUTCFullYear());
 
-// A feed that didn't answer leaves its saved field as it was.
+// A feed that didn't answer leaves its saved field as it was. The games need both of theirs: the
+// schedule alone can be behind on today's, and the scoreboard alone has only today's.
 export async function saveSnapshot(docs, snapshot) {
   const key = nameSeasonKey(snapshot.season);
   const doc = (await docs.read(key)) ?? { year: snapshot.season };
   const missing = new Set(snapshot.missing);
+  const hasGames = !missing.has("scoreboard") && !missing.has("schedule");
   const answered = {
-    games: !missing.has("scoreboard") || !missing.has("schedule"),
-    series: !missing.has("bracket") || !missing.has("scoreboard"),
+    games: hasGames,
+    series: !missing.has("bracket") || hasGames,
     standings: !missing.has("standings"),
   };
   const changed = SAVED_FIELDS.filter(

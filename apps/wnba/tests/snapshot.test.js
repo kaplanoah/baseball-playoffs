@@ -80,6 +80,8 @@ test("without the bracket, a series counts its wins from its finished games", ()
     [decided.top, decided.bottom, decided.winner],
     [{ team: "MIN", seed: 1, wins: 0 }, { team: "NYL", seed: 8, wins: 2 }, "NYL"],
   );
+  const semifinal = series.find((record) => record.id === "2-0");
+  assert.deepEqual([semifinal.top, semifinal.bottom], [{ team: "NYL", seed: 8, wins: 0 }, null]);
 });
 
 test("the standings run 1 to 15 across the league, each with its conference place", () => {

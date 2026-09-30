@@ -66,6 +66,34 @@ test("a feed that didn't answer leaves its saved field as it was", async () => {
   assert.equal((await readUpdates(docs, 2026)).standings.length, 15);
 });
 
+// The afternoon's feeds, with some that didn't answer.
+const buildWithout = (feeds) =>
+  buildSnapshot(
+    { ...AFTERNOON.responses, ...Object.fromEntries(feeds.map((feed) => [feed, null])) },
+    { season: 2026, now: NOW },
+  );
+
+test("the games stay as they were unless both the scoreboard and the schedule answered", async () => {
+  const docs = createDocs();
+  const finished = finishTonight(SNAPSHOT, [84, 79]);
+  await saveSnapshot(docs, finished);
+
+  await saveSnapshot(docs, buildWithout(["scoreboard"]));
+  await saveSnapshot(docs, buildWithout(["schedule"]));
+
+  assert.deepEqual((await readUpdates(docs, 2026)).games, finished.games);
+});
+
+test("without the bracket, the series stay as they were unless the games answered", async () => {
+  const docs = createDocs();
+  const finished = finishTonight(SNAPSHOT, [84, 79]);
+  await saveSnapshot(docs, finished);
+
+  await saveSnapshot(docs, buildWithout(["bracket", "schedule"]));
+
+  assert.deepEqual((await readUpdates(docs, 2026)).series, finished.series);
+});
+
 test("a game that just finished is news, and says where its series stands", async () => {
   const before = { games: SNAPSHOT.games, series: SNAPSHOT.series };
   const after = finishTonight(SNAPSHOT, [84, 79]);
