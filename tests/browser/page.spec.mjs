@@ -24,7 +24,7 @@ const PLAYOFF_FIELD_2026 = [
   "Phillies",
 ];
 
-test("the Games tab lists today's games and each club's previous and next game", async ({
+test("the Games tab lists today's games and every game on each club's previous and next date", async ({
   page,
 }) => {
   await openApp(page);
@@ -36,15 +36,13 @@ test("the Games tab lists today's games and each club's previous and next game",
 
   await page.getByRole("tab", { name: "Previous" }).click();
   await expect(shownGames).toHaveId("games-previous");
-  await expect(shownGames.locator(".game-row")).toHaveCount(15);
-  await expect(shownGames).toContainText("Game 2");
+  await expect(shownGames.locator(".game-row")).toHaveCount(16);
 
   await page.getByRole("tab", { name: "Previous" }).press("End");
   await expect(page.getByRole("tab", { name: "Next" })).toBeFocused();
   await expect(page.getByRole("tab", { name: "Next" })).toHaveAttribute("aria-selected", "true");
   await expect(shownGames).toHaveId("games-next");
-  await expect(shownGames.locator(".game-row")).toHaveCount(15);
-  await expect(shownGames.locator(".game-row").first()).toContainText("Game 1");
+  await expect(shownGames.locator(".game-row")).toHaveCount(17);
 });
 
 test("a game under way shows its outs as two lights beside the inning", async ({ page }) => {
@@ -278,18 +276,17 @@ test("the Games tab goes back to today's list when the page is opened again", as
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 });
 
-test("a doubleheader game's number is set apart from its status", async ({ page }) => {
+test("a doubleheader shows as two games on its date, with no game number", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Previous" }).click();
-  const status = page
-    .locator("#games-previous .game-status")
-    .filter({ has: page.locator(".doubleheader") })
-    .filter({ hasText: "Final" })
-    .first();
+  const doubleheader = page
+    .locator("#games-previous .game-row")
+    .filter({ hasText: "Blue Jays" })
+    .filter({ hasText: "Orioles" });
 
-  await expect(status).toHaveText(/^Final\s*\u2022\s*Game \d$/);
-  await expect(status.locator(".sep")).toHaveCount(1);
+  await expect(doubleheader).toHaveCount(2);
+  await expect(doubleheader.locator(".game-status")).toHaveText(["Final", "Final"]);
 });
 
 test("each day of games is closed by lines, with its date in open space above it", async ({
@@ -888,6 +885,45 @@ test("standings open on each league's playoff field, and every table lines up", 
   expect(tableHeights).toHaveLength(6);
   expect(new Set(tableHeights).size).toBe(1);
   expect(new Set(await readHeights("#standingsWrap .div-title")).size).toBe(1);
+});
+
+test("the standings show each club's game under way, and a delay in gold", async ({ page }) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const delayedGame = snapshot.slate.today.games.find((game) => game.home === "BOS");
+  delayedGame.delay = "Delayed: Rain";
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const cells = page.locator("#standingsWrap td.next-cell");
+
+  const leading = cells.filter({ hasText: /^Up 3 @ NYY in the 6th$/ });
+  await expect(leading).not.toHaveCount(0);
+  await expect(leading.first()).toHaveCSS("color", await readColor(page, "--copper-ink"));
+  await expect(cells.filter({ hasText: /^Down 3 vs TB in the 6th$/ })).not.toHaveCount(0);
+  const delayed = cells.filter({ hasText: /^Down 1 vs CLE \u2014 Delayed: Rain$/ });
+  await expect(delayed).not.toHaveCount(0);
+  await expect(delayed.first()).toHaveCSS("color", GOLD);
+});
+
+test("the leagues' standings sit side by side only when a game under way fits", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const fields = page.locator("#standingsWrap .field-grid .div-block");
+  const readTops = () =>
+    fields.evaluateAll((blocks) => blocks.map((block) => block.getBoundingClientRect().top));
+
+  await expect.poll(async () => new Set(await readTops()).size).toBe(1);
+  const liveCells = page.locator("#standingsWrap td.next-cell.live");
+  await expect(liveCells).not.toHaveCount(0);
+  const clippedCount = await liveCells.evaluateAll(
+    (cells) => cells.filter((cell) => cell.scrollWidth > cell.clientWidth).length,
+  );
+  expect(clippedCount).toBe(0);
+
+  await page.setViewportSize({ width: 1399, height: 900 });
+  await expect.poll(async () => new Set(await readTops()).size).toBe(2);
 });
 
 test("says when live scores can't be reached, and tries again", async ({ page }) => {

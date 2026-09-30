@@ -550,6 +550,7 @@ function summarizeGame(game, pitchers) {
   const summary = { away: game.away.id, home: game.home.id, state: game.state, start: game.start };
   if (game.tbd) summary.tbd = true;
   if (game.doubleheader) summary.doubleheader = game.doubleheader;
+  if (game.type !== "R") summary.postseason = true;
   if (game.state === "live" || game.state === "final")
     summary.score = [game.away.score || 0, game.home.score || 0];
   if (game.state === "live") summary.inning = game.inning || 1;
@@ -563,7 +564,8 @@ function summarizeGame(game, pitchers) {
   return summary;
 }
 
-// Each club's last game before `day` and first after it, each game listed once for both its clubs.
+// Every game on the dates of each club's last game before `day` and first after it, so a date
+// that shows at all shows all its games.
 // Postseason games list a club before its opponent is known, so one known club is enough.
 function listClubGames(games, day, summarize) {
   const counted = games.filter((game) => game.state !== "off" && hasClub(game));
@@ -573,19 +575,19 @@ function listClubGames(games, day, summarize) {
   const ahead = counted
     .filter((game) => game.state === "pre" && game.date > day)
     .sort(compareScheduleOrder);
-  const previous = new Set();
-  const next = new Set();
+  const previousDates = new Set();
+  const nextDates = new Set();
   for (const club of Object.values(MLB_TEAM)) {
     const last = played.filter((game) => isPlayedBy(game, club)).pop();
     const first = ahead.find((game) => isPlayedBy(game, club));
-    if (last) previous.add(last);
-    if (first) next.add(first);
+    if (last) previousDates.add(last.date);
+    if (first) nextDates.add(first.date);
   }
-  const listInOrder = (clubGames) =>
-    [...clubGames]
-      .sort(compareScheduleOrder)
+  const listGamesOn = (clubGames, dates) =>
+    clubGames
+      .filter((game) => dates.has(game.date))
       .map((game) => ({ date: game.date, ...summarize(game) }));
-  return { previous: listInOrder(previous), next: listInOrder(next) };
+  return { previous: listGamesOn(played, previousDates), next: listGamesOn(ahead, nextDates) };
 }
 
 const NIGHT_END_HOUR = 6;

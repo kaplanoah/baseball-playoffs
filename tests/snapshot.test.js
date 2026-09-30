@@ -275,6 +275,15 @@ test("halfway: a decided series' unneeded game isn't in the list of next games",
   assert.ok(slate.previous.some((game) => game.home === "LAD" && game.away === "CIN"));
 });
 
+test("the slate marks a postseason game, and only a postseason game", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-10-08T12:00:00Z");
+  fixture.responses.schedule = { dates: [] };
+  const { slate } = buildSnapshot(fixture, Date.parse("2025-10-08T14:00:00Z"));
+  const isMarked = (game) => "postseason" in game && game.postseason === true;
+  assert.ok(slate.previous.length && slate.previous.every(isMarked));
+  assert.ok(buildSnapshot(EVENING).slate.today.games.every((game) => !("postseason" in game)));
+});
+
 test("2025: no club has a next game once the postseason is over", () => {
   const rows = Object.values(indexStandingsRows(buildSnapshot(SEASON_2025)));
   assert.ok(rows.every((row) => !row.next && !row.then));
@@ -500,24 +509,26 @@ const listClubsIn = (games) => games.flatMap((game) => [game.away, game.home]).f
 const describeGame = (game) =>
   `${game.date} ${game.away}@${game.home}` + (game.doubleheader ? ` G${game.doubleheader}` : "");
 
-test("each club's previous and next game, each game listed once", () => {
+test("previous and next: every game on the dates of each club's last and first game", () => {
   const { slate } = buildSnapshot(EVENING);
   for (const games of [slate.previous, slate.next]) {
-    const clubs = listClubsIn(games);
-    assert.equal(clubs.length, 30);
-    assert.equal(new Set(clubs).size, 30);
+    assert.equal(new Set(listClubsIn(games)).size, 30);
+    assert.equal(new Set(games.map(describeGame)).size, games.length);
   }
   assert.ok(slate.previous.every((game) => game.date < "2026-09-24" && game.state === "final"));
   assert.ok(slate.next.every((game) => game.date > "2026-09-24" && game.state === "pre"));
 });
 
-test("a doubleheader counts game 2 as the previous game and game 1 as the next", () => {
+test("a date in previous or next lists all its games, not only each club's last or first", () => {
   const { slate } = buildSnapshot(EVENING);
-  assert.ok(slate.previous.map(describeGame).includes("2026-09-23 TOR@BAL G2"));
+  const previous = slate.previous.map(describeGame);
+  assert.ok(previous.includes("2026-09-23 TOR@BAL G1"));
+  assert.ok(previous.includes("2026-09-23 TOR@BAL G2"));
   const next = slate.next.map(describeGame);
-  assert.ok(next.includes("2026-09-25 CHC@BOS G1"));
-  // MLB lists this game 2 with the earlier start time.
-  assert.ok(next.includes("2026-09-25 BAL@NYY G1"));
+  for (const doubleheader of ["CHC@BOS", "BAL@NYY"]) {
+    assert.ok(next.includes(`2026-09-25 ${doubleheader} G1`));
+    assert.ok(next.includes(`2026-09-25 ${doubleheader} G2`));
+  }
 });
 
 test("a postseason game counts as next before its opponent is known", () => {

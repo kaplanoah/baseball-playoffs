@@ -1,6 +1,6 @@
 import { isEliminated } from "./bracket.js";
 import { renderTeamTag } from "./clubs.js";
-import { html, joinWithSeparator, setHtml } from "./html.js";
+import { html, setHtml } from "./html.js";
 import { formatOrdinal } from "./ordinal.js";
 import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
 import { session } from "./session.js";
@@ -51,7 +51,7 @@ function formatGameDay(date) {
 }
 
 function describeStart(game) {
-  if (game.tbd) return game.doubleheader === 2 ? "After Game 1" : "Time TBD";
+  if (game.tbd) return game.doubleheader === 2 ? "After 1st game" : "Time TBD";
   return new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
@@ -127,20 +127,11 @@ function renderScore(game, awayLost, homeLost) {
   return html`<span class="game-score tabular"><span class="${awayLost ? "lost" : ""}">${awayScore}</span><span class="score-dash">-</span><span class="${homeLost ? "lost" : ""}">${homeScore}</span></span>`;
 }
 
-function renderStatus(game) {
-  const status = describeStatus(game);
-  const facts = [
-    status && html`${status}${renderOutLights(game)}`,
-    game.doubleheader && html`<span class="doubleheader">Game ${game.doubleheader}</span>`,
-  ];
-  return html`<span class="game-status">${joinWithSeparator(facts.filter(Boolean))}</span>`;
-}
-
 function renderMiddle(game, awayLost, homeLost) {
   const headline = game.score
     ? renderScore(game, awayLost, homeLost)
     : html`<span class="game-time">${game.state === "off" ? game.detail || "Postponed" : describeStart(game)}</span>`;
-  return html`<span class="game-middle">${headline}${renderStatus(game)}</span>`;
+  return html`<span class="game-middle">${headline}<span class="game-status">${describeStatus(game)}${renderOutLights(game)}</span></span>`;
 }
 
 function renderGame(game) {
