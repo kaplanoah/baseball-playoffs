@@ -323,6 +323,46 @@ test("a game still to come shows its start time centered in its row", async ({ p
   expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
 });
 
+// The first game still to come, Astros at Athletics, with both clubs' starters named.
+function buildSnapshotWithStarters() {
+  const fixture = structuredClone(EVENING_FIXTURE);
+  const game = fixture.responses.schedule.dates
+    .flatMap((date) => date.games)
+    .find((candidate) => candidate.gamePk === 824950);
+  game.teams.away.probablePitcher = { id: 1 };
+  game.teams.home.probablePitcher = { id: 2 };
+  const describePerson = (id, useLastName, code, era) => ({
+    id,
+    useLastName,
+    pitchHand: { code },
+    stats: [{ splits: [{ stat: { era } }] }],
+  });
+  fixture.responses.pitchers = {
+    people: [describePerson(1, "Blubaugh", "R", "3.66"), describePerson(2, "Springs", "L", "4.02")],
+  };
+  return buildFixtureSnapshot(fixture);
+}
+
+test("with starters named, a game's start time centers on the clubs and records, over the starters", async ({
+  page,
+}) => {
+  await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator("#games-today .game-row.with-starters");
+  const clubs = await row.locator(".game-side.away").boundingBox();
+  const time = await row.locator(".game-time").boundingBox();
+  const facts = await row.locator(".game-side.away .game-facts").boundingBox();
+  const starter = await row.locator(".starter.away").boundingBox();
+
+  const home = await row.locator(".game-side.home").boundingBox();
+
+  await expect(row.locator(".starter")).toHaveText(["BlubaughR3.66 ERA", "SpringsL4.02 ERA"]);
+  expect(clubs.x).toBeLessThan(time.x);
+  expect(time.x + time.width).toBeLessThan(home.x);
+  expect(Math.abs(time.y + time.height / 2 - (clubs.y + clubs.height / 2))).toBeLessThan(1);
+  expect(starter.y - (facts.y + facts.height)).toBeCloseTo(3.25, 1);
+});
+
 test("a game still to come is as tall as a finished one", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();

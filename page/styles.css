@@ -643,8 +643,7 @@ table.st .seed-cell {
   font-weight: 500;
 }
 .game-side.home .club,
-.game-side.home .game-facts,
-.game-side.home .starter {
+.game-side.home .game-facts {
   flex-direction: row-reverse;
 }
 .game-side.won .club {
@@ -665,15 +664,35 @@ table.st .seed-cell {
   color: var(--ink-dim);
   white-space: nowrap;
 }
+/* The starters get a row of their own under the clubs, so the time or score in the middle
+   centers on the clubs and their records alone. The middle takes no height there: its content
+   centers on the first row and may reach past it, into the row's padding or beside the starters. */
+.game-row.with-starters {
+  row-gap: 3.25px;
+}
+.game-row.with-starters .game-middle {
+  grid-area: 1 / 2;
+  height: 0;
+  align-content: center;
+}
 /* On a narrow row the ERA wraps under the name, and a long name gives way before it. */
 .starter {
+  grid-row: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 2px 1ch;
   max-width: 100%;
-  font-size: 0.66rem;
+  font-size: 0.65rem;
   color: var(--ink-mid);
+}
+.starter.away {
+  grid-column: 1;
+}
+.starter.home {
+  grid-column: 3;
+  flex-direction: row-reverse;
+  justify-self: end;
 }
 .starter-name {
   min-width: 0;
@@ -693,9 +712,17 @@ table.st .seed-cell {
   color: var(--ink-dim);
   white-space: nowrap;
 }
+/* The smaller number and letters sit a hair high on the name's baseline, so they read level. */
 .starter-era b {
-  color: var(--ink);
-  font-weight: 500;
+  position: relative;
+  top: -0.25px;
+  font-size: 0.55rem;
+  font-weight: 400;
+}
+.starter-era-label {
+  position: relative;
+  top: -0.5px;
+  font-size: 0.53rem;
 }
 /* A character width from the word, like the number, and a pixel low so it reads level with the text. */
 .seed-lock {

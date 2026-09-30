@@ -102,14 +102,17 @@ function renderFacts(id) {
   return html`<span class="game-facts">${renderSeed(id)}${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${renderRace(row)}</span>`;
 }
 
-function renderStarter(starter) {
-  if (!starter?.name) return html``;
+const isNamed = (starter) => Boolean(starter?.name);
+
+function renderStarter(starter, side) {
+  if (!isNamed(starter)) return html``;
   const arm =
     ARMS[starter.hand] &&
     html`<span class="starter-arm" title="${ARMS[starter.hand]}">${starter.hand}</span>`;
   const era =
-    starter.era && html`<span class="starter-era tabular"><b>${starter.era}</b> ERA</span>`;
-  return html`<span class="starter" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${arm}${era}</span>`;
+    starter.era &&
+    html`<span class="starter-era tabular"><b>${starter.era}</b> <span class="starter-era-label">ERA</span></span>`;
+  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${arm}${era}</span>`;
 }
 
 function isOut(id) {
@@ -118,8 +121,8 @@ function isOut(id) {
   return isOutOfPostseason || describeRace(findStandingsRow(id))?.standing === "out";
 }
 
-function renderSide(id, side, hasWon, starter) {
-  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}${renderStarter(starter)}</span>`;
+function renderSide(id, side, hasWon) {
+  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
 }
 
 function renderScore(game, awayLost, homeLost) {
@@ -142,10 +145,14 @@ function renderGame(game) {
   const awayWon = isFinal && awayScore > homeScore;
   const homeWon = isFinal && homeScore > awayScore;
   const [awayStarter, homeStarter] = game.starters || [];
-  return html`<li class="game-row ${game.state} ${game.delay ? "delayed" : ""}">
-    ${renderSide(game.away, "away", awayWon, awayStarter)}
+  const hasStarters = isNamed(awayStarter) || isNamed(homeStarter);
+  const classes = [game.state, game.delay && "delayed", hasStarters && "with-starters"];
+  return html`<li class="game-row ${classes.filter(Boolean).join(" ")}">
+    ${renderSide(game.away, "away", awayWon)}
     ${renderMiddle(game, awayLost, homeLost)}
-    ${renderSide(game.home, "home", homeWon, homeStarter)}
+    ${renderSide(game.home, "home", homeWon)}
+    ${renderStarter(awayStarter, "away")}
+    ${renderStarter(homeStarter, "home")}
   </li>`;
 }
 
