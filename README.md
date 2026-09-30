@@ -4,7 +4,8 @@
 
 Private web pages that track a league's postseason, one app per league. Each
 app is its own page and Cloudflare Worker, in its own folder under `apps/`, and
-they share the tooling that builds, tests, and deploys them.
+they share code in `shared/` and the tooling that builds, tests, and deploys
+them.
 
 | App            | Folder      | Worker     |
 | -------------- | ----------- | ---------- |
@@ -166,9 +167,12 @@ app's bundle to its `apps/<app>/worker/dist/`, which git ignores, if you want to
 look at it. The bundle records its version, the commit it was built from, and
 when, and the page's settings show them.
 
-The root `worker/` holds the tooling every app shares: building, versioning,
-deploying, and setting the page's key. Its tests are in the root `tests/`; each
-app's own tests are in its `tests/`.
+Code every app uses lives in `shared/`: the page's tab bar, reload on return,
+and store client in `shared/page/`, and the Worker's routing and push
+notifications in `shared/worker/`. A change there reaches every app. The root
+`worker/` holds the tooling every app shares: building, versioning, deploying,
+and setting the page's key. Tests for shared code and tooling are in the root
+`tests/`; each app's own tests are in its `tests/`.
 
 Versions follow [semantic versioning](https://semver.org). Each pull request's
 title starts with a type: `feat:` for a new feature, `fix:`, `refactor:`, or

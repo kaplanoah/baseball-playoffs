@@ -7,7 +7,7 @@ import {
   nameTeam,
   renderTeamTag,
 } from "./clubs.js";
-import { html, joinWithSeparator, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { session } from "./session.js";
 import { TEAMS } from "./teams.js";
 

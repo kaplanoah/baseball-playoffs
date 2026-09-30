@@ -2,7 +2,7 @@ import { findSeries } from "../../page/js/bracket.js";
 import { describeKey, isFoundEntry } from "../../page/js/changes.js";
 import { nameTeam } from "../../page/js/clubs.js";
 import { describeUpdate } from "../../page/js/entry-text.js";
-import { convertToText } from "../../page/js/html.js";
+import { convertToText } from "#shared/html.js";
 import { groupUpdates } from "../../page/js/update-groups.js";
 
 // Which new updates become notifications, and what they say.

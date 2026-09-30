@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createWorkerStore } from "../page/js/worker-store.js";
+import { createWorkerStore } from "../shared/page/worker-store.js";
 
 // Stand-ins for the browser: each read waits until the test answers it, and the socket opens
 // when the test says so.

@@ -171,6 +171,7 @@ test("the store answers only under the key, and never sees it", async () => {
 test("bad names, bodies, and methods are refused without writing", async () => {
   const { env, stored } = createFakeStore();
   const patch = (path, body) => requestStore(env, path, { method: "PATCH", body });
+  /** @type {[Response | Promise<Response>, number][]} */
   const refusals = [
     [requestStore(env, "/store/seasons/20 26"), 404],
     [requestStore(env, "/store/seasons/2026/extra"), 404],
@@ -191,6 +192,7 @@ test("the page can't replace or remove documents, or change anything but its own
   await write("seasons/2026", season);
   await write("standings/2026", { divisions: {} });
   const patch = (path, body) => requestStore(env, path, { method: "PATCH", body });
+  /** @type {[Response | Promise<Response>, number][]} */
   const refusals = [
     [requestStore(env, "/store/seasons/2026", { method: "PUT", body: {} }), 405],
     [requestStore(env, "/store/seasons/2026", { method: "DELETE" }), 405],

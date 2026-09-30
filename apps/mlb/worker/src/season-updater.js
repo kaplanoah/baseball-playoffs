@@ -1,5 +1,5 @@
 import * as LogChanges from "../../page/js/changes.js";
-import { isSameJson } from "../../page/js/compare.js";
+import { isSameJson } from "#shared/compare.js";
 import * as Readings from "../../page/js/readings.js";
 import { guessSeasonYear, hasSpringStarted } from "../../page/js/session.js";
 import * as MLBSnapshot from "../../page/js/snapshot.js";

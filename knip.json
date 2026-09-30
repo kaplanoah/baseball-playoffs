@@ -14,6 +14,7 @@
     "apps/*/page/js/**/*.js",
     "apps/*/worker/**/*.{js,mjs}",
     "apps/*/tests/**/*.{js,mjs}",
+    "shared/**/*.js",
     "worker/**/*.{js,mjs}",
     "tests/**/*.{js,mjs}",
     "*.mjs"

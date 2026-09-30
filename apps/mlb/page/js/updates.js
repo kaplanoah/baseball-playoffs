@@ -1,7 +1,7 @@
 import { renderRankTag, renderTeamTag } from "./clubs.js";
 import { DAYS, countDaysBetween } from "./dates.js";
 import { describeEntry, describeUpdate } from "./entry-text.js";
-import { html, setHtml } from "./html.js";
+import { html, setHtml } from "#shared/html.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, readSeasonYear } from "./session.js";
 import { showSaveResult } from "./stamp-view.js";

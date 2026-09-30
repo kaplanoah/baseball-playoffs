@@ -2,8 +2,8 @@
 // and which release of the page this is. Phones show it as a sheet from the bottom that a swipe
 // down closes, wider screens as a modal.
 
-import { joinWithSeparator, setHtml } from "./html.js";
-import { loadRelease } from "./release.js";
+import { joinWithSeparator, setHtml } from "#shared/html.js";
+import { loadRelease } from "#shared/release.js";
 import { session } from "./session.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -46,7 +46,7 @@ function formatReleaseTime(iso) {
 }
 
 // The commit is there on hover, and stands in for a version the build couldn't work out.
-/** @param {import("./release.js").Release} release */
+/** @param {import("#shared/release.js").Release} release */
 function renderRelease({ version, commit, builtAt }) {
   const note = findElement("versionNote");
   const name = version ? `v${version}` : commit;

@@ -1,7 +1,7 @@
 import { nameSeries } from "./bracket.js";
 import { nameTeam } from "./clubs.js";
-import { html } from "./html.js";
-import { formatOrdinal } from "./ordinal.js";
+import { html } from "#shared/html.js";
+import { formatOrdinal } from "#shared/ordinal.js";
 import { TEAMS } from "./teams.js";
 import { describeGame, findCommonGames, isResult, listResults } from "./update-groups.js";
 

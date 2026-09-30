@@ -7,7 +7,7 @@ import { describeTeamStatus, nameSeries } from "../page/js/bracket.js";
 import { describeDrought, listRankedOrder } from "../page/js/clubs.js";
 import { describeRace, isSeedFinal } from "../page/js/race.js";
 import { renderGameList } from "../page/js/games-view.js";
-import { html } from "../page/js/html.js";
+import { html } from "../../../shared/page/html.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { formatStampName } from "../page/js/stamp.js";
 import { renderEntryText, renderUpdateText } from "../page/js/updates.js";

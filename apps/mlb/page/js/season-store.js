@@ -1,5 +1,5 @@
 import { buildBracket } from "./bracket.js";
-import { isSameJson } from "./compare.js";
+import { isSameJson } from "#shared/compare.js";
 import { nameReadingsCollection, sortParts } from "./readings.js";
 import { session, composeState } from "./session.js";
 import { TEAMS } from "./teams.js";

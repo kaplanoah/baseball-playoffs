@@ -1,6 +1,6 @@
 import { DAYS, countDaysBetween } from "./dates.js";
-import { html } from "./html.js";
-import { formatOrdinal } from "./ordinal.js";
+import { html } from "#shared/html.js";
+import { formatOrdinal } from "#shared/ordinal.js";
 import { TEAMS } from "./teams.js";
 
 function formatClock(iso) {

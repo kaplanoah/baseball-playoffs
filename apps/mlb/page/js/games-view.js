@@ -1,10 +1,10 @@
 import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
 import { renderTeamTag } from "./clubs.js";
-import { html, setHtml } from "./html.js";
-import { formatOrdinal } from "./ordinal.js";
+import { html, setHtml } from "#shared/html.js";
+import { formatOrdinal } from "#shared/ordinal.js";
 import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
 import { session } from "./session.js";
-import { selectTab, wireTabs } from "./tabs.js";
+import { selectTab, wireTabs } from "#shared/tabs.js";
 
 const HALF_INNING_LABELS = { top: "Top", middle: "Mid", bottom: "Bot", end: "End" };
 const OUT_LIGHTS = 2;

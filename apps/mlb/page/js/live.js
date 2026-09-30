@@ -1,9 +1,9 @@
 import * as MLBSnapshot from "./snapshot.js";
-import { isSameJson } from "./compare.js";
-import { describeLiveError } from "./live-errors.js";
+import { isSameJson } from "#shared/compare.js";
+import { describeLiveError } from "#shared/live-errors.js";
 import { fetchLive } from "./live-fetch.js";
 import { renderAll } from "./render.js";
-import { reloadIfReplaced } from "./resume.js";
+import { reloadIfReplaced } from "#shared/resume.js";
 import { session, composeState } from "./session.js";
 import { renderStamp } from "./stamp-view.js";
 

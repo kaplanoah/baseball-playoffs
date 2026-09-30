@@ -38,11 +38,18 @@ test("every response keeps the address out of search engines and referrers", asy
 });
 
 test("the page's files are served with their types, and the icon as PNG bytes", async () => {
-  const script = await requestPage("/k3y/js/worker-store.js");
+  const script = await requestPage("/k3y/js/app.js");
   assert.equal(script.headers.get("content-type"), "text/javascript; charset=utf-8");
   assert.equal(
     await script.text(),
-    readFileSync(`${import.meta.dirname}/../page/js/worker-store.js`, "utf8"),
+    readFileSync(`${import.meta.dirname}/../page/js/app.js`, "utf8"),
+  );
+
+  const shared = await requestPage("/k3y/shared/worker-store.js");
+  assert.equal(shared.headers.get("content-type"), "text/javascript; charset=utf-8");
+  assert.equal(
+    await shared.text(),
+    readFileSync(`${import.meta.dirname}/../../../shared/page/worker-store.js`, "utf8"),
   );
 
   const icon = await requestPage("/k3y/icon-180.png");

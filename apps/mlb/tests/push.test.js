@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import * as MLBSnapshot from "../page/js/snapshot.js";
 import worker from "../worker/src/index.js";
 import { SeasonStore } from "../worker/src/store.js";
-import { decodeBase64Url } from "../worker/src/web-push.js";
+import { decodeBase64Url } from "../../../shared/worker/web-push.js";
 import { createDurableObjectContext } from "./durable-object-context.js";
-import { createBrowserKeys, readPushMessage } from "./push-reader.js";
+import { createBrowserKeys, readPushMessage } from "../../../tests/push-reader.js";
 
 const APP_KEY = "k3y";
 const ORIGIN = "https://mlb-live.example.workers.dev";

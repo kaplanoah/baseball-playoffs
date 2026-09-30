@@ -10,14 +10,14 @@ export default [
   { rules: { "no-unused-vars": ["error", { ignoreRestSiblings: true }] } },
   { files: ["**/*.{js,mjs}"], languageOptions: { sourceType: "module", globals: globals.node } },
   {
-    files: ["apps/*/page/js/**/*.js"],
+    files: ["apps/*/page/js/**/*.js", "shared/page/**/*.js"],
     languageOptions: { globals: { ...globals.browser, Sortable: "readonly" } },
   },
   {
     // Markup reaches the page only through setHtml, which escapes whatever html`` didn't build,
     // and lists of facts only through joinWithSeparator, so they all read the same way.
-    files: ["apps/*/page/js/**/*.js"],
-    ignores: ["apps/*/page/js/html.js"],
+    files: ["apps/*/page/js/**/*.js", "shared/page/**/*.js"],
+    ignores: ["shared/page/html.js"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -42,7 +42,7 @@ export default [
     languageOptions: { globals: globals.serviceworker },
   },
   {
-    files: ["apps/*/worker/src/**/*.js"],
+    files: ["apps/*/worker/src/**/*.js", "shared/worker/**/*.js"],
     languageOptions: { globals: { ...globals.serviceworker, WebSocketPair: "readonly" } },
   },
   {
