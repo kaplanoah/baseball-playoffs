@@ -1,0 +1,17 @@
+name = "wnba-app"
+main = "dist/worker.mjs"
+compatibility_date = "2026-09-01"
+# npm run build -- wnba bundles dist/worker.mjs with esbuild (worker/build.mjs); deploys build it themselves.
+no_bundle = true
+
+[observability]
+enabled = true
+
+# worker/deploy.mjs declares the same binding and migrations for npm run deploy:api.
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "SeasonStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SeasonStore"]

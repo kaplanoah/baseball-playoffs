@@ -7,9 +7,10 @@ app is its own page and Cloudflare Worker, in its own folder under `apps/`, and
 they share code in `shared/` and the tooling that builds, tests, and deploys
 them.
 
-| App            | Folder      | Worker     |
-| -------------- | ----------- | ---------- |
-| MLB Postseason | `apps/mlb/` | `mlb-live` |
+| App                         | Folder       | Worker     |
+| --------------------------- | ------------ | ---------- |
+| MLB Postseason              | `apps/mlb/`  | `mlb-live` |
+| WNBA Playoffs (in progress) | `apps/wnba/` | `wnba-app` |
 
 ### MLB Postseason
 
