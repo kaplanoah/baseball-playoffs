@@ -1,4 +1,4 @@
-import { test, expect, openApp, buildSnapshotWithStarters } from "./harness.mjs";
+import { test, expect, openApp, buildSnapshotWithStarters, swipeSheetDown } from "./harness.mjs";
 
 // What the Worker answers for Astros at Athletics' starters, Blubaugh and Springs.
 const describePitcher = (id, name, hand, line, ranks, pitches) => ({
@@ -79,6 +79,24 @@ test("tapping a game with its starters named opens their matchup, and Done close
   );
 
   await sheet.getByRole("button", { name: "Done" }).click();
+  await expect(sheet).toBeHidden();
+});
+
+test("on a phone, the matchup rises as a sheet that a swipe down closes", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const sheet = await openMatchup(page);
+  await expect(sheet.locator(".scout-read")).toHaveCount(2);
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+  const done = sheet.getByRole("button", { name: "Done" });
+  expect((await done.boundingBox()).width).toBeLessThanOrEqual(1);
+  expect(Math.round((await sheet.boundingBox()).x)).toBe(0);
+
+  await swipeSheetDown(page, {
+    target: "#matchupDialog .sheet-top",
+    distance: 200,
+    steps: 10,
+    stepMs: 30,
+  });
   await expect(sheet).toBeHidden();
 });
 

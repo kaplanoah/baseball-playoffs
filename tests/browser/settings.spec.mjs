@@ -1,4 +1,4 @@
-import { test, expect, openApp, openSettings, chooseSeason } from "./harness.mjs";
+import { test, expect, openApp, openSettings, chooseSeason, swipeSheetDown } from "./harness.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const RELEASE = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41Z" };
@@ -141,22 +141,98 @@ test("without a version file, settings leave the version out", async ({ page }) 
   await expect(page.locator("#versionNote")).toBeHidden();
 });
 
-test("on a phone, settings rise from the bottom as a sheet", async ({ page }) => {
+test("on a phone, settings rise from the bottom as a sheet with a wide grabber and no Done button", async ({
+  page,
+}) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await openSettings(page);
+  await waitForSheetToRise(page);
 
   const settings = page.getByRole("dialog", { name: "Settings" });
-  await expect(settings.locator(".sheet-done svg")).toBeHidden();
-  expect((await settings.getByText("Done", { exact: true }).boundingBox()).width).toBeGreaterThan(
-    20,
-  );
+  const done = settings.getByRole("button", { name: "Done" });
+  await expect(done).toHaveCount(1);
+  expect((await done.boundingBox()).width).toBeLessThanOrEqual(1);
+  const grabber = await settings.locator(".sheet-grabber").boundingBox();
+  const head = await settings.locator(".sheet-head").boundingBox();
+  expect(grabber.width).toBe(48);
+  expect(head.y - (grabber.y + grabber.height)).toBe(6);
   await expect
     .poll(async () => {
       const box = await settings.boundingBox();
       return box && { left: box.x, width: box.width, bottom: Math.round(box.y + box.height) };
     })
     .toEqual({ left: 0, width: PHONE.width, bottom: PHONE.height });
+});
+
+const readSheetTop = (page) =>
+  page.locator("#settingsDialog").evaluate((dialog) => dialog.getBoundingClientRect().top);
+
+test("on a phone, a slow swipe down far enough closes settings, and a short one springs back", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await openSettings(page);
+  await waitForSheetToRise(page);
+  const settings = page.getByRole("dialog", { name: "Settings" });
+
+  await swipeSheetDown(page, { target: ".sheet-top", distance: 60, steps: 6, stepMs: 60 });
+  await expect(settings).toBeVisible();
+  await expect.poll(() => readSheetTop(page)).toBe(44);
+
+  await swipeSheetDown(page, {
+    target: ".settings-controls",
+    distance: 200,
+    steps: 10,
+    stepMs: 60,
+  });
+  await expect(settings).toBeHidden();
+
+  await openSettings(page);
+  await expect.poll(() => readSheetTop(page)).toBe(44);
+});
+
+test("on a phone, a quick flick down closes settings, and a cancelled swipe springs back", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await openSettings(page);
+  await waitForSheetToRise(page);
+  const settings = page.getByRole("dialog", { name: "Settings" });
+
+  await swipeSheetDown(page, {
+    target: ".sheet-top",
+    distance: 200,
+    steps: 10,
+    stepMs: 20,
+    isCancelled: true,
+  });
+  await expect(settings).toBeVisible();
+  await expect.poll(() => readSheetTop(page)).toBe(44);
+
+  await swipeSheetDown(page, { target: ".sheet-top", distance: 70, steps: 2, stepMs: 20 });
+  await expect(settings).toBeHidden();
+});
+
+test("on a phone, a swipe down scrolled into the ranking or on a grip leaves settings open", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await openSettings(page);
+  await waitForSheetToRise(page);
+  const settings = page.getByRole("dialog", { name: "Settings" });
+
+  await swipeSheetDown(page, { target: "#rankList .grip", distance: 200, steps: 10, stepMs: 30 });
+  await expect(settings).toBeVisible();
+  expect(await readSheetTop(page)).toBe(44);
+
+  await scrollSettingsToEnd(page);
+  await swipeSheetDown(page, { target: ".sheet-top", distance: 200, steps: 10, stepMs: 30 });
+  await expect(settings).toBeVisible();
+  expect(await readSheetTop(page)).toBe(44);
 });
 
 test("on a wide screen, settings open as a modal with a close button", async ({ page }) => {
@@ -248,7 +324,7 @@ test("on a phone, scrolling settings down shows the whole ranking under the pinn
   await scrollSettingsToEnd(page);
 
   await expectWholeRankingInView(page);
-  await expect(settings.getByRole("button", { name: "Done" })).toBeInViewport();
+  await expect(settings.getByRole("heading", { name: "Settings" })).toBeInViewport();
   await expect(settings.locator(".ranking-note")).toBeVisible();
   await expect(settings.locator("#rankList .rank-ws").first()).toBeVisible();
 });
@@ -273,7 +349,7 @@ test("settings open at the top again after scrolling down to the ranking", async
   await openApp(page);
   await openSettings(page);
   await scrollSettingsToEnd(page);
-  await page.getByRole("button", { name: "Done" }).click();
+  await page.keyboard.press("Escape");
 
   await openSettings(page);
 

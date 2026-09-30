@@ -1,9 +1,10 @@
 // The settings panel behind the header's sliders button: the season, notifications, the ranking,
-// and which release of the page this is. Phones show it as a sheet from the bottom, wider screens
-// as a modal.
+// and which release of the page this is. Phones show it as a sheet from the bottom that a swipe
+// down closes, wider screens as a modal.
 
 import { joinWithSeparator, setHtml } from "./html.js";
 import { session } from "./session.js";
+import { closeOnSwipeDown } from "./sheet-swipe.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const findDialog = () =>
@@ -62,6 +63,9 @@ function markScrolled() {
   dialog.querySelector(".sheet-top").classList.toggle("scrolled", dialog.scrollTop > 0);
 }
 
+// The ranking's grips drag rows, and the season picker opens its own menu.
+const isOwnGesture = (target) => target instanceof Element && !!target.closest(".grip, select");
+
 // Settings open at the top each time, with the ranking below them.
 function openSettings() {
   const dialog = findDialog();
@@ -76,5 +80,6 @@ export function startSettings() {
   findElement("settingsDoneBtn").addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", closeOnBackdropClick);
   dialog.addEventListener("scroll", markScrolled);
+  closeOnSwipeDown(dialog, isOwnGesture);
   showRelease();
 }

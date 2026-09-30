@@ -314,14 +314,81 @@ test("each day of games is closed by lines, with its date in open space above it
   expect(secondDay.y - (secondDate.y + secondDate.height)).toBe(8);
 });
 
-test("a game still to come shows its start time centered in its row", async ({ page }) => {
+test("a game still to come shows its start time centered in its row, under the Today tab", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const row = page.locator("#games-today .game-row.pre").first();
   const rowBox = await row.boundingBox();
   const timeBox = await row.locator(".game-time").boundingBox();
+  const todayBox = await page.getByRole("tab", { name: "Today" }).boundingBox();
+  const findCenterX = (box) => box.x + box.width / 2;
 
   expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
+  expect(Math.abs(findCenterX(timeBox) - findCenterX(rowBox))).toBeLessThan(1);
+  expect(Math.abs(findCenterX(timeBox) - findCenterX(todayBox))).toBeLessThan(1);
+});
+
+const openWildCardDay = async (page) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const start = "2026-09-24T18:08:00Z";
+  Object.assign(snapshot.series, {
+    NL_WC1: { winsA: 1, winsB: 0 },
+    AL_WC1: { winsA: 0, winsB: 1 },
+    AL_WC2: { winsA: 1, winsB: 1 },
+    NL_WC2: { winsA: 0, winsB: 2 },
+  });
+  snapshot.slate.today.games = [
+    { away: "PHI", home: "ATL", state: "pre", start, postseason: true },
+    { away: "CWS", home: "TEX", state: "live", start, score: [3, 1], inning: 5, half: "top" },
+    { away: "BOS", home: "NYY", state: "final", start, score: [4, 6] },
+    { away: "CHC", home: "SD", state: "final", start, score: [5, 2] },
+  ].map((game) => ({ postseason: true, ...game }));
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  await page.getByRole("tab", { name: "Games" }).click();
+};
+
+test("a postseason game today names its round and the series, away wins first, over its time or score", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openWildCardDay(page);
+  const labels = page.locator("#games-today .series-label");
+
+  await expect(labels).toHaveText([
+    "NL Wild Card 0-1",
+    "AL Wild Card 1-0",
+    "AL Wild Card 1-1",
+    "NL Wild Card 2-0",
+  ]);
+  await expect(labels.first()).toHaveCSS("text-transform", "uppercase");
+  await expect(labels.first()).toHaveCSS("color", await readColor(page, "--ink-dim"));
+  await expect(labels.last()).toHaveCSS("color", await readColor(page, "--gold"));
+  await expect(labels.last().locator(".series-count")).toHaveCSS(
+    "color",
+    await readColor(page, "--gold"),
+  );
+
+  for (const headline of [".game-time", ".game-score"]) {
+    const middle = page
+      .locator("#games-today .game-middle")
+      .filter({ has: page.locator(headline) });
+    const labelBox = await middle.first().locator(".series-label").boundingBox();
+    const headlineBox = await middle.first().locator(headline).boundingBox();
+    expect(headlineBox.y - (labelBox.y + labelBox.height)).toBeCloseTo(7, 0);
+  }
+  const row = await page.locator("#games-today .game-row").first().boundingBox();
+  const time = await page.locator("#games-today .game-time").boundingBox();
+  expect(Math.abs(time.x + time.width / 2 - (row.x + row.width / 2))).toBeLessThan(1);
+});
+
+test("only today's postseason games carry a series label", async ({ page }) => {
+  await openWildCardDay(page);
+  await expect(page.locator("#games-today .series-label")).toHaveCount(4);
+  await expect(page.locator("#games-previous .series-label")).toHaveCount(0);
+  await expect(page.locator("#games-next .series-label")).toHaveCount(0);
 });
 
 test("with starters named, a game's start time centers on the clubs and records, over the starters", async ({

@@ -799,9 +799,49 @@ table.st .seed-cell {
 .game-status:empty::before {
   content: "\00a0";
 }
-.game-middle:has(> .game-status:empty) > :first-child {
-  grid-row: 1 / -1;
+/* Every line shares the one column, or the spanning time pushes the status into a second one. */
+.game-middle > * {
+  grid-column: 1;
+}
+.game-middle > :is(.game-score, .game-time) {
+  grid-row-start: 1;
+}
+.game-middle:not(.with-series):has(> .game-status:empty) > :is(.game-score, .game-time) {
+  grid-row-end: -1;
   align-self: center;
+}
+/* A postseason game names its round and the series so far over its time or score. */
+.game-middle.with-series {
+  grid-template-rows: auto 20px auto;
+}
+.game-middle.with-series > :is(.game-score, .game-time) {
+  grid-row-start: 2;
+}
+.game-middle.with-series > .game-status {
+  grid-row: 3;
+}
+/* Under a series label, the block of lines centers in the row instead, so an empty status goes. */
+.game-middle.with-series:has(> .game-status:empty) {
+  grid-template-rows: auto 20px;
+}
+.game-middle.with-series > .game-status:empty {
+  display: none;
+}
+.series-label {
+  grid-row: 1;
+  margin-bottom: 4px;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.series-count {
+  color: var(--ink-mid);
+}
+.series-label.decided,
+.series-label.decided .series-count {
+  color: var(--gold);
 }
 .game-row.live .game-status {
   color: var(--copper-ink);
@@ -2053,7 +2093,7 @@ table.ref th.won-col {
     animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .matchup-sheet {
-    --head-height: 57px;
+    --head-height: 63px;
     padding: 0 18px max(22px, env(safe-area-inset-bottom));
   }
   .st-scroll {
@@ -2137,9 +2177,10 @@ table.ref th.won-col {
     margin-top: 0;
   }
 
-  /* On phones, settings rise from the bottom as a sheet as tall as the screen allows. */
+  /* On phones, settings rise from the bottom as a sheet as tall as the screen allows, and a swipe
+     down closes them. settings.js moves the sheet with the finger. */
   .settings-panel {
-    --head-height: 57px;
+    --head-height: 63px;
     --bottom-padding: max(22px, env(safe-area-inset-bottom));
     width: 100%;
     max-width: none;
@@ -2162,9 +2203,9 @@ table.ref th.won-col {
   }
   .sheet-grabber {
     display: block;
-    width: 36px;
+    width: 48px;
     height: 5px;
-    margin: 8px auto 0;
+    margin: 8px auto 6px;
     border-radius: 3px;
     background: color-mix(in srgb, var(--ink) 25%, transparent);
   }
@@ -2178,29 +2219,14 @@ table.ref th.won-col {
   .sheet-head h2 {
     font-size: 0.9rem;
   }
+  /* The swipe closes each sheet, so its button is left only for screen readers. */
   .sheet-done {
     position: absolute;
-    right: 0;
-    width: auto;
-    height: 44px;
-    margin-right: -8px;
-    padding: 0 8px;
-    font: inherit;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--gold);
-  }
-  .sheet-done:hover {
-    background: none;
-  }
-  .sheet-done svg {
-    display: none;
-  }
-  .sheet-done-label {
-    position: static;
-    width: auto;
-    height: auto;
-    clip-path: none;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
   }
 
   /*

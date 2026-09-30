@@ -1,6 +1,7 @@
 // The matchup sheet a game with named starters opens: the two starters face to face, where each
 // ranks among the season's starters, how each gets outs, what each throws, and their last starts.
-// Phones show it as a sheet from the bottom, wider screens as a modal, like Settings.
+// Phones show it as a sheet from the bottom that a swipe down closes, wider screens as a modal,
+// like Settings.
 
 import { nameTeam, renderTeamTag } from "./clubs.js";
 import { describeStart, formatGameDay } from "./games-view.js";
@@ -9,6 +10,7 @@ import { renderPitchColumns } from "./pitch-columns.js";
 import { fetchPitcher } from "./pitcher-fetch.js";
 import { describeStyle } from "./scouting.js";
 import { session } from "./session.js";
+import { closeOnSwipeDown } from "./sheet-swipe.js";
 
 const ARMS = { L: "Lefty", R: "Righty" };
 const SIDES = ["away", "home"];
@@ -199,4 +201,5 @@ export function startMatchups() {
     if (event.target === event.currentTarget) dialog.close();
   });
   dialog.addEventListener("scroll", markScrolled);
+  closeOnSwipeDown(dialog);
 }

@@ -190,6 +190,44 @@ export async function openApp(
 }
 
 /** @param {import("@playwright/test").Page} page */
+/**
+ * Swipes a finger down a sheet from `target`, one step per move. It runs inside the page
+ * so the time between moves is exact, which the sheet reads as the swipe's speed.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ target: string, distance: number, steps: number, stepMs: number, isCancelled?: boolean }} swipe
+ */
+export const swipeSheetDown = (page, { target, distance, steps, stepMs, isCancelled = false }) =>
+  page
+    .locator(target)
+    .first()
+    .evaluate(
+      (element, { distance, steps, stepMs, isCancelled }) => {
+        const box = element.getBoundingClientRect();
+        const x = box.x + box.width / 2;
+        const startY = box.y + box.height / 2;
+        const send = (type, y) => {
+          const touch = new Touch({ identifier: 1, target: element, clientX: x, clientY: y });
+          const isLifted = type === "touchend" || type === "touchcancel";
+          const init = { changedTouches: [touch], bubbles: true, cancelable: true };
+          element.dispatchEvent(
+            new TouchEvent(type, { ...init, touches: isLifted ? [] : [touch] }),
+          );
+        };
+        const wait = () => {
+          const until = performance.now() + stepMs;
+          while (performance.now() < until);
+        };
+        send("touchstart", startY);
+        for (let step = 1; step <= steps; step++) {
+          wait();
+          send("touchmove", startY + (distance * step) / steps);
+        }
+        wait();
+        send(isCancelled ? "touchcancel" : "touchend", startY + distance);
+      },
+      { distance, steps, stepMs, isCancelled },
+    );
+
 export const openSettings = (page) =>
   page.getByRole("button", { name: "Settings", exact: true }).click();
 
@@ -201,5 +239,5 @@ export const openSettings = (page) =>
 export async function chooseSeason(page, year) {
   await openSettings(page);
   await page.getByRole("combobox", { name: "Season" }).selectOption(year);
-  await page.getByRole("button", { name: "Done" }).click();
+  await page.keyboard.press("Escape");
 }
