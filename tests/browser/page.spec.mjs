@@ -95,7 +95,9 @@ test("on a phone, swiping the games sideways moves between the lists and slides 
   await expect.poll(() => readThumbOffset(page, "Next")).toBeLessThan(1);
 });
 
-test("the Games lists are only as tall as the one shown", async ({ page }) => {
+test("the Games lists are as tall as the shown one when it runs past the screen", async ({
+  page,
+}) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
@@ -108,6 +110,95 @@ test("the Games lists are only as tall as the one shown", async ({ page }) => {
     .toBe(await readHeight(page.locator("#games-previous")));
   await page.getByRole("tab", { name: "Today" }).click();
   await expect.poll(() => readHeight(pages)).toBe(await readHeight(page.locator("#games-today")));
+});
+
+const openShortToday = async (page) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  snapshot.slate.today = { ...snapshot.slate.today, games: snapshot.slate.today.games.slice(0, 2) };
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  await page.getByRole("tab", { name: "Games" }).click();
+};
+
+test("on a phone, the space below a short list of games swipes too, without adding scroll room", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openShortToday(page);
+  await expect(page.locator("#games-today .game-row")).toHaveCount(2);
+  const readScrollRoom = () =>
+    page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+  const scrollRoomWithoutGames = await page.evaluate(() => {
+    const pages = document.getElementById("gamePages");
+    const { height } = pages.style;
+    pages.style.height = "0px";
+    const room = document.documentElement.scrollHeight - innerHeight;
+    pages.style.height = height;
+    return room;
+  });
+
+  const lastRow = await page.locator("#games-today .game-row").last().boundingBox();
+  const isSwipedBelowGames = await page.evaluate(
+    (y) => Boolean(document.elementFromPoint(195, y)?.closest("#gamePages")),
+    lastRow.y + lastRow.height + 200,
+  );
+  expect(isSwipedBelowGames).toBe(true);
+  expect(await readScrollRoom()).toBe(scrollRoomWithoutGames);
+});
+
+test("on a phone, a swipe that comes to rest between two lists goes on to the nearer once let go", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  const pages = page.locator("#gamePages");
+  await pages.evaluate((element) => (element.style.scrollSnapType = "none"));
+
+  await pages.dispatchEvent("touchstart", {
+    touches: [{ identifier: 0, clientX: 195, clientY: 400 }],
+  });
+  await pages.evaluate((element) => (element.scrollLeft = element.clientWidth * 0.3));
+  await page.waitForTimeout(400);
+  expect(await readPagesPosition(page)).toBe(0.3);
+  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+
+  await pages.evaluate((element) => {
+    const elsewhere = new Touch({ identifier: 1, target: document.body });
+    element.dispatchEvent(new TouchEvent("touchend", { touches: [elsewhere], bubbles: true }));
+  });
+  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-today")).toHaveAttribute("inert");
+
+  await pages.evaluate((element) => (element.scrollLeft = element.clientWidth * 0.96));
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("a tapped Games tab keeps its list while the lists are still on their way", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+
+  await page.locator("#gamePages").evaluate((pages) => {
+    pages.scrollTo = () => {};
+    pages.dispatchEvent(new Event("scroll"));
+  });
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await page.waitForTimeout(400);
+
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-previous")).not.toHaveAttribute("inert");
 });
 
 test("the Games tab finds today's list again after another tab was shown", async ({ page }) => {
@@ -145,6 +236,16 @@ test("each day of games is closed by lines, with its date in open space above it
   const secondDay = await days.nth(1).boundingBox();
   expect(secondDate.y - (firstDay.y + firstDay.height)).toBe(30);
   expect(secondDay.y - (secondDate.y + secondDate.height)).toBe(8);
+});
+
+test("a game still to come shows its start time centered in its row", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator("#games-today .game-row.pre").first();
+  const rowBox = await row.boundingBox();
+  const timeBox = await row.locator(".game-time").boundingBox();
+
+  expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
 });
 
 test("a game still to come is as tall as a finished one", async ({ page }) => {

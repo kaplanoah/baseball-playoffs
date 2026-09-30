@@ -22,11 +22,14 @@ const EMPTY_LIST_TEXT = {
   next: "No games scheduled yet",
 };
 const GAME_LISTS = ["previous", "today", "next"];
+const SETTLE_DELAY_MS = 150;
 
 let shownList = "today";
-// The list a tapped tab is scrolling to; the lists passed on the way there aren't chosen.
+// The list a tapped tab is scrolling to, which the lists settle on even when they come to rest early.
 let scrollTarget = null;
 let pagesWidth = 0;
+let settleTimer;
+let isTouching = false;
 
 const findGameTabs = () =>
   /** @type {HTMLButtonElement[]} */ ([...document.querySelectorAll("#view-games [role=tab]")]);
@@ -190,9 +193,18 @@ export function renderGames() {
   for (const list of GAME_LISTS) setHtml(findGamePage(list), renderGameList(slate, list));
 }
 
-// The pages are as tall as the shown list, so a short list doesn't leave a long one's scroll room.
+// The pages reach down to the page's bottom padding, so the space below a short list swipes too,
+// and grow past it with a longer list.
+function measureRoomBelow(pages) {
+  const top = pages.getBoundingClientRect().top + scrollY;
+  const bottomPadding = parseFloat(getComputedStyle(document.body).paddingBottom);
+  return Math.floor(innerHeight - bottomPadding - top);
+}
+
 function fitPagesToShownList() {
-  findGamePages().style.height = `${findGamePage(shownList).offsetHeight}px`;
+  const pages = findGamePages();
+  const height = Math.max(findGamePage(shownList).offsetHeight, measureRoomBelow(pages));
+  pages.style.height = `${height}px`;
 }
 
 function markShownList(list) {
@@ -212,33 +224,45 @@ function paintSwipe(position) {
 }
 
 const readSwipePosition = (pages) => pages.scrollLeft / pages.clientWidth;
-
-function followSwipe() {
-  const pages = findGamePages();
-  if (!pages.clientWidth) return;
-  const position = readSwipePosition(pages);
-  paintSwipe(position);
-  const nearest = GAME_LISTS[Math.round(position)];
-  if (scrollTarget === nearest && Math.abs(position - Math.round(position)) < 0.01)
-    scrollTarget = null;
-  if (!scrollTarget && nearest !== shownList) markShownList(nearest);
-}
-
 const findListLeft = (pages, list) => GAME_LISTS.indexOf(list) * pages.clientWidth;
+const isAtList = (pages, list) => Math.abs(pages.scrollLeft - findListLeft(pages, list)) < 1;
+const prefersReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const chooseScrollBehavior = () => (prefersReducedMotion() ? "instant" : "smooth");
 
 function scrollToList(list, behavior) {
   const pages = findGamePages();
   pages.scrollTo({ left: findListLeft(pages, list), behavior });
 }
 
-const prefersReducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+function scheduleSettle() {
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(settleSwipe, SETTLE_DELAY_MS);
+}
+
+// Changing the lists' height or inertness mid-swipe can stop Safari's swipe short of a list, so the
+// shown list changes only once the lists come to rest, and a rest between lists goes on to the
+// nearest one.
+function settleSwipe() {
+  const pages = findGamePages();
+  if (isTouching || !pages.clientWidth) return;
+  const list = scrollTarget || GAME_LISTS[Math.round(readSwipePosition(pages))];
+  if (list !== shownList) markShownList(list);
+  if (isAtList(pages, list)) scrollTarget = null;
+  else scrollToList(list, chooseScrollBehavior());
+}
+
+function followSwipe() {
+  const pages = findGamePages();
+  if (!pages.clientWidth) return;
+  paintSwipe(readSwipePosition(pages));
+  scheduleSettle();
+}
 
 function showGameList(list) {
-  const pages = findGamePages();
   markShownList(list);
-  if (Math.abs(pages.scrollLeft - findListLeft(pages, list)) < 1) return;
+  if (isAtList(findGamePages(), list)) return;
   scrollTarget = list;
-  scrollToList(list, prefersReducedMotion() ? "instant" : "smooth");
+  scrollToList(list, chooseScrollBehavior());
 }
 
 // A hidden view's pages lose their scroll position, so they find the shown list again whenever
@@ -253,6 +277,15 @@ function realignPages() {
   fitPagesToShownList();
 }
 
+function trackTouch(event) {
+  const pages = findGamePages();
+  isTouching = [...event.touches].some((touch) =>
+    pages.contains(/** @type {Node} */ (touch.target)),
+  );
+  if (isTouching) scrollTarget = null;
+  if (!isTouching) scheduleSettle();
+}
+
 function wireSwipe() {
   const pages = findGamePages();
   const releaseScrollTarget = () => (scrollTarget = null);
@@ -260,9 +293,13 @@ function wireSwipe() {
   pages.addEventListener("scroll", followSwipe, { passive: true });
   pages.addEventListener("pointerdown", releaseScrollTarget);
   pages.addEventListener("wheel", releaseOnSidewaysWheel, { passive: true });
+  for (const type of ["touchstart", "touchend", "touchcancel"])
+    pages.addEventListener(type, trackTouch, { passive: true });
   new ResizeObserver(realignPages).observe(pages);
-  const pageObserver = new ResizeObserver(fitPagesToShownList);
-  for (const list of GAME_LISTS) pageObserver.observe(findGamePage(list));
+  const fitObserver = new ResizeObserver(fitPagesToShownList);
+  for (const list of GAME_LISTS) fitObserver.observe(findGamePage(list));
+  fitObserver.observe(document.body);
+  addEventListener("resize", fitPagesToShownList);
 }
 
 export function wireGameTabs() {
