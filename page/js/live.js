@@ -3,6 +3,7 @@ import { isSameJson } from "./compare.js";
 import { describeLiveError } from "./live-errors.js";
 import { fetchLive } from "./live-fetch.js";
 import { renderAll } from "./render.js";
+import { reloadIfReplaced } from "./resume.js";
 import { session, composeState } from "./session.js";
 import { renderStamp } from "./stamp-view.js";
 
@@ -21,10 +22,12 @@ function scheduleLive(ms) {
   if (ms != null) liveTimer = setTimeout(refreshLive, ms);
 }
 
-// A page older than the Worker needs a reload, so try again only when it is shown again.
-function waitForVisibility() {
+// A page older than the Worker needs a reload, so it reloads if a deploy has replaced it, and
+// otherwise tries again only when it is shown again.
+function waitForReplacement() {
   clearTimeout(liveTimer);
   liveDueAt = Date.now();
+  reloadIfReplaced();
 }
 
 function describeMissingFields(missing) {
@@ -66,7 +69,7 @@ function recordLiveFailure(error) {
   updateLiveProblem();
   renderStamp();
   if (liveError.retry) scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
-  else waitForVisibility();
+  else waitForReplacement();
 }
 
 async function refreshLive() {

@@ -3,6 +3,7 @@
 // down closes, wider screens as a modal.
 
 import { joinWithSeparator, setHtml } from "./html.js";
+import { loadRelease } from "./release.js";
 import { session } from "./session.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -45,7 +46,7 @@ function formatReleaseTime(iso) {
 }
 
 // The commit is there on hover, and stands in for a version the build couldn't work out.
-/** @param {{ version: string | null, commit: string, builtAt: string }} release */
+/** @param {import("./release.js").Release} release */
 function renderRelease({ version, commit, builtAt }) {
   const note = findElement("versionNote");
   const name = version ? `v${version}` : commit;
@@ -54,14 +55,9 @@ function renderRelease({ version, commit, builtAt }) {
   note.hidden = false;
 }
 
-// The deploy writes version.json into the Worker's bundle; a local server has none.
 async function showRelease() {
-  try {
-    const response = await fetch(new URL("version.json", location.href), { cache: "no-store" });
-    if (response.ok) renderRelease(await response.json());
-  } catch {
-    /* the panel works without it */
-  }
+  const release = await loadRelease();
+  if (release) renderRelease(release);
 }
 
 // A click on the backdrop lands on the dialog itself; its content fills it edge to edge.
