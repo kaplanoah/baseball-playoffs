@@ -718,13 +718,49 @@ table.st .seed-cell {
 .game-status:empty::before {
   content: "\00a0";
 }
-/* Both lines share the one column, or the spanning time pushes the status into a second one. */
+/* Every line shares the one column, or the spanning time pushes the status into a second one. */
 .game-middle > * {
   grid-column: 1;
 }
-.game-middle:has(> .game-status:empty) > :first-child {
-  grid-row: 1 / -1;
+.game-middle > :is(.game-score, .game-time) {
+  grid-row-start: 1;
+}
+.game-middle:not(.with-series):has(> .game-status:empty) > :is(.game-score, .game-time) {
+  grid-row-end: -1;
   align-self: center;
+}
+/* A postseason game names its round and the series so far over its time or score. */
+.game-middle.with-series {
+  grid-template-rows: auto 20px auto;
+}
+.game-middle.with-series > :is(.game-score, .game-time) {
+  grid-row-start: 2;
+}
+.game-middle.with-series > .game-status {
+  grid-row: 3;
+}
+/* Under a series label, the block of lines centers in the row instead, so an empty status goes. */
+.game-middle.with-series:has(> .game-status:empty) {
+  grid-template-rows: auto 20px;
+}
+.game-middle.with-series > .game-status:empty {
+  display: none;
+}
+.series-label {
+  grid-row: 1;
+  margin-bottom: 4px;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.series-count {
+  color: var(--ink-mid);
+}
+.series-label.decided,
+.series-label.decided .series-count {
+  color: var(--gold);
 }
 .game-row.live .game-status {
   color: var(--copper-ink);

@@ -1,4 +1,4 @@
-import { isEliminated } from "./bracket.js";
+import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
 import { renderTeamTag } from "./clubs.js";
 import { html, setHtml } from "./html.js";
 import { formatOrdinal } from "./ordinal.js";
@@ -116,14 +116,35 @@ function renderScore(game, awayLost, homeLost) {
   return html`<span class="game-score tabular"><span class="${awayLost ? "lost" : ""}">${awayScore}</span><span class="score-dash">-</span><span class="${homeLost ? "lost" : ""}">${homeScore}</span></span>`;
 }
 
-function renderMiddle(game, awayLost, homeLost) {
+function findGameSeries(game) {
+  const { state } = session;
+  if (!game.postseason || !state || !state.teams || !state.series) return null;
+  return findSeriesBetween(state, game.away, game.home);
+}
+
+// "Series" is left off the wild card round, the one long name, to leave the clubs room.
+function nameRound(series) {
+  const [league] = series.id.split("_");
+  return series.round === "WC" ? `${league} Wild Card` : nameSeries(series.id);
+}
+
+// The saved series counts only finished games, so a game under way shows the series as it stood
+// at first pitch. Wins run away-home, like the clubs on either side.
+function renderSeriesLabel(game, series) {
+  const [awayWins, homeWins] =
+    series.teamA === game.away ? [series.winsA, series.winsB] : [series.winsB, series.winsA];
+  return html`<span class="series-label ${series.winner ? "decided" : ""}">${nameRound(series)} <span class="series-count tabular">${awayWins}-${homeWins}</span></span>`;
+}
+
+function renderMiddle(game, awayLost, homeLost, series) {
   const headline = game.score
     ? renderScore(game, awayLost, homeLost)
     : html`<span class="game-time">${game.state === "off" ? game.detail || "Postponed" : describeStart(game)}</span>`;
-  return html`<span class="game-middle">${headline}<span class="game-status">${describeStatus(game)}${renderOutLights(game)}</span></span>`;
+  return html`<span class="game-middle ${series ? "with-series" : ""}">${series && renderSeriesLabel(game, series)}${headline}<span class="game-status">${describeStatus(game)}${renderOutLights(game)}</span></span>`;
 }
 
-function renderGame(game) {
+/** @param {object | null} series the postseason series the game belongs to, when it's labeled */
+function renderGame(game, series) {
   const [awayScore, homeScore] = game.score || [];
   const isFinal = game.state === "final";
   const awayLost = isFinal && awayScore < homeScore;
@@ -132,7 +153,7 @@ function renderGame(game) {
   const homeWon = isFinal && homeScore > awayScore;
   return html`<li class="game-row ${game.state} ${game.delay ? "delayed" : ""}">
     ${renderSide(game.away, "away", awayWon)}
-    ${renderMiddle(game, awayLost, homeLost)}
+    ${renderMiddle(game, awayLost, homeLost, series)}
     ${renderSide(game.home, "home", homeWon)}
   </li>`;
 }
@@ -183,7 +204,7 @@ export function renderGameList(slate, list) {
   if (!games.length) return html`<p class="stand-empty">${EMPTY_LIST_TEXT[list]}</p>`;
   return html`${groupByDay(games, list === "previous").map(
     (day) => html`<h3 class="game-day">${formatGameDay(day.date)}</h3>
-      <ul class="game-list">${day.games.map(renderGame)}</ul>`,
+      <ul class="game-list">${day.games.map((game) => renderGame(game, list === "today" ? findGameSeries(game) : null))}</ul>`,
   )}`;
 }
 
