@@ -1,0 +1,577 @@
+/*
+ * The chrome every app's page shares: the settings button, the tabs (a floating glass bar on
+ * phones), and the settings dialog (a sheet on phones). Apps link it before their own styles.css,
+ * which lays out the rest of the page and may refine these rules.
+ *
+ * An app's :root defines these tokens:
+ *   --bg, --card, --card-border, --divider    the page, card, and line colors
+ *   --ink, --ink-mid, --ink-dim                text, from brightest to dimmest
+ *   --accent, --accent-ink                     the selected tab and a switch that is on, and text on it
+ *   --focus-ring                               the keyboard focus ring
+ *   --select-arrow                             a url() of the select field's down arrow, in --ink-dim
+ *   --tab-bar-ink                              the glass tab bar's icons and labels
+ *   --glass-light                              an RGB triple, like 255, 255, 255, that tints the glass
+ *   --glass-solid                              the glass's fill when the viewer turns transparency down
+ *   --glass-contrast                           the glass's fill when the viewer asks for more contrast
+ * and on phones this sets:
+ *   --tab-bar-bottom                           how far the tab bar floats above the screen's bottom
+ *   --tab-bar-clearance                        the space an app's body leaves at its bottom for the bar
+ *
+ * Phones are up to 779px wide, as tab-bar.js and settings-sheet.js also match. Focus rings show
+ * only while the body has the kbd class, which keyboard-focus.js sets during keyboard navigation.
+ */
+
+/* The icon sits flush with the page's edge, and its tap area runs past it. */
+.settings-btn {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -10px -8px -14px;
+  padding: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  /* The hover circle stays inside the padding, smaller than the tap area. */
+  background-clip: content-box;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+@media (hover: hover) {
+  .settings-btn:hover {
+    color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+  }
+}
+.settings-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+nav.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tab-bar {
+  display: contents;
+}
+.tab-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tab-glass,
+.tab-pill,
+.tab-icon,
+.edge-fade {
+  display: none;
+}
+.svg-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+nav.tabs button {
+  font: inherit;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: none;
+  border: 1px solid var(--card-border);
+  color: var(--ink-dim);
+  padding: 6px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+nav.tabs button.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+/* :focus-visible counts a bare Shift press, so focus rings key off body.kbd instead. A scroll area
+   takes focus so the keyboard can scroll it, which Safari doesn't give it. */
+button:focus,
+select:focus,
+[role="region"]:focus {
+  outline: none;
+}
+body.kbd button:focus,
+body.kbd select:focus,
+body.kbd [role="region"]:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+section.view {
+  display: none;
+  padding-left: 1px;
+}
+section.view.active {
+  display: block;
+}
+
+/* Settings run the full height of the screen under a pinned header. An app can size a section to
+   fill the rest of the sheet from --head-height, --section-gap, and --bottom-padding. */
+.settings-panel {
+  --head-height: 64px;
+  --section-gap: 14px;
+  --bottom-padding: 22px;
+  width: calc(100% - 24px);
+  max-width: 420px;
+  height: calc(100% - 48px);
+  max-height: none;
+  margin: 24px auto;
+  padding: 0;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+  container-type: size;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: calc(var(--head-height) + var(--section-gap));
+  overscroll-behavior: contain;
+}
+.settings-panel::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+  padding: 0 22px var(--bottom-padding);
+}
+.sheet-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: var(--head-height);
+  margin-inline: -22px;
+  padding-inline: 22px;
+  background: var(--card);
+  transition: box-shadow 0.2s;
+}
+.sheet-top.scrolled {
+  box-shadow: 0 1px 0 var(--divider);
+}
+.sheet-grabber {
+  display: none;
+}
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+.sheet-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.sheet-head h2 {
+  font-size: 1.05rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.settings-version {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.settings-version[hidden] {
+  display: none;
+}
+.sheet-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-right: -8px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.sheet-done:hover {
+  background: var(--bg);
+}
+.sheet-done svg {
+  width: 20px;
+  height: 20px;
+}
+/* Wide screens show only the close icon; the label still names the button. */
+.sheet-done-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.settings-controls {
+  border-block: 1px solid var(--divider);
+  scroll-snap-align: start;
+}
+.control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding-block: 8px;
+  font-size: 0.82rem;
+}
+.control-row + .control-row {
+  border-top: 1px solid var(--divider);
+}
+.control-row[hidden] {
+  display: none;
+}
+.control-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.control-note {
+  font-size: 0.66rem;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+.control-note:empty {
+  display: none;
+}
+.select-field {
+  font: inherit;
+  font-size: 0.86rem;
+  color: var(--ink);
+  background: var(--bg) var(--select-arrow) no-repeat right 10px center / 10px 6px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  padding: 7px 32px 7px 12px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+@media (hover: hover) {
+  .select-field:hover {
+    border-color: var(--ink-dim);
+  }
+}
+.switch {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  background: var(--divider);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  transition:
+    transform 0.2s,
+    background 0.2s;
+}
+.switch[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.switch[aria-checked="true"] .switch-knob {
+  background: var(--accent-ink);
+  transform: translateX(18px);
+}
+.switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch-knob {
+    transition: none;
+  }
+  .settings-panel[open] {
+    animation: none;
+  }
+  .settings-btn,
+  .sheet-top {
+    transition: none;
+  }
+}
+
+@media (max-width: 779px) {
+  /*
+   * An iPhone home-screen app lays the page out short of the screen by the top safe area (WebKit
+   * bug 301108), and its viewport only reaches the bottom of the screen when the page is at least
+   * that tall, so a shorter page would lift the tab bar off the bottom.
+   */
+  html {
+    min-height: calc(100% + env(safe-area-inset-top) + 1px);
+  }
+  :root {
+    --tab-bar-bottom: max(calc(env(safe-area-inset-bottom) - 12px), 16px);
+    --tab-bar-clearance: calc(var(--tab-bar-bottom) + 86px);
+  }
+
+  /* On phones, settings rise from the bottom as a sheet as tall as the screen allows, and a swipe
+     down closes them. settings-sheet.js moves the sheet with the finger. */
+  .settings-panel {
+    --head-height: 63px;
+    --bottom-padding: max(22px, env(safe-area-inset-bottom));
+    width: 100%;
+    max-width: none;
+    height: calc(100% - 44px - env(safe-area-inset-top));
+    margin: auto 0 0;
+    border-width: 1px 0 0;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  }
+  .settings-panel[open] {
+    animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .settings-body {
+    padding-inline: 18px;
+  }
+  .sheet-top {
+    justify-content: flex-start;
+    margin-inline: -18px;
+    padding-inline: 18px;
+  }
+  .sheet-grabber {
+    display: block;
+    width: 48px;
+    height: 5px;
+    margin: 8px auto 6px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--ink) 25%, transparent);
+  }
+  .sheet-head {
+    position: relative;
+    justify-content: center;
+  }
+  .sheet-title {
+    align-items: center;
+  }
+  .sheet-head h2 {
+    font-size: 0.9rem;
+  }
+  /* The swipe closes the sheet, so the button is left only for screen readers. */
+  .sheet-done {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  /*
+   * A floating glass tab bar, sized like iOS's: a 62px capsule 21px in from the sides, a selection
+   * pill 5px inside it, icons over small system-font labels. tab-bar.js drives its motion.
+   */
+  .tab-bar {
+    --tab-bar-height: 62px;
+    --tab-height: calc(var(--tab-bar-height) - 10px);
+    position: fixed;
+    z-index: 20;
+    left: 21px;
+    right: 21px;
+    bottom: var(--tab-bar-bottom);
+    display: block;
+    height: var(--tab-bar-height);
+  }
+  /* The shadow sits on its own layer: Chrome misplaces an SVG backdrop filter on an element with one. */
+  .tab-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 999px;
+    box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+  }
+  .tab-glass {
+    display: block;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(var(--glass-light), 0.07);
+    -webkit-backdrop-filter: blur(3px) saturate(160%) brightness(1.05);
+    backdrop-filter: blur(3px) saturate(160%) brightness(1.05);
+    box-shadow:
+      inset 0 0 0 1px rgba(var(--glass-light), 0.08),
+      inset 0 1px 0 rgba(var(--glass-light), 0.12),
+      inset 0 -1px 0 rgba(var(--glass-light), 0.04);
+  }
+  /* Chrome skips filter functions chained before url(), so the lens filter does its own blur. */
+  .tab-glass.bends {
+    backdrop-filter: url(#glassLens) saturate(160%) brightness(1.05);
+  }
+  .tab-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle 46px at var(--glow-x, 50%) var(--glow-y, 50%),
+      rgba(var(--glass-light), var(--glow-alpha, 0)),
+      transparent
+    );
+  }
+  .tab-list {
+    position: absolute;
+    inset: 0;
+    flex-wrap: nowrap;
+    gap: 0;
+    padding: 5px 9px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  nav.tabs .tab-list button,
+  .tab-copy {
+    flex: 1 1 0;
+    min-width: 0;
+    height: var(--tab-height);
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: var(--tab-bar-ink);
+    font:
+      500 10px/1.2 -apple-system,
+      BlinkMacSystemFont,
+      "SF Pro Text",
+      system-ui,
+      sans-serif;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+  nav.tabs .tab-list button.active {
+    background: none;
+    color: var(--tab-bar-ink);
+  }
+  .tab-icon {
+    display: block;
+    flex: none;
+    width: 21px;
+    height: 21px;
+  }
+  /* Phosphor draws inside a wide margin, so its box runs a little larger to match optically. */
+  .tab-icon svg {
+    display: block;
+    width: 23px;
+    height: 23px;
+    margin: -1px;
+  }
+  /*
+   * The selected tab sits on a frosted pill. --lift runs from 0 to 1 as a touch raises it into a
+   * clear lens, and --platter is its frosted fill, which fades while it lifts.
+   */
+  .tab-pill {
+    display: block;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: var(--pill-width, 25%);
+    height: var(--tab-height);
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(var(--glass-light), calc(0.11 * var(--platter, 1)));
+    -webkit-backdrop-filter: blur(calc(5px * var(--platter, 1))) saturate(150%)
+      brightness(calc(1 + var(--lift, 0) * 0.06));
+    backdrop-filter: blur(calc(5px * var(--platter, 1))) saturate(150%)
+      brightness(calc(1 + var(--lift, 0) * 0.06));
+    box-shadow:
+      inset 0 1px 0 rgba(var(--glass-light), calc(var(--lift, 0) * 0.22)),
+      inset 0 0 0 0.5px rgba(var(--glass-light), calc(var(--lift, 0) * 0.16)),
+      inset 0 -1px 1px rgba(var(--glass-light), calc(var(--lift, 0) * 0.08)),
+      0 6px 18px rgba(0, 0, 0, calc(var(--lift, 0) * 0.3));
+    pointer-events: none;
+    will-change: transform;
+  }
+  /* The pill hides the tab under it, so a keyboard focus ring shows on the pill instead. */
+  body.kbd .tab-list:has(button.active:focus) ~ .tab-pill {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+  .tab-pill-row {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    display: flex;
+    width: var(--row-width, 100%);
+    height: 100%;
+  }
+  /* The bottom scroll edge: content dims and softens under the bar but stays readable. */
+  .edge-fade {
+    display: block;
+    position: fixed;
+    z-index: 19;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--tab-bar-bottom) + 100px);
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      color-mix(in srgb, var(--bg) 60%, transparent) 85%
+    );
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 70%);
+    mask-image: linear-gradient(to bottom, transparent, #000 70%);
+    pointer-events: none;
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .tab-glass {
+      background: var(--glass-solid);
+    }
+  }
+  @media (prefers-contrast: more) {
+    .tab-glass {
+      background: var(--glass-contrast);
+      box-shadow: inset 0 0 0 1px var(--tab-bar-ink);
+    }
+  }
+}

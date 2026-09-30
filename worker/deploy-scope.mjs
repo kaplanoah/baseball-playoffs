@@ -1,6 +1,6 @@
 // Decides whether main needs a deploy. Only when nothing but the docs, tests, and tooling listed
 // here changed since the live version does it skip one, so a new kind of file deploys until it
-// is listed.
+// is listed. An app's own folder deploys only that app; anything outside apps/ deploys them all.
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -20,19 +20,43 @@ const SKIPPED_FILES = new Set([
   "worker/check-pr-title.mjs",
   "worker/set-app-key.mjs",
 ]);
-const SKIPPED_FOLDERS = ["tests/"];
+const SKIPPED_FOLDERS = [/^tests\//, /^apps\/[^/]+\/tests\//];
 
 const isSkipped = (path) =>
   path.endsWith(".md") ||
   SKIPPED_FILES.has(path) ||
-  SKIPPED_FOLDERS.some((folder) => path.startsWith(folder));
+  SKIPPED_FOLDERS.some((folder) => folder.test(path));
 
-export const findDeployedChanges = (paths) => paths.filter((path) => !isSkipped(path));
+const readAppFolder = (path) => path.match(/^apps\/([^/]+)\//)?.[1] ?? null;
+
+/**
+ * @param {string} path
+ * @param {string} [app] with none, whether the path deploys any app
+ */
+const isForApp = (path, app) => {
+  const folder = readAppFolder(path);
+  return !app || !folder || folder === app;
+};
+
+/**
+ * @param {string[]} paths
+ * @param {string} [app]
+ */
+export const findDeployedChanges = (paths, app) =>
+  paths.filter((path) => !isSkipped(path) && isForApp(path, app));
+
+// Every file in the change is in other apps' folders.
+/**
+ * @param {string[]} paths
+ * @param {string} app
+ */
+export const isOnlyForOtherApps = (paths, app) =>
+  paths.length > 0 && paths.every((path) => readAppFolder(path) && !isForApp(path, app));
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const runGit = (args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });
 
-// Without --no-renames, a file moved out of page/ would list only where it went.
+// Without --no-renames, a file moved out of an app's page/ would list only where it went.
 /** @param {string} since the live version's commit */
 export function listChangedFiles(since, git = runGit) {
   try {
@@ -42,14 +66,17 @@ export function listChangedFiles(since, git = runGit) {
   }
 }
 
-/** @param {string[] | null} changedFiles null when they couldn't be listed */
-export function decideDeploy(changedFiles) {
+/**
+ * @param {string[] | null} changedFiles null when they couldn't be listed
+ * @param {string} [app]
+ */
+export function decideDeploy(changedFiles, app) {
   if (changedFiles === null)
     return {
       isNeeded: true,
       reason: "Couldn't list the changes since the live version, so deploying.",
     };
-  const deployed = findDeployedChanges(changedFiles);
+  const deployed = findDeployedChanges(changedFiles, app);
   if (deployed.length) return { isNeeded: true, reason: `Deploying for ${deployed.join(", ")}.` };
   return {
     isNeeded: false,

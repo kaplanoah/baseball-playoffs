@@ -1,0 +1,1879 @@
+:root {
+  --bg: #0d1f16;
+  --card: #132a1f;
+  --card-border: #2a4536;
+  --ink: #f1ead4;
+  --ink-dim: #7fa88f;
+  --ink-mid: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
+  --divider: #1e3a2b;
+  --gold: #f4c15c;
+  --gold-ink: #12200f;
+  --copper: #c17a4f;
+  --copper-ink: #cd9566;
+  --al: #7fb0c8;
+  --nl: #e0a2a2;
+  --out: #8a7a6a;
+  --accent: var(--gold);
+  --accent-ink: var(--gold-ink);
+  --focus-ring: var(--copper-ink);
+  --select-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa88f' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --tab-bar-ink: #fff;
+  --glass-light: 255, 255, 255;
+  --glass-solid: rgba(28, 44, 36, 0.94);
+  --glass-contrast: #000;
+  /* Pitch colors run by family: fastballs warm, breaking balls blue, changeups pink. */
+  --pitch-four-seam: var(--gold);
+  --pitch-sinker: var(--copper);
+  --pitch-cutter: color-mix(in srgb, var(--gold) 50%, var(--copper));
+  --pitch-slider: var(--al);
+  --pitch-sweeper: color-mix(in srgb, var(--al) 55%, var(--ink));
+  --pitch-curve: color-mix(in srgb, var(--al) 55%, var(--card-border));
+  --pitch-changeup: var(--nl);
+  --pitch-splitter: color-mix(in srgb, var(--nl) 55%, var(--card-border));
+  --pitch-other: var(--ink-dim);
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  display: none;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Chivo Mono", "JetBrains Mono", monospace;
+  font-size: 16px;
+  /* Insets are zero except in the home-screen app, which draws under the status bar and notch. */
+  padding-inline: max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-right));
+  padding-block: calc(17px + env(safe-area-inset-top)) max(48px, env(safe-area-inset-bottom));
+  /* 7 x CARD.width + 6 x WIDE.columnGap in bracket-view.js, plus .tree-scroll's 18px each side. */
+  max-width: 1619px;
+  margin: 0 auto;
+}
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+.sep {
+  margin: 0 6px;
+}
+
+header.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  border-bottom: 2px solid color-mix(in srgb, var(--card-border) 60%, var(--bg));
+  padding-bottom: 14px;
+  margin-bottom: 13px;
+}
+header.top h1 {
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-width: 0;
+}
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.year-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--copper);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--copper) 16%, var(--bg));
+  color: var(--copper-ink);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.year-tag[hidden] {
+  display: none;
+}
+.stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 0;
+  font-size: 0.63rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  text-align: right;
+}
+.stamp b {
+  font-weight: 400;
+  color: var(--ink-mid);
+}
+.stamp .ap {
+  margin-left: 0.5ch;
+  font-size: 0.95em;
+}
+.stamp b.lead {
+  margin-right: 1.3ch;
+}
+.stamp-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.stamp-err {
+  color: var(--copper-ink);
+}
+
+.banner {
+  margin-left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  position: relative;
+  padding-left: 17px;
+  font-size: 0.85rem;
+  line-height: 1;
+  font-weight: 500;
+  color: var(--ink);
+  align-self: stretch;
+}
+.banner[hidden] {
+  display: none;
+}
+.banner::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1px;
+  bottom: 1px;
+  border-left: 1px solid var(--card-border);
+}
+.banner > * {
+  display: flex;
+  align-items: center;
+}
+.banner .banner-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--copper-ink);
+  font-weight: 400;
+}
+/* The -0.5px keeps the 19px chip on whole pixels when centered in the 30px tab row. */
+.banner .banner-team {
+  gap: 9px;
+  position: relative;
+  top: -0.5px;
+}
+.banner .banner-team .dot {
+  position: relative;
+  top: -0.5px;
+}
+
+.stand-head {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--ink-dim);
+  margin: 21px 0 15px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--divider);
+}
+#standingsWrap {
+  max-width: 1400px;
+}
+.div-grid,
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px 28px;
+}
+/* The leagues' fields can run to different lengths, and neither box should pad itself to match. */
+.field-grid {
+  align-items: start;
+}
+/* Side by side, a table is too narrow for a game under way in its Next column until the page is
+   this wide. */
+@media (min-width: 1400px) {
+  .div-grid,
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Filling down each column puts the AL divisions on the left and the NL on the right. */
+  .div-grid {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(3, auto);
+  }
+}
+.div-block {
+  min-width: 0;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.div-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: var(--card);
+  border-bottom: 1px solid var(--divider);
+  padding: 7px 10px;
+}
+/* Always a tag's height, so a clinched tag's border can't make one title bar taller than its neighbor. */
+.title-right {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 19px;
+}
+.div-title .AL {
+  color: var(--al);
+}
+.div-title .NL {
+  color: var(--nl);
+}
+table.st {
+  width: 100%;
+  border-collapse: collapse;
+}
+@media (min-width: 780px) {
+  table.st {
+    table-layout: fixed;
+  }
+  table.st col.c-rank {
+    width: 44px;
+  }
+  table.st col.c-seed {
+    width: 38px;
+  }
+  table.st col.c-team {
+    width: 150px;
+  }
+  table.st col.c-w,
+  table.st col.c-l {
+    width: 5%;
+  }
+  table.st col.c-pct,
+  table.st col.c-gb {
+    width: 8%;
+  }
+  table.st col.c-e {
+    width: 5%;
+  }
+  table.st td.next-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+table.st th {
+  text-align: right;
+  font-weight: 400;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+  padding: 7px 0 4px 10px;
+  border-bottom: 1px solid var(--divider);
+  white-space: nowrap;
+}
+table.st th.left {
+  text-align: left;
+}
+table.st th:first-child {
+  padding-left: 10px;
+}
+table.st th[title] {
+  cursor: help;
+}
+table.st td {
+  padding: 5px 0 5px 10px;
+  font-size: 0.8rem;
+  border-bottom: 1px solid var(--divider);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink);
+}
+table.st td:first-child {
+  padding-left: 10px;
+}
+table.st td.team {
+  text-align: left;
+}
+table.st th.mid,
+table.st td.mid {
+  text-align: center;
+}
+/* A percentage's leading period takes a full monospace cell; shift the label half a char. */
+table.st th.pct {
+  padding-left: 15px;
+}
+table.st th:last-child,
+table.st td:last-child {
+  padding-right: 10px;
+}
+table.st tr:last-child td {
+  border-bottom: 0;
+}
+table.st tr.alive td {
+  color: var(--ink);
+}
+table.st tr.eliminated td {
+  color: var(--ink-dim);
+}
+table.st tr.eliminated .dot {
+  opacity: 0.55;
+}
+table.st td.next-cell,
+table.st th.next-cell {
+  padding-left: 24px;
+}
+/* The row classes are here to outrank the tr.alive/tr.eliminated color rules. */
+table.st tr.alive td.next-cell,
+table.st tr.eliminated td.next-cell {
+  text-align: left;
+  font-size: 0.7rem;
+  color: var(--ink-mid);
+}
+table.st tr.alive td.next-cell.live,
+table.st tr.eliminated td.next-cell.live {
+  color: var(--copper-ink);
+}
+table.st tr.alive td.next-cell.delayed,
+table.st tr.eliminated td.next-cell.delayed {
+  color: var(--gold);
+}
+table.st tr.cut td,
+table.st tr.group-end td {
+  border-bottom: 0;
+}
+table.st tr.wild-card-head th {
+  padding-top: 5px;
+}
+/* A gradient, not a dashed border: a collapsed table restarts dashes at every column edge. */
+table.st tr.cutline td {
+  padding: 0;
+  height: 1px;
+  border: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    color-mix(in srgb, var(--copper) 70%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: left top;
+}
+table.st .rank-cell {
+  width: 34px;
+}
+/* The slot is there for unranked clubs too, and sets every row to a rank tag's height. */
+table.st .rank-slot {
+  height: 19px;
+  vertical-align: middle;
+}
+table.st .seed-cell {
+  width: 28px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.elim-num.clinched {
+  color: var(--gold);
+}
+.elim-num.live {
+  color: var(--copper-ink);
+}
+.league-tag,
+.status-chip,
+.clinch-tag,
+.magic-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 3px;
+  line-height: 1;
+  font-size: 0.66rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+/* text-indent balances the letter-spacing added after the last letter. */
+.league-tag {
+  width: 24px;
+  padding-left: 0;
+  padding-right: 0;
+  text-indent: 0.07em;
+}
+.clinch-tag {
+  color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.magic-tag {
+  color: var(--copper-ink);
+  border: 0;
+  padding: 0;
+  height: auto;
+}
+.stand-empty {
+  color: var(--ink-dim);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+/* The pill stays at the top of the screen while the games scroll under it. Its bar reaches up
+   under the status bar and fills with the page's color once the pill is held in place, and lets
+   touches through to whatever it overlaps. */
+.game-tabs-bar {
+  --bar-top: calc(env(safe-area-inset-top) + 10px);
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  margin: calc(-1 * var(--bar-top)) -18px 0;
+  padding: var(--bar-top) 18px 18px;
+  pointer-events: none;
+}
+.game-tabs-bar.stuck {
+  background: linear-gradient(to bottom, var(--bg) calc(100% - 18px), transparent);
+}
+/* The Games lists sit side by side on a pill like the tab bar's. Its thumb follows --swipe, set
+   from the lists' scroll position: 0 at the first list, 2 at the last, in between mid-swipe. */
+.game-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 560px;
+  padding: 3px;
+  pointer-events: auto;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.game-tabs-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.11);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 2px 6px -2px rgba(0, 0, 0, 0.5);
+  transform: translateX(calc(var(--swipe, 1) * 100%));
+  pointer-events: none;
+}
+/* --nearness runs from 0 to 1 as the thumb reaches a label, which brightens with it. */
+.game-tabs button {
+  position: relative;
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--ink-dim));
+  padding: 7px 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* The lists run to the screen's edges, so a swiped list slides off the screen, not off the gutter. */
+.game-pages {
+  display: flex;
+  align-items: flex-start;
+  max-width: calc(560px + 36px);
+  margin-inline: -18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+}
+.game-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding-inline: 18px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.game-day {
+  font-size: 0.64rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+  margin: 30px 0 8px;
+}
+.game-day:first-child {
+  margin-top: 0;
+}
+/* A line above and below every game closes each day, so the next date starts in open space. */
+.game-list {
+  border-top: 1px solid var(--divider);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+/* The away and home clubs face each other across the score. */
+.game-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.game-side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.game-side.home {
+  align-items: flex-end;
+  text-align: right;
+}
+.game-side .club {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.game-side.home .club,
+.game-side.home .game-facts {
+  flex-direction: row-reverse;
+}
+.game-side.won .club {
+  font-weight: 700;
+}
+.game-side.out .team-name {
+  color: var(--ink-dim);
+}
+.game-side.out .dot {
+  opacity: 0.55;
+}
+.game-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 1.5ch;
+  font-size: 0.6rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+/* The starters get a row of their own under the clubs, so the time or score in the middle
+   centers on the clubs and their records alone. The middle takes no height there: its content
+   centers on the first row and may reach past it, into the row's padding or beside the starters. */
+.game-row.with-starters {
+  row-gap: 3.25px;
+}
+/* Covers the whole row, so a tap anywhere on a game with starters opens its matchup. */
+.game-open {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.game-row.with-starters .game-middle {
+  grid-area: 1 / 2;
+  height: 0;
+  align-content: center;
+}
+/* On a narrow row the ERA wraps under the name, and a long name gives way before it. */
+.starter {
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 1ch;
+  max-width: 100%;
+  font-size: 0.65rem;
+  color: var(--ink-mid);
+}
+.starter.away {
+  grid-column: 1;
+}
+.starter.home {
+  grid-column: 3;
+  flex-direction: row-reverse;
+  justify-self: end;
+}
+.starter-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.starter-arm {
+  font-size: 0.56rem;
+  line-height: 1.3;
+  padding: 0 3px;
+  border: 1px solid var(--card-border);
+  border-radius: 3px;
+  color: var(--ink-dim);
+}
+.starter-era {
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+/* The smaller number and letters sit a hair high on the name's baseline, so they read level. */
+.starter-era b {
+  position: relative;
+  top: -0.25px;
+  font-size: 0.55rem;
+  font-weight: 400;
+}
+.starter-era-label {
+  position: relative;
+  top: -0.5px;
+  font-size: 0.53rem;
+}
+/* A character width from the word, like the number, and a pixel low so it reads level with the text. */
+.seed-lock {
+  width: 0.66em;
+  height: 0.9em;
+  margin-left: 1ch;
+  position: relative;
+  top: 1px;
+}
+.race.clinched {
+  color: var(--gold);
+  font-weight: 500;
+}
+.race.racing {
+  color: var(--copper-ink);
+}
+.game-middle {
+  display: grid;
+  grid-template-rows: 20px auto;
+  justify-items: center;
+  row-gap: 3px;
+  min-width: 4.5em;
+}
+.game-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+.score-dash {
+  color: var(--card-border);
+  font-weight: 400;
+}
+/* A start time takes a score's line height, the middle's first row, so every row is as tall as a
+   finished game's. */
+.game-score,
+.game-time {
+  line-height: 20px;
+}
+.game-time {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.game-status {
+  font-size: 0.6rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  grid-row: 2;
+}
+/* An empty status line still holds its place, so every row is as tall as a finished game's, and
+   the time centers across both lines. */
+.game-status:empty::before {
+  content: "\00a0";
+}
+/* Every line shares the one column, or the spanning time pushes the status into a second one. */
+.game-middle > * {
+  grid-column: 1;
+}
+.game-middle > :is(.game-score, .game-time) {
+  grid-row-start: 1;
+}
+.game-middle:not(.with-series):has(> .game-status:empty) > :is(.game-score, .game-time) {
+  grid-row-end: -1;
+  align-self: center;
+}
+/* A postseason game names its round and the series so far over its time or score. */
+.game-middle.with-series {
+  grid-template-rows: auto 20px auto;
+}
+.game-middle.with-series > :is(.game-score, .game-time) {
+  grid-row-start: 2;
+}
+.game-middle.with-series > .game-status {
+  grid-row: 3;
+}
+/* Under a series label, the block of lines centers in the row instead, so an empty status goes. */
+.game-middle.with-series:has(> .game-status:empty) {
+  grid-template-rows: auto 20px;
+}
+.game-middle.with-series > .game-status:empty {
+  display: none;
+}
+.series-label {
+  grid-row: 1;
+  margin-bottom: 4px;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.series-count {
+  color: var(--ink-mid);
+}
+.series-label.decided,
+.series-label.decided .series-count {
+  color: var(--gold);
+}
+.game-row.live .game-status {
+  color: var(--copper-ink);
+}
+.game-row.delayed .game-status {
+  color: var(--gold);
+}
+.game-score .lost {
+  color: var(--ink-dim);
+  font-weight: 400;
+}
+.game-row.off .game-side,
+.game-row.off .game-time {
+  color: var(--ink-dim);
+}
+.game-status .out-lights {
+  margin-left: 0.6em;
+}
+/* A scoreboard's lights for the first two outs, centered on the lowercase letters beside them. */
+.out-lights {
+  --light: 6.5px;
+  display: inline-flex;
+  gap: 0.3em;
+  vertical-align: calc(0.32em - var(--light) / 2);
+}
+.out-light {
+  width: var(--light);
+  height: var(--light);
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.out-light.on {
+  background: currentColor;
+}
+.dot.unknown-club {
+  background: var(--card-border);
+}
+.game-side .tbd {
+  font-size: inherit;
+}
+
+.updates {
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  border-radius: 6px;
+  padding: 10px 22px 10px 13px;
+  margin: 0 0 18px;
+  max-width: 900px;
+}
+nav.tabs + .updates {
+  margin-top: -12px;
+}
+@media (min-width: 780px) {
+  .updates {
+    width: fit-content;
+    min-width: 420px;
+  }
+}
+.updates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.updates-count {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--gold);
+}
+.updates-x {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: -4px -16px -2px 0;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+  color: color-mix(in srgb, var(--ink-dim) 62%, transparent);
+  cursor: pointer;
+}
+.updates-x svg {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+.updates-x:hover {
+  color: var(--ink-dim);
+  background: var(--divider);
+}
+.updates-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.updates-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 0.82rem;
+  padding: 5px 0;
+}
+.updates-list li:first-child {
+  padding-top: 0;
+}
+.updates-list li:last-child {
+  padding-bottom: 0;
+}
+.updates-list .when {
+  flex: none;
+  width: 62px;
+  font-size: 0.68rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.updates-list .what {
+  color: var(--ink);
+  min-width: 0;
+  line-height: 1.45;
+  font-weight: 300;
+}
+.updates-list .what b {
+  font-weight: 500;
+}
+.updates .rank-slot {
+  width: auto;
+  margin: 0 6px 0 0;
+  vertical-align: 1px;
+}
+.updates .rank-tag {
+  height: 16px;
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 0.62rem;
+  line-height: 12px;
+}
+.updates .club {
+  gap: 7px;
+}
+/* The .when column's 62px plus the row's 12px gap. */
+.updates-list .more {
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+  padding-left: 74px;
+}
+
+.no-field-note {
+  background: var(--card);
+  border: 1px dashed var(--card-border);
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+.no-field-note h2 {
+  font-size: 1.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.no-field-note p {
+  color: var(--ink-dim);
+  font-size: 0.92rem;
+  margin-top: 10px;
+}
+.rank-slot {
+  display: inline-flex;
+  justify-content: flex-end;
+  width: 31px;
+  flex: none;
+}
+.team-id .rank-slot {
+  margin-right: 0;
+}
+.banner-team .rank-slot {
+  margin-right: 0;
+  width: auto;
+}
+
+.rank-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--copper);
+  color: var(--copper);
+  /* Fixed: inheriting the banner's line-height: 1 sets the number high in the box. */
+  line-height: 13px;
+}
+.rank-tag.solid {
+  background: var(--copper);
+  color: var(--gold-ink);
+}
+
+/* Card part heights add up to CARD.height in bracket-view.js: 1 + 24 + 32 + 32 + 1 = 90px. */
+.tree-scroll {
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-inline: -18px;
+  padding-inline: 18px;
+}
+.bracket-stage {
+  position: relative;
+}
+.league-head {
+  position: absolute;
+  height: 19px;
+  text-align: center;
+  border-bottom: 0.5px solid currentColor;
+  font-size: 0.72rem;
+  line-height: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+/* Its offset counts from inside .tree-scroll's padding, so 0 keeps it where it rests. */
+.league-name {
+  display: inline-block;
+  position: sticky;
+  left: 0;
+}
+.league-head.al {
+  color: var(--al);
+}
+.league-head.nl {
+  color: var(--nl);
+}
+.bracket-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+.bracket-lines path {
+  fill: none;
+  stroke: var(--card-border);
+  stroke-width: 1;
+}
+.box {
+  position: absolute;
+}
+.series.world .bestof span:first-child {
+  color: var(--gold);
+}
+.tree-scroll.stacked {
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 18px;
+  overscroll-behavior-x: contain;
+}
+.stacked .box {
+  scroll-snap-align: start;
+}
+.stacked .box:has(.world) {
+  scroll-snap-align: center;
+}
+/* A stacked bar runs past the screen's edge, so a centered name would start off screen. */
+.stacked .league-head {
+  text-align: left;
+}
+
+/* Outside the card's box so it can't change the connector geometry. */
+.card-note {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  padding-left: 1px;
+  font-size: 0.62rem;
+  font-style: italic;
+  text-align: left;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--ink-dim) 72%, transparent);
+}
+.card-note.live {
+  color: var(--copper-ink);
+}
+.card-note.delayed {
+  color: var(--gold);
+}
+.card-note.live {
+  font-style: normal;
+}
+/* The lights have no space or side bearing before them, so their margin is a little wider than the
+   space between parts to look the same. */
+.card-note.live .live-part + .live-part {
+  margin-left: 0.5em;
+}
+.card-note.live .out-lights {
+  margin-left: 1.17em;
+}
+.card-note.champ {
+  margin-top: 8px;
+  padding-left: 0;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.series {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.series .bestof {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-dim);
+  padding: 0 8px;
+  border-bottom: 1px solid var(--divider);
+}
+.matchup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 7px;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.matchup-row + .matchup-row {
+  border-top: 1px solid var(--divider);
+}
+.matchup-row.winner {
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+}
+.seed-pre {
+  color: var(--ink-dim);
+  font-size: 0.72rem;
+  flex: none;
+  margin: 0 1px 0 2px;
+}
+.matchup-row.eliminated .team-name {
+  color: var(--out);
+}
+.team-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.dot {
+  display: inline-block;
+  vertical-align: middle;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.46),
+    0 1px 0 rgba(241, 234, 212, 0.13);
+}
+.team-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Only the name aligns to the baseline, so the piece sits in running text like a word. */
+.club {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: baseline;
+}
+.club > .team-name {
+  align-self: baseline;
+}
+.banner-team .club {
+  gap: 10px;
+}
+.matchup-row .team-name,
+table.st td.team .team-name,
+table.ref td .team-name {
+  font-size: 0.84rem;
+  font-weight: 400;
+}
+.tbd {
+  color: color-mix(in srgb, var(--ink-dim) 55%, var(--card));
+  font-style: italic;
+  font-size: 0.88rem;
+}
+.nscore {
+  min-width: 1.5em;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 3px 6px 1px;
+  border-radius: 3px;
+  background: var(--divider);
+  position: relative;
+  top: -1px;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.46),
+    0 1px 0 rgba(241, 234, 212, 0.13);
+}
+/* An empty score keeps the height it has with a digit in it. */
+.nscore:empty::before {
+  content: "\00a0";
+}
+.nscore.lead {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+
+/* The rank numbers sit in their own column so they stay put while rows move. Each number takes
+   the same share of the height as its row, and a 1px pad and clear top edge match the list's
+   borders, so each one centers on its row. */
+.rank-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  margin-left: -6px;
+}
+.rank-numbers {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 24px;
+  margin: 0;
+  padding: 1px 0;
+  list-style: none;
+}
+.rank-numbers li {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--copper-ink);
+}
+.rank-numbers li + li {
+  border-top: 1px solid transparent;
+}
+.rank-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.rank-empty {
+  padding: 14px 16px;
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+/* The twelve rows share the list's height, and each row sizes its text to the height it gets. */
+.rank-item {
+  flex: 1 1 0;
+  min-height: 0;
+  container-type: size;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 2px;
+  padding-right: 14px;
+  background: var(--bg);
+}
+.rank-item + .rank-item {
+  border-top: 1px solid var(--divider);
+}
+.rank-item.dragging {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+.rank-item.drag-ghost {
+  opacity: 0.35;
+}
+.grip {
+  flex: none;
+  font: inherit;
+  background: none;
+  border: 0;
+  line-height: inherit;
+  color: color-mix(in srgb, var(--ink-dim) 62%, transparent);
+  font-size: 0.9rem;
+  letter-spacing: -2px;
+  cursor: grab;
+}
+.grip:hover {
+  color: var(--ink);
+}
+.grip:active {
+  cursor: grabbing;
+}
+.rank-item .grip {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+/* The list clips its rows, so the handle's focus ring sits inside it. */
+body.kbd .rank-item .grip:focus {
+  outline-offset: -2px;
+}
+/* Two lines: the club, then its league and World Series history. A row too short for two keeps the
+   club, league, and drought on one. */
+.rank-id {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "club club"
+    "league history";
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 5px;
+}
+.rank-id .club {
+  grid-area: club;
+}
+.rank-id .team-name {
+  font-size: 0.86rem;
+  line-height: 16px;
+}
+.rank-item .league-tag {
+  grid-area: league;
+  font-size: 0.6rem;
+}
+.rank-drought {
+  display: none;
+  grid-area: drought;
+  justify-self: end;
+  font-size: 0.68rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.rank-ws {
+  grid-area: history;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  line-height: 14px;
+  color: var(--ink-dim);
+}
+.rank-item .status-chip {
+  height: 19px;
+  padding: 0 7px;
+  font-size: 0.6rem;
+}
+@container (max-height: 47px) {
+  .rank-id {
+    row-gap: 2px;
+  }
+  .rank-id .team-name {
+    font-size: 0.82rem;
+    line-height: 15px;
+  }
+  .rank-ws {
+    font-size: 0.64rem;
+    line-height: 13px;
+  }
+}
+@container (max-height: 39px) {
+  .rank-id {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas: "club league drought";
+  }
+  .rank-ws {
+    display: none;
+  }
+  .rank-drought {
+    display: inline;
+  }
+  .rank-id .team-name {
+    font-size: 0.8rem;
+  }
+}
+
+.status-chip.alive {
+  background: color-mix(in srgb, var(--ink) 15%, transparent);
+  color: var(--ink);
+}
+.status-chip.out {
+  background: color-mix(in srgb, var(--out) 25%, transparent);
+  color: var(--out);
+}
+.status-chip.champ {
+  background: var(--gold);
+  color: var(--gold-ink);
+}
+/* The ranking section is exactly one sheet tall, less the pinned header, the gap above it, and
+   the bottom padding, so scrolling down to it shows all twelve rows at once. */
+.settings-ranking {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: calc(100cqh - var(--head-height) - var(--section-gap) - var(--bottom-padding));
+  scroll-snap-align: start;
+}
+.ranking-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ranking-heading h3 {
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.ranking-note {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+/* On a short sheet the note would squeeze each row to one line, so it gives way. */
+@container (max-height: 640px) {
+  .ranking-note {
+    display: none;
+  }
+}
+/* Wide screens show everything at once: the settings on the left, the ranking filling the right.
+   The ranking's heading gets its own grid row so the list can fill the rest; the settings start
+   level with that heading, under the header's line. */
+@media (min-width: 900px) {
+  .settings-panel {
+    width: min(920px, calc(100% - 48px));
+    max-width: none;
+    overflow: hidden;
+    scroll-snap-type: none;
+  }
+  .settings-body {
+    height: 100%;
+    display: grid;
+    grid-template-columns: 330px minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0;
+  }
+  .settings-body::before {
+    content: "";
+    grid-column: 2;
+    grid-row: 2 / 4;
+    border-left: 1px solid var(--divider);
+  }
+  .sheet-top {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    position: static;
+    box-shadow: 0 1px 0 var(--divider);
+  }
+  .settings-controls {
+    grid-column: 1;
+    grid-row: 2 / 4;
+    align-self: start;
+    margin-right: 24px;
+    border-top: 0;
+  }
+  .settings-ranking {
+    display: contents;
+  }
+  .ranking-heading {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 20px 0 8px 24px;
+  }
+  .rank-frame {
+    grid-column: 2;
+    grid-row: 3;
+    margin-left: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .matchup-panel[open] {
+    animation: none;
+  }
+}
+/* The matchup sheet: a modal on wide screens, and on phones a sheet from the bottom as tall as
+   its content, up to nearly the screen's height. */
+.matchup-panel {
+  width: calc(100% - 24px);
+  max-width: 440px;
+  max-height: calc(100% - 48px);
+  padding: 0;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+  overscroll-behavior: contain;
+}
+.matchup-panel::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+.matchup-sheet {
+  --head-height: 64px;
+  padding: 0 22px 22px;
+}
+.matchup-sheet .sheet-head h2 {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.sheet-note {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--ink-dim);
+  white-space: nowrap;
+}
+.matchup-body {
+  display: grid;
+  gap: 16px;
+  padding-top: 6px;
+}
+.faceoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.pitcher-id {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.pitcher-id.home {
+  align-items: flex-end;
+  text-align: right;
+}
+.pitcher-name {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.pitcher-id .club {
+  font-size: 0.66rem;
+  color: var(--ink-dim);
+  gap: 6px;
+}
+.pitcher-id .dot {
+  width: 10px;
+  height: 10px;
+}
+.pitcher-id.home .club {
+  flex-direction: row-reverse;
+}
+.pitcher-bio {
+  font-size: 0.6rem;
+  color: var(--ink-dim);
+}
+/* Each measure faces off across its label, the away starter's bar reaching left and the home
+   starter's right, gold for whoever ranks higher. */
+.tape {
+  display: grid;
+  gap: 10px;
+  padding-block: 12px;
+  border-block: 1px solid var(--divider);
+}
+.tape-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6.4em minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+}
+.tape-label {
+  font-size: 0.55rem;
+  line-height: 1.25;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-dim);
+}
+.tape-side {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.tape-side.away {
+  justify-items: end;
+}
+.tape-value {
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+.tape-bar {
+  position: relative;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--divider);
+}
+.tape-bar i {
+  position: absolute;
+  inset-block: 0;
+  border-radius: 3px;
+  background: var(--ink-dim);
+}
+.tape-side.away .tape-bar i {
+  right: 0;
+}
+.tape-side.home .tape-bar i {
+  left: 0;
+}
+.tape-bar i.lead {
+  background: var(--gold);
+}
+.tape-note {
+  margin: 0;
+  font-size: 0.56rem;
+  text-align: center;
+  color: var(--ink-dim);
+  text-wrap: balance;
+}
+.scout {
+  display: grid;
+  gap: 8px;
+}
+.scout h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+.scout h3 span {
+  font-size: 0.56rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+.scout h4 {
+  margin: 4px 0 0;
+  font-size: 0.56rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+.scout-read,
+.scout-note {
+  margin: 0;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--ink-mid);
+}
+.scout-note {
+  color: var(--ink-dim);
+}
+.recent-starts {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.62rem;
+  color: var(--ink-dim);
+}
+.recent-starts li {
+  display: grid;
+  grid-template-columns: 4.2em minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.recent-starts li > :last-child {
+  color: var(--ink-mid);
+}
+/* The chart's text is sized in its own units, so it scales with the chart's width. */
+.pitch-columns {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 4px;
+}
+.pitch-columns text {
+  font-size: 9px;
+  text-anchor: middle;
+  fill: var(--ink-dim);
+}
+.pitch-columns .speed-label {
+  font-size: 8px;
+  text-anchor: start;
+}
+.pitch-columns .speed-label.end {
+  text-anchor: end;
+}
+.pitch-columns .pitch-share {
+  fill: var(--ink-mid);
+}
+.pitch-columns .pitch-name {
+  font-size: 9.5px;
+  fill: var(--ink);
+}
+.speed-axis,
+.pitch-base {
+  stroke: var(--divider);
+}
+.speed-range {
+  stroke: var(--card-border);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.pitch-stem {
+  stroke: var(--card-border);
+  stroke-width: 1.5;
+}
+.pitch-bar,
+.pitch-dot {
+  fill: var(--pitch, var(--pitch-other));
+}
+.pitch-dot {
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.pitch-FF {
+  --pitch: var(--pitch-four-seam);
+}
+.pitch-SI {
+  --pitch: var(--pitch-sinker);
+}
+.pitch-FC {
+  --pitch: var(--pitch-cutter);
+}
+.pitch-SL {
+  --pitch: var(--pitch-slider);
+}
+.pitch-ST,
+.pitch-SV {
+  --pitch: var(--pitch-sweeper);
+}
+.pitch-CU,
+.pitch-KC,
+.pitch-CS {
+  --pitch: var(--pitch-curve);
+}
+.pitch-CH,
+.pitch-SC {
+  --pitch: var(--pitch-changeup);
+}
+.pitch-FS,
+.pitch-FO {
+  --pitch: var(--pitch-splitter);
+}
+
+table.ref {
+  max-width: 800px;
+}
+
+table.ref {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+table.ref th {
+  text-align: left;
+  font-weight: 400;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+  border-bottom: 1px solid var(--divider);
+  padding: 7px 0 4px 10px;
+}
+table.ref td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--divider);
+}
+table.ref th:first-child,
+table.ref td.rank-col {
+  width: 1%;
+  white-space: nowrap;
+}
+table.ref td.tabular {
+  font-size: 0.78rem;
+  color: var(--ink-dim);
+}
+table.ref td.seed-col {
+  width: 1%;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+table.ref td.seed-col,
+table.ref th.seed-col,
+table.ref td.lg-col,
+table.ref th.lg-col,
+table.ref td.won-col,
+table.ref th.won-col {
+  text-align: center;
+}
+table.ref th.seed-col,
+table.ref th.lg-col,
+table.ref th.won-col {
+  padding-right: 10px;
+}
+.league-tag.AL {
+  background: color-mix(in srgb, var(--al) 20%, transparent);
+  color: var(--al);
+}
+.league-tag.NL {
+  background: color-mix(in srgb, var(--nl) 20%, transparent);
+  color: var(--nl);
+}
+
+@media (max-width: 779px) {
+  .matchup-panel {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100% - 44px - env(safe-area-inset-top));
+    margin: auto 0 0;
+    border-width: 1px 0 0;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  }
+  .matchup-panel[open] {
+    animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .matchup-sheet {
+    --head-height: 63px;
+    padding: 0 18px max(22px, env(safe-area-inset-bottom));
+  }
+  .st-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .st-scroll table.st {
+    min-width: max-content;
+  }
+  .div-grid,
+  .field-grid {
+    gap: 15px;
+  }
+  .stand-head {
+    margin-bottom: 14px;
+  }
+
+  #view-reference {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-inline: -18px;
+    padding-inline: 18px;
+  }
+  /* Not max-content, which sums every column's longest run into thousands of pixels. */
+  #view-reference table.ref {
+    width: auto;
+    min-width: 100%;
+  }
+  #view-reference table.ref th,
+  #view-reference table.ref td {
+    white-space: nowrap;
+  }
+
+  .head-right {
+    display: contents;
+  }
+  header.top > div:first-child {
+    order: 1;
+  }
+  /* Here the button sits beside the title, not the stamp, so it keeps the header's own gap. */
+  .settings-btn {
+    order: 2;
+    margin-left: 0;
+  }
+  header.top {
+    row-gap: 10px;
+  }
+  .stamp-wrap {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .stamp {
+    flex: 1 1 auto;
+    align-items: flex-start;
+    text-align: left;
+    gap: 3px;
+  }
+
+  body {
+    padding-bottom: var(--tab-bar-clearance);
+  }
+  nav.tabs {
+    margin-bottom: 18px;
+  }
+  /* Without the banner the nav has nothing in the flow, so it steps aside. */
+  nav.tabs:has(> .banner[hidden]) {
+    display: contents;
+  }
+  nav.tabs:has(> .banner[hidden]) + .updates {
+    margin-top: 0;
+  }
+
+  .banner {
+    margin-left: 0;
+    margin-right: 0;
+    top: 0;
+    flex-basis: 100%;
+    padding-left: 0;
+  }
+  .banner::before {
+    display: none;
+  }
+}
