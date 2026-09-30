@@ -19,7 +19,7 @@ async function recordFixture(season, name) {
 
 const [season, name] = process.argv.slice(2);
 if (!season || !name) {
-  console.error("usage: node tests/fixtures/record.js <season> <name>");
+  console.error("usage: node apps/mlb/tests/fixtures/record.js <season> <name>");
   process.exit(1);
 }
 recordFixture(Number(season), name).catch((error) => {

@@ -3,21 +3,26 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { checkAppName, findAppRoot, listApps } from "./apps.mjs";
 import { buildWorker } from "./build.mjs";
 import { decideDeploy, listChangedFiles } from "./deploy-scope.mjs";
 
 const API = "https://api.cloudflare.com/client/v4";
 const root = new URL("../", import.meta.url);
-const readRepoFile = (path) => readFileSync(new URL(path, root), "utf8");
 
-export function readWorkerConfig(toml = readRepoFile("worker/wrangler.toml")) {
+/** @param {string} toml */
+export function readWorkerConfig(toml) {
   const readSetting = (key) => (toml.match(new RegExp(`^${key}\\s*=\\s*"([^"]+)"`, "m")) || [])[1];
   const name = readSetting("name");
   const compatibilityDate = readSetting("compatibility_date");
   if (!name || !compatibilityDate)
-    throw new Error("worker/wrangler.toml needs name and compatibility_date");
+    throw new Error("wrangler.toml needs name and compatibility_date");
   return { name, compatibilityDate };
 }
+
+/** @param {string} app */
+export const readAppWorkerConfig = (app) =>
+  readWorkerConfig(readFileSync(new URL("worker/wrangler.toml", findAppRoot(app)), "utf8"));
 
 const RELEASE_BRANCH = "main";
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/;
@@ -123,6 +128,7 @@ export function createCloudflareCaller({ fetchImpl, env, log }) {
 
 /**
  * @param {object} options
+ * @param {string} options.app The app whose Worker this is.
  * @param {string} options.script The bundled Worker to upload.
  * @param {string} [options.commit] The commit the bundle was built from, recorded on the version.
  * @param {(since: string) => string[] | null} [options.findChanges] Files changed since a commit.
@@ -133,6 +139,7 @@ export function createCloudflareCaller({ fetchImpl, env, log }) {
  * @returns {Promise<string | null>} the Worker's address, or null when nothing needed deploying
  */
 export async function deploy({
+  app,
   script,
   commit,
   findChanges = listChangedFiles,
@@ -142,7 +149,7 @@ export async function deploy({
   pause = waitFor,
 }) {
   const account = readAccount(env);
-  const { name, compatibilityDate } = readWorkerConfig();
+  const { name, compatibilityDate } = readAppWorkerConfig(app);
   const base = findWorkersApi(account);
   const callCloudflare = createCloudflareCaller({ fetchImpl, env, log });
 
@@ -177,7 +184,7 @@ export async function deploy({
   async function isDeployNeeded(previousVersions) {
     const liveCommit = previousVersions && (await readLiveCommit(previousVersions));
     if (!liveCommit) return true;
-    const { isNeeded, reason } = decideDeploy(findChanges(liveCommit));
+    const { isNeeded, reason } = decideDeploy(findChanges(liveCommit), app);
     log(isNeeded ? reason : `::notice::${reason}`);
     return isNeeded;
   }
@@ -303,6 +310,13 @@ async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor } = {
   return false;
 }
 
+// Each line names its app, after any GitHub annotation that has to start it.
+/** @param {string} app */
+const createAppLog = (app) => (message) => {
+  const [, annotation = "", text] = message.match(/^(::\w+::)?(.*)$/s);
+  console.log(`${annotation}${app}: ${text}`);
+};
+
 function readReleaseOrExit() {
   try {
     return checkRelease();
@@ -321,8 +335,16 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(0);
   }
   console.log(`Deploying ${RELEASE_BRANCH} at ${commit.slice(0, 7)}`);
-  deploy({ script: await buildWorker(), commit }).catch((error) => {
-    console.error(error.message);
-    process.exit(1);
-  });
+  const [named] = process.argv.slice(2);
+  let hasFailed = false;
+  // One app's failed deploy doesn't hold back the others; each puts its own earlier version back.
+  for (const app of named ? [checkAppName(named)] : listApps()) {
+    try {
+      await deploy({ app, script: await buildWorker(app), commit, log: createAppLog(app) });
+    } catch (error) {
+      console.error(`${app}: ${error instanceof Error ? error.message : error}`);
+      hasFailed = true;
+    }
+  }
+  if (hasFailed) process.exit(1);
 }

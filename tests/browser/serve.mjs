@@ -2,8 +2,14 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 
-const PAGE_ROOT = join(import.meta.dirname, "..", "..", "page");
-const PORT = Number(process.argv[2]) || 4173;
+// Serves one app's page folder, named from the repo's root.
+const [port, pageFolder] = process.argv.slice(2);
+if (!port || !pageFolder) {
+  console.error("usage: node tests/browser/serve.mjs <port> apps/<app>/page");
+  process.exit(1);
+}
+const PORT = Number(port);
+const PAGE_ROOT = join(import.meta.dirname, "..", "..", pageFolder);
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",

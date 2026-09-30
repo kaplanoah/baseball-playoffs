@@ -84,8 +84,10 @@ test("MLB failing is reported, and not remembered", async () => {
 });
 
 test("the deployable bundle builds and exports the Worker and its store", async () => {
-  const { buildWorker } = await import("../worker/build.mjs");
-  const bundle = await import(`data:text/javascript,${encodeURIComponent(await buildWorker())}`);
+  const { buildWorker } = await import("../../../worker/build.mjs");
+  const bundle = await import(
+    `data:text/javascript,${encodeURIComponent(await buildWorker("mlb"))}`
+  );
   assert.equal(typeof bundle.default.fetch, "function");
   assert.equal(typeof bundle.SeasonStore, "function");
 });
@@ -97,24 +99,26 @@ const requestVersion = (bundle) =>
   });
 
 test("the bundle serves the release it was built from", async () => {
-  const { buildWorker } = await import("../worker/build.mjs");
+  const { buildWorker } = await import("../../../worker/build.mjs");
   const release = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41.000Z" };
-  const response = await requestVersion(await importBundle(await buildWorker({ release })));
+  const response = await requestVersion(await importBundle(await buildWorker("mlb", { release })));
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("content-type"), "application/json");
   assert.deepEqual(await response.json(), release);
 });
 
 test("a bundle built without a release has no version file", async () => {
-  const { buildWorker } = await import("../worker/build.mjs");
-  const response = await requestVersion(await importBundle(await buildWorker({ release: null })));
+  const { buildWorker } = await import("../../../worker/build.mjs");
+  const response = await requestVersion(
+    await importBundle(await buildWorker("mlb", { release: null })),
+  );
   assert.equal(response.status, 404);
 });
 
 test("the release names the version, the commit, and when it was built", async () => {
-  const { readRelease } = await import("../worker/build.mjs");
+  const { readRelease } = await import("../../../worker/build.mjs");
   const git = (args) => (args[0] === "log" && args[1] === "-1" ? "b102733\n" : "");
-  assert.deepEqual(readRelease(git, new Date("2026-09-28T00:10:41Z")), {
+  assert.deepEqual(readRelease("mlb", git, new Date("2026-09-28T00:10:41Z")), {
     version: "2.12.2",
     commit: "b102733",
     builtAt: "2026-09-28T00:10:41.000Z",
@@ -122,8 +126,8 @@ test("the release names the version, the commit, and when it was built", async (
 });
 
 test("without git, the build has no release", async () => {
-  const { readRelease } = await import("../worker/build.mjs");
-  const release = readRelease(() => {
+  const { readRelease } = await import("../../../worker/build.mjs");
+  const release = readRelease("mlb", () => {
     throw new Error("not a git repository");
   });
   assert.equal(release, null);

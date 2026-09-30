@@ -5,19 +5,19 @@ import globals from "globals";
 const HAND_SEPARATOR = String.raw`/\u2022|\u00b7|&bull;|&middot;|&#8226;|&#183;/`;
 
 export default [
-  { ignores: [".claude/worktrees/", "worker/dist/", "page/js/sortable.min.js"] },
+  { ignores: [".claude/worktrees/", "apps/*/worker/dist/", "apps/*/page/js/sortable.min.js"] },
   js.configs.recommended,
   { rules: { "no-unused-vars": ["error", { ignoreRestSiblings: true }] } },
   { files: ["**/*.{js,mjs}"], languageOptions: { sourceType: "module", globals: globals.node } },
   {
-    files: ["page/js/**/*.js"],
+    files: ["apps/*/page/js/**/*.js"],
     languageOptions: { globals: { ...globals.browser, Sortable: "readonly" } },
   },
   {
     // Markup reaches the page only through setHtml, which escapes whatever html`` didn't build,
     // and lists of facts only through joinWithSeparator, so they all read the same way.
-    files: ["page/js/**/*.js"],
-    ignores: ["page/js/html.js"],
+    files: ["apps/*/page/js/**/*.js"],
+    ignores: ["apps/*/page/js/html.js"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -38,16 +38,16 @@ export default [
     },
   },
   {
-    files: ["page/sw.js"],
+    files: ["apps/*/page/sw.js"],
     languageOptions: { globals: globals.serviceworker },
   },
   {
-    files: ["worker/src/**/*.js"],
+    files: ["apps/*/worker/src/**/*.js"],
     languageOptions: { globals: { ...globals.serviceworker, WebSocketPair: "readonly" } },
   },
   {
     // Callbacks passed to page.evaluate run in the page.
-    files: ["tests/browser/*.mjs"],
+    files: ["apps/*/tests/browser/*.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 ];

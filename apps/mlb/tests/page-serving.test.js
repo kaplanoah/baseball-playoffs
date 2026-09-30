@@ -40,13 +40,16 @@ test("every response keeps the address out of search engines and referrers", asy
 test("the page's files are served with their types, and the icon as PNG bytes", async () => {
   const script = await requestPage("/k3y/js/worker-store.js");
   assert.equal(script.headers.get("content-type"), "text/javascript; charset=utf-8");
-  assert.equal(await script.text(), readFileSync("page/js/worker-store.js", "utf8"));
+  assert.equal(
+    await script.text(),
+    readFileSync(`${import.meta.dirname}/../page/js/worker-store.js`, "utf8"),
+  );
 
   const icon = await requestPage("/k3y/icon-180.png");
   assert.equal(icon.headers.get("content-type"), "image/png");
   const bytes = new Uint8Array(await icon.arrayBuffer());
   assert.deepEqual([...bytes.slice(0, 4)], PNG_SIGNATURE);
-  assert.equal(bytes.length, readFileSync("page/icon-180.png").length);
+  assert.equal(bytes.length, readFileSync(`${import.meta.dirname}/../page/icon-180.png`).length);
 
   const manifest = await (await requestPage("/k3y/manifest.webmanifest")).json();
   assert.equal(manifest.display, "standalone");

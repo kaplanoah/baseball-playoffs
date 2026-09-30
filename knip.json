@@ -1,14 +1,22 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "page/js/app.js",
-    "worker/src/index.js",
+    "apps/*/page/js/app.js",
+    "apps/*/worker/src/index.js",
     "worker/*.mjs",
-    "tests/**/*.test.js",
-    "tests/browser/*.spec.mjs",
+    "tests/*.test.js",
     "tests/browser/serve.mjs",
-    "tests/fixtures/record.js"
+    "apps/*/tests/*.test.js",
+    "apps/*/tests/browser/*.spec.mjs",
+    "apps/*/tests/fixtures/record.js"
   ],
-  "project": ["page/js/**/*.js", "worker/**/*.{js,mjs}", "tests/**/*.{js,mjs}", "*.mjs"],
-  "ignore": ["page/js/sortable.min.js"]
+  "project": [
+    "apps/*/page/js/**/*.js",
+    "apps/*/worker/**/*.{js,mjs}",
+    "apps/*/tests/**/*.{js,mjs}",
+    "worker/**/*.{js,mjs}",
+    "tests/**/*.{js,mjs}",
+    "*.mjs"
+  ],
+  "ignore": ["apps/*/page/js/sortable.min.js"]
 }
