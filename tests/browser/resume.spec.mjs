@@ -9,11 +9,15 @@ const MINUTE_MS = 60 * 1000;
  * @param {import("@playwright/test").Page} page
  */
 async function serveReleases(page) {
-  const served = { release: RELEASE, requests: 0 };
+  const served = { release: RELEASE, requests: 0, failures: 0 };
   await page.route(
     (url) => url.pathname === "/version.json",
     (route) => {
       served.requests++;
+      if (served.failures > 0) {
+        served.failures--;
+        return route.fulfill({ status: 503, body: "" });
+      }
       return route.fulfill({ json: served.release });
     },
   );
@@ -70,6 +74,21 @@ test("a page coming back stays as it is when nothing was deployed", async ({ pag
 
   await expect.poll(() => served.requests).toBe(2);
   expect(await isSameLoad(page)).toBe(true);
+});
+
+test("a page whose first release check failed still reloads for a later deploy", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  served.failures = 1;
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await comeBack(page);
+  await expect.poll(() => served.requests).toBe(3);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  await expectReload(page, () => comeBack(page));
 });
 
 test("a page asleep half an hour reloads when it wakes, even unannounced", async ({ page }) => {

@@ -14,8 +14,12 @@ export async function fetchRelease() {
   }
 }
 
-// The release this page was loaded from; a deploy since then serves a newer one.
+// The release this page was loaded from; a deploy since then serves a newer one. A failed read
+// isn't kept, so the next check tries again.
 export function loadRelease() {
-  loadedRelease ??= fetchRelease();
+  loadedRelease ??= fetchRelease().then((release) => {
+    if (!release) loadedRelease = null;
+    return release;
+  });
   return loadedRelease;
 }
