@@ -1,3 +1,4 @@
+import { isSameJson } from "./compare.js";
 import { composeLog } from "./readings.js";
 import { readEasternDay, hasKnownField } from "./snapshot.js";
 
@@ -33,6 +34,22 @@ export const session = {
 
 export const readSeasonYear = () => session.currentSeason;
 
+const countDecidedGames = (record) => (record ? record.winsA + record.winsB : -1);
+
+// The Worker saves the season and answers the page's live reads from separate trips to MLB, so
+// either can be the one that has seen a game end. A series only moves forward, so each keeps
+// whichever record has counted more of its games.
+function pickLatestSeries(doc, live) {
+  if (!isSameJson(doc.teams, live.teams)) return live.series;
+  const saved = doc.series || {};
+  return Object.fromEntries(
+    Object.entries(live.series).map(([id, record]) => [
+      id,
+      countDecidedGames(saved[id]) > countDecidedGames(record) ? saved[id] : record,
+    ]),
+  );
+}
+
 function overlayLiveSnapshot(doc) {
   const { live } = session;
   if (!live || live.season !== session.activeYear)
@@ -42,7 +59,7 @@ function overlayLiveSnapshot(doc) {
     since: new Date(Date.parse(live.asOf) - FRESH_FINAL_MS).toISOString(),
   };
   const field = hasKnownField(live)
-    ? { teams: live.teams, series: live.series, projected: live.projected }
+    ? { teams: live.teams, series: pickLatestSeries(doc, live), projected: live.projected }
     : {};
   return {
     ...doc,
