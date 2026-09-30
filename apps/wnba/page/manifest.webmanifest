@@ -1,6 +1,6 @@
 {
   "name": "WNBA Playoffs",
-  "short_name": "Playoffs",
+  "short_name": "WNBA",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

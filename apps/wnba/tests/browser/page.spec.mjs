@@ -56,6 +56,16 @@ test("the page offers a maple icon in light mode and a walnut one in dark mode",
   }
 });
 
+test("the home screen names the app WNBA", async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute(
+    "content",
+    "WNBA",
+  );
+  const manifest = await (await page.request.get("manifest.webmanifest")).json();
+  expect(manifest.short_name).toBe("WNBA");
+});
+
 test("the page uses its own fonts, served with it", async ({ page }) => {
   await openApp(page);
   // The bracket's wins are the first text in Barlow Condensed, so its font loads once they show.
