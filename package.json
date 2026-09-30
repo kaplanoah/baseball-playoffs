@@ -1,5 +1,5 @@
 {
-  "name": "baseball-playoffs",
+  "name": "mlb-app",
   "private": true,
   "type": "module",
   "imports": {
