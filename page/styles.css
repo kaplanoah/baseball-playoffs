@@ -755,9 +755,6 @@ table.st .seed-cell {
 .out-light.on {
   background: currentColor;
 }
-.game-status .doubleheader {
-  color: var(--gold);
-}
 .dot.unknown-club {
   background: var(--card-border);
 }

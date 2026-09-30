@@ -24,7 +24,7 @@ const PLAYOFF_FIELD_2026 = [
   "Phillies",
 ];
 
-test("the Games tab lists today's games and each club's previous and next game", async ({
+test("the Games tab lists today's games and every game on each club's previous and next date", async ({
   page,
 }) => {
   await openApp(page);
@@ -36,15 +36,13 @@ test("the Games tab lists today's games and each club's previous and next game",
 
   await page.getByRole("tab", { name: "Previous" }).click();
   await expect(shownGames).toHaveId("games-previous");
-  await expect(shownGames.locator(".game-row")).toHaveCount(15);
-  await expect(shownGames).toContainText("Game 2");
+  await expect(shownGames.locator(".game-row")).toHaveCount(16);
 
   await page.getByRole("tab", { name: "Previous" }).press("End");
   await expect(page.getByRole("tab", { name: "Next" })).toBeFocused();
   await expect(page.getByRole("tab", { name: "Next" })).toHaveAttribute("aria-selected", "true");
   await expect(shownGames).toHaveId("games-next");
-  await expect(shownGames.locator(".game-row")).toHaveCount(15);
-  await expect(shownGames.locator(".game-row").first()).toContainText("Game 1");
+  await expect(shownGames.locator(".game-row")).toHaveCount(17);
 });
 
 test("a game under way shows its outs as two lights beside the inning", async ({ page }) => {
@@ -278,18 +276,17 @@ test("the Games tab goes back to today's list when the page is opened again", as
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 });
 
-test("a doubleheader game's number is set apart from its status", async ({ page }) => {
+test("a doubleheader shows as two games on its date, with no game number", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Previous" }).click();
-  const status = page
-    .locator("#games-previous .game-status")
-    .filter({ has: page.locator(".doubleheader") })
-    .filter({ hasText: "Final" })
-    .first();
+  const doubleheader = page
+    .locator("#games-previous .game-row")
+    .filter({ hasText: "Blue Jays" })
+    .filter({ hasText: "Orioles" });
 
-  await expect(status).toHaveText(/^Final\s*\u2022\s*Game \d$/);
-  await expect(status.locator(".sep")).toHaveCount(1);
+  await expect(doubleheader).toHaveCount(2);
+  await expect(doubleheader.locator(".game-status")).toHaveText(["Final", "Final"]);
 });
 
 test("each day of games is closed by lines, with its date in open space above it", async ({

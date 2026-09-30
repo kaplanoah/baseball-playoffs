@@ -469,7 +469,8 @@ function summarizeGame(game) {
 
 const summarizeDatedGame = (game) => ({ date: game.date, ...summarizeGame(game) });
 
-// Each club's last game before `day` and first after it, each game listed once for both its clubs.
+// Every game on the dates of each club's last game before `day` and first after it, so a date
+// that shows at all shows all its games.
 // Postseason games list a club before its opponent is known, so one known club is enough.
 function listClubGames(games, day) {
   const counted = games.filter((game) => game.state !== "off" && hasClub(game));
@@ -479,17 +480,17 @@ function listClubGames(games, day) {
   const ahead = counted
     .filter((game) => game.state === "pre" && game.date > day)
     .sort(compareScheduleOrder);
-  const previous = new Set();
-  const next = new Set();
+  const previousDates = new Set();
+  const nextDates = new Set();
   for (const club of Object.values(MLB_TEAM)) {
     const last = played.filter((game) => isPlayedBy(game, club)).pop();
     const first = ahead.find((game) => isPlayedBy(game, club));
-    if (last) previous.add(last);
-    if (first) next.add(first);
+    if (last) previousDates.add(last.date);
+    if (first) nextDates.add(first.date);
   }
-  const listInOrder = (clubGames) =>
-    [...clubGames].sort(compareScheduleOrder).map(summarizeDatedGame);
-  return { previous: listInOrder(previous), next: listInOrder(next) };
+  const listGamesOn = (clubGames, dates) =>
+    clubGames.filter((game) => dates.has(game.date)).map(summarizeDatedGame);
+  return { previous: listGamesOn(played, previousDates), next: listGamesOn(ahead, nextDates) };
 }
 
 const NIGHT_END_HOUR = 6;
