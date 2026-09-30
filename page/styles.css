@@ -290,7 +290,9 @@ section.view.active {
 .field-grid {
   align-items: start;
 }
-@media (min-width: 780px) {
+/* Side by side, a table is too narrow for a game under way in its Next column until the page is
+   this wide. */
+@media (min-width: 1400px) {
   .div-grid,
   .field-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -433,6 +435,14 @@ table.st tr.eliminated td.next-cell {
   text-align: left;
   font-size: 0.7rem;
   color: var(--ink-mid);
+}
+table.st tr.alive td.next-cell.live,
+table.st tr.eliminated td.next-cell.live {
+  color: var(--copper-ink);
+}
+table.st tr.alive td.next-cell.delayed,
+table.st tr.eliminated td.next-cell.delayed {
+  color: var(--gold);
 }
 table.st tr.cut td,
 table.st tr.group-end td {

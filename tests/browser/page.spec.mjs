@@ -890,6 +890,45 @@ test("standings open on each league's playoff field, and every table lines up", 
   expect(new Set(await readHeights("#standingsWrap .div-title")).size).toBe(1);
 });
 
+test("the standings show each club's game under way, and a delay in gold", async ({ page }) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const delayedGame = snapshot.slate.today.games.find((game) => game.home === "BOS");
+  delayedGame.delay = "Delayed: Rain";
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const cells = page.locator("#standingsWrap td.next-cell");
+
+  const leading = cells.filter({ hasText: /^Up 3 @ NYY in the 6th$/ });
+  await expect(leading).not.toHaveCount(0);
+  await expect(leading.first()).toHaveCSS("color", await readColor(page, "--copper-ink"));
+  await expect(cells.filter({ hasText: /^Down 3 vs TB in the 6th$/ })).not.toHaveCount(0);
+  const delayed = cells.filter({ hasText: /^Down 1 vs CLE \u2014 Delayed: Rain$/ });
+  await expect(delayed).not.toHaveCount(0);
+  await expect(delayed.first()).toHaveCSS("color", GOLD);
+});
+
+test("the leagues' standings sit side by side only when a game under way fits", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const fields = page.locator("#standingsWrap .field-grid .div-block");
+  const readTops = () =>
+    fields.evaluateAll((blocks) => blocks.map((block) => block.getBoundingClientRect().top));
+
+  await expect.poll(async () => new Set(await readTops()).size).toBe(1);
+  const liveCells = page.locator("#standingsWrap td.next-cell.live");
+  await expect(liveCells).not.toHaveCount(0);
+  const clippedCount = await liveCells.evaluateAll(
+    (cells) => cells.filter((cell) => cell.scrollWidth > cell.clientWidth).length,
+  );
+  expect(clippedCount).toBe(0);
+
+  await page.setViewportSize({ width: 1399, height: 900 });
+  await expect.poll(async () => new Set(await readTops()).size).toBe(2);
+});
+
 test("says when live scores can't be reached, and tries again", async ({ page }) => {
   const app = await openApp(page, { liveAvailable: false });
 

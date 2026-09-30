@@ -393,6 +393,112 @@ test("Next column: a game that has started gives way to the one after it", () =>
     assert.equal(renderCell({ next: today }), '<td class="next-cell">&mdash;</td>');
   }));
 
+const MORNING_START = "2026-09-24T15:05:00Z"; // 11:05 AM ET, before NOON
+
+function renderCellDuring(slateGames, row = {}, options = {}) {
+  session.state = { teams: {}, slate: { today: { date: "2026-09-24", games: slateGames } } };
+  return checkAt(NOON, () =>
+    normalizeSpaces(renderNextCell({ id: "DET", ...row }, options)).replace(/&mdash;/g, "--"),
+  );
+}
+
+test("Next column: a game under way reads as the club up, down or tied, and the inning", () => {
+  const game = { away: "DET", home: "CLE", state: "live", start: MORNING_START, inning: 5 };
+  assert.equal(
+    renderCellDuring([{ ...game, score: [2, 4] }]),
+    '<td class="next-cell live">Down 2 @ CLE in the 5th</td>',
+  );
+  assert.equal(
+    renderCellDuring([{ ...game, away: "CLE", home: "DET", score: [2, 4] }]),
+    '<td class="next-cell live">Up 2 vs CLE in the 5th</td>',
+  );
+  assert.equal(
+    renderCellDuring([{ ...game, score: [0, 0], inning: 1 }]),
+    '<td class="next-cell live">Tied @ CLE in the 1st</td>',
+  );
+});
+
+test("Next column: a game under way shows in place of the club's next game", () => {
+  const friday = { at: "2026-09-25T17:05:00Z", home: false, opp: "BOS" };
+  const game = { away: "DET", home: "CLE", state: "live", start: MORNING_START, inning: 7 };
+  assert.equal(
+    renderCellDuring([{ ...game, score: [3, 2] }], { next: friday }),
+    '<td class="next-cell live">Up 1 @ CLE in the 7th</td>',
+  );
+  assert.equal(
+    renderCellDuring([{ ...game, state: "final", score: [3, 2] }], { next: friday }),
+    '<td class="next-cell">Fri 1:05 @ BOS</td>',
+  );
+});
+
+test("Next column: a delay reads after the score", () =>
+  assert.equal(
+    renderCellDuring([
+      {
+        away: "HOU",
+        home: "DET",
+        state: "live",
+        start: MORNING_START,
+        score: [1, 3],
+        inning: 6,
+        delay: "Delayed: Rain",
+      },
+    ]),
+    '<td class="next-cell live delayed">Up 2 vs HOU -- Delayed: Rain</td>',
+  ));
+
+test("Next column: before first pitch, a game past its start reads as warmup", () => {
+  const game = { away: "DET", home: "BAL", state: "pre" };
+  assert.equal(
+    renderCellDuring([{ ...game, start: MORNING_START }]),
+    '<td class="next-cell live">Warmup @ BAL</td>',
+  );
+  assert.equal(
+    renderCellDuring([{ ...game, start: "2026-09-24T17:05:00Z" }], {
+      next: { at: "2026-09-24T17:05:00Z", home: false, opp: "BAL" },
+    }),
+    '<td class="next-cell">Today 1:05 @ BAL</td>',
+  );
+  assert.equal(
+    renderCellDuring([{ ...game, start: MORNING_START, tbd: true }]),
+    '<td class="next-cell">--</td>',
+  );
+});
+
+test("Next column: a delayed start shows before the scheduled time comes", () =>
+  assert.equal(
+    renderCellDuring([
+      {
+        away: "DET",
+        home: "BAL",
+        state: "pre",
+        start: "2026-09-24T17:05:00Z",
+        delay: "Delayed: Rain",
+      },
+    ]),
+    '<td class="next-cell live delayed">Today @ BAL -- Delayed: Rain</td>',
+  ));
+
+test("Next column: in a doubleheader, the game under way counts, not the one that's over", () => {
+  const game = { away: "DET", home: "CLE", start: MORNING_START };
+  assert.equal(
+    renderCellDuring([
+      { ...game, state: "final", score: [5, 1] },
+      { ...game, state: "live", score: [0, 1], inning: 2, doubleheader: 2 },
+    ]),
+    '<td class="next-cell live">Down 1 @ CLE in the 2nd</td>',
+  );
+});
+
+test("Next column: a club that's out shows only a postseason game under way", () => {
+  const game = { away: "DET", home: "CLE", state: "live", start: MORNING_START, score: [2, 4] };
+  assert.equal(renderCellDuring([game], {}, { isOut: true }), '<td class="next-cell">--</td>');
+  assert.equal(
+    renderCellDuring([{ ...game, inning: 9, postseason: true }], {}, { isOut: true }),
+    '<td class="next-cell live">Down 2 @ CLE in the 9th</td>',
+  );
+});
+
 test("division header: a magic number only when there is a number", () => {
   const renderHead = (leader) =>
     String(renderDivisionBlock("AL Central", [{ id: "CLE", lead: true, ...leader }]));

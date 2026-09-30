@@ -275,6 +275,15 @@ test("halfway: a decided series' unneeded game isn't in the list of next games",
   assert.ok(slate.previous.some((game) => game.home === "LAD" && game.away === "CIN"));
 });
 
+test("the slate marks a postseason game, and only a postseason game", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-10-08T12:00:00Z");
+  fixture.responses.schedule = { dates: [] };
+  const { slate } = buildSnapshot(fixture, Date.parse("2025-10-08T14:00:00Z"));
+  const isMarked = (game) => "postseason" in game && game.postseason === true;
+  assert.ok(slate.previous.length && slate.previous.every(isMarked));
+  assert.ok(buildSnapshot(EVENING).slate.today.games.every((game) => !("postseason" in game)));
+});
+
 test("2025: no club has a next game once the postseason is over", () => {
   const rows = Object.values(indexStandingsRows(buildSnapshot(SEASON_2025)));
   assert.ok(rows.every((row) => !row.next && !row.then));
