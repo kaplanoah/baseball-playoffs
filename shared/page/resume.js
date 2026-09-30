@@ -3,7 +3,6 @@
 // replaced it, or when it has been away long enough that what it shows can't be trusted.
 
 import { fetchRelease, loadRelease } from "./release.js";
-import { session } from "./session.js";
 
 const LONG_AWAY_MS = 30 * 60 * 1000;
 // Timers stop while a phone suspends the page, so a tick this late means the page was asleep,
@@ -14,6 +13,8 @@ const ASLEEP_MS = 60 * 1000;
 let activeAt = Date.now();
 let isCheckingRelease = false;
 let isReloadPending = false;
+/** @type {() => boolean} */
+let isBusy = () => false;
 
 /**
  * @param {import("./release.js").Release | null} loaded
@@ -21,9 +22,10 @@ let isReloadPending = false;
  */
 const isReplaced = (loaded, current) => !!loaded && !!current && loaded.commit !== current.commit;
 
-// A reload mid-drag would drop the ranking card, so it waits for the first tick after the drag.
+// A reload while the app is busy, as mid-drag, would drop what's under way, so it waits for the
+// first tick after.
 function reloadPage() {
-  if (session.isReordering) isReloadPending = true;
+  if (isBusy()) isReloadPending = true;
   else location.reload();
 }
 
@@ -54,7 +56,9 @@ function tick() {
 }
 
 // iOS doesn't always report a home-screen page coming back, so every sign of it counts.
-export function watchReturns() {
+/** @param {{ isBusy?: () => boolean }} [options] */
+export function watchReturns(options = {}) {
+  isBusy = options.isBusy ?? isBusy;
   loadRelease();
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) activeAt = Date.now();

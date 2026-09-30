@@ -8,7 +8,7 @@ import {
 } from "./clubs.js";
 import { countDaysBetween, readGameDay } from "./dates.js";
 import { describeInning, renderOutLights } from "./games-view.js";
-import { html, joinWithSeparator, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { session } from "./session.js";
 
 const findRank = (id) => {

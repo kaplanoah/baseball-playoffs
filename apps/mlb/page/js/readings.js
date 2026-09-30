@@ -1,5 +1,5 @@
 import * as LogChanges from "./changes.js";
-import { isSameJson } from "./compare.js";
+import { isSameJson } from "#shared/compare.js";
 import { readEasternDay } from "./snapshot.js";
 
 // Updates are rebuilt from these readings every time, so a fix to how changes.js finds them

@@ -10,6 +10,9 @@ if (!port || !pageFolder) {
 }
 const PORT = Number(port);
 const PAGE_ROOT = join(import.meta.dirname, "..", "..", pageFolder);
+// The Worker serves the shared page modules under shared/, where the import map points #shared/.
+const SHARED_ROOT = join(import.meta.dirname, "..", "..", "shared", "page");
+const SHARED_PREFIX = "/shared/";
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -22,6 +25,8 @@ const CONTENT_TYPES = {
 function resolveFilePath(requestUrl) {
   const { pathname } = new URL(requestUrl, "http://localhost");
   const requestPath = normalize(decodeURIComponent(pathname));
+  if (requestPath.startsWith(SHARED_PREFIX))
+    return join(SHARED_ROOT, requestPath.slice(SHARED_PREFIX.length));
   return join(PAGE_ROOT, requestPath.endsWith("/") ? `${requestPath}index.html` : requestPath);
 }
 

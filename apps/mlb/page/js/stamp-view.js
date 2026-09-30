@@ -1,5 +1,5 @@
 import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
-import { html, setHtml } from "./html.js";
+import { html, setHtml } from "#shared/html.js";
 import { findStandingsRow } from "./race.js";
 import { session } from "./session.js";
 import {

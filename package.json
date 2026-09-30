@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#page-files/*": "./apps/*/worker/page-files.mjs"
+    "#page-files/*": "./apps/*/worker/page-files.mjs",
+    "#shared/*": "./shared/page/*"
   },
   "description": "Postseason tracker pages for sports leagues, and the Cloudflare Workers that serve them. No runtime dependencies; dev tools only.",
   "license": "MIT",

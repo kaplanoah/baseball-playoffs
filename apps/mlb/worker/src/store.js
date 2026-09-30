@@ -1,7 +1,7 @@
 import { choosePollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
 import { findNotableUpdates, listNotifications } from "./notifications.js";
-import { createPushService } from "./push.js";
-import { describeError, respondError, respondJson } from "./responses.js";
+import { createPushService } from "../../../../shared/worker/push.js";
+import { describeError, respondError, respondJson } from "../../../../shared/worker/responses.js";
 import * as SeasonUpdater from "./season-updater.js";
 import { createSnapshotServer } from "./snapshot.js";
 

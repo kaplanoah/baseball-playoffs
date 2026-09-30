@@ -1,4 +1,4 @@
-import { isSameJson } from "./compare.js";
+import { isSameJson } from "#shared/compare.js";
 import { composeLog } from "./readings.js";
 import { readEasternDay, hasKnownField } from "./snapshot.js";
 

@@ -1,14 +1,14 @@
 import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { wireGameTabs } from "./games-view.js";
-import { html, setHtml } from "./html.js";
-import { readLastTab, saveLastTab } from "./last-tab.js";
+import { html, setHtml } from "#shared/html.js";
+import { readLastTab, saveLastTab } from "#shared/last-tab.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
-import { startNotifications } from "./notifications.js";
+import { startNotifications } from "#shared/notifications.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
-import { watchReturns } from "./resume.js";
+import { watchReturns } from "#shared/resume.js";
 import {
   applyDeferredSeason,
   loadReadings,
@@ -25,12 +25,12 @@ import { hasSpringStarted, session, readSeasonYear } from "./session.js";
 import { readEasternDay } from "./snapshot.js";
 import { startSettings } from "./settings.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
-import { scrollToTop } from "./scroll-to-top.js";
+import { scrollToTop } from "#shared/scroll-to-top.js";
 import { renderStandings } from "./standings.js";
-import { moveTabSelection, startTabBar } from "./tab-bar.js";
-import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
+import { moveTabSelection, startTabBar } from "#shared/tab-bar.js";
+import { readSelectedTab, selectTab, wireTabs } from "#shared/tabs.js";
 import { renderUpdates } from "./updates.js";
-import { createWorkerStore } from "./worker-store.js";
+import { createWorkerStore } from "#shared/worker-store.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
 const SPRING_CHECK_MS = 60 * 60 * 1000;
@@ -200,7 +200,7 @@ function refreshClockEveryMinute() {
 }
 
 async function boot() {
-  watchReturns();
+  watchReturns({ isBusy: () => session.isReordering });
   trackKeyboardFocus();
   wireControls();
   session.db = createWorkerStore();

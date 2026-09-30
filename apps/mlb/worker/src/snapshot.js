@@ -1,5 +1,5 @@
 import * as MLBSnapshot from "../../page/js/snapshot.js";
-import { describeError, respondJson } from "./responses.js";
+import { describeError, respondJson } from "../../../../shared/worker/responses.js";
 
 const FIRST_SEASON = 1995;
 const LAST_SEASON = 2100;

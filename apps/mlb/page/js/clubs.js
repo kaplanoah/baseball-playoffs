@@ -1,6 +1,6 @@
 import { TEAMS } from "./teams.js";
 import { buildBracket } from "./bracket.js";
-import { html } from "./html.js";
+import { html } from "#shared/html.js";
 import { session, readSeasonYear } from "./session.js";
 
 export function findLastTitle(id) {

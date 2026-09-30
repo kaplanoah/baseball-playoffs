@@ -1,7 +1,7 @@
 import { listRankedOrder, renderRankTag, renderTeamTag } from "./clubs.js";
 import { DAYS, countDaysBetween, readGameDay } from "./dates.js";
-import { html, setHtml } from "./html.js";
-import { formatOrdinal } from "./ordinal.js";
+import { html, setHtml } from "#shared/html.js";
+import { formatOrdinal } from "#shared/ordinal.js";
 import { session } from "./session.js";
 
 const DIVISION_ORDER = ["AL East", "AL Central", "AL West", "NL East", "NL Central", "NL West"];
