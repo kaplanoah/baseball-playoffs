@@ -13,6 +13,7 @@ const ASLEEP_MS = 60 * 1000;
 
 let activeAt = Date.now();
 let isCheckingRelease = false;
+let isReloadPending = false;
 
 /**
  * @param {import("./release.js").Release | null} loaded
@@ -20,9 +21,10 @@ let isCheckingRelease = false;
  */
 const isReplaced = (loaded, current) => !!loaded && !!current && loaded.commit !== current.commit;
 
-// A reload mid-drag would drop the ranking card.
+// A reload mid-drag would drop the ranking card, so it waits for the first tick after the drag.
 function reloadPage() {
-  if (!session.isReordering) location.reload();
+  if (session.isReordering) isReloadPending = true;
+  else location.reload();
 }
 
 export async function reloadIfReplaced() {
@@ -36,20 +38,18 @@ export async function reloadIfReplaced() {
   }
 }
 
-// A long absence stays on record through a drag, so the next tick after it reloads.
 function catchUpOnReturn() {
   if (document.hidden) return;
-  if (Date.now() - activeAt >= LONG_AWAY_MS) {
-    reloadPage();
-    return;
-  }
+  const awayMs = Date.now() - activeAt;
   activeAt = Date.now();
-  reloadIfReplaced();
+  if (awayMs >= LONG_AWAY_MS) reloadPage();
+  else reloadIfReplaced();
 }
 
 function tick() {
   if (document.hidden) return;
-  if (Date.now() - activeAt >= ASLEEP_MS) catchUpOnReturn();
+  if (isReloadPending) reloadPage();
+  else if (Date.now() - activeAt >= ASLEEP_MS) catchUpOnReturn();
   else activeAt = Date.now();
 }
 

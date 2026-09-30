@@ -125,21 +125,47 @@ test("live scores the page can't read reload it once a newer release is out", as
   expect(app.countSnapshotRequests()).toBeGreaterThan(requestsBefore);
 });
 
+/**
+ * Picks up the first ranking card and holds it partway down the list.
+ * @param {import("@playwright/test").Page} page
+ */
+async function startDrag(page) {
+  await openSettings(page);
+  const box = await page.locator("#rankList .grip").first().boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 3, { steps: 5 });
+}
+
 test("a page that wakes mid-drag after half an hour reloads once the drag ends", async ({
   page,
 }) => {
   await serveReleases(page);
   const app = await openApp(page);
   await expect.poll(() => app.countSnapshotRequests()).toBe(1);
-  await openSettings(page);
-  const grip = page.locator("#rankList .grip").first();
-  const box = await grip.boundingBox();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height * 3, { steps: 5 });
+  await startDrag(page);
   await markPage(page);
 
   await sleepUnannounced(page, 31);
+  expect(await isSameLoad(page)).toBe(true);
+
+  await expectReload(page, async () => {
+    await page.mouse.up();
+    await page.clock.runFor(15 * 1000);
+  });
+});
+
+test("a deploy found mid-drag reloads the page once the drag ends", async ({ page }) => {
+  const served = await serveReleases(page);
+  const app = await openApp(page);
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => served.requests).toBe(1);
+  await startDrag(page);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  await comeBack(page);
+  await expect.poll(() => served.requests).toBe(2);
   expect(await isSameLoad(page)).toBe(true);
 
   await expectReload(page, async () => {
