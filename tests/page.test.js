@@ -818,8 +818,8 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Fri, Sep 25",
-    "Orioles 4 - 2 Final &bull; Game 1 Yankees",
-    "Orioles After Game 1 Game 2 Yankees",
+    "Orioles 4 - 2 Final Yankees",
+    "Orioles After 1st game Yankees",
     "Blue Jays Postponed Orioles",
     "Guardians 1 - 0 Bot 7th Red Sox",
   ]);
