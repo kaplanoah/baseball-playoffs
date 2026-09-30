@@ -1,4 +1,4 @@
-// An app's page files as its Worker serves them, with the shared page modules under shared/,
+// An app's page files as its Worker serves them, with the shared page files under shared/,
 // where the page's import map points #shared/. Node reads them from disk through the app's
 // #page-files/<app> import; the Worker bundle gets the same data embedded by worker/build.mjs.
 import { readdirSync, readFileSync } from "node:fs";

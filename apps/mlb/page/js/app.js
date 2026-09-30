@@ -2,6 +2,7 @@ import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "#shared/html.js";
+import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { readLastTab, saveLastTab } from "#shared/last-tab.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
@@ -34,20 +35,6 @@ import { createWorkerStore } from "#shared/worker-store.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
 const SPRING_CHECK_MS = 60 * 60 * 1000;
-
-// Browsers treat any keydown as keyboard navigation, so Shift alone would ring the last-clicked element.
-const NAV_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
-
-function trackKeyboardFocus() {
-  addEventListener(
-    "keydown",
-    (event) => {
-      if (NAV_KEYS.has(event.key)) document.body.classList.add("kbd");
-    },
-    true,
-  );
-  addEventListener("pointerdown", () => document.body.classList.remove("kbd"), true);
-}
 
 const findYearPicker = () => /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
 

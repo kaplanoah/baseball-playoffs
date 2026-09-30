@@ -10,7 +10,7 @@ if (!port || !pageFolder) {
 }
 const PORT = Number(port);
 const PAGE_ROOT = join(import.meta.dirname, "..", "..", pageFolder);
-// The Worker serves the shared page modules under shared/, where the import map points #shared/.
+// The Worker serves the shared page files under shared/, where the import map points #shared/.
 const SHARED_ROOT = join(import.meta.dirname, "..", "..", "shared", "page");
 const SHARED_PREFIX = "/shared/";
 const CONTENT_TYPES = {
