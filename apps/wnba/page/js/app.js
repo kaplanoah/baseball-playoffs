@@ -10,6 +10,7 @@ import { readSelectedTab, selectTab, wireTabs } from "#shared/tabs.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { renderBracket } from "./bracket-view.js";
 import { renderGames } from "./games-view.js";
+import { matchHomeScreenIcon } from "./home-screen-icon.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStamp } from "./stamp.js";
@@ -78,6 +79,7 @@ function startTabs() {
 }
 
 async function boot() {
+  matchHomeScreenIcon();
   watchReturns();
   trackKeyboardFocus();
   startTabs();
