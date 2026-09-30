@@ -741,7 +741,7 @@ table.st .seed-cell {
   background: var(--card);
   border-radius: 6px;
   padding: 10px 22px 10px 13px;
-  margin: 0 0 28px;
+  margin: 0 0 18px;
   max-width: 900px;
 }
 nav.tabs + .updates {
@@ -1110,6 +1110,10 @@ table.ref td .team-name {
   box-shadow:
     inset 0 2px 3px rgba(0, 0, 0, 0.46),
     0 1px 0 rgba(241, 234, 212, 0.13);
+}
+/* An empty score keeps the height it has with a digit in it. */
+.nscore:empty::before {
+  content: "\00a0";
 }
 .nscore.lead {
   background: var(--gold);
