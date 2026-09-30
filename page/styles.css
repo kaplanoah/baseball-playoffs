@@ -718,6 +718,10 @@ table.st .seed-cell {
 .game-status:empty::before {
   content: "\00a0";
 }
+/* Both lines share the one column, or the spanning time pushes the status into a second one. */
+.game-middle > * {
+  grid-column: 1;
+}
 .game-middle:has(> .game-status:empty) > :first-child {
   grid-row: 1 / -1;
   align-self: center;

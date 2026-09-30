@@ -313,14 +313,21 @@ test("each day of games is closed by lines, with its date in open space above it
   expect(secondDay.y - (secondDate.y + secondDate.height)).toBe(8);
 });
 
-test("a game still to come shows its start time centered in its row", async ({ page }) => {
+test("a game still to come shows its start time centered in its row, under the Today tab", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const row = page.locator("#games-today .game-row.pre").first();
   const rowBox = await row.boundingBox();
   const timeBox = await row.locator(".game-time").boundingBox();
+  const todayBox = await page.getByRole("tab", { name: "Today" }).boundingBox();
+  const findCenterX = (box) => box.x + box.width / 2;
 
   expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
+  expect(Math.abs(findCenterX(timeBox) - findCenterX(rowBox))).toBeLessThan(1);
+  expect(Math.abs(findCenterX(timeBox) - findCenterX(todayBox))).toBeLessThan(1);
 });
 
 test("a game still to come is as tall as a finished one", async ({ page }) => {
