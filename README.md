@@ -7,9 +7,10 @@ app is its own page and Cloudflare Worker, in its own folder under `apps/`, and
 they share code in `shared/` and the tooling that builds, tests, and deploys
 them.
 
-| App            | Folder      | Worker     |
-| -------------- | ----------- | ---------- |
-| MLB Postseason | `apps/mlb/` | `mlb-live` |
+| App            | Folder       | Worker     |
+| -------------- | ------------ | ---------- |
+| MLB Postseason | `apps/mlb/`  | `mlb-live` |
+| WNBA Playoffs  | `apps/wnba/` | `wnba-app` |
 
 ### MLB Postseason
 
@@ -23,6 +24,18 @@ on its own, every 30 seconds during games, so the standings and updates stay
 current even with the page closed. Saved to an iPhone's home screen, the page
 opens full screen like an app, and can send a notification when something
 happens to a team in your ranking.
+
+### WNBA Playoffs
+
+A private web page that tracks the WNBA playoffs. It shows the bracket, every
+game with live scores and clocks, the league and conference standings with the
+playoff line, and how far each team got. It follows the phone's dark or light
+setting.
+
+A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
+every 30 seconds during games. Saved to an iPhone's home screen, the page opens
+full screen like an app, and can send a notification with the score when any
+playoff game ends.
 
 ## Setup (for humans)
 
@@ -43,7 +56,7 @@ takes about ten minutes.
 through the Cloudflare part.
 
 Running the page doesn't cost anything. It runs on Cloudflare's free tier, and
-the scores come from MLB's free public API. Keeping it updated doesn't use
+the scores come from the leagues' free public feeds. Keeping it updated doesn't use
 Claude.
 
 ## Setup (for Claude Code)
@@ -53,7 +66,7 @@ until they say it's done, then go on. Don't ask them to make choices you can
 make for them. Never ask for the Cloudflare token in the chat.
 
 Set up the app they asked for, by its folder under `apps/`: `mlb` for the MLB
-postseason tracker. Below, `<app>` is that folder, and `<worker>` is the `name`
+postseason tracker, `wnba` for the WNBA playoffs tracker. Below, `<app>` is that folder, and `<worker>` is the `name`
 in its `apps/<app>/worker/wrangler.toml`.
 
 **1. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
@@ -167,8 +180,9 @@ app's bundle to its `apps/<app>/worker/dist/`, which git ignores, if you want to
 look at it. The bundle records its version, the commit it was built from, and
 when, and the page's settings show them.
 
-Code every app uses lives in `shared/`: the page's tab bar, reload on return,
-and store client in `shared/page/`, and the Worker's routing and push
+Code every app uses lives in `shared/`: the page's tab bar and settings sheet
+(their styles in `chrome.css`), reload on return, and store client in
+`shared/page/`, and the Worker's routing and push
 notifications in `shared/worker/`. A change there reaches every app. The root
 `worker/` holds the tooling every app shares: building, versioning, deploying,
 and setting the page's key. Tests for shared code and tooling are in the root

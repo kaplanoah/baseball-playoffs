@@ -10,7 +10,7 @@ if (!port || !pageFolder) {
 }
 const PORT = Number(port);
 const PAGE_ROOT = join(import.meta.dirname, "..", "..", pageFolder);
-// The Worker serves the shared page modules under shared/, where the import map points #shared/.
+// The Worker serves the shared page files under shared/, where the import map points #shared/.
 const SHARED_ROOT = join(import.meta.dirname, "..", "..", "shared", "page");
 const SHARED_PREFIX = "/shared/";
 const CONTENT_TYPES = {
@@ -20,6 +20,8 @@ const CONTENT_TYPES = {
   ".json": "application/json",
   ".svg": "image/svg+xml",
   ".png": "image/png",
+  ".woff2": "font/woff2",
+  ".txt": "text/plain; charset=utf-8",
 };
 
 function resolveFilePath(requestUrl) {

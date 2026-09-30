@@ -8,8 +8,8 @@ import {
   renderStampWhen,
   formatStampDay,
 } from "../page/js/stamp.js";
-import { normalizeSpaces } from "./text.js";
-import { EASTERN, useTimeZone } from "./time-zone.js";
+import { normalizeSpaces } from "../../../tests/text.js";
+import { EASTERN, useTimeZone } from "../../../tests/time-zone.js";
 
 // The expected times below are what a viewer in Eastern time sees.
 useTimeZone(EASTERN);

@@ -54,3 +54,13 @@ test("a store waits as long as its league says before the next update", async ()
 
   assert.equal(await context.ctx.storage.getAlarm(), now + 60_000);
 });
+
+test("a store whose league's page saves nothing refuses every change", async () => {
+  const SeasonStore = createSeasonStore({ ...QUIET_LEAGUE, pageFields: {} });
+  const store = new SeasonStore(createDurableObjectContext().ctx, {});
+
+  const refused = await patchSeason(store, { seenAt: "2026-09-30T20:00:00Z" });
+
+  assert.equal(refused.status, 403);
+  assert.equal((await refused.json()).error.message, "The page saves nothing here.");
+});

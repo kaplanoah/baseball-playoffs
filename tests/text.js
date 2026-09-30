@@ -1,4 +1,4 @@
-import { Markup } from "../../../shared/page/html.js";
+import { Markup } from "../shared/page/html.js";
 
 const readText = (value) => (value instanceof Markup ? value.text : value);
 

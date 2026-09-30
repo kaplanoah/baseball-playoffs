@@ -129,6 +129,8 @@ export const createSeasonStore = (league) =>
       if (request.method === "GET") return this.readDoc(key);
       if (request.method !== "PATCH")
         return respondError(405, "method_not_allowed", "GET or PATCH only.");
+      if (!Object.keys(league.pageFields).length)
+        return respondError(403, "permission_denied", "The page saves nothing here.");
       if (path.collection !== "seasons" || !SEASON_ID.test(path.id))
         return respondError(403, "permission_denied", "Only a season takes changes.");
       return this.savePageFields(key, Number(path.id), request);

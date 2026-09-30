@@ -1,7 +1,7 @@
 import { canBendBackdrop, fitLens } from "./glass-lens.js";
 import { readSelectedTab } from "./tabs.js";
 
-// Matches the phone layout in styles.css, where the tabs float at the bottom as a glass bar.
+// Matches the phone layout in chrome.css, where the tabs float at the bottom as a glass bar.
 const FLOATING_QUERY = matchMedia("(max-width: 779px)");
 const REDUCED_MOTION_QUERY = matchMedia("(prefers-reduced-motion: reduce)");
 
