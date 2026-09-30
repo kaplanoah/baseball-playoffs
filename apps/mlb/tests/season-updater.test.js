@@ -5,7 +5,7 @@ import * as MLBSnapshot from "../page/js/snapshot.js";
 import { createReading } from "../page/js/readings.js";
 import { loadCurrentSnapshot } from "../worker/src/season-updater.js";
 import { SeasonStore } from "../worker/src/store.js";
-import { createDurableObjectContext } from "./durable-object-context.js";
+import { createDurableObjectContext } from "../../../tests/durable-object-context.js";
 
 const EVENING = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-24-evening.json`, "utf8"),

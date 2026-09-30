@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { test as base, expect } from "@playwright/test";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
 import { SeasonStore } from "../../worker/src/store.js";
-import { createDurableObjectContext } from "../durable-object-context.js";
+import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
 
 const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
