@@ -655,10 +655,10 @@ table.st .seed-cell {
   color: var(--copper-ink);
 }
 .game-middle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+  display: grid;
+  grid-template-rows: 20px auto;
+  justify-items: center;
+  row-gap: 3px;
   min-width: 4.5em;
 }
 .game-score {
@@ -672,7 +672,8 @@ table.st .seed-cell {
   color: var(--card-border);
   font-weight: 400;
 }
-/* A start time takes a score's line height, so every row is as tall as a finished game's. */
+/* A start time takes a score's line height, the middle's first row, so every row is as tall as a
+   finished game's. */
 .game-score,
 .game-time {
   line-height: 20px;
@@ -685,10 +686,16 @@ table.st .seed-cell {
   font-size: 0.6rem;
   color: var(--ink-dim);
   white-space: nowrap;
+  grid-row: 2;
 }
-/* An empty status line still holds its place, so the time lines up with the club names. */
+/* An empty status line still holds its place, so every row is as tall as a finished game's, and
+   the time centers across both lines. */
 .game-status:empty::before {
   content: "\00a0";
+}
+.game-middle:has(> .game-status:empty) > :first-child {
+  grid-row: 1 / -1;
+  align-self: center;
 }
 .game-row.live .game-status {
   color: var(--copper-ink);
