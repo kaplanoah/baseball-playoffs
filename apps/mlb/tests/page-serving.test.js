@@ -27,6 +27,14 @@ test("the page is a whole document with what an iPhone needs to save it as an ap
   assert.ok(page.includes('<script type="module" src="js/app.js"></script>'));
 });
 
+test("the page links the shared chrome before its own styles, so its own rules win ties", async () => {
+  const page = await (await requestPage("/k3y/")).text();
+  const chromeAt = page.indexOf('<link rel="stylesheet" href="shared/chrome.css" />');
+  const stylesAt = page.indexOf('<link rel="stylesheet" href="styles.css" />');
+  assert.ok(chromeAt !== -1 && stylesAt !== -1);
+  assert.ok(chromeAt < stylesAt);
+});
+
 test("every response keeps the address out of search engines and referrers", async () => {
   for (const path of ["/k3y/", "/k3y/js/app.js", "/k3y/missing.js"]) {
     const response = await requestPage(path);
@@ -50,6 +58,13 @@ test("the page's files are served with their types, and the icon as PNG bytes", 
   assert.equal(
     await shared.text(),
     readFileSync(`${import.meta.dirname}/../../../shared/page/worker-store.js`, "utf8"),
+  );
+
+  const chrome = await requestPage("/k3y/shared/chrome.css");
+  assert.equal(chrome.headers.get("content-type"), "text/css; charset=utf-8");
+  assert.equal(
+    await chrome.text(),
+    readFileSync(`${import.meta.dirname}/../../../shared/page/chrome.css`, "utf8"),
   );
 
   const icon = await requestPage("/k3y/icon-180.png");
