@@ -1,6 +1,10 @@
 {
   "permissions": {
-    "allow": ["Bash(npm run deploy:api)", "Bash(npm run set-app-key)"],
+    "allow": [
+      "Bash(npm run deploy:api)",
+      "Bash(npm run deploy:api -- *)",
+      "Bash(npm run set-app-key -- *)"
+    ],
     "deny": [
       "Bash(npm run deploy)",
       "Bash(npm run deploy *)",

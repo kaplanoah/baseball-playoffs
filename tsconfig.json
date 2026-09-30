@@ -15,6 +15,6 @@
     "strictBindCallApply": true,
     "useUnknownInCatchVariables": true
   },
-  "include": ["page/js", "worker", "tests", "*.mjs", "types"],
-  "exclude": ["page/js/sortable.min.js", "worker/dist"]
+  "include": ["apps", "worker", "tests", "*.mjs", "types"],
+  "exclude": ["apps/*/page/js/sortable.min.js", "apps/*/page/sw.js", "apps/*/worker/dist"]
 }

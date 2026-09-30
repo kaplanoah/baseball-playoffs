@@ -121,8 +121,16 @@ test("live scores the page can't read reload it once a newer release is out", as
   served.release = NEXT_RELEASE;
   app.changeSnapshots((snapshot) => ({ ...snapshot, version: 2 }));
 
-  await expectReload(page, () => page.clock.runFor(2 * MINUTE_MS));
-  expect(app.countSnapshotRequests()).toBeGreaterThan(requestsBefore);
+  // The page schedules its next read only once the last one answers, which on a slow machine can
+  // come after a single jump of the clock, so the clock moves until the next read goes out.
+  await expectReload(page, () =>
+    expect
+      .poll(async () => {
+        await page.clock.runFor(30 * 1000);
+        return app.countSnapshotRequests();
+      })
+      .toBeGreaterThan(requestsBefore),
+  );
 });
 
 /**

@@ -6,8 +6,9 @@ test("a merge of only docs, tests, and tooling skips the deploy", () => {
   const decision = decideDeploy([
     "AGENTS.md",
     "README.md",
-    "tests/store.test.js",
-    "tests/browser/page.spec.mjs",
+    "tests/deploy.test.js",
+    "apps/mlb/tests/store.test.js",
+    "apps/mlb/tests/browser/page.spec.mjs",
     ".github/workflows/ci.yml",
     "eslint.config.mjs",
     "worker/set-app-key.mjs",
@@ -22,12 +23,13 @@ test("a merge of only docs, tests, and tooling skips the deploy", () => {
 
 test("a merge that changes what the Worker runs, or how it deploys, deploys", () => {
   for (const path of [
-    "page/js/app.js",
-    "page/styles.css",
-    "worker/src/store.js",
+    "apps/mlb/page/js/app.js",
+    "apps/mlb/page/styles.css",
+    "apps/mlb/worker/src/store.js",
+    "apps/mlb/worker/wrangler.toml",
+    "worker/apps.mjs",
     "worker/build.mjs",
     "worker/deploy.mjs",
-    "worker/wrangler.toml",
     "package-lock.json",
     ".nvmrc",
     ".github/workflows/deploy.yml",
@@ -37,9 +39,19 @@ test("a merge that changes what the Worker runs, or how it deploys, deploys", ()
 });
 
 test("a file no list names deploys, and the reason names only what deploys", () => {
-  const decision = decideDeploy(["README.md", "shared/clubs.js", "page/js/app.js"]);
+  const decision = decideDeploy(["README.md", "shared/clubs.js", "apps/mlb/page/js/app.js"]);
   assert.equal(decision.isNeeded, true);
-  assert.equal(decision.reason, "Deploying for shared/clubs.js, page/js/app.js.");
+  assert.equal(decision.reason, "Deploying for shared/clubs.js, apps/mlb/page/js/app.js.");
+});
+
+test("a change in one app's folder deploys that app, and a change outside apps/ deploys them all", () => {
+  const wnbaChange = ["apps/wnba/page/js/app.js", "apps/mlb/tests/page.test.js"];
+  assert.equal(decideDeploy(wnbaChange, "wnba").isNeeded, true);
+  assert.equal(decideDeploy(wnbaChange, "mlb").isNeeded, false);
+  assert.equal(decideDeploy(wnbaChange).isNeeded, true);
+  for (const app of ["mlb", "wnba"]) {
+    assert.equal(decideDeploy(["worker/build.mjs"], app).isNeeded, true, app);
+  }
 });
 
 test("changes that can't be listed deploy", () => {

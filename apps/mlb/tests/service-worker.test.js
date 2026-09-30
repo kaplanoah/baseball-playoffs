@@ -32,7 +32,13 @@ function startServiceWorker({ publicKey = "AQID_w" } = {}) {
       },
     },
   };
-  runInNewContext(readFileSync("page/sw.js", "utf8"), { self, fetch, URL, JSON, atob });
+  runInNewContext(readFileSync(`${import.meta.dirname}/../page/sw.js`, "utf8"), {
+    self,
+    fetch,
+    URL,
+    JSON,
+    atob,
+  });
   const dispatch = async (type, fields) => {
     let waiting;
     listeners[type]({ ...fields, waitUntil: (promise) => (waiting = promise) });

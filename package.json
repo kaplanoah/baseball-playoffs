@@ -3,15 +3,15 @@
   "private": true,
   "type": "module",
   "imports": {
-    "#page-files": "./worker/page-files.mjs"
+    "#page-files/*": "./apps/*/worker/page-files.mjs"
   },
-  "description": "The MLB postseason tracker page and the Cloudflare Worker that serves it. No runtime dependencies; dev tools only.",
+  "description": "Postseason tracker pages for sports leagues, and the Cloudflare Workers that serve them. No runtime dependencies; dev tools only.",
   "license": "MIT",
   "engines": {
     "node": ">=22.21"
   },
   "scripts": {
-    "test": "node --test tests/*.test.js",
+    "test": "node --test tests/*.test.js apps/*/tests/*.test.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -20,7 +20,6 @@
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run deadcode && npm test && npm run test:browser",
     "test:browser": "playwright test",
     "build": "node worker/build.mjs",
-    "deploy": "node worker/build.mjs && npx wrangler deploy --config worker/wrangler.toml",
     "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs",
     "set-app-key": "NODE_USE_ENV_PROXY=1 node worker/set-app-key.mjs"
   },

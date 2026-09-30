@@ -1,4 +1,4 @@
-import PAGE_FILES from "#page-files";
+import PAGE_FILES from "#page-files/mlb";
 
 const PAGE_HEADERS = {
   "cache-control": "no-cache",

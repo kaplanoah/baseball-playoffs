@@ -21,6 +21,7 @@ test("a new key is stored as a secret, and the page's address is printed", async
   const cloudflare = createFakeCloudflare();
   const printed = [];
   const url = await setAppKey({
+    app: "mlb",
     fetchImpl: cloudflare.fetchImpl,
     env: ENV,
     log: (line) => printed.push(line),
@@ -41,13 +42,19 @@ test("an existing key is replaced only when asked to rotate", async () => {
   const secrets = [{ name: "APP_KEY", type: "secret_text" }];
   const kept = createFakeCloudflare({ secrets });
   await assert.rejects(
-    setAppKey({ fetchImpl: kept.fetchImpl, env: ENV, log: () => {} }),
+    setAppKey({ app: "mlb", fetchImpl: kept.fetchImpl, env: ENV, log: () => {} }),
     /already has an APP_KEY.*--rotate/s,
   );
   assert.ok(!kept.calls.some((call) => call.init.method === "PUT"));
 
   const rotated = createFakeCloudflare({ secrets });
-  await setAppKey({ fetchImpl: rotated.fetchImpl, env: ENV, log: () => {}, isRotating: true });
+  await setAppKey({
+    app: "mlb",
+    fetchImpl: rotated.fetchImpl,
+    env: ENV,
+    log: () => {},
+    isRotating: true,
+  });
   assert.ok(rotated.calls.some((call) => call.init.method === "PUT"));
 });
 

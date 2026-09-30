@@ -1,7 +1,7 @@
 name = "mlb-live"
 main = "dist/worker.mjs"
 compatibility_date = "2026-09-01"
-# npm run deploy runs worker/build.mjs first, which bundles dist/worker.mjs with esbuild.
+# npm run build -- mlb bundles dist/worker.mjs with esbuild (worker/build.mjs); deploys build it themselves.
 no_bundle = true
 
 [observability]
