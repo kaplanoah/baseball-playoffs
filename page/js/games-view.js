@@ -22,6 +22,7 @@ const EMPTY_LIST_TEXT = {
   next: "No games scheduled yet",
 };
 const GAME_LISTS = ["previous", "today", "next"];
+const ARMS = { L: "Throws left-handed", R: "Throws right-handed" };
 const SETTLE_DELAY_MS = 150;
 
 let shownList = "today";
@@ -101,6 +102,19 @@ function renderFacts(id) {
   return html`<span class="game-facts">${renderSeed(id)}${row && html`<span class="tabular">${row.w}-${row.l}</span>`}${renderRace(row)}</span>`;
 }
 
+const isNamed = (starter) => Boolean(starter?.name);
+
+function renderStarter(starter, side) {
+  if (!isNamed(starter)) return html``;
+  const arm =
+    ARMS[starter.hand] &&
+    html`<span class="starter-arm" title="${ARMS[starter.hand]}">${starter.hand}</span>`;
+  const era =
+    starter.era &&
+    html`<span class="starter-era tabular"><b>${starter.era}</b> <span class="starter-era-label">ERA</span></span>`;
+  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${arm}${era}</span>`;
+}
+
 function isOut(id) {
   const { state } = session;
   const isOutOfPostseason = Boolean(state && state.teams) && isEliminated(state, id);
@@ -130,10 +144,15 @@ function renderGame(game) {
   const homeLost = isFinal && homeScore < awayScore;
   const awayWon = isFinal && awayScore > homeScore;
   const homeWon = isFinal && homeScore > awayScore;
-  return html`<li class="game-row ${game.state} ${game.delay ? "delayed" : ""}">
+  const [awayStarter, homeStarter] = game.starters || [];
+  const hasStarters = isNamed(awayStarter) || isNamed(homeStarter);
+  const classes = [game.state, game.delay && "delayed", hasStarters && "with-starters"];
+  return html`<li class="game-row ${classes.filter(Boolean).join(" ")}">
     ${renderSide(game.away, "away", awayWon)}
     ${renderMiddle(game, awayLost, homeLost)}
     ${renderSide(game.home, "home", homeWon)}
+    ${renderStarter(awayStarter, "away")}
+    ${renderStarter(homeStarter, "home")}
   </li>`;
 }
 

@@ -10,13 +10,8 @@ async function fetchJson(request) {
 
 async function recordFixture(season, name) {
   const now = Date.now();
-  const fixture = { season, now: new Date(now).toISOString(), responses: {} };
-  const seasonDates = await fetchJson(MLBSnapshot.listMlbRequests(season, now).season);
-  const regularSeasonEnd = seasonDates.seasons?.[0]?.regularSeasonEndDate;
-  const requests = MLBSnapshot.listMlbRequests(season, now, regularSeasonEnd);
-  for (const [key, request] of Object.entries(requests)) {
-    if (request) fixture.responses[key] = key === "season" ? seasonDates : await fetchJson(request);
-  }
+  const responses = await MLBSnapshot.fetchResponses(fetchJson, season, now);
+  const fixture = { season, now: new Date(now).toISOString(), responses };
   const file = path.join(import.meta.dirname, `${name}.json`);
   fs.writeFileSync(file, JSON.stringify(fixture));
   console.log(`Wrote ${file}`);

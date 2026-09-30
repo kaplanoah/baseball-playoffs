@@ -76,8 +76,20 @@ const GAME_FIELDS = [
   "gameInfo",
   "firstPitch",
   "gameDurationMinutes",
+  "probablePitcher",
 ].join(",");
 const SEASON_FIELDS = ["seasons", "springStartDate", "regularSeasonEndDate"].join(",");
+const PITCHER_FIELDS = [
+  "people",
+  "id",
+  "useLastName",
+  "pitchHand",
+  "code",
+  "stats",
+  "splits",
+  "stat",
+  "era",
+].join(",");
 const STANDINGS_FIELDS = [
   "records",
   "division",
@@ -176,6 +188,13 @@ const FIELD_RULES = {
     requireField("linescore.inningState", isHalfInning, isLive, true),
     requireField("linescore.outs", isNumber, isLive, true),
   ],
+  pitcher: [
+    requireField("id", isNumber),
+    requireField("useLastName", isText),
+    requireField("pitchHand.code", isText),
+  ],
+  // A pitcher has no line until he pitches in the season.
+  pitchingLine: [requireField("era", isText, () => true, true)],
   postseasonGame: [
     requireField("seriesGameNumber", isNumber),
     // The series' league comes from this name.
@@ -193,8 +212,14 @@ export const CHECKED_FIELDS = [
   "records",
   "dates",
   "seasons",
+  "people",
+  "stats",
+  "splits",
+  "stat",
   // MLB leaves the cause off some delays, so a missing one is never flagged.
   "reason",
+  // A club names its starter a day or two ahead, so a game without one is never flagged.
+  "probablePitcher",
 ];
 
 const readPath = (object, path) =>
@@ -235,6 +260,17 @@ function findMissingSeasonFields(season) {
   return findInvalidFields(season.seasons, FIELD_RULES.season);
 }
 
+const readPitchingLine = (person) => person.stats?.[0]?.splits?.[0]?.stat;
+
+function findMissingPitcherFields(pitchers) {
+  if (!Array.isArray(pitchers?.people)) return ["people"];
+  const lines = pitchers.people.map(readPitchingLine).filter(Boolean);
+  return [
+    ...findInvalidFields(pitchers.people, FIELD_RULES.pitcher),
+    ...findInvalidFields(lines, FIELD_RULES.pitchingLine),
+  ];
+}
+
 export function findMissingFields(responses) {
   const missing = [
     ...findMissingSeasonFields(responses.season),
@@ -243,6 +279,7 @@ export function findMissingFields(responses) {
     ...(responses.schedule
       ? findMissingGameFields(responses.schedule, FIELD_RULES.scheduleGame)
       : []),
+    ...(responses.pitchers ? findMissingPitcherFields(responses.pitchers) : []),
   ];
   return [...new Set(missing)];
 }
@@ -338,20 +375,48 @@ export function listMlbRequests(season, now, regularSeasonEnd = null) {
     standings:
       `/api/v1/standings?leagueId=103,104&season=${season}` +
       `&standingsTypes=regularSeason&fields=${STANDINGS_FIELDS}`,
-    postseason: `/api/v1/schedule/postseason?season=${season}&hydrate=gameInfo&fields=${GAME_FIELDS}`,
+    postseason:
+      `/api/v1/schedule/postseason?season=${season}` +
+      `&hydrate=gameInfo,probablePitcher&fields=${GAME_FIELDS}`,
     schedule: null,
   };
   if (season === today.year) {
     // Four days ahead reaches every club's next regular season game.
     requests.schedule =
       `/api/v1/schedule?sportId=1&startDate=${firstDay}` +
-      `&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo&fields=${GAME_FIELDS}`;
+      `&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo,probablePitcher` +
+      `&fields=${GAME_FIELDS}`;
   }
   return requests;
 }
 
-// The season's dates come first because they decide how far back the schedule reaches.
-export async function fetchSnapshot(getJson, season, now = Date.now()) {
+// Sorted, so the same starters make the same request and MLB's cache can answer it.
+export const listPitcherRequest = (season, ids) =>
+  `/api/v1/people?personIds=${[...ids].sort((first, second) => first - second).join(",")}` +
+  `&hydrate=stats(group=[pitching],type=[season],season=${season})&fields=${PITCHER_FIELDS}`;
+
+// Only the starters of the games the page lists are looked up, and those come from the slate.
+function listStarterIds(slate) {
+  if (!slate) return [];
+  const games = [slate.today.games, slate.nextDay?.games || [], slate.next].flat();
+  return [
+    ...new Set(games.flatMap((game) => (game.starters || []).filter(Boolean).map(({ id }) => id))),
+  ];
+}
+
+// The starters only add to the games, so the games still show when MLB can't name them.
+async function fetchPitchers(getJson, season, ids) {
+  if (!ids.length) return null;
+  try {
+    return await getJson(listPitcherRequest(season, ids));
+  } catch {
+    return null;
+  }
+}
+
+// The season's dates come first because they decide how far back the schedule reaches, and the
+// games come before their starters.
+export async function fetchResponses(getJson, season, now = Date.now()) {
   const seasonDates = await getJson(listMlbRequests(season, now).season);
   const requests = listMlbRequests(season, now, readRegularSeasonEnd(seasonDates));
   const [standings, postseason, schedule] = await Promise.all([
@@ -359,7 +424,13 @@ export async function fetchSnapshot(getJson, season, now = Date.now()) {
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null,
   ]);
-  return buildSnapshot({ season: seasonDates, standings, postseason, schedule }, { season, now });
+  const responses = { season: seasonDates, standings, postseason, schedule };
+  const { slate } = buildSnapshot(responses, { season, now });
+  return { ...responses, pitchers: await fetchPitchers(getJson, season, listStarterIds(slate)) };
+}
+
+export async function fetchSnapshot(getJson, season, now = Date.now()) {
+  return buildSnapshot(await fetchResponses(getJson, season, now), { season, now });
 }
 
 // Postponed and cancelled games read "Final" in abstractGameState, and warmup reads "Live", so
@@ -402,7 +473,12 @@ function normalizeGame(game) {
   const readSide = (key) => {
     const side = (game.teams && game.teams[key]) || {};
     const team = side.team || {};
-    return { id: MLB_TEAM[team.id] || null, name: team.name || "", score: side.score };
+    return {
+      id: MLB_TEAM[team.id] || null,
+      name: team.name || "",
+      score: side.score,
+      starter: side.probablePitcher?.id ?? null,
+    };
   };
   const status = game.status || {};
   const state = readGameState(status);
@@ -451,7 +527,26 @@ const compareScheduleOrder = (first, second) =>
   (first.doubleheader || 0) - (second.doubleheader || 0) ||
   compareStarts(first, second);
 
-function summarizeGame(game) {
+// A pitcher MLB couldn't describe keeps his id, so the page can still ask about him.
+function describeStarter(id, pitchers) {
+  if (!id) return null;
+  const person = pitchers.get(id);
+  if (!person) return { id };
+  const line = readPitchingLine(person);
+  return { id, name: person.useLastName, hand: person.pitchHand?.code, era: line?.era || null };
+}
+
+// Only a game still to finish names its starters: MLB's probable starter isn't always who
+// started, and a finished game's line already counts it.
+function listStarters(game, pitchers) {
+  if (game.state !== "pre" && game.state !== "live") return null;
+  const starters = [game.away.starter, game.home.starter].map((id) =>
+    describeStarter(id, pitchers),
+  );
+  return starters.some(Boolean) ? starters : null;
+}
+
+function summarizeGame(game, pitchers) {
   const summary = { away: game.away.id, home: game.home.id, state: game.state, start: game.start };
   if (game.tbd) summary.tbd = true;
   if (game.doubleheader) summary.doubleheader = game.doubleheader;
@@ -464,15 +559,15 @@ function summarizeGame(game) {
   if (game.state === "final") summary.end = game.end;
   if (game.state === "off") summary.detail = game.detail;
   if (game.delay) summary.delay = game.delay;
+  const starters = listStarters(game, pitchers);
+  if (starters) summary.starters = starters;
   return summary;
 }
-
-const summarizeDatedGame = (game) => ({ date: game.date, ...summarizeGame(game) });
 
 // Every game on the dates of each club's last game before `day` and first after it, so a date
 // that shows at all shows all its games.
 // Postseason games list a club before its opponent is known, so one known club is enough.
-function listClubGames(games, day) {
+function listClubGames(games, day, summarize) {
   const counted = games.filter((game) => game.state !== "off" && hasClub(game));
   const played = counted
     .filter((game) => game.state === "final" && game.date < day)
@@ -489,7 +584,9 @@ function listClubGames(games, day) {
     if (first) nextDates.add(first.date);
   }
   const listGamesOn = (clubGames, dates) =>
-    clubGames.filter((game) => dates.has(game.date)).map(summarizeDatedGame);
+    clubGames
+      .filter((game) => dates.has(game.date))
+      .map((game) => ({ date: game.date, ...summarize(game) }));
   return { previous: listGamesOn(played, previousDates), next: listGamesOn(ahead, nextDates) };
 }
 
@@ -498,7 +595,8 @@ const NIGHT_END_HOUR = 6;
 // Before 6am Eastern, today is still last night while any of last night's games is unfinished.
 // Once they're all final, last night stays alongside until 6am, since its games still explain
 // what changes then.
-function buildSlate(games, clubGames, now) {
+function buildSlate(games, clubGames, now, pitchers) {
+  const summarize = (game) => summarizeGame(game, pitchers);
   const clock = readEasternDay(now);
   const playable = games.filter((game) => game.state !== "off" && hasBothClubs(game));
   const listGamesOn = (date) => playable.filter((game) => game.date === date).sort(compareStarts);
@@ -521,15 +619,15 @@ function buildSlate(games, clubGames, now) {
   return {
     today: {
       date: day,
-      games: listGamesOn(day).map(summarizeGame),
-      postponed: postponed.map(summarizeGame),
+      games: listGamesOn(day).map(summarize),
+      postponed: postponed.map(summarize),
     },
-    nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarizeGame) } : null,
+    nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarize) } : null,
     lastNight: hasLastNightEnded
-      ? { date: lastNight, games: listGamesOn(lastNight).map(summarizeGame) }
+      ? { date: lastNight, games: listGamesOn(lastNight).map(summarize) }
       : null,
-    lastFinal: lastFinal ? summarizeGame(lastFinal) : null,
-    ...listClubGames(clubGames, day),
+    lastFinal: lastFinal ? summarize(lastFinal) : null,
+    ...listClubGames(clubGames, day, summarize),
   };
 }
 
@@ -852,6 +950,9 @@ function readRecords(standings) {
   return { records, clinches: { champions, bestRecords } };
 }
 
+const listPitchers = (responses) =>
+  new Map((responses.pitchers?.people || []).map((person) => [person.id, person]));
+
 export function buildSnapshot(responses, { season, now = Date.now() }) {
   const games = responses.schedule ? listScheduledGames(responses.schedule) : [];
   const postseasonGames = listScheduledGames(responses.postseason);
@@ -876,7 +977,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     series,
     log,
     standings: hasStandings ? buildStandings(responses.standings, clubGames) : null,
-    slate: responses.schedule ? buildSlate(games, clubGames, now) : null,
+    slate: responses.schedule ? buildSlate(games, clubGames, now, listPitchers(responses)) : null,
     missing: findMissingFields(responses),
   };
 }
