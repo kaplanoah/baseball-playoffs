@@ -1,8 +1,10 @@
 import { redirectToFolder, servePageFile, serveRobots, serveNotFound } from "./page.js";
+import { createPitcherServer } from "./pitchers.js";
 import { createSnapshotServer } from "./snapshot.js";
 import { SeasonStore, forwardToStore } from "./store.js";
 
 const snapshots = createSnapshotServer();
+const pitchers = createPitcherServer();
 
 // The page and its store answer only under the APP_KEY secret; nothing else does.
 function findAppPath(pathname, appKey) {
@@ -24,6 +26,7 @@ export default {
     if (appPath === "") return redirectToFolder(url);
     if (isStorePath(appPath)) return forwardToStore(request, env, appPath);
     if (appPath === "/snapshot" && request.method === "GET") return snapshots.serveSnapshot(url);
+    if (appPath === "/pitcher" && request.method === "GET") return pitchers.servePitcher(url);
     return servePageFile(request, appPath);
   },
 };

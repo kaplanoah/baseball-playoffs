@@ -147,8 +147,10 @@ test("on a phone, settings rise from the bottom as a sheet", async ({ page }) =>
   await openSettings(page);
 
   const settings = page.getByRole("dialog", { name: "Settings" });
-  await expect(settings.locator(".settings-done svg")).toBeHidden();
-  expect((await page.getByText("Done", { exact: true }).boundingBox()).width).toBeGreaterThan(20);
+  await expect(settings.locator(".sheet-done svg")).toBeHidden();
+  expect((await settings.getByText("Done", { exact: true }).boundingBox()).width).toBeGreaterThan(
+    20,
+  );
   await expect
     .poll(async () => {
       const box = await settings.boundingBox();
@@ -162,10 +164,10 @@ test("on a wide screen, settings open as a modal with a close button", async ({ 
   await openSettings(page);
 
   const settings = page.getByRole("dialog", { name: "Settings" });
-  await expect(settings.locator(".settings-done svg")).toBeVisible();
-  expect((await page.getByText("Done", { exact: true }).boundingBox()).width).toBeLessThanOrEqual(
-    1,
-  );
+  await expect(settings.locator(".sheet-done svg")).toBeVisible();
+  expect(
+    (await settings.getByText("Done", { exact: true }).boundingBox()).width,
+  ).toBeLessThanOrEqual(1);
   const box = await settings.boundingBox();
   const { width } = page.viewportSize();
   expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
@@ -191,7 +193,7 @@ async function waitForSheetToRise(page) {
 /** @param {import("@playwright/test").Page} page */
 async function expectWholeRankingInView(page) {
   const sheet = await page.locator("#settingsDialog").boundingBox();
-  const header = await page.locator(".sheet-top").boundingBox();
+  const header = await page.locator("#settingsDialog .sheet-top").boundingBox();
   const first = await page.locator("#rankList .rank-item").first().boundingBox();
   const last = await page.locator("#rankList .rank-item").last().boundingBox();
   expect(first.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
@@ -318,7 +320,7 @@ test("on a wide screen, the settings start right under the header, level with th
   await openApp(page);
   await openSettings(page);
 
-  const header = await page.locator(".sheet-top").boundingBox();
+  const header = await page.locator("#settingsDialog .sheet-top").boundingBox();
   const controls = await page.locator(".settings-controls").boundingBox();
   const [season] = await readCenters(page.locator(".control-row > span").first());
   const [ranking] = await readCenters(page.locator("#rankingTitle"));

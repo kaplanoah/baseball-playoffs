@@ -41,7 +41,7 @@ const findGamePages = () => document.getElementById("gamePages");
 const findGamePage = (list) => document.getElementById(`games-${list}`);
 
 // Game days are Eastern calendar dates, so they're read as dates, never as instants.
-function formatGameDay(date) {
+export function formatGameDay(date) {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString([], {
     weekday: "short",
@@ -50,7 +50,7 @@ function formatGameDay(date) {
   });
 }
 
-function describeStart(game) {
+export function describeStart(game) {
   if (game.tbd) return game.doubleheader === 2 ? "After 1st game" : "Time TBD";
   return new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
@@ -137,6 +137,14 @@ function renderMiddle(game, awayLost, homeLost) {
   return html`<span class="game-middle">${headline}<span class="game-status">${describeStatus(game)}${renderOutLights(game)}</span></span>`;
 }
 
+// The whole row opens the matchup sheet, which needs only what the row shows.
+function renderMatchupButton(game, [awayStarter, homeStarter]) {
+  const { date, start, tbd, doubleheader, away, home, starters } = game;
+  const names = [awayStarter, homeStarter].map((starter) => starter?.name || "TBD");
+  const details = JSON.stringify({ date, start, tbd, doubleheader, away, home, starters });
+  return html`<button type="button" class="game-open" aria-label="Pitching matchup: ${names.join(" vs ")}" data-game="${details}"></button>`;
+}
+
 function renderGame(game) {
   const [awayScore, homeScore] = game.score || [];
   const isFinal = game.state === "final";
@@ -153,6 +161,7 @@ function renderGame(game) {
     ${renderSide(game.home, "home", homeWon)}
     ${renderStarter(awayStarter, "away")}
     ${renderStarter(homeStarter, "home")}
+    ${hasStarters && renderMatchupButton(game, [awayStarter, homeStarter])}
   </li>`;
 }
 

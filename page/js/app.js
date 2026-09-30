@@ -6,6 +6,7 @@ import { readLastTab, saveLastTab } from "./last-tab.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
 import { startNotifications } from "./notifications.js";
+import { startMatchups } from "./matchup.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
 import {
@@ -176,6 +177,7 @@ function wireControls() {
   wireTabs(findTabButtons(), chooseTab);
   startTabBar(chooseTab);
   wireGameTabs();
+  startMatchups();
   startSettings();
   const picker = findYearPicker();
   picker.addEventListener("change", () => switchYear(Number(picker.value)));

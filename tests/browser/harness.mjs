@@ -15,6 +15,26 @@ export const buildFixtureSnapshot = (fixture) =>
     now: Date.parse(fixture.now),
   });
 
+// The first game still to come, Astros at Athletics, with both clubs' starters named.
+export function buildSnapshotWithStarters() {
+  const fixture = structuredClone(EVENING_FIXTURE);
+  const game = fixture.responses.schedule.dates
+    .flatMap((date) => date.games)
+    .find((candidate) => candidate.gamePk === 824950);
+  game.teams.away.probablePitcher = { id: 1 };
+  game.teams.home.probablePitcher = { id: 2 };
+  const describePerson = (id, useLastName, code, era) => ({
+    id,
+    useLastName,
+    pitchHand: { code },
+    stats: [{ splits: [{ stat: { era } }] }],
+  });
+  fixture.responses.pitchers = {
+    people: [describePerson(1, "Blubaugh", "R", "3.66"), describePerson(2, "Springs", "L", "4.02")],
+  };
+  return buildFixtureSnapshot(fixture);
+}
+
 /** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
 const pageErrorsFixture = {
   pageErrors: [
@@ -58,6 +78,7 @@ async function answerFromStore(route, store) {
  * @param {object} [options.snapshots]
  * @param {boolean} [options.liveAvailable]
  * @param {boolean} [options.portalReadsDocuments] a captive portal answers reading a document
+ * @param {Record<number, object>} [options.pitchers] what the Worker answers for each pitcher id
  */
 export async function openApp(
   page,
@@ -67,6 +88,7 @@ export async function openApp(
     snapshots = {},
     liveAvailable = true,
     portalReadsDocuments = false,
+    pitchers = {},
   } = {},
 ) {
   const context = createDurableObjectContext();
@@ -104,6 +126,15 @@ export async function openApp(
       if (!liveAvailable || !snapshot)
         return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
       return route.fulfill({ json: harness.transformSnapshot(structuredClone(snapshot)) });
+    },
+  );
+  await page.route(
+    (url) => url.pathname === "/pitcher",
+    (route) => {
+      const pitcher = pitchers[Number(new URL(route.request().url()).searchParams.get("id"))];
+      if (!pitcher)
+        return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
+      return route.fulfill({ json: pitcher });
     },
   );
   await page.route(
