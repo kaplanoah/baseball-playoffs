@@ -145,7 +145,7 @@ test("on a phone, the space below a short list of games swipes too, without addi
   expect(await readScrollRoom()).toBe(scrollRoomWithoutGames);
 });
 
-test("on a phone, a swipe that comes to rest between two lists goes on to the nearer", async ({
+test("on a phone, a swipe that comes to rest between two lists goes on to the nearer once let go", async ({
   page,
 }) => {
   await page.setViewportSize(PHONE);
@@ -163,7 +163,10 @@ test("on a phone, a swipe that comes to rest between two lists goes on to the ne
   expect(await readPagesPosition(page)).toBe(0.3);
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 
-  await pages.dispatchEvent("touchend", { touches: [] });
+  await pages.evaluate((element) => {
+    const elsewhere = new Touch({ identifier: 1, target: document.body });
+    element.dispatchEvent(new TouchEvent("touchend", { touches: [elsewhere], bubbles: true }));
+  });
   await expect.poll(() => readPagesPosition(page)).toBe(0);
   await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
     "aria-selected",
@@ -174,6 +177,28 @@ test("on a phone, a swipe that comes to rest between two lists goes on to the ne
   await pages.evaluate((element) => (element.scrollLeft = element.clientWidth * 0.96));
   await expect.poll(() => readPagesPosition(page)).toBe(1);
   await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("a tapped Games tab keeps its list while the lists are still on their way", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect.poll(() => readPagesPosition(page)).toBe(1);
+
+  await page.locator("#gamePages").evaluate((pages) => {
+    pages.scrollTo = () => {};
+    pages.dispatchEvent(new Event("scroll"));
+  });
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await page.waitForTimeout(400);
+
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-previous")).not.toHaveAttribute("inert");
 });
 
 test("the Games tab finds today's list again after another tab was shown", async ({ page }) => {

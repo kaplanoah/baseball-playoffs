@@ -25,6 +25,8 @@ const GAME_LISTS = ["previous", "today", "next"];
 const SETTLE_DELAY_MS = 150;
 
 let shownList = "today";
+// The list a tapped tab is scrolling to, which the lists settle on even when they come to rest early.
+let scrollTarget = null;
 let pagesWidth = 0;
 let settleTimer;
 let isTouching = false;
@@ -243,9 +245,10 @@ function scheduleSettle() {
 function settleSwipe() {
   const pages = findGamePages();
   if (isTouching || !pages.clientWidth) return;
-  const nearest = GAME_LISTS[Math.round(readSwipePosition(pages))];
-  if (nearest !== shownList) markShownList(nearest);
-  if (!isAtList(pages, nearest)) scrollToList(nearest, chooseScrollBehavior());
+  const list = scrollTarget || GAME_LISTS[Math.round(readSwipePosition(pages))];
+  if (list !== shownList) markShownList(list);
+  if (isAtList(pages, list)) scrollTarget = null;
+  else scrollToList(list, chooseScrollBehavior());
 }
 
 function followSwipe() {
@@ -258,6 +261,7 @@ function followSwipe() {
 function showGameList(list) {
   markShownList(list);
   if (isAtList(findGamePages(), list)) return;
+  scrollTarget = list;
   scrollToList(list, chooseScrollBehavior());
 }
 
@@ -267,19 +271,28 @@ function realignPages() {
   const { clientWidth } = findGamePages();
   if (clientWidth === pagesWidth) return;
   pagesWidth = clientWidth;
+  scrollTarget = null;
   scrollToList(shownList, "instant");
   paintSwipe(GAME_LISTS.indexOf(shownList));
   fitPagesToShownList();
 }
 
 function trackTouch(event) {
-  isTouching = event.touches.length > 0;
+  const pages = findGamePages();
+  isTouching = [...event.touches].some((touch) =>
+    pages.contains(/** @type {Node} */ (touch.target)),
+  );
+  if (isTouching) scrollTarget = null;
   if (!isTouching) scheduleSettle();
 }
 
 function wireSwipe() {
   const pages = findGamePages();
+  const releaseScrollTarget = () => (scrollTarget = null);
+  const releaseOnSidewaysWheel = (event) => event.deltaX && releaseScrollTarget();
   pages.addEventListener("scroll", followSwipe, { passive: true });
+  pages.addEventListener("pointerdown", releaseScrollTarget);
+  pages.addEventListener("wheel", releaseOnSidewaysWheel, { passive: true });
   for (const type of ["touchstart", "touchend", "touchcancel"])
     pages.addEventListener(type, trackTouch, { passive: true });
   new ResizeObserver(realignPages).observe(pages);
