@@ -170,5 +170,5 @@ export const openSettings = (page) =>
 export async function chooseSeason(page, year) {
   await openSettings(page);
   await page.getByRole("combobox", { name: "Season" }).selectOption(year);
-  await page.getByRole("button", { name: "Done" }).click();
+  await page.keyboard.press("Escape");
 }
