@@ -889,16 +889,38 @@ function tallySeries(seriesId, games, round, teamA, teamB, today) {
     .sort(compareEnds);
   for (const game of decided) {
     const won = game.away.score > game.home.score ? game.away.id : game.home.id;
+    const lost = won === teamA ? teamB : teamA;
+    // The game's own score, winner first, beside the series score.
+    const runs = [
+      Math.max(game.away.score, game.home.score),
+      Math.min(game.away.score, game.home.score),
+    ];
     if (won === teamA) record.winsA++;
     else record.winsB++;
     const score = won === teamA ? [record.winsA, record.winsB] : [record.winsB, record.winsA];
     if (score[0] >= need) {
       winner = won;
-      const over = won === teamA ? teamB : teamA;
-      log.push({ at: game.end, kind: "clinch", series: seriesId, team: won, over, score });
+      log.push({
+        at: game.end,
+        kind: "clinch",
+        series: seriesId,
+        team: won,
+        over: lost,
+        score,
+        runs,
+      });
       break;
     }
-    log.push({ at: game.end, kind: "game", series: seriesId, won, game: game.number, score });
+    log.push({
+      at: game.end,
+      kind: "game",
+      series: seriesId,
+      won,
+      lost,
+      game: game.number,
+      score,
+      runs,
+    });
   }
   if (!winner) {
     const next = findNextGame(games, today);

@@ -130,13 +130,23 @@ test("2025: the log has every game, oldest first, a clinch closing each series",
     kind: "game",
     series: "AL_WC1",
     won: "DET",
+    lost: "CLE",
     game: 1,
     score: [1, 0],
+    runs: [2, 1],
   });
   const lastEntry = log[log.length - 1];
   assert.deepEqual(
     { ...lastEntry, at: undefined },
-    { at: undefined, kind: "clinch", series: "WS", team: "LAD", over: "TOR", score: [4, 3] },
+    {
+      at: undefined,
+      kind: "clinch",
+      series: "WS",
+      team: "LAD",
+      over: "TOR",
+      score: [4, 3],
+      runs: [5, 4],
+    },
   );
 });
 

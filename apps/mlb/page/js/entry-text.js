@@ -112,10 +112,11 @@ function describeSeedEntry(entry, { renderClub }) {
 function describeSeriesStanding(score) {
   if (!isPair(score)) return "";
   if (score[0] > score[1]) return "lead";
-  if (score[0] === score[1]) return "even";
+  if (score[0] === score[1]) return "tie";
   return "trail";
 }
 
+// Updates saved before games kept their score say only who took the game.
 function describeGameEntry(entry, { renderClub }) {
   const game = entry.game ? `Game ${entry.game}` : "a game";
   const standing = describeSeriesStanding(entry.score);
@@ -123,13 +124,20 @@ function describeGameEntry(entry, { renderClub }) {
   const tail = standing
     ? html` &mdash; ${standing} the ${series} ${renderSeriesScore(entry.score)}`
     : ` of the ${series}`;
-  return html`${renderClub(entry.won)} took ${game}${tail}`;
+  const result =
+    entry.lost && isPair(entry.runs)
+      ? html`beat the ${renderClub(entry.lost)} ${formatGameScore(entry.runs)} in ${game}`
+      : `took ${game}`;
+  return html`${renderClub(entry.won)} ${result}${tail}`;
 }
 
 function describeClinchEntry(entry, { renderClub }) {
+  const series = nameSeries(entry.series);
+  if (entry.over && isPair(entry.runs) && isPair(entry.score))
+    return html`${renderClub(entry.team)} beat the ${renderClub(entry.over)} ${formatGameScore(entry.runs)} to win the ${series} ${renderSeriesScore(entry.score)}`;
   const over = entry.over && html` over the ${renderClub(entry.over)}`;
   const score = isPair(entry.score) && html`, ${renderSeriesScore(entry.score)}`;
-  return html`${renderClub(entry.team)} win the ${nameSeries(entry.series)}${score}${over}`;
+  return html`${renderClub(entry.team)} win the ${series}${score}${over}`;
 }
 
 // A win of its own that day doesn't save a club, and saying so heads off the question.
