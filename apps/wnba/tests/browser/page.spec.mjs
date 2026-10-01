@@ -511,7 +511,7 @@ const readBrightness = (page, color) =>
   }, color);
 
 for (const theme of ["Maple", "Walnut"])
-  test(`in ${theme}, the bracket's and the games' cards sit between the floor and a sheet`, async ({
+  test(`in ${theme}, the bracket's and the games' cards sit most of the way from the floor to a sheet`, async ({
     page,
   }) => {
     await openApp(page);
@@ -524,8 +524,8 @@ for (const theme of ["Maple", "Walnut"])
     const floor = await readBrightness(page, await readTokenColor(page, "--bg"));
     const sheet = await readBrightness(page, await readTokenColor(page, "--card"));
     const card = await readBrightness(page, face);
-    expect(Math.abs(card - floor)).toBeGreaterThan(4);
-    expect(Math.abs(card - floor)).toBeLessThan(Math.abs(sheet - floor) * 0.7);
+    expect(Math.abs(card - floor)).toBeGreaterThan(Math.abs(sheet - floor) * 0.6);
+    expect(Math.abs(card - floor)).toBeLessThan(Math.abs(sheet - floor) * 0.9);
     await page.getByRole("tab", { name: "Games" }).click();
     const day = page.locator("#games-today .game-day .game-list");
     expect(await day.evaluate((card) => getComputedStyle(card).backgroundColor)).toBe(face);
