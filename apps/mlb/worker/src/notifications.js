@@ -4,6 +4,7 @@ import { nameTeam } from "../../page/js/clubs.js";
 import { describeUpdate } from "../../page/js/entry-text.js";
 import { convertToText } from "#shared/html.js";
 import { groupUpdates } from "../../page/js/update-groups.js";
+import { capNotifications } from "../../../../shared/worker/notifications.js";
 
 // Which new updates become notifications, and what they say.
 
@@ -11,7 +12,6 @@ import { groupUpdates } from "../../page/js/update-groups.js";
 const RECENT_MS = 60 * 60 * 1000;
 // A game's time is when it should have ended, which a delay can put hours before its final.
 const RECENT_GAME_MS = 24 * 60 * 60 * 1000;
-const MAX_NOTIFIED = 4;
 const SENTENCE_BREAK = " \u2014 ";
 
 // The clubs an update is about, or null when it is about the whole field.
@@ -64,19 +64,7 @@ export function describeNotification(group, context) {
   return { title, body: capitalize(rest.join(SENTENCE_BREAK)), tag: describeKey(group[0]) };
 }
 
-// Past a few at once, the rest are summed up in one, so a busy night doesn't bury the phone.
-// The summary's tag is its first update's, so a later summary doesn't replace it.
 export function listNotifications(groups, context) {
   const messages = groups.map((group) => describeNotification(group, context)).filter(Boolean);
-  if (messages.length <= MAX_NOTIFIED) return messages;
-  const shown = messages.slice(0, MAX_NOTIFIED - 1);
-  const hidden = messages.slice(shown.length);
-  return [
-    ...shown,
-    {
-      title: `${hidden.length} more updates`,
-      body: "Open the page to see them all.",
-      tag: `more:${hidden[0].tag}`,
-    },
-  ];
+  return capNotifications(messages, (count) => `${count} more updates`);
 }
