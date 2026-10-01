@@ -1,4 +1,5 @@
 import { html } from "#shared/html.js";
+import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderClub } from "./clubs.js";
 
 // The pieces the game sheet's views share: its titled parts, and how its two teams are compared,
@@ -60,3 +61,18 @@ export const renderSheetPart = (title, body, aside = false) =>
 
 /** @param {string} text a line in place of a part's details */
 export const renderSheetMessage = (text) => html`<p class="sheet-message">${text}</p>`;
+
+/**
+ * Stand-ins for a players table's rows while they load.
+ * @param {number} count how many rows
+ * @param {number} columns how many numbers each row has after the player's name
+ */
+export const renderPendingPlayerRows = (count, columns) =>
+  Array.from(
+    { length: count },
+    () =>
+      html`<tr>
+        <th scope="row">${renderPlaceholder("Firstname Lastname")}</th>
+        ${Array.from({ length: columns }, () => html`<td>${renderPlaceholder("00")}</td>`)}
+      </tr>`,
+  );

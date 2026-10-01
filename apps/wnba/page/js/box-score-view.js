@@ -1,11 +1,19 @@
 import { html, joinWithSeparator } from "#shared/html.js";
-import { renderTapeRow } from "#shared/tape.js";
+import { renderPlaceholder } from "#shared/placeholder.js";
+import { renderPendingTapeRow, renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
-import { findLeader, measureAgainst, renderSheetPart, renderTapeTeams } from "./sheet-parts.js";
+import {
+  findLeader,
+  measureAgainst,
+  renderPendingPlayerRows,
+  renderSheetPart,
+  renderTapeTeams,
+} from "./sheet-parts.js";
 import { nameTeam } from "./series.js";
 
 // The game sheet's box score for a game that has started: points by quarter, the teams' stats
-// side by side, and each team's top scorers.
+// side by side, and each team's top scorers. Until it loads, each part holds its shape with
+// placeholders.
 
 /** @typedef {{ id: number, firstName: string, lastName: string, minutes: number, points: number, rebounds: number, assists: number, fouls: number }} BoxPlayer */
 /** @typedef {{ fieldGoals: number[], threePointers: number[], freeThrows: number[], rebounds: number, assists: number, turnovers: number, paintPoints: number, benchPoints: number, biggestLead: number }} TeamStats */
@@ -68,18 +76,43 @@ function renderLineScore(box) {
       <td class="total${loser === place ? " lost" : ""}">${side.score}</td>
     </tr>`;
   };
-  return html`<table class="line-score tabular">
+  const heads = indexes.map(
+    (index) => html`<th class="${isNow(index) ? "now" : ""}">${namePeriod(index)}</th>`,
+  );
+  return renderLineScoreTable(heads, SIDES.map(renderRow));
+}
+
+/**
+ * @param {import("#shared/html.js").Markup[]} heads each period's heading
+ * @param {import("#shared/html.js").Markup[]} rows
+ */
+const renderLineScoreTable = (heads, rows) =>
+  html`<table class="line-score tabular">
     <thead>
       <tr>
         <td></td>
-        ${indexes.map((index) => html`<th class="${isNow(index) ? "now" : ""}">${namePeriod(index)}</th>`)}
+        ${heads}
         <th>T</th>
       </tr>
     </thead>
     <tbody>
-      ${SIDES.map(renderRow)}
+      ${rows}
     </tbody>
   </table>`;
+
+/** @param {Record<"away" | "home", string>} teams */
+function renderPendingLineScore(teams) {
+  const indexes = [...Array(REGULATION_PERIODS).keys()];
+  const renderRow = (place) =>
+    html`<tr>
+      <th scope="row">${renderClub(teams[place])}</th>
+      ${indexes.map(() => html`<td>${renderPlaceholder("00")}</td>`)}
+      <td class="total">${renderPlaceholder("00")}</td>
+    </tr>`;
+  return renderLineScoreTable(
+    indexes.map((index) => html`<th>${namePeriod(index)}</th>`),
+    SIDES.map(renderRow),
+  );
 }
 
 /**
@@ -149,6 +182,14 @@ function renderTeamStats(box) {
     </div>`;
 }
 
+/** @param {Record<"away" | "home", string>} teams */
+const renderPendingTeamStats = (teams) =>
+  html`${renderTapeTeams(teams.away, teams.home)}
+    <div class="tape">
+      ${[...SHOOTING, ...COUNTS].map((measure) => renderPendingTapeRow(measure.label))}
+      <p class="tape-note">${renderPlaceholder("Biggest lead: Aces 12, Lead changes: 4")}</p>
+    </div>`;
+
 /**
  * @param {BoxPlayer} player
  * @param {boolean} isLive
@@ -181,10 +222,18 @@ function renderTopScorers(side, isLive) {
       <td>${player.assists}</td>
     </tr>`,
   );
-  return html`<table class="players tabular">
+  return renderScorersTable(side.team, rows);
+}
+
+/**
+ * @param {string} team
+ * @param {import("#shared/html.js").Markup[]} rows
+ */
+const renderScorersTable = (team, rows) =>
+  html`<table class="players tabular">
     <thead>
       <tr>
-        <th scope="col">${renderClub(side.team)}</th>
+        <th scope="col">${renderClub(team)}</th>
         <th scope="col" title="Minutes">Min</th>
         <th scope="col" title="Points">Pts</th>
         <th scope="col" title="Rebounds">Reb</th>
@@ -195,7 +244,9 @@ function renderTopScorers(side, isLive) {
       ${rows}
     </tbody>
   </table>`;
-}
+
+/** @param {import("#shared/html.js").Markup[]} tables */
+const renderPlayerTables = (tables) => html`<div class="player-tables">${tables}</div>`;
 
 /** @param {BoxScore} box */
 export function renderBoxScore(box) {
@@ -204,8 +255,22 @@ export function renderBoxScore(box) {
     ${renderSheetPart("Team stats", renderTeamStats(box), isLive && "So far")}
     ${renderSheetPart(
       "Top scorers",
-      html`<div class="player-tables">
-        ${SIDES.map((place) => renderTopScorers(box[place], isLive))}
-      </div>`,
+      renderPlayerTables(SIDES.map((place) => renderTopScorers(box[place], isLive))),
     )}`;
 }
+
+/**
+ * The box score's parts, in their shape, while it loads.
+ * @param {Record<"away" | "home", string>} teams
+ */
+export const renderPendingBoxScore = (teams) =>
+  html`${renderSheetPart("By quarter", renderPendingLineScore(teams))}
+    ${renderSheetPart("Team stats", renderPendingTeamStats(teams))}
+    ${renderSheetPart(
+      "Top scorers",
+      renderPlayerTables(
+        SIDES.map((place) =>
+          renderScorersTable(teams[place], renderPendingPlayerRows(TOP_PERFORMERS, 4)),
+        ),
+      ),
+    )}`;

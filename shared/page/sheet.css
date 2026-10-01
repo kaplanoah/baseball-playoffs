@@ -8,6 +8,9 @@
  * It also lays out a tape, as tape.js builds it: rows of one measure each, the away side's number
  * and bar reaching left of the measure's name and the home side's right, the leader's bar in
  * --accent.
+ *
+ * While a sheet's details load, placeholders hold their place in the shape they'll have, and
+ * sheet-resize.js eases the sheet to its new height once they arrive.
  */
 
 .sheet-panel {
@@ -126,5 +129,23 @@
   .sheet-content {
     --head-height: 63px;
     padding: 0 18px max(22px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Text still loading, as placeholder.js draws it: the sample text hidden under a pulsing bar. */
+.placeholder {
+  border-radius: 4px;
+  background: var(--divider);
+  color: transparent;
+  user-select: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .placeholder {
+    animation: placeholder-pulse 0.9s ease-in-out infinite alternate;
+  }
+}
+@keyframes placeholder-pulse {
+  to {
+    opacity: 0.4;
   }
 }

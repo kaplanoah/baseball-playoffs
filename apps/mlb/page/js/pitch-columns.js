@@ -1,5 +1,5 @@
 // A pitcher's pitches as columns from slowest to fastest, each as tall as how often he throws it,
-// under a line that places each pitch by its speed.
+// under a line that places each pitch by its speed. Until they load, a few gray columns stand in.
 
 import { html } from "#shared/html.js";
 
@@ -34,6 +34,9 @@ const BAR_TOP = 40;
 const BAR_SPACE = 50; // a pitch thrown half the time fills it
 const BAR_BASE = BAR_TOP + BAR_SPACE;
 const NAME_LINE = 12;
+const WIDEST_BAR = 26;
+// Under the base line: one line of pitch names, then the speeds.
+const LABELS_HEIGHT = 32;
 
 export const namePitch = (pitch) => PITCH_NAMES[pitch.code] || pitch.name;
 
@@ -89,7 +92,7 @@ const formatNumber = (value) => Number(value.toFixed(1));
 function renderColumn(pitch, center, width) {
   const percent = Math.round(pitch.share * 100);
   const barHeight = Math.max(2, Math.min(BAR_SPACE, pitch.share * 100));
-  const barWidth = Math.min(26, width * 0.45);
+  const barWidth = Math.min(WIDEST_BAR, width * 0.45);
   const lines = namePitch(pitch).split(" ");
   const nameLines = lines.map(
     (line, index) =>
@@ -129,7 +132,7 @@ export function renderPitchColumns(allPitches, pitcherName) {
   const dots = placeDots(pitches, toX);
   const width = (WIDTH - 2 * EDGE) / pitches.length;
   const hasTwoLineName = pitches.some((pitch) => namePitch(pitch).includes(" "));
-  const height = BAR_BASE + 32 + (hasTwoLineName ? NAME_LINE : 0);
+  const height = BAR_BASE + LABELS_HEIGHT + (hasTwoLineName ? NAME_LINE : 0);
   const speeds = pitches.map((pitch) => pitch.mph);
   const [first, last] = [toX(Math.min(...speeds)), toX(Math.max(...speeds))];
   const label = `${pitcherName}'s pitches from slowest to fastest, with how often he throws each`;
@@ -140,5 +143,22 @@ export function renderPitchColumns(allPitches, pitcherName) {
     <line class="pitch-base" x1="${EDGE}" y1="${BAR_BASE}" x2="${WIDTH - EDGE}" y2="${BAR_BASE}"/>
     ${pitches.map((pitch, index) => renderColumn(pitch, EDGE + width * (index + 0.5), width))}
     ${dots.map(renderDot)}
+  </svg>`;
+}
+
+// The stand-in columns' heights, as shares of the space over the base line.
+const PENDING_COLUMNS = [0.6, 0.9, 0.3];
+
+export function renderPendingPitchColumns() {
+  const width = (WIDTH - 2 * EDGE) / PENDING_COLUMNS.length;
+  const columns = PENDING_COLUMNS.map((share, index) => {
+    const height = share * BAR_SPACE;
+    const x = EDGE + width * (index + 0.5) - WIDEST_BAR / 2;
+    return html`<rect class="placeholder" x="${formatNumber(x)}" y="${formatNumber(BAR_BASE - height)}" width="${WIDEST_BAR}" height="${formatNumber(height)}" rx="2"/>`;
+  });
+  return html`<svg class="pitch-columns" viewBox="0 0 ${WIDTH} ${BAR_BASE + LABELS_HEIGHT}" aria-hidden="true">
+    <line class="speed-axis" x1="${EDGE}" y1="${LINE_Y}" x2="${WIDTH - EDGE}" y2="${LINE_Y}"/>
+    <line class="pitch-base" x1="${EDGE}" y1="${BAR_BASE}" x2="${WIDTH - EDGE}" y2="${BAR_BASE}"/>
+    ${columns}
   </svg>`;
 }

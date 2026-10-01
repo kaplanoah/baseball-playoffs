@@ -1,12 +1,14 @@
 import { formatShortDate } from "#shared/days.js";
 import { html } from "#shared/html.js";
-import { renderTapeRow } from "#shared/tape.js";
+import { renderPlaceholder } from "#shared/placeholder.js";
+import { renderPendingTapeRow, renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
 import { nameTeam } from "./series.js";
 import {
   findLeader,
   measureAgainst,
   readWinShare,
+  renderPendingPlayerRows,
   renderSheetMessage,
   renderSheetPart,
   renderTapeTeams,
@@ -14,7 +16,8 @@ import {
 import { ROUNDS } from "./snapshot.js";
 
 // The game sheet's preview for a game that hasn't started: the two teams' meetings this season,
-// their seasons side by side, and each team's leading scorers.
+// their seasons side by side, and each team's leading scorers. Until it loads, each part holds its
+// shape with placeholders.
 
 /** @typedef {{ team: string, score: number }} MeetingSide */
 /** @typedef {{ id: string, start: string, round: number | null, number: number | null, away: MeetingSide, home: MeetingSide }} Meeting */
@@ -25,6 +28,13 @@ import { ROUNDS } from "./snapshot.js";
 
 /** @type {("away" | "home")[]} */
 const SIDES = ["away", "home"];
+const SEASON_ROW_LABELS = ["Record", "Points", "Allowed", "Margin", "Road / Home", "Last 10"];
+const SEASON_NOTE =
+  "Points per game. Road / Home is the visitors' road record and the hosts' home record.";
+// Teams in a playoff series have usually met a few times by then.
+const PENDING_MEETINGS = 3;
+// The Worker sends each team's three leading scorers.
+const PENDING_LEADERS = 3;
 
 /** @param {Meeting} meeting */
 const findWinner = (meeting) => (meeting.home.score > meeting.away.score ? "home" : "away");
@@ -128,31 +138,42 @@ function describeNumbers(label, values, { format, isLowerBetter = false }) {
  * @param {TeamSeason} away
  * @param {TeamSeason} home
  */
-const describeSeasonRows = (away, home) => [
-  describeRecords("Record", [`${away.wins}-${away.losses}`, `${home.wins}-${home.losses}`]),
-  describeNumbers("Points", [away.pointsFor, home.pointsFor], { format: formatAverage }),
-  describeNumbers("Allowed", [away.pointsAgainst, home.pointsAgainst], {
-    format: formatAverage,
-    isLowerBetter: true,
-  }),
-  describeNumbers("Margin", [away.margin, home.margin], { format: formatMargin }),
-  describeRecords("Road / Home", [away.road, home.home]),
-  describeRecords("Last 10", [away.lastTen, home.lastTen]),
-];
+const describeSeasonRows = (away, home) => {
+  const [record, points, allowed, margin, roadHome, lastTen] = SEASON_ROW_LABELS;
+  return [
+    describeRecords(record, [`${away.wins}-${away.losses}`, `${home.wins}-${home.losses}`]),
+    describeNumbers(points, [away.pointsFor, home.pointsFor], { format: formatAverage }),
+    describeNumbers(allowed, [away.pointsAgainst, home.pointsAgainst], {
+      format: formatAverage,
+      isLowerBetter: true,
+    }),
+    describeNumbers(margin, [away.margin, home.margin], { format: formatMargin }),
+    describeRecords(roadHome, [away.road, home.home]),
+    describeRecords(lastTen, [away.lastTen, home.lastTen]),
+  ];
+};
+
+/**
+ * @param {Record<"away" | "home", string>} teams
+ * @param {import("#shared/html.js").Markup[]} rows
+ */
+const renderSeasonsTape = (teams, rows) =>
+  renderSheetPart(
+    "The two seasons",
+    html`${renderTapeTeams(teams.away, teams.home)}
+      <div class="tape">
+        ${rows}
+        <p class="tape-note">${SEASON_NOTE}</p>
+      </div>`,
+  );
 
 /** @param {Preview} preview */
 function renderSeasons(preview) {
   const [away, home] = SIDES.map((place) => preview[place].season);
   if (!away || !home)
     return renderSheetPart("The two seasons", renderSheetMessage("Couldn't load the standings."));
-  return renderSheetPart(
-    "The two seasons",
-    html`${renderTapeTeams(preview.away.team, preview.home.team)}
-      <div class="tape">
-        ${describeSeasonRows(away, home).map(renderTapeRow)}
-        <p class="tape-note">Points per game. Road / Home is the visitors' road record and the hosts' home record.</p>
-      </div>`,
-  );
+  const teams = { away: preview.away.team, home: preview.home.team };
+  return renderSeasonsTape(teams, describeSeasonRows(away, home).map(renderTapeRow));
 }
 
 /** @param {PreviewSide} side */
@@ -165,10 +186,18 @@ function renderLeaders(side) {
       <td>${formatAverage(leader.assists)}</td>
     </tr>`,
   );
-  return html`<table class="players tabular">
+  return renderLeadersTable(side.team, rows);
+}
+
+/**
+ * @param {string} team
+ * @param {import("#shared/html.js").Markup[]} rows
+ */
+const renderLeadersTable = (team, rows) =>
+  html`<table class="players tabular">
     <thead>
       <tr>
-        <th scope="col">${renderClub(side.team)}</th>
+        <th scope="col">${renderClub(team)}</th>
         <th scope="col" title="Points per game">Pts</th>
         <th scope="col" title="Rebounds per game">Reb</th>
         <th scope="col" title="Assists per game">Ast</th>
@@ -178,7 +207,10 @@ function renderLeaders(side) {
       ${rows}
     </tbody>
   </table>`;
-}
+
+/** @param {import("#shared/html.js").Markup[]} tables */
+const renderLeadingScorersPart = (tables) =>
+  renderSheetPart("Leading scorers", html`<div class="player-tables">${tables}</div>`, "Per game");
 
 /** @param {Preview} preview */
 function renderLeadingScorers(preview) {
@@ -187,13 +219,34 @@ function renderLeadingScorers(preview) {
       "Leading scorers",
       renderSheetMessage("Couldn't load the players' averages."),
     );
-  return renderSheetPart(
-    "Leading scorers",
-    html`<div class="player-tables">${SIDES.map((place) => renderLeaders(preview[place]))}</div>`,
-    "Per game",
-  );
+  return renderLeadingScorersPart(SIDES.map((place) => renderLeaders(preview[place])));
 }
 
 /** @param {Preview} preview */
 export const renderPreview = (preview) =>
   html`${renderMeetings(preview)} ${renderSeasons(preview)} ${renderLeadingScorers(preview)}`;
+
+const renderPendingMeeting = () =>
+  html`<li>
+    <span class="meeting-day">${renderPlaceholder("Sep 00")}</span>
+    <span class="meeting-result">${renderPlaceholder("Team 00-00")}</span>
+    <span>${renderPlaceholder("on the road")}</span>
+  </li>`;
+
+/**
+ * The preview's parts, in their shape, while it loads.
+ * @param {Record<"away" | "home", string>} teams
+ */
+export const renderPendingPreview = (teams) =>
+  html`${renderSheetPart(
+    "Meetings",
+    html`<ul class="meetings">
+      ${Array.from({ length: PENDING_MEETINGS }, renderPendingMeeting)}
+    </ul>`,
+  )}
+  ${renderSeasonsTape(teams, SEASON_ROW_LABELS.map(renderPendingTapeRow))}
+  ${renderLeadingScorersPart(
+    SIDES.map((place) =>
+      renderLeadersTable(teams[place], renderPendingPlayerRows(PENDING_LEADERS, 3)),
+    ),
+  )}`;
