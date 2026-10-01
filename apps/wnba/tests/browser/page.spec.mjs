@@ -64,7 +64,7 @@ test("the Games tab opens on today's games, and its pill moves to the results an
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#games-previous .day-name").first()).toHaveText("Yesterday");
+  await expect(page.locator("#games-previous .day-name").first()).toHaveText("Yest");
   await expect(page.locator("#games-previous")).toContainText("Final");
 
   await page.getByRole("tab", { name: "Next" }).click();
@@ -379,15 +379,28 @@ test("each day's games sit in a box of their own, apart from the next day's", as
   const [first, second] = await page
     .locator("#games-previous .game-day")
     .evaluateAll((days) => days.map((day) => day.getBoundingClientRect()));
-  expect(second.top - first.bottom).toBe(12);
+  expect(second.top - first.bottom).toBe(8);
   const box = await page
-    .locator("#games-previous .game-day")
+    .locator("#games-previous .game-day .game-list")
     .first()
-    .evaluate((day) => getComputedStyle(day).borderTopStyle);
+    .evaluate((list) => getComputedStyle(list).borderTopStyle);
   expect(box).toBe("solid");
 });
 
-for (const width of [375, 360]) {
+test("each day's date sits to the left of its games, level with the first", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const day = page.locator("#games-today .game-day").first();
+  const date = await day.locator(".day-label").boundingBox();
+  const list = await day.locator(".game-list").boundingBox();
+  const firstGame = await day.locator(".game-row").first().boundingBox();
+  expect(date.x + date.width).toBeLessThan(list.x);
+  expect(
+    Math.abs(date.y + date.height / 2 - (firstGame.y + firstGame.height / 2)),
+  ).toBeLessThanOrEqual(1);
+});
+
+for (const width of [390, 375, 360]) {
   test.describe(`on a ${width}px phone`, () => {
     test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
 
@@ -463,7 +476,7 @@ test("a day of games and a series in the bracket share one thin outline, lighter
   const series = await readOutline(seriesCard);
   expect(sumChannels(series[1])).toBeGreaterThan(sumChannels(await readTokenColor(page, "--line")));
   await page.getByRole("tab", { name: "Games" }).click();
-  expect(await readOutline(page.locator("#games-today .game-day"))).toEqual(series);
+  expect(await readOutline(page.locator("#games-today .game-day .game-list"))).toEqual(series);
 });
 
 test("on a wide screen, the Games, Standings, and Teams lists keep to one phone's width, in the middle of the page", async ({

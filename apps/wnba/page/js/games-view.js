@@ -1,8 +1,8 @@
 import { countDaysBetween, formatClockTime, formatShortMonth } from "#shared/days.js";
 import { renderGameRow } from "#shared/game-row.js";
-import { html, joinWithSeparator } from "#shared/html.js";
+import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
-import { nameDay, readGameDay } from "./days.js";
+import { abbreviateDay, isNearDay, nameDay, readGameDay } from "./days.js";
 import { renderScoreboard } from "./scoreboard.js";
 import { nameTeam } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
@@ -154,38 +154,18 @@ const renderGameList = (games, allGames) =>
     ${games.map((game) => renderGame(game, allGames))}
   </ul>`;
 
-// Each round the day's games belong to, with its game number when every game of it shares one.
-/** @param {Game[]} games */
-function describeRounds(games) {
-  const numbersByRound = new Map();
-  for (const game of games) {
-    if (!game.round) continue;
-    if (!numbersByRound.has(game.round)) numbersByRound.set(game.round, new Set());
-    numbersByRound.get(game.round).add(game.number);
-  }
-  return [...numbersByRound].map(([round, numbers]) => {
-    const { name } = ROUNDS[round];
-    return numbers.size === 1 ? `${name}, Game ${[...numbers][0]}` : name;
-  });
-}
-
 /**
- * A day's games in a box of their own, under the date as a wall calendar shows it.
+ * A day's games in a box of their own, beside its date as a wall calendar shows it.
  * @param {{ day: Date, games: Game[] }} gameDay
  * @param {Game[]} allGames
  * @param {number} now
  */
 const renderDay = ({ day, games }, allGames, now) =>
   html`<section class="game-day">
-    <h3 class="day-label">
-      <span class="day-date"
-        ><span class="day-month">${formatShortMonth(day)}</span
-        ><span class="day-number tabular">${day.getDate()}</span></span
-      >
-      <span class="day-words"
-        ><span class="day-name">${nameDay(day, now)}</span
-        ><span class="day-rounds">${joinWithSeparator(describeRounds(games))}</span></span
-      >
+    <h3 class="day-label" aria-label="${nameDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
+      <span class="day-month">${formatShortMonth(day)}</span
+      ><span class="day-number tabular">${day.getDate()}</span
+      ><span class="day-name${isNearDay(day, now) ? " near" : ""}">${abbreviateDay(day, now)}</span>
     </h3>
     ${renderGameList(games, allGames)}
   </section>`;
