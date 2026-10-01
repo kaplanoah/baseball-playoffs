@@ -554,7 +554,7 @@ test("without a series line, a time centers in its row, and a score and its stat
 });
 
 const PHONE = { width: 390, height: 844 };
-const WIDE_SCREEN = { width: 1700, height: 900 };
+const WIDE_SCREEN = { width: 1800, height: 900 };
 const LAPTOP = { width: 1280, height: 800 };
 
 const CREAM = "rgb(241, 234, 212)";
@@ -602,6 +602,35 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
     .first();
   await expect(eliminated).toHaveCSS("color", TAUPE);
   await expect(eliminated).toHaveCSS("text-decoration-line", "none");
+});
+
+test("a club's seed is labeled beside its card only where it enters the bracket: its Wild Card slot or its bye's Division Series slot", async ({
+  page,
+}) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+  const bracket = page.locator("#bracketWrap");
+  const readLabels = (round, club) =>
+    bracket.locator(`.box[data-round="${round}"]`).filter({ hasText: club }).locator(".seed-label");
+
+  await expect(readLabels("WC", "Yankees")).toHaveText(["Seed 5", "Seed 4"]);
+  await expect(readLabels("DS", "Blue Jays")).toHaveText(["Seed 1"]);
+  await expect(readLabels("CS", "Blue Jays")).toHaveCount(0);
+  await expect(readLabels("WS", "Dodgers")).toHaveCount(0);
+  await expect(bracket.locator(".seed-label")).toHaveCount(12);
+  await expect(bracket.locator(".matchup-row .seed-label")).toHaveCount(0);
+
+  const division = bracket.locator('.box[data-round="DS"]').filter({ hasText: "Blue Jays" });
+  const byeRow = await division
+    .locator(".matchup-row")
+    .filter({ hasText: "Blue Jays" })
+    .boundingBox();
+  const label = await division.locator(".seed-label").boundingBox();
+  const card = await division.locator(".series").boundingBox();
+  expect(label.x + label.width).toBeLessThanOrEqual(card.x);
+  expect(Math.abs(label.y + label.height / 2 - (byeRow.y + byeRow.height / 2))).toBeLessThan(1);
 });
 
 test("the bracket leaves a score empty until its series' first game starts, and gives each TBD row one too", async ({
@@ -698,7 +727,7 @@ test("on a phone, the bracket's round dots sit just above the tab bar and follow
 });
 
 test("on a wide screen, the whole bracket shows without round dots", async ({ page }) => {
-  await page.setViewportSize({ width: 1700, height: 900 });
+  await page.setViewportSize(WIDE_SCREEN);
   await openApp(page);
   await expect(page.locator("#bracketWrap .tree-scroll")).not.toHaveClass(/stacked/);
   await expect(page.locator("#bracketWrap .round-dots")).toHaveCount(0);
@@ -1004,6 +1033,23 @@ test("on a phone, the bracket opens on the earliest round still playing, and swi
   await expect(worldSeries).toBeInViewport({ ratio: 1 });
 });
 
+test("on a phone, a bracket opening on the Division Series keeps its byes' seed labels in view", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  for (const id of ["AL_WC1", "AL_WC2", "NL_WC1", "NL_WC2"])
+    snapshot.series[id] = { winsA: 2, winsB: 0, started: true };
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+
+  const division = page.locator('.box[data-round="DS"]').first();
+  await expect(division.locator(".series")).toBeInViewport({ ratio: 1 });
+  await expect(division.locator(".seed-label")).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.box[data-round="WC"] .series').first()).not.toBeInViewport({
+    ratio: 1,
+  });
+});
+
 const readStackedSpaces = (page) =>
   page.evaluate(() => {
     const readBox = (element) => element.getBoundingClientRect();
@@ -1120,7 +1166,26 @@ test("on a wide screen, the AL and NL face each other across the World Series", 
   expect(noteAndGap).toBe(80);
 });
 
-test("on a wide screen, a centered league bar spans each league's three columns", async ({
+test("on a wide screen, each league's seed labels sit on its outer side", async ({ page }) => {
+  await page.setViewportSize(WIDE_SCREEN);
+  await openApp(page);
+  const bracket = page.locator("#bracketWrap");
+  const findOuterGap = async (index) => {
+    const wildCard = bracket.locator('.box[data-round="WC"]').nth(index);
+    const card = await wildCard.locator(".series").boundingBox();
+    const label = await wildCard.locator(".seed-label").first().boundingBox();
+    return { before: card.x - (label.x + label.width), after: label.x - (card.x + card.width) };
+  };
+
+  expect((await findOuterGap(0)).before).toBeGreaterThan(0);
+  expect((await findOuterGap(2)).after).toBeGreaterThan(0);
+  const pageOverflow = await page.evaluate(
+    () => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
+  );
+  expect(pageOverflow).toBe(0);
+});
+
+test("on a wide screen, a centered league bar spans each league's three columns and its seeds' labels", async ({
   page,
 }) => {
   await page.setViewportSize(WIDE_SCREEN);
@@ -1137,15 +1202,19 @@ test("on a wide screen, a centered league bar spans each league's three columns"
 
   const alBar = await al.boundingBox();
   const nlBar = await nl.boundingBox();
+  const stage = await bracket.locator(".bracket-stage").boundingBox();
   const alWildCard = await findBox("Wild Card", 0);
   const alcs = await findBox("Championship Series", 0);
   const nlcs = await findBox("Championship Series", 1);
-  const nlWildCard = await findBox("Wild Card", 2);
+  const alLabel = await bracket.locator(".seed-labels.left").first().boundingBox();
+  const nlLabel = await bracket.locator(".seed-labels.right").last().boundingBox();
   expect(alBar.y).toBe(nlBar.y);
-  expect(alBar.x).toBe(alWildCard.x);
+  expect(alBar.x).toBe(stage.x);
+  expect(alBar.x).toBeLessThan(alLabel.x);
   expect(alBar.x + alBar.width).toBe(alcs.x + alcs.width);
   expect(nlBar.x).toBe(nlcs.x);
-  expect(nlBar.x + nlBar.width).toBe(nlWildCard.x + nlWildCard.width);
+  expect(nlBar.x + nlBar.width).toBe(stage.x + stage.width);
+  expect(nlBar.x + nlBar.width).toBeGreaterThan(nlLabel.x + nlLabel.width);
   expect(alWildCard.y - (alBar.y + alBar.height)).toBe(18);
 });
 

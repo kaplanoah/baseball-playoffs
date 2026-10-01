@@ -1,11 +1,5 @@
 import { ROUND_LABEL, buildBracket, isEliminated, listSlotCandidates } from "./bracket.js";
-import {
-  listRankedOrder,
-  renderRankTag,
-  renderSeedMark,
-  nameTeam,
-  renderTeamTag,
-} from "./clubs.js";
+import { listRankedOrder, renderRankTag, nameTeam, renderTeamTag } from "./clubs.js";
 import { readGameDay } from "./dates.js";
 import { countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 import { describeInning, renderOutLights } from "./games-view.js";
@@ -47,21 +41,24 @@ function renderMatchupRow(series, side) {
   const isPreferred = findPreferredSide(series) === side;
   // A score stays empty until the series' first game starts, and counts from 0 after.
   const shownWins = series.started ? wins : null;
-  const seed = session.state.teams[id] && session.state.teams[id].seed;
   return html`<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
-    <div class="team-id">${renderRankTag(id, isPreferred)}${renderSeedMark(seed)}${renderTeamTag(id)}</div>
+    <div class="team-id">${renderRankTag(id, isPreferred)}${renderTeamTag(id)}</div>
     ${renderSeriesWins(shownWins, isWinner)}
   </div>`;
 }
 
 // Card metrics must match styles.css.
 const CARD = { width: 209, height: 90, topSlotY: 41, dividerY: 57 };
+// Room beside a card for a seed's label, from styles.css's .seed-labels.
+const SEED_LABEL_ROOM = 50;
 
 /* Desktop: AL on the left and NL on the right under their league bars, meeting at the World
    Series in the middle. Each wild card card sits dividerY - topSlotY above its division card, so
-   its connector runs straight into the top slot. */
+   its connector runs straight into the top slot. Seeds' labels sit on each league's outer side,
+   with wider gaps beside the wild card columns for the division cards' byes. */
 const WIDE = {
-  columnGap: 20,
+  inset: SEED_LABEL_ROOM,
+  columnGaps: [56, 20, 20, 20, 20, 56],
   stageHeight: 343, // room for a next-game note under the lowest cards
   wildCard1Y: 37,
   division1Y: 53,
@@ -72,7 +69,8 @@ const WIDE = {
 
 // Screens too narrow for the whole wide bracket: AL above NL, rounds left to right, swiped sideways.
 const STACKED = {
-  columnGap: 32,
+  inset: SEED_LABEL_ROOM,
+  columnGaps: [56, 32, 32],
   worldSeriesWidth: 240,
   noteHeight: 20,
   lineHeight: 19,
@@ -87,11 +85,15 @@ const SPACES = { aboveLeague: 18, belowLine: 11, betweenRows: 13 };
 // A row of level cards and their notes.
 const SERIES_HEIGHT = CARD.height + STACKED.noteHeight;
 
-const findColumnLeft = (layout, index) => index * (CARD.width + layout.columnGap);
+const sumGaps = (layout, index) =>
+  layout.columnGaps.slice(0, index).reduce((total, gap) => total + gap, 0);
+const findColumnLeft = (layout, index) =>
+  layout.inset + index * CARD.width + sumGaps(layout, index);
 const findColumnRight = (layout, index) => findColumnLeft(layout, index) + CARD.width;
+const WIDE_STAGE_WIDTH = findColumnRight(WIDE, 6) + WIDE.inset;
 
 const PAGE_GUTTER = 18; // body's side padding in styles.css
-const NARROW = matchMedia(`(max-width: ${findColumnRight(WIDE, 6) + 2 * PAGE_GUTTER - 1}px)`);
+const NARROW = matchMedia(`(max-width: ${WIDE_STAGE_WIDTH + 2 * PAGE_GUTTER - 1}px)`);
 const alignToPixel = (value) => Math.round(value) + 0.5; // a 1px stroke centered on .5 fills one pixel row
 
 function drawConnector(x1, y1, x2, y2) {
@@ -204,9 +206,34 @@ function renderCardNote(series, champLine) {
   return note ? html`<div class="card-note">${note}</div>` : html``;
 }
 
-function renderSeriesCard(series, top, left, champLine = "", width = CARD.width) {
+// A seed shows only where its club enters the bracket: both Wild Card slots, and the bye's slot in
+// each Division Series, which is teamA.
+const isEntrySlot = (series, side) =>
+  series.round === "WC" || (series.round === "DS" && side === "A");
+
+function renderSeedLabel(series, side) {
+  const id = side === "A" ? series.teamA : series.teamB;
+  const seed = isEntrySlot(series, side) && session.state.teams[id]?.seed;
+  return seed
+    ? html`<span class="seed-label">Seed <span class="seed-number tabular">${seed}</span></span>`
+    : html`<span></span>`;
+}
+
+// The labels sit beside the card's rows, outside the card, on the side its lines don't leave from.
+function renderSeedLabels(series, sides, seedSide) {
+  if (series.round !== "WC" && series.round !== "DS") return html``;
+  return html`<div class="seed-labels ${seedSide}">${sides.map((side) => renderSeedLabel(series, side))}</div>`;
+}
+
+function renderSeriesCard(
+  series,
+  top,
+  left,
+  { champLine = "", width = CARD.width, seedSide = "left" } = {},
+) {
   const [first, second] = orderRows(series);
   return html`<div class="box" data-round="${series.round}" style="left:${left}px; top:${top}px; width:${width}px;">
+    ${renderSeedLabels(series, [first, second], seedSide)}
     <div class="series ${series.round === "WS" ? "world" : ""}">
       <div class="bestof"><span>${ROUND_LABEL[series.round]}</span><span>BO${series.bestOf}</span></div>
       ${renderMatchupRow(series, first)}${renderMatchupRow(series, second)}
@@ -249,33 +276,44 @@ function drawWideConnectors() {
 function renderWideCards(bracket) {
   const { al, nl, ws } = bracket;
   const left = (index) => findColumnLeft(WIDE, index);
+  const nlSide = { seedSide: "right" };
   return [
     renderSeriesCard(al.wc[1], WIDE.wildCard1Y, left(0)),
     renderSeriesCard(al.wc[0], WIDE.wildCard2Y, left(0)),
     renderSeriesCard(al.ds[0], WIDE.division1Y, left(1)),
     renderSeriesCard(al.ds[1], WIDE.division2Y, left(1)),
-    renderSeriesCard(al.cs[0], WIDE.middleY, left(2), describeAdvance(al.champion)),
-    renderSeriesCard(ws, WIDE.middleY, left(3), describeWorldSeriesWin(ws)),
-    renderSeriesCard(nl.cs[0], WIDE.middleY, left(4), describeAdvance(nl.champion)),
-    renderSeriesCard(nl.ds[0], WIDE.division1Y, left(5)),
-    renderSeriesCard(nl.ds[1], WIDE.division2Y, left(5)),
-    renderSeriesCard(nl.wc[1], WIDE.wildCard1Y, left(6)),
-    renderSeriesCard(nl.wc[0], WIDE.wildCard2Y, left(6)),
+    renderSeriesCard(al.cs[0], WIDE.middleY, left(2), { champLine: describeAdvance(al.champion) }),
+    renderSeriesCard(ws, WIDE.middleY, left(3), { champLine: describeWorldSeriesWin(ws) }),
+    renderSeriesCard(nl.cs[0], WIDE.middleY, left(4), { champLine: describeAdvance(nl.champion) }),
+    renderSeriesCard(nl.ds[0], WIDE.division1Y, left(5), nlSide),
+    renderSeriesCard(nl.ds[1], WIDE.division2Y, left(5), nlSide),
+    renderSeriesCard(nl.wc[1], WIDE.wildCard1Y, left(6), nlSide),
+    renderSeriesCard(nl.wc[0], WIDE.wildCard2Y, left(6), nlSide),
   ];
 }
 
 const LEAGUE_NAMES = { al: "American League", nl: "National League" };
 
-// Each bar spans its league's three columns. Its name sticks to the left edge while the bar
-// scrolls past, and leaves with the bar.
+// The stage's edge past a league's outer column, where its seeds' labels sit.
+function findOuterEdge(layout, column) {
+  if (column === 0) return 0;
+  return column === layout.columnGaps.length
+    ? findColumnRight(layout, column) + layout.inset
+    : null;
+}
+
+// Each bar spans its league's three columns, and its seeds' labels beside the outer one. Its name
+// sticks to the left edge while the bar scrolls past, and leaves with the bar.
 function renderLeagueHeader(league, layout, top, firstColumn = 0) {
-  const left = findColumnLeft(layout, firstColumn);
-  const width = findColumnRight(layout, firstColumn + 2) - left;
+  const lastColumn = firstColumn + 2;
+  const left = findOuterEdge(layout, firstColumn) ?? findColumnLeft(layout, firstColumn);
+  const right = findOuterEdge(layout, lastColumn) ?? findColumnRight(layout, lastColumn);
+  const width = right - left;
   return html`<div class="league-head ${league}" style="top:${top}px; left:${left}px; width:${width}px;"><span class="league-name">${LEAGUE_NAMES[league]}</span></div>`;
 }
 
 function renderWideStage(bracket) {
-  const width = findColumnRight(WIDE, 6);
+  const width = WIDE_STAGE_WIDTH;
   return html`<div class="bracket-stage" style="width:${width}px; height:${WIDE.stageHeight}px;">
     <svg class="bracket-lines" width="${width}" height="${WIDE.stageHeight}" viewBox="0 0 ${width} ${WIDE.stageHeight}">${drawWideConnectors()}</svg>
     ${renderLeagueHeader("al", WIDE, 0)}
@@ -358,7 +396,9 @@ function renderLeague(key, league, place) {
     renderSeriesCard(league.wc[0], place.rowY[1], left(0)),
     renderSeriesCard(league.ds[0], place.rowY[0], left(1)),
     renderSeriesCard(league.ds[1], place.rowY[1], left(1)),
-    renderSeriesCard(league.cs[0], place.championshipY, left(2), describeAdvance(league.champion)),
+    renderSeriesCard(league.cs[0], place.championshipY, left(2), {
+      champLine: describeAdvance(league.champion),
+    }),
   ];
 }
 
@@ -377,13 +417,10 @@ function renderStackedStage(bracket, growth) {
   return html`<div class="bracket-stage" style="width:${stageWidth}; height:${height}px;">
     <svg class="bracket-lines" width="${linesWidth}" height="${height}" viewBox="0 0 ${linesWidth} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
     ${renderLeague("al", bracket.al, al)}
-    ${renderSeriesCard(
-      bracket.ws,
-      worldSeriesY,
-      worldSeriesLeft,
-      describeWorldSeriesWin(bracket.ws),
-      STACKED.worldSeriesWidth,
-    )}
+    ${renderSeriesCard(bracket.ws, worldSeriesY, worldSeriesLeft, {
+      champLine: describeWorldSeriesWin(bracket.ws),
+      width: STACKED.worldSeriesWidth,
+    })}
     ${renderLeague("nl", bracket.nl, nl)}
   </div>`;
 }

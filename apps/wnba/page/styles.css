@@ -902,6 +902,7 @@ table.players td.minutes {
   font-weight: 700;
 }
 .team-line {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -912,6 +913,28 @@ table.players td.minutes {
 }
 .team-line + .team-line {
   border-top: 1px solid var(--divider);
+}
+/* A first-round card leaves room on its left for its seeds' labels. */
+.bracket-cell:has(.seed-label) {
+  padding-left: 52px;
+}
+.seed-label {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 9px);
+  translate: 0 -50%;
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+.seed-number {
+  font-size: 1.25em;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--ink);
 }
 /* A team's wins sit on a square block resting on the card, seen from a little above and to the
    left: its bottom and right sides show, mitred where they meet the face, and it casts a soft
