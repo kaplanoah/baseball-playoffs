@@ -8,9 +8,19 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await expect(page.locator("header.top .title-row")).toHaveText("WNBA");
   const stampLines = page.locator("#stamp > span");
   await expect(stampLines.nth(0)).toHaveText(
-    "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty win 2-0",
+    "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty won series 2-0",
   );
   await expect(stampLines.nth(1)).toHaveText(/^Next tip-off 7:00\s?PM \u2014 Dream @ Mystics$/);
+  const [last, next] = [
+    await stampLines.nth(0).boundingBox(),
+    await stampLines.nth(1).boundingBox(),
+  ];
+  expect(next.y - (last.y + last.height)).toBeGreaterThanOrEqual(3);
+  const stampColors = await page.locator("#stamp").evaluate((stamp) => {
+    const time = stamp.querySelector("b");
+    return { line: getComputedStyle(stamp).color, time: getComputedStyle(time).color };
+  });
+  expect(stampColors.time).not.toBe(stampColors.line);
 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
@@ -35,7 +45,9 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
   await expect(row.locator(".game-headline .score")).toHaveText(/30\s*27/);
   await expect(row.locator(".game-extra.home .bonus")).toHaveText("Bonus");
   await expect(row.locator(".game-extra.away")).toBeEmpty();
-  await expect(page.locator("#stamp > span").first()).toHaveText("Dream @ Mystics 30-27, Q2 5:10");
+  await expect(page.locator("#stamp > span").first()).toHaveText(
+    /^NOW\s*Dream @ Mystics 30-27 with 5:10 in Q2$/,
+  );
 });
 
 test("the Games tab opens on today's games, and its pill moves to the results and the games ahead", async ({

@@ -504,14 +504,39 @@ function changeGame(season, id, change) {
 test("the header says how the latest game ended and when the next one tips off, not when the page last saved", () =>
   inEastern(() => {
     assert.deepEqual(readStampLines(SEASON, NOW), [
-      "No games since Liberty 87 Lynx 71 final last night - Liberty win 2-0",
+      "No games since Liberty 87 Lynx 71 final last night - Liberty won series 2-0",
       "Next tip-off 7:00 PM - Dream @ Mystics",
     ]);
     const nextMorning = Date.parse("2026-10-01T14:00:00Z");
     assert.deepEqual(readStampLines(SEASON, nextMorning), [
-      "No games since Liberty 87 Lynx 71 final Tuesday - Liberty win 2-0",
+      "No games since Liberty 87 Lynx 71 final Tuesday - Liberty won series 2-0",
       "Next tip-off yesterday 7:00 PM - Dream @ Mystics",
     ]);
+  }));
+
+test("a game the Worker saw end says when, its time set apart as the next tip-off's is", () =>
+  inEastern(() => {
+    const ended = changeGame(SEASON, "1042600102", (game) => {
+      game.end = "2026-09-30T02:41:00Z";
+    });
+    assert.equal(
+      readStampLines(ended, NOW)[0],
+      "No games since Liberty 87 Lynx 71 final at 10:41 PM last night - Liberty won series 2-0",
+    );
+    assert.match(
+      normalizeSpaces(renderStampLines(ended, NOW)[0]),
+      /final at <b>10:41<span class="ap">PM<\/span><\/b> last night/,
+    );
+    const endedToday = changeGame(SEASON, "1042600132", (game) => {
+      Object.assign(game, { start: "2026-09-30T17:00:00Z", state: "final", status: "Final" });
+      Object.assign(game, { end: "2026-09-30T19:10:00Z" });
+      Object.assign(game.away, { score: 80 });
+      Object.assign(game.home, { score: 70 });
+    });
+    assert.equal(
+      readStampLines(endedToday, NOW)[0],
+      "Dream 80 Mystics 70 final at 3:10 PM - Dream lead series 1-0",
+    );
   }));
 
 test("a game that ended today leads the header without its day", () =>
@@ -521,7 +546,20 @@ test("a game that ended today leads the header without its day", () =>
       Object.assign(game.away, { score: 80 });
       Object.assign(game.home, { score: 70 });
     });
-    assert.equal(readStampLines(atAfternoon, NOW)[0], "Dream 80 Mystics 70 final - Dream lead 1-0");
+    assert.equal(
+      readStampLines(atAfternoon, NOW)[0],
+      "Dream 80 Mystics 70 final - Dream lead series 1-0",
+    );
+  }));
+
+test("a final names its series as won, tied, or led", () =>
+  inEastern(() => {
+    const tiedSeries = changeGame(SEASON, "1042600123", (game) => {
+      Object.assign(game, { start: "2026-09-30T17:00:00Z", state: "final", status: "Final" });
+      Object.assign(game.away, { score: 84 });
+      Object.assign(game.home, { score: 90 });
+    });
+    assert.equal(readStampLines(tiedSeries, NOW)[0], "Aces 90 Fever 84 final - series tied 1-1");
   }));
 
 test("while a game is on, the header gives its score and clock, and still the next tip-off", () =>
@@ -532,20 +570,28 @@ test("while a game is on, the header gives its score and clock, and still the ne
       Object.assign(game.home, { score: 27 });
     });
     assert.deepEqual(readStampLines(live, NOW), [
-      "Dream @ Mystics 30-27, Q2 5:10",
+      "NOW Dream @ Mystics 30-27 with 5:10 in Q2",
       "Next tip-off 9:00 PM - Valkyries @ Wings",
     ]);
     const atHalf = changeGame(live, "1042600132", (game) => {
       Object.assign(game, { status: "Half", period: 2, clock: "0.0" });
     });
-    assert.equal(readStampLines(atHalf, NOW)[0], "Dream @ Mystics 30-27, Half");
+    assert.equal(readStampLines(atHalf, NOW)[0], "NOW Dream @ Mystics 30-27 at halftime");
+    const afterThird = changeGame(live, "1042600132", (game) => {
+      Object.assign(game, { status: "End of Q3", period: 3, clock: "0.0" });
+    });
+    assert.equal(readStampLines(afterThird, NOW)[0], "NOW Dream @ Mystics 30-27 at the end of Q3");
+    const inOvertime = changeGame(live, "1042600132", (game) => {
+      Object.assign(game, { status: "OT 1:12", period: 5, clock: "1:12" });
+    });
+    assert.equal(readStampLines(inOvertime, NOW)[0], "NOW Dream @ Mystics 30-27 with 1:12 in OT");
     const bothLive = changeGame(live, "1042600112", (game) => {
       Object.assign(game, { state: "live", status: "Q1 2:00", period: 1, clock: "2:00" });
       Object.assign(game.away, { score: 10 });
       Object.assign(game.home, { score: 8 });
     });
     assert.deepEqual(readStampLines(bothLive, NOW), [
-      "Dream @ Mystics 30-27, Q2 5:10 | Valkyries @ Wings 10-8, Q1 2:00",
+      "NOW Dream @ Mystics 30-27 with 5:10 in Q2 | Valkyries @ Wings 10-8 with 2:00 in Q1",
       "Next tip-off tomorrow 9:00 PM - Fever @ Aces",
     ]);
   }));

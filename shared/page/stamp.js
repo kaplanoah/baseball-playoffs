@@ -61,15 +61,27 @@ export function formatStampWhen(date, now = new Date()) {
 }
 
 // Sets AM/PM apart so it can be styled smaller.
+/** @param {string} when */
+function renderMeridiem(when) {
+  const parts = /^(.*\d)\s*(\D+)$/.exec(when);
+  return parts ? html`${parts[1]}<span class="ap">${parts[2]}</span>` : html`${when}`;
+}
+
 /**
  * @param {Date} date
  * @param {Date} [now]
  */
-export function renderStampWhen(date, now = new Date()) {
-  const when = formatStampWhen(date, now);
-  const parts = /^(.*\d)\s*(\D+)$/.exec(when);
-  return parts ? html`${parts[1]}<span class="ap">${parts[2]}</span>` : html`${when}`;
-}
+export const renderStampWhen = (date, now = new Date()) =>
+  renderMeridiem(formatStampWhen(date, now));
+
+/**
+ * A clock time within one of the stamp's sentences, set apart as a line's own time is.
+ * @param {Date} date
+ */
+export const renderStampTime = (date) => html`<b>${renderMeridiem(formatClockTime(date))}</b>`;
+
+/** Leads a line about the games under way, set apart as a time is. */
+export const renderStampNow = () => html`<b class="now">NOW</b>`;
 
 /**
  * @param {string} label

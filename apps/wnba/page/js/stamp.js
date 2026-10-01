@@ -3,11 +3,13 @@ import {
   describeFinishedDay,
   formatStampDay,
   renderStampLine,
+  renderStampNow,
+  renderStampTime,
   renderStampWhen,
 } from "#shared/stamp.js";
 import { readGameDay } from "./days.js";
-import { describeLiveClock, isCalledOff } from "./games-view.js";
-import { describeSeriesStanding, nameTeam } from "./series.js";
+import { describePeriod, isCalledOff } from "./games-view.js";
+import { nameTeam, orderBySeriesWins } from "./series.js";
 
 // The header's lines on the latest score and the next tip-off, or on why the page isn't current.
 
@@ -31,30 +33,67 @@ const readStart = (game) => Date.parse(game.start ?? "");
 /** @param {Game} game */
 const formatMatchup = (game) => `${nameTeam(game.away.team)} @ ${nameTeam(game.home.team)}`;
 
+// Between periods the clock stops at zero.
+/** @param {Game} game */
+function describeGameClock(game) {
+  if (!game.period) return game.status;
+  const period = describePeriod(game.period);
+  if (game.clock && game.clock !== "0.0") return `with ${game.clock} in ${period}`;
+  return game.period === 2 ? "at halftime" : `at the end of ${period}`;
+}
+
 /** @param {Game} game */
 const describeLiveGame = (game) =>
-  `${formatMatchup(game)} ${game.away.score}-${game.home.score}, ${describeLiveClock(game)}`;
+  `${formatMatchup(game)} ${game.away.score}-${game.home.score} ${describeGameClock(game)}`;
+
+/**
+ * Where a game's series stands after it: "Liberty won series 2-0", "series tied 1-1", or
+ * "Dream lead series 1-0".
+ * @param {Series | undefined} series
+ */
+function describeSeriesAfter(series) {
+  if (!series?.top || !series.bottom) return "";
+  const [ahead, behind] = orderBySeriesWins(series.top, series.bottom);
+  const score = `${ahead.wins}-${behind.wins}`;
+  if (series.winner) return `${nameTeam(series.winner)} won series ${score}`;
+  if (ahead.wins === behind.wins) return `series tied ${score}`;
+  return `${nameTeam(ahead.team)} lead series ${score}`;
+}
 
 /** @param {Game} game */
 function describeScore(game) {
   const [winner, loser] =
     game.away.score > game.home.score ? [game.away, game.home] : [game.home, game.away];
-  return `${nameTeam(winner.team)} ${winner.score} ${nameTeam(loser.team)} ${loser.score} final`;
+  return `${nameTeam(winner.team)} ${winner.score} ${nameTeam(loser.team)} ${loser.score}`;
 }
 
-// The feeds give no time a game ended, so its start stands in for that.
+// A game saved final before the Worker saw it live has no end, so only its day is known.
+/**
+ * Whether a final game ended today, and when: "at 10:41 PM last night", "at 4:02 PM", or a day.
+ * @param {Game} game
+ * @param {Date} now
+ */
+function describeFinalWhen(game, now) {
+  const start = new Date(readStart(game));
+  const end = game.end ? new Date(game.end) : null;
+  const day = describeFinishedDay(end ?? start, start, now);
+  const isToday = day === "today";
+  const shownDay = isToday ? "" : day;
+  if (!end) return { isToday, when: shownDay };
+  return { isToday, when: html`at ${renderStampTime(end)}${shownDay && ` ${shownDay}`}` };
+}
+
 /**
  * @param {Game} game
  * @param {Map<string, Series>} seriesById
  * @param {Date} now
  */
 function describeLatestFinal(game, seriesById, now) {
-  const start = new Date(readStart(game));
-  const day = describeFinishedDay(start, start, now);
-  const score =
-    day === "today" ? describeScore(game) : `No games since ${describeScore(game)} ${day}`;
-  const standing = describeSeriesStanding(seriesById.get(game.series ?? ""));
-  return standing ? `${score} \u2014 ${standing}` : score;
+  const { isToday, when } = describeFinalWhen(game, now);
+  const lead = isToday ? "" : "No games since ";
+  const sentence = html`${lead}${describeScore(game)} final${when && html` ${when}`}`;
+  const standing = describeSeriesAfter(seriesById.get(game.series ?? ""));
+  return standing ? html`${sentence} &mdash; ${standing}` : sentence;
 }
 
 /**
@@ -76,7 +115,8 @@ const listGamesInState = (games, state) =>
  */
 function describeLatest(games, seriesById, now) {
   const live = listGamesInState(games, "live");
-  if (live.length) return joinWithSeparator(live.map(describeLiveGame));
+  if (live.length)
+    return html`${renderStampNow()} ${joinWithSeparator(live.map(describeLiveGame))}`;
   const latestFinal = listGamesInState(games, "final").at(-1);
   return latestFinal ? describeLatestFinal(latestFinal, seriesById, now) : "";
 }
