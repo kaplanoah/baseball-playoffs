@@ -56,6 +56,11 @@ async function expectTheme(page, theme) {
     "content",
     isDark ? "#1d1511" : "#e9d4b0",
   );
+  // The select's down arrow is drawn in the theme's dim ink.
+  const arrow = await page
+    .locator("#appearanceSel")
+    .evaluate((select) => getComputedStyle(select).backgroundImage);
+  expect(arrow).toContain(isDark ? "b19a86" : "6f563c");
 }
 
 /**
