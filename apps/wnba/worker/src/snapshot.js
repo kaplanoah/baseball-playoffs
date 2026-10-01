@@ -31,8 +31,26 @@ const FEED_HEADERS = {
   "sec-fetch-site": "same-site",
 };
 
+// Where each feed's answer keeps its data.
+const FEED_DATA = {
+  scoreboard: (answer) => answer?.scoreboard?.games,
+  schedule: (answer) => answer?.leagueSchedule?.gameDates,
+  bracket: (answer) => answer?.bracket?.playoffBracketSeries,
+  standings: (answer) => answer?.resultSets?.[0]?.rowSet,
+};
+
+const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
+
 const countFinals = (scoreboard) =>
   (scoreboard?.scoreboard?.games ?? []).filter((game) => game.gameStatus === 3).length;
+
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
 
 // Reads the league for the page, so every open page shares one trip to it at a time.
 export function createSnapshotServer({
@@ -43,8 +61,9 @@ export function createSnapshotServer({
   const slowFeeds = new Map();
   let lastFinals = null;
 
-  // A refusal comes back as a web page with a 200, so only JSON counts as an answer.
-  async function fetchFeed(url) {
+  // A refusal comes back as a web page with a 200, so only JSON holding the feed's data counts
+  // as an answer.
+  async function fetchFeed(name, url) {
     const response = await fetchImpl(url, {
       headers: FEED_HEADERS,
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
@@ -52,12 +71,10 @@ export function createSnapshotServer({
     });
     const path = new URL(url).pathname;
     if (!response.ok) throw new Error(`The WNBA answered ${response.status} for ${path}`);
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
+    const answer = parseJson(await response.text());
+    if (!hasFeedData(name, answer))
       throw new Error(`The WNBA answered ${path} with something other than data`);
-    }
+    return answer;
   }
 
   // A slow feed's last good answer stands in when a read fails.
@@ -65,7 +82,7 @@ export function createSnapshotServer({
     const kept = slowFeeds.get(name);
     if (kept && !isStale && now() - kept.at < SLOW_FEED_MS[name]) return kept.data;
     try {
-      const data = await fetchFeed(url);
+      const data = await fetchFeed(name, url);
       slowFeeds.set(name, { at: now(), data });
       return data;
     } catch (error) {
@@ -75,7 +92,9 @@ export function createSnapshotServer({
   }
 
   async function fetchResponses(season) {
-    const scoreboard = await fetchFeed(WNBASnapshot.REQUESTS.scoreboard).catch(() => null);
+    const scoreboard = await fetchFeed("scoreboard", WNBASnapshot.REQUESTS.scoreboard).catch(
+      () => null,
+    );
     // A scoreboard that didn't answer counts no finals, so it leaves the count as it was.
     const finals = scoreboard ? countFinals(scoreboard) : lastFinals;
     const hasNewFinal = lastFinals !== null && finals > lastFinals;
