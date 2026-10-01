@@ -83,6 +83,23 @@ function renderTapeSide(side, measure, leader) {
   </div>`;
 }
 
+const isUnranked = (side) => Boolean(side.pitcher?.line && !side.pitcher.ranks);
+
+function describeUnranked({ pitcher }) {
+  const starts = pitcher.line.starts === 1 ? "1 start is" : `${pitcher.line.starts} starts are`;
+  return `${pitcher.lastName}'s ${starts} too few to rank him among this season's starters`;
+}
+
+function renderTapeNotes(sides, counted) {
+  const barsNote =
+    sides.some((side) => side.pitcher?.ranks) &&
+    html`<p class="tape-note">Bars are the share of this season's ${counted.count} starters, pitchers with ${counted.minimum} or more starts, he beats</p>`;
+  const unrankedNotes = sides
+    .filter(isUnranked)
+    .map((side) => html`<p class="tape-note">${describeUnranked(side)}</p>`);
+  return html`${barsNote}${unrankedNotes}`;
+}
+
 function renderTape(sides) {
   const counted = sides.find((side) => side.pitcher?.line)?.pitcher.starters;
   if (!counted) return html``;
@@ -96,7 +113,7 @@ function renderTape(sides) {
   });
   return html`<div class="tape">
     ${rows}
-    <p class="tape-note">Bars are the share of this season's ${counted.count} starters, pitchers with ${counted.minimum} or more starts, he beats</p>
+    ${renderTapeNotes(sides, counted)}
   </div>`;
 }
 
@@ -108,13 +125,20 @@ function formatInnings(innings) {
 
 const formatStartDay = (date) => formatShortDate(readCalendarDate(date));
 
-function renderStart(start) {
+// A start in the game under way is still adding up, so it says so instead of giving its date.
+const isUnderWay = (start, side, game) =>
+  game.state === "live" && start.date === game.date && start.opp === side.opponent;
+
+function renderStart(start, isNow) {
   const opponent = start.opp ? `${start.home ? "vs" : "@"} ${nameTeam(start.opp)}` : "";
   const line = `${formatInnings(start.ip)} IP, ${start.runs} R, ${start.k} K`;
-  return html`<li><span class="tabular">${formatStartDay(start.date)}</span><span>${opponent}</span><span class="tabular">${line}</span></li>`;
+  const day = isNow
+    ? html`<span class="start-now">Now</span>`
+    : html`<span class="tabular">${formatStartDay(start.date)}</span>`;
+  return html`<li>${day}<span>${opponent}</span><span class="tabular">${line}</span></li>`;
 }
 
-function renderScouting(side) {
+function renderScouting(side, game) {
   if (!side.starter?.name) return html``;
   const name = side.starter.name;
   if (side.failed)
@@ -124,7 +148,7 @@ function renderScouting(side) {
   const { pitcher } = side;
   const starts =
     pitcher.starts.length &&
-    html`<h4>Last starts</h4><ul class="recent-starts">${pitcher.starts.map(renderStart)}</ul>`;
+    html`<h4>Last starts</h4><ul class="recent-starts">${pitcher.starts.map((start) => renderStart(start, isUnderWay(start, side, game)))}</ul>`;
   return html`<section class="scout">
     <h3>${name}<span>What he throws</span></h3>
     ${renderPitchColumns(pitcher.pitches, name)}
@@ -132,22 +156,23 @@ function renderScouting(side) {
   </section>`;
 }
 
-function renderBody(sides) {
+function renderBody(game, sides) {
   return html`<div class="faceoff">${sides.map(renderPitcherId)}</div>
     ${renderTape(sides)}
-    ${sides.map(renderScouting)}`;
+    ${sides.map((side) => renderScouting(side, game))}`;
 }
 
 function renderMatchup(game, sides) {
   setHtml(findElement("matchupTitle"), renderTitle(sides));
   setHtml(findElement("matchupWhen"), renderWhen(game));
-  setHtml(findElement("matchupBody"), renderBody(sides));
+  setHtml(findElement("matchupBody"), renderBody(game, sides));
 }
 
 const listSides = (game) =>
   SIDES.map((key, index) => ({
     key,
     club: game[key],
+    opponent: game[SIDES[1 - index]],
     starter: game.starters?.[index] || null,
     pitcher: null,
     failed: false,
@@ -163,7 +188,7 @@ async function loadSide(side, season) {
 }
 
 /**
- * @param {{ date: string, start: string, tbd?: boolean, doubleheader?: number, away: string, home: string, starters: object[] }} game
+ * @param {{ date: string, start: string, state: string, tbd?: boolean, doubleheader?: number, away: string, home: string, starters: object[] }} game
  */
 async function openMatchup(game) {
   const sequence = ++opening;

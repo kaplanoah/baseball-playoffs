@@ -21,7 +21,7 @@ const PITCHERS = {
     1,
     ["AJ", "Blubaugh"],
     "R",
-    { era: "3.66", k9: 9.1, bb9: 3.4, speed: 95.4 },
+    { starts: 28, era: "3.66", k9: 9.1, bb9: 3.4, speed: 95.4 },
     {
       era: { rank: 50, of: 141 },
       k9: { rank: 8, of: 141 },
@@ -39,7 +39,7 @@ const PITCHERS = {
     2,
     ["Jeffrey", "Springs"],
     "L",
-    { era: "4.02", k9: 7.7, bb9: 2.9, speed: 90.8 },
+    { starts: 24, era: "4.02", k9: 7.7, bb9: 2.9, speed: 90.8 },
     {
       era: { rank: 90, of: 141 },
       k9: { rank: 80, of: 141 },
@@ -56,9 +56,10 @@ const PITCHERS = {
 /**
  * @param {import("@playwright/test").Page} page
  * @param {Record<number, object>} [pitchers]
+ * @param {object} [snapshot]
  */
-async function openMatchup(page, pitchers = PITCHERS) {
-  await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() }, pitchers });
+async function openMatchup(page, pitchers = PITCHERS, snapshot = buildSnapshotWithStarters()) {
+  await openApp(page, { snapshots: { 2026: snapshot }, pitchers });
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("button", { name: "Pitching matchup: Blubaugh vs Springs" }).click();
   return page.getByRole("dialog");
@@ -152,4 +153,57 @@ test("a game without its starters named has no matchup to open", async ({ page }
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-open")).toHaveCount(1);
+});
+
+test("a starter with too few starts to rank has his numbers, and a line saying why he has no bars", async ({
+  page,
+}) => {
+  const sheet = await openMatchup(page, { ...PITCHERS, 2: { ...PITCHERS[2], ranks: null } });
+  await expect(sheet.locator(".tape-row").first().locator(".tape-value")).toHaveText([
+    "3.66",
+    "4.02",
+  ]);
+  await expect(sheet.locator(".home .tape-bar")).toHaveCount(0);
+  await expect(sheet.locator(".tape-bar i.lead")).toHaveCount(0);
+  await expect(sheet.locator(".tape-note")).toHaveText([
+    "Bars are the share of this season's 141 starters, pitchers with 17 or more starts, he beats",
+    "Springs's 24 starts are too few to rank him among this season's starters",
+  ]);
+});
+
+test("with neither starter ranked, the sheet says why and drops the note about bars", async ({
+  page,
+}) => {
+  const unranked = (pitcher, starts) => ({
+    ...pitcher,
+    ranks: null,
+    line: { ...pitcher.line, starts },
+  });
+  const sheet = await openMatchup(page, {
+    1: unranked(PITCHERS[1], 1),
+    2: unranked(PITCHERS[2], 8),
+  });
+  await expect(sheet.locator(".tape-note")).toHaveText([
+    "Blubaugh's 1 start is too few to rank him among this season's starters",
+    "Springs's 8 starts are too few to rank him among this season's starters",
+  ]);
+});
+
+test("a start in the game under way says Now instead of its date", async ({ page }) => {
+  const snapshot = buildSnapshotWithStarters();
+  const game = snapshot.slate.today.games.find((candidate) => candidate.away === "HOU");
+  Object.assign(game, { state: "live", score: [1, 0], inning: 3, half: "top", outs: 1 });
+  const tonight = {
+    date: snapshot.slate.today.date,
+    opp: "ATH",
+    home: false,
+    ip: "2.0",
+    runs: 0,
+    k: 3,
+  };
+  const blubaugh = { ...PITCHERS[1], starts: [tonight, ...PITCHERS[1].starts] };
+  const sheet = await openMatchup(page, { ...PITCHERS, 1: blubaugh }, snapshot);
+  const starts = sheet.locator(".recent-starts").first().locator("li");
+  await expect(starts.first()).toHaveText("Now@ Athletics2 IP, 0 R, 3 K");
+  await expect(starts.nth(1)).toHaveText("Sep 19vs Mariners5 2/3 IP, 2 R, 6 K");
 });

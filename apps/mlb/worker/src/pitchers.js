@@ -29,6 +29,7 @@ const PERSON_FIELDS = [
   "displayName",
   "splits",
   "stat",
+  "gamesStarted",
   "era",
   "strikeoutsPer9Inn",
   "walksPer9Inn",
@@ -153,6 +154,7 @@ function rankStarter(league, id) {
 function describeLine(line, arsenal) {
   if (!line) return null;
   return {
+    starts: line.gamesStarted ?? 0,
     era: line.era,
     k9: roundTo(Number(line.strikeoutsPer9Inn), 1),
     bb9: roundTo(Number(line.walksPer9Inn), 1),

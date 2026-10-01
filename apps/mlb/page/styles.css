@@ -1561,6 +1561,9 @@ body.kbd .rank-item .grip:focus {
   grid-template-columns: 4.2em minmax(0, 1fr) auto;
   gap: 8px;
 }
+.start-now {
+  color: var(--copper-ink);
+}
 .recent-starts li > :last-child {
   color: var(--ink-mid);
 }
