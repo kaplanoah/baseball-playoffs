@@ -35,6 +35,7 @@ export default defineConfig({
   webServer: appsWithBrowserTests.map((app, index) => ({
     command: `node tests/browser/serve.mjs ${findPort(index)} apps/${app}/page`,
     url: `http://127.0.0.1:${findPort(index)}/index.html`,
-    reuseExistingServer: !process.env.CI,
+    // A server already on the port may be serving another checkout, so a busy port fails the run.
+    reuseExistingServer: false,
   })),
 });
