@@ -1,4 +1,4 @@
-// The settings panel's appearance choice: Maple, Walnut, or Automatic to follow the phone. Each
+// The settings panel's appearance choice: Maple, Walnut, or System to follow the phone. Each
 // device keeps its own, since the page saves nothing to the store. The page's head sets the theme
 // before the first paint; this keeps it, and the icons and bar color that go with it, current.
 

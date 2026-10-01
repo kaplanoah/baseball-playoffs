@@ -71,7 +71,7 @@ async function chooseAppearance(page, choice) {
   await page.keyboard.press("Escape");
 }
 
-test("on Automatic, the page and its icons follow the phone's dark or light setting", async ({
+test("on System, the page and its icons follow the phone's dark or light setting", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "dark" });
@@ -96,7 +96,7 @@ test("choosing Walnut or Maple overrides the phone, and the choice stays after a
   await page.emulateMedia({ colorScheme: "dark" });
   await chooseAppearance(page, "Maple");
   await expectTheme(page, "light");
-  await chooseAppearance(page, "Automatic");
+  await chooseAppearance(page, "System");
   await expectTheme(page, "dark");
 });
 
@@ -105,7 +105,7 @@ test("each appearance choice shows the home-screen icon it offers", async ({ pag
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const choices = page.locator(".appearance-choice");
   const icons = {
-    Automatic: ["icon-light-180.png", "icon-180.png"],
+    System: ["icon-light-180.png", "icon-180.png"],
     Maple: ["icon-light-180.png"],
     Walnut: ["icon-180.png"],
   };

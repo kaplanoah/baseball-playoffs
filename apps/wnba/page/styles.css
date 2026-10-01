@@ -512,7 +512,7 @@ table.standings tr.below td {
   color: var(--orange);
 }
 
-/* Settings: the appearance choices show the home-screen icon each one offers. Automatic shows
+/* Settings: the appearance choices show the home-screen icon each one offers. System shows
    both, Maple on the left half and Walnut on the right. */
 .appearance-row {
   flex-direction: column;
