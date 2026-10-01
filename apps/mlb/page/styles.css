@@ -58,8 +58,8 @@ body {
   /* Insets are zero except in the home-screen app, which draws under the status bar and notch. */
   padding-inline: max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-right));
   padding-block: calc(17px + env(safe-area-inset-top)) max(48px, env(safe-area-inset-bottom));
-  /* 7 x CARD.width + 6 x WIDE.columnGap in bracket-view.js, plus .tree-scroll's 18px each side. */
-  max-width: 1619px;
+  /* WIDE_STAGE_WIDTH in bracket-view.js, plus .tree-scroll's 18px each side. */
+  max-width: 1791px;
   margin: 0 auto;
 }
 h1,
@@ -848,6 +848,33 @@ nav.tabs + .updates {
 .box {
   position: absolute;
 }
+/* Beside the card's two rows, below its 1px border and 24px header, each label centered on its
+   row. They fit in SEED_LABEL_ROOM in bracket-view.js. */
+.seed-labels {
+  position: absolute;
+  top: 25px;
+  display: grid;
+  grid-template-rows: 32px 32px;
+  align-items: center;
+  font-size: 0.62rem;
+  font-weight: 300;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+.seed-labels.left {
+  right: calc(100% + 6px);
+  justify-items: end;
+}
+.seed-labels.right {
+  left: calc(100% + 6px);
+  justify-items: start;
+}
+.seed-number {
+  font-weight: 500;
+  color: var(--ink);
+}
 .series.world .bestof span:first-child {
   color: var(--gold);
 }
@@ -858,6 +885,10 @@ nav.tabs + .updates {
 }
 .stacked .box {
   scroll-snap-align: start;
+}
+/* A division card stops with its bye's seed label still on screen. */
+.stacked .box:has(.seed-labels) {
+  scroll-margin-left: 50px;
 }
 .stacked .box:has(.world) {
   scroll-snap-align: center;
@@ -942,12 +973,6 @@ nav.tabs + .updates {
 }
 .matchup-row.winner {
   background: color-mix(in srgb, var(--gold) 8%, transparent);
-}
-.seed-pre {
-  color: var(--ink-dim);
-  font-size: 0.72rem;
-  flex: none;
-  margin: 0 1px 0 2px;
 }
 .matchup-row.eliminated .team-name {
   color: var(--out);

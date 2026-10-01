@@ -237,7 +237,7 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     const text = readText(renderBracket(SEASON, NOW));
     assert.match(
       text,
-      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 Liberty win 2-0 1 Lynx 0 8 Liberty 2 Game 2 \| Today 7:00 PM 4 Dream 1 5 Mystics 0 /,
+      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 Liberty win 2-0 Seed 1 Lynx 0 Seed 8 Liberty 2 Game 2 \| Today 7:00 PM Seed 4 Dream 1 Seed 5 Mystics 0 /,
     );
     assert.match(
       text,
@@ -250,7 +250,10 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
 
 test("a series with a game under way says so", () =>
   inEastern(() => {
-    assert.match(readText(renderBracket(LIVE_TONIGHT, NOW)), /Live, Game 2 4 Dream 1 5 Mystics 0/);
+    assert.match(
+      readText(renderBracket(LIVE_TONIGHT, NOW)),
+      /Live, Game 2 Seed 4 Dream 1 Seed 5 Mystics 0/,
+    );
   }));
 
 /**
@@ -278,10 +281,10 @@ function finishFirstRound() {
   return season;
 }
 
-test("a seed shows only in the first round, where its team enters the bracket", () =>
+test("a seed is labeled only in the first round, where its team enters the bracket", () =>
   inEastern(() => {
     const text = readText(renderBracket(finishFirstRound(), NOW));
-    assert.match(text, /Dream win 2-0 4 Dream 2 5 Mystics 0 /);
+    assert.match(text, /Dream win 2-0 Seed 4 Dream 2 Seed 5 Mystics 0 /);
     assert.match(text, /Oct 4 Dream 0 Liberty 0 Game 1 \| Sun, Oct 4 Valkyries 0 Fever 0 /);
   }));
 

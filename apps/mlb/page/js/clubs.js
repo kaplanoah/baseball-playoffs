@@ -71,10 +71,6 @@ export function listRankedOrder() {
   return ranked.concat(unranked);
 }
 
-export function renderSeedMark(seed) {
-  return seed ? html`<span class="seed-pre tabular">${seed}</span>` : html``;
-}
-
 export function renderRankTag(id, solid) {
   const index = listRankedOrder().indexOf(id);
   if (index === -1) return html``;
