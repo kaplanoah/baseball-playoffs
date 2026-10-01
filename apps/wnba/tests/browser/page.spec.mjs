@@ -215,6 +215,12 @@ test("changing the appearance says how to match the home-screen icon", async ({ 
   await expect(note).toHaveText(/Apple sets a home-screen icon only when the page is added/);
 });
 
+test("settings credit NBA.com for the data", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.locator("#settingsDialog")).toContainText("Data from NBA.com");
+});
+
 test("the page serves both themes' icons", async ({ page }) => {
   await openApp(page);
   for (const href of ["icon-180.png", "icon-light-180.png", "icon.svg", "icon-light.svg"]) {
