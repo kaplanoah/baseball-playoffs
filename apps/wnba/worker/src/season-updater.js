@@ -19,12 +19,14 @@ export const loadCurrentSnapshot = (loadSnapshot, now) =>
   loadSnapshot(new Date(now).getUTCFullYear());
 
 // A feed that didn't answer leaves its saved field as it was. The games need both of theirs: the
-// schedule alone can be behind on today's, and the scoreboard alone has only today's.
+// schedule alone can be behind on today's, and the scoreboard alone has only today's, unless ESPN
+// stood in for the scoreboard.
 export async function saveSnapshot(docs, snapshot) {
   const key = nameSeasonKey(snapshot.season);
   const doc = (await docs.read(key)) ?? { year: snapshot.season };
   const missing = new Set(snapshot.missing);
-  const hasGames = !missing.has("scoreboard") && !missing.has("schedule");
+  const hasToday = !missing.has("scoreboard") || !!snapshot.standIn;
+  const hasGames = hasToday && !missing.has("schedule");
   const answered = {
     games: hasGames,
     series: !missing.has("bracket") || hasGames,
@@ -42,17 +44,22 @@ export const readUpdates = (docs, year) => docs.read(nameSeasonKey(year));
 
 export function describeSnapshotStatus(snapshot) {
   const missing = snapshot.missing || [];
-  return { error: missing.length ? "wnba_feeds_missing" : "", detail: missing.join(", ") };
+  return {
+    error: missing.length ? "wnba_feeds_missing" : "",
+    detail: missing.join(", "),
+    standIn: snapshot.standIn || "",
+  };
 }
 
 // Stored so updates that stop can be diagnosed without the Worker's logs.
 export async function saveStatus(docs, status, now) {
   const stored = await docs.read(STATUS_KEY);
-  const current = { error: "", detail: "", write: "", ...status };
+  const current = { error: "", detail: "", standIn: "", write: "", ...status };
   const isSame =
     stored &&
     stored.error === current.error &&
     stored.detail === current.detail &&
+    (stored.standIn ?? "") === current.standIn &&
     stored.write === current.write;
   if (!isSame) await docs.write(STATUS_KEY, { ...current, at: new Date(now).toISOString() });
 }
