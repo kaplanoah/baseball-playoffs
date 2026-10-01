@@ -37,6 +37,9 @@ const MLB_TEAM = {
 };
 // Postseason placeholders have made-up ids, so this is null for them.
 export const readClubId = (mlbTeamId) => MLB_TEAM[mlbTeamId] || null;
+// The MLB id of one of the page's clubs, or null for a name that isn't one.
+export const readMlbTeamId = (club) =>
+  Number(Object.keys(MLB_TEAM).find((mlbTeamId) => MLB_TEAM[mlbTeamId] === club)) || null;
 
 const MLB_DIVISION = {
   200: "AL West",
@@ -361,7 +364,7 @@ export function readEasternDay(ms) {
     year: Number(parts.year),
   };
 }
-function addDays(date, days) {
+export function addDays(date, days) {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
@@ -873,6 +876,8 @@ function readOfficialField(gamesBySeries, records) {
   return isFieldComplete(teams) ? teams : null;
 }
 
+const isUnderWay = (game) => game.state === "live" || game.state === "final";
+
 const isBetween = (game, teamA, teamB) =>
   [teamA, teamB].includes(game.away.id) && [teamA, teamB].includes(game.home.id);
 
@@ -888,10 +893,12 @@ function tallySeries(seriesId, games, round, teamA, teamB, today) {
   const log = [];
   const need = countWinsNeeded(round);
   let winner = null;
-  const finals = teamA && teamB ? games.filter((game) => game.state === "final") : [];
-  const decided = finals
-    .filter((game) => hasBothClubs(game) && isBetween(game, teamA, teamB))
-    .sort(compareEnds);
+  const seriesGames =
+    teamA && teamB
+      ? games.filter((game) => hasBothClubs(game) && isBetween(game, teamA, teamB))
+      : [];
+  if (seriesGames.some(isUnderWay)) record.started = true;
+  const decided = seriesGames.filter((game) => game.state === "final").sort(compareEnds);
   for (const game of decided) {
     const won = game.away.score > game.home.score ? game.away.id : game.home.id;
     const lost = won === teamA ? teamB : teamA;

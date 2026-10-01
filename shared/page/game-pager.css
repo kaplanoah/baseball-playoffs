@@ -10,9 +10,12 @@
  *   --pager-thumb-edge     the thumb's lit top edge
  */
 
-/* The pill's bar and the lists reach past the body's gutter to the screen's edges, and on the
-   left past the 1px chrome.css pads each view with too. */
+/* The pill and the lists keep to a phone's width, centered on a wider screen. Their bar and the
+   lists reach past the body's gutter to the screen's edges, and on the left past the 1px chrome.css
+   pads each view with too. */
 #gamePager {
+  max-width: 560px;
+  margin-inline: auto;
   --reach-left: calc(var(--page-gutter) + 1px);
   --reach-right: var(--page-gutter);
 }
@@ -38,7 +41,6 @@
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  max-width: 560px;
   padding: 3px;
   pointer-events: auto;
   border-radius: 999px;
@@ -78,7 +80,6 @@
 .game-pages {
   display: flex;
   align-items: flex-start;
-  max-width: calc(560px + var(--reach-left) + var(--reach-right));
   margin-inline: calc(-1 * var(--reach-left)) calc(-1 * var(--reach-right));
   overflow-x: auto;
   overflow-y: hidden;

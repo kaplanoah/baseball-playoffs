@@ -819,7 +819,7 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   assert.deepEqual(describeGameList(slate, "today"), [
     "Fri, Sep 25",
     "Orioles 4 - 2 Final Yankees",
-    "Orioles After 1st game Yankees",
+    "Orioles After 1st game Yankees Still TBD Still TBD",
     "Blue Jays Postponed Orioles",
     "Guardians 1 - 0 Bot 7th Red Sox",
   ]);
@@ -880,7 +880,7 @@ test("games list: a game still to play names its starters, with their arm and ER
   });
 });
 
-test("games list: a game without a named starter keeps its row as it was", () => {
+test("games list: a starter MLB can't name yet leaves his line out, rather than calling him TBD", () => {
   const slate = {
     today: {
       date: "2026-09-29",
@@ -890,7 +890,7 @@ test("games list: a game without a named starter keeps its row as it was", () =>
           home: "SD",
           state: "pre",
           start: "2026-09-30T02:08:00Z",
-          starters: [{ id: 571510 }, null],
+          starters: [{ id: 571510 }, { id: 669373 }],
         },
       ],
     },
@@ -900,6 +900,24 @@ test("games list: a game without a named starter keeps its row as it was", () =>
   assert.doesNotMatch(rendered, /class="starter/);
   assert.doesNotMatch(rendered, /class="game-extra/);
   assert.doesNotMatch(rendered, /game-open/);
+});
+
+test("games list: a club yet to name today's starter says Still TBD, and the game opens", () => {
+  const game = { away: "PHI", home: "ATL", state: "pre", start: "2026-10-02T00:08:00Z" };
+  const slate = {
+    today: { date: "2026-10-01", games: [game] },
+    next: [{ date: "2026-10-02", ...game }],
+  };
+  assert.deepEqual(describeGameList(slate, "today"), [
+    "Thu, Oct 1",
+    "Phillies 8:08 PM Braves Still TBD Still TBD",
+  ]);
+  assert.match(
+    String(renderGameList(slate, "today")),
+    /class="game-open" aria-label="Pitching matchup: TBD vs TBD"/,
+  );
+  const later = String(renderGameList(slate, "next"));
+  assert.doesNotMatch(later, /Still TBD|game-open/);
 });
 
 test("games list: an empty list says so without a closing period", () => {
@@ -936,7 +954,7 @@ test("games list: a delay shows under the start time or the score", () => {
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Sun, Sep 27",
-    "Orioles 1:05 PM Delayed: Rain Yankees",
+    "Orioles 1:05 PM Delayed: Rain Yankees Still TBD Still TBD",
     "Rays 0 - 4 Delayed Phillies",
   ]);
   assert.match(String(renderGameList(slate, "today")), /class="game-row pre delayed"/);

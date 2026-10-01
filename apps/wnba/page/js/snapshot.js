@@ -139,7 +139,7 @@ function mergeGames(schedule, scoreboard) {
 // A team not known yet has a seed of 0 in the feeds, and goes after the one that is, as in the bracket.
 const readSeedOrder = (side) => (side.team ? side.seed : Infinity);
 
-// Without the bracket, a series still counts its wins from the games it has finished.
+// A series counts its wins from the games it has finished, with or without the bracket.
 function countSeriesFromGames(games) {
   const series = {};
   for (const game of games) {
@@ -166,6 +166,46 @@ function countSeriesFromGames(games) {
   return Object.values(series);
 }
 
+function addCountedWins(side, counted) {
+  if (!side) return null;
+  const countedSide = [counted?.top, counted?.bottom].find((other) => other?.team === side.team);
+  return { ...side, wins: Math.max(side.wins, countedSide?.wins ?? 0) };
+}
+
+const findSeriesWinner = (round, sides) =>
+  sides.find((side) => side && side.wins >= countWinsNeeded(round))?.team ?? null;
+
+// The first game of the series not yet finished.
+function findNextGame(seriesId, games) {
+  const [next] = games
+    .filter((game) => game.series === seriesId && game.state !== "final")
+    .sort((first, second) => first.number - second.number);
+  return next ? { id: next.id, start: next.start } : null;
+}
+
+// The bracket trails a final by minutes, so each side keeps the most wins either the bracket or
+// the finished games give it, and a next game already finished gives way to the one after it.
+function combineSeries(bracketSeries, countedSeries, games) {
+  const countedById = new Map(countedSeries.map((record) => [record.id, record]));
+  const finishedIds = new Set(
+    games.filter((game) => game.state === "final").map((game) => game.id),
+  );
+  return bracketSeries.map((record) => {
+    const counted = countedById.get(record.id);
+    const top = addCountedWins(record.top, counted);
+    const bottom = addCountedWins(record.bottom, counted);
+    const winner = record.winner ?? findSeriesWinner(record.round, [top, bottom]);
+    const isNextGameFinished = !!record.nextGame && finishedIds.has(record.nextGame.id);
+    const nextGame = winner
+      ? null
+      : isNextGameFinished
+        ? findNextGame(record.id, games)
+        : record.nextGame;
+    const hasNewWins = top?.wins !== record.top?.wins || bottom?.wins !== record.bottom?.wins;
+    return { ...record, top, bottom, winner, nextGame, status: hasNewWins ? "" : record.status };
+  });
+}
+
 /**
  * @param {{ scoreboard?: any, schedule?: any, bracket?: any, standings?: any }} responses
  * @param {{ season: number, now?: number }} options
@@ -173,7 +213,10 @@ function countSeriesFromGames(games) {
 export function buildSnapshot(responses, { season, now = Date.now() }) {
   const games = mergeGames(responses.schedule, responses.scoreboard);
   const bracket = responses.bracket?.bracket?.playoffBracketSeries;
-  const series = bracket ? bracket.map(readBracketSeries) : countSeriesFromGames(games);
+  const countedSeries = countSeriesFromGames(games);
+  const series = bracket
+    ? combineSeries(bracket.map(readBracketSeries), countedSeries, games)
+    : countedSeries;
   return {
     version: 1,
     season,
@@ -188,7 +231,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   };
 }
 
-export const POLL_LIVE_MS = 30 * 1000;
+const POLL_LIVE_MS = 15 * 1000;
 const POLL_LEAD_MS = 15 * 60 * 1000;
 const POLL_CHECK_MS = 60 * 60 * 1000;
 

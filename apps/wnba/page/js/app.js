@@ -1,6 +1,7 @@
 import { setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fillGameLists, startGamePager } from "#shared/game-pager.js";
+import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
@@ -43,14 +44,37 @@ function refreshClockEveryMinute() {
   setInterval(renderAll, CLOCK_REFRESH_MS);
 }
 
+// The season the page last showed is only a stand-in until the store answers, so one that can't
+// be drawn is skipped.
+function drawLastSeen() {
+  const lastSeen = readLastSeen();
+  if (!lastSeen?.season) return;
+  const { year, season } = session;
+  try {
+    Object.assign(session, { year: lastSeen.year, season: lastSeen.season });
+    renderAll();
+  } catch {
+    Object.assign(session, { year, season });
+  }
+}
+
+const readShown = () => session.season && { year: session.year, season: session.season };
+
+function catchUp() {
+  session.db.catchUp();
+  renderAll();
+}
+
 async function boot() {
   startAppearance();
-  watchReturns();
+  watchReturns({ catchUp });
   trackKeyboardFocus();
   startPageTabs();
   startGamePager();
   startSettingsSheet();
   session.db = createWorkerStore();
+  drawLastSeen();
+  keepLastSeen(readShown);
   await loadSeason();
   renderAll();
   watchSeason(renderAll);

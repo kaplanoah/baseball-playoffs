@@ -8,6 +8,14 @@ class LiveError extends Error {
   }
 }
 
+// A snapshot from an older Worker, or for another season, can't be read.
+/**
+ * @param {any} body
+ * @param {number} season
+ */
+export const isReadableLive = (body, season) =>
+  !!body && body.version === 1 && body.season === season;
+
 // The Worker that serves the page also reads MLB for it.
 export async function fetchLive(season) {
   const response = await fetch(new URL(`snapshot?season=${season}`, location.href), {
@@ -17,7 +25,6 @@ export async function fetchLive(season) {
   const body = await response.json().catch(() => null);
   if (!response.ok)
     throw new LiveError("upstream_error", body?.error || `The Worker answered ${response.status}`);
-  if (!body || body.version !== 1 || body.season !== season)
-    throw new LiveError("bad_payload", "unexpected answer");
+  if (!isReadableLive(body, season)) throw new LiveError("bad_payload", "unexpected answer");
   return body;
 }

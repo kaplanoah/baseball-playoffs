@@ -84,6 +84,34 @@ test("without the bracket, a series counts its wins from its finished games", ()
   assert.deepEqual([semifinal.top, semifinal.bottom], [{ team: "NYL", seed: 8, wins: 0 }, null]);
 });
 
+// Moments just after a final, when the bracket still had the series as it was before the game.
+const readFinal = (name) => {
+  const moment = JSON.parse(readFileSync(`${import.meta.dirname}/fixtures/${name}`, "utf8"));
+  const responses = { ...AFTERNOON.responses, ...moment.responses };
+  return WNBASnapshot.buildSnapshot(responses, {
+    season: moment.season,
+    now: Date.parse(moment.now),
+  });
+};
+
+test("a series counts a game that just finished before the bracket does", () => {
+  const { series } = readFinal("2026-10-01-atlanta-final.json");
+  const settled = series.find((record) => record.id === "1-3");
+  assert.deepEqual(
+    [settled.top, settled.bottom, settled.winner, settled.nextGame],
+    [{ team: "ATL", seed: 4, wins: 2 }, { team: "WAS", seed: 5, wins: 0 }, "ATL", null],
+  );
+});
+
+test("a series whose next game just finished names the game after it", () => {
+  const { series } = readFinal("2026-10-01-dallas-final.json");
+  const tied = series.find((record) => record.id === "1-1");
+  assert.deepEqual(
+    [tied.top.wins, tied.bottom.wins, tied.winner, tied.nextGame?.id],
+    [1, 1, null, "1042600113"],
+  );
+});
+
 test("the standings run 1 to 15 across the league, each with its conference place", () => {
   const { standings } = buildAfternoon();
   assert.equal(standings.length, 15);
@@ -116,7 +144,7 @@ test("the standings run 1 to 15 across the league, each with its conference plac
   assert.equal(standings[8].clinch, "o");
 });
 
-test("polling waits until 15 minutes before the next set start, and runs every 30 seconds in a game", () => {
+test("polling waits until 15 minutes before the next set start, and runs every 15 seconds in a game", () => {
   const snapshot = buildAfternoon();
   const now = Date.parse(AFTERNOON.now);
   assert.equal(
@@ -128,5 +156,5 @@ test("polling waits until 15 minutes before the next set start, and runs every 3
       game.id === "1042600132" ? { ...game, state: "live" } : game,
     ),
   };
-  assert.equal(WNBASnapshot.choosePollDelay(live, now), WNBASnapshot.POLL_LIVE_MS);
+  assert.equal(WNBASnapshot.choosePollDelay(live, now), 15 * 1000);
 });

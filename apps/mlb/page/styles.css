@@ -519,6 +519,10 @@ table.st .seed-cell {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.starter.pending {
+  color: var(--ink-dim);
+  font-style: italic;
+}
 .arm {
   font-size: 0.56rem;
   line-height: 1.3;
@@ -1001,20 +1005,23 @@ table.ref td .team-name {
   text-align: center;
   font-weight: 700;
   font-size: 1rem;
-  padding: 3px 6px 1px;
+  padding: 3.5px 6px 0.5px;
   border-radius: 3px;
   background: var(--divider);
   position: relative;
-  top: -1px;
+  top: -0.5px;
   box-shadow:
-    inset 0 2px 3px rgba(0, 0, 0, 0.46),
+    inset 0 2px 3px rgba(0, 0, 0, 0.44),
     0 1px 0 rgba(241, 234, 212, 0.13);
 }
 /* An empty score keeps the height it has with a digit in it. */
 .nscore:empty::before {
   content: "\00a0";
 }
+/* The inset shadow darkens the top of a dark box but hardly shows on gold, so a digit sits lower
+   in a dark box to look centered. */
 .nscore.lead {
+  padding: 2.75px 6px 1.25px;
   background: var(--gold);
   color: var(--gold-ink);
 }
@@ -1403,6 +1410,41 @@ body.kbd .rank-item .grip:focus {
 }
 .recent-starts li > :last-child {
   color: var(--ink-mid);
+}
+/* A club's last starters, each by his last start and the rest he'd have, gold once it's the usual. */
+.rotation {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.62rem;
+  color: var(--ink-dim);
+}
+.rotation li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 6.6em;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+}
+.rotation-name {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  color: var(--ink-mid);
+}
+.rotation-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rotation li > :last-child {
+  text-align: right;
+}
+.rotation li.rested > :last-child {
+  color: var(--gold);
 }
 /* The chart's text is sized in its own units, so it scales with the chart's width. */
 .pitch-columns {

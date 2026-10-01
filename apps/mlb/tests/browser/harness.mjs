@@ -3,6 +3,7 @@ import { test as base, expect } from "@playwright/test";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
+import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
 const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
@@ -79,6 +80,8 @@ async function answerFromStore(route, store) {
  * @param {boolean} [options.liveAvailable]
  * @param {boolean} [options.portalReadsDocuments] a captive portal answers reading a document
  * @param {Record<number, object>} [options.pitchers] what the Worker answers for each pitcher id
+ * @param {Record<string, object>} [options.rotations] what the Worker answers for each club's last
+ *   starters
  */
 export async function openApp(
   page,
@@ -89,6 +92,7 @@ export async function openApp(
     liveAvailable = true,
     portalReadsDocuments = false,
     pitchers = {},
+    rotations = {},
   } = {},
 ) {
   const context = createDurableObjectContext();
@@ -138,6 +142,15 @@ export async function openApp(
     },
   );
   await page.route(
+    (url) => url.pathname === "/rotation",
+    (route) => {
+      const rotation = rotations[new URL(route.request().url()).searchParams.get("club")];
+      if (!rotation)
+        return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
+      return route.fulfill({ json: rotation });
+    },
+  );
+  await page.route(
     (url) => url.pathname.startsWith("/push/"),
     (route) => answerFromStore(route, seasonStore),
   );
@@ -168,6 +181,9 @@ export async function openApp(
   return {
     readDocument: async (path) => (await context.ctx.storage.get(path)) ?? null,
     writeFromAnotherDevice: (path, data) => seasonStore.docs.write(path, data),
+    // A change the page's socket never hears of, as when a phone sleeps through it.
+    writeWhileAway: (path, data) => context.ctx.storage.put(path, data),
+    holdStore: () => holdStore(page),
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,

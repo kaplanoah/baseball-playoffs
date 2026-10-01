@@ -16,12 +16,14 @@ function decideFromWins(state, seriesId, round, teamA, teamB) {
   return null;
 }
 
+// Seasons saved before series recorded `started` still count a series with a win as started.
 function describeSeries(state, series) {
   const record = state.series[series.id] || {};
   return {
     ...series,
     winsA: record.winsA || 0,
     winsB: record.winsB || 0,
+    started: !!record.started || !!(record.winsA || record.winsB),
     need: countWinsNeeded(series.round),
     bestOf: BEST_OF[series.round],
   };

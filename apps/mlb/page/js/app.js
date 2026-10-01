@@ -2,15 +2,16 @@ import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
-import { fetchLive } from "./live-fetch.js";
+import { fetchLive, isReadableLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
 import { startGamePager } from "#shared/game-pager.js";
+import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { startMatchups } from "./matchup.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
-import { watchReturns } from "#shared/resume.js";
+import { reloadPage, watchReturns } from "#shared/resume.js";
 import {
   applyDeferredSeason,
   loadReadings,
@@ -23,7 +24,7 @@ import {
   watchSeason,
   watchStandings,
 } from "./season-store.js";
-import { hasSpringStarted, session, readSeasonYear } from "./session.js";
+import { composeState, hasSpringStarted, session, readSeasonYear } from "./session.js";
 import { readEasternDay } from "./snapshot.js";
 import { startSettings } from "./settings.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
@@ -155,11 +156,50 @@ function refreshClockEveryMinute() {
   }, CLOCK_REFRESH_MS);
 }
 
+/** @param {any} shown */
+const pickShown = ({ seasonDoc, storedStandings, readings, trackedTitles, live }) => ({
+  seasonDoc,
+  storedStandings,
+  readings,
+  trackedTitles,
+  live,
+});
+
+const readShown = () => session.seasonDoc && { year: session.activeYear, ...pickShown(session) };
+
+// What the page last showed is only a stand-in until the store and MLB answer, so what can't be
+// drawn is skipped.
+function drawLastSeen() {
+  const lastSeen = readLastSeen();
+  if (!lastSeen?.seasonDoc || lastSeen.year !== session.activeYear) return;
+  const before = pickShown(session);
+  try {
+    const live = isReadableLive(lastSeen.live, session.activeYear) ? lastSeen.live : null;
+    Object.assign(session, pickShown({ ...lastSeen, live }));
+    composeState();
+    renderAll();
+  } catch {
+    Object.assign(session, before);
+  }
+}
+
+// A page whose load failed has nothing to catch up from, so it loads again.
+function catchUp() {
+  if (!session.db) {
+    reloadPage();
+    return;
+  }
+  session.db.catchUp();
+  if (session.state && !session.isReordering) renderAll();
+}
+
 async function boot() {
-  watchReturns({ isBusy: () => session.isReordering });
+  watchReturns({ isBusy: () => session.isReordering, catchUp });
   trackKeyboardFocus();
   wireControls();
   session.db = createWorkerStore();
+  drawLastSeen();
+  keepLastSeen(readShown);
   fillYearPicker(await listYears());
   await loadActiveSeason();
   renderAll();

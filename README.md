@@ -18,7 +18,9 @@ A private web page that tracks the MLB postseason. It shows the bracket, your
 ranking of who you want to win the World Series, the standings, each team's
 previous, current and next game with its starting pitchers, and scores that update
 automatically. Tap a game to compare its starters: how they rank among the season's starters,
-what they throw, and how their last starts went.
+what they throw, and how their last starts went. A game later today whose club hasn't named
+its starter says "Still TBD" and opens to who started for that club lately and how rested each
+would be.
 
 A Cloudflare Worker serves the page and saves your ranking. It also reads MLB
 on its own, every 30 seconds during games, so the standings and updates stay
@@ -35,7 +37,7 @@ setting, or the one you pick in its settings. Added to the home screen, it keeps
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
-every 30 seconds during games. Saved to an iPhone's home screen, the page opens
+every 15 seconds during games. Saved to an iPhone's home screen, the page opens
 full screen like an app, and can send a notification with the score when any
 playoff game ends.
 
@@ -184,7 +186,8 @@ when, and the page's settings show them.
 
 Code every app uses lives in `shared/`: the page's tab bar and settings sheet
 (their styles in `chrome.css`), the sheet a tap on a game opens (`sheet.css`),
-reload on return, and store client in
+catching up on return, showing what the page last showed while it loads, and
+store client in
 `shared/page/`, and the Worker's routing and push
 notifications in `shared/worker/`. A change there reaches every app. The root
 `worker/` holds the tooling every app shares: building, versioning, deploying,
@@ -202,8 +205,10 @@ merge that adds its folder.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page reloads itself
-for a deploy the next time it comes back into view, and after half an hour
-away, so a home-screen app never needs quitting to catch up.
+for a deploy the next time it comes back into view, and otherwise reads what
+changed while it was away, so a home-screen app never needs quitting to catch
+up. A page that loads again first shows what it last showed, so it doesn't
+flash empty while it waits for its data.
 
 ### Deploying on merge
 
