@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { extname, join, posix, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { nameReleaseFolder } from "../shared/worker/app-worker.js";
 
 const SHARED_PAGE_ROOT = fileURLToPath(new URL("../shared/page/", import.meta.url));
 
@@ -102,4 +103,57 @@ export function readPageFiles(pageRoot) {
     file,
   ]);
   return addModulePreloads({ ...readFolder(pageRoot), ...Object.fromEntries(shared) });
+}
+
+const RELEASE_GUARD = '<script src="shared/release-guard.js"></script>';
+const LOADING_TAG = /<(?:link|script)\b[^>]*>/g;
+const LOADED_LINK = /\brel="(?:stylesheet|preload|modulepreload)"/;
+const FILE_ATTRIBUTE = /\b(href|src)="([^"]+)"/;
+const isRelative = (address) => !/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(address);
+
+/**
+ * A link or script tag, reading a page file from the release's folder when it loads one.
+ * @param {string} tag
+ * @param {string} folder
+ */
+function pinTag(tag, folder) {
+  if (tag.startsWith("<link") && !LOADED_LINK.test(tag)) return tag;
+  return tag.replace(FILE_ATTRIBUTE, (attribute, name, address) =>
+    isRelative(address) ? `${name}="${folder}${address}"` : attribute,
+  );
+}
+
+/**
+ * The import map, pointing every module path into the release's folder.
+ * @param {string} importMap
+ * @param {string} folder
+ */
+function pinImportMap(importMap, folder) {
+  const { imports } = JSON.parse(importMap);
+  const pinned = Object.entries(imports).map(([prefix, path]) => [
+    prefix,
+    isRelative(path) ? `./${folder}${posix.normalize(path)}` : path,
+  ]);
+  return `\n    ${JSON.stringify({ imports: Object.fromEntries(pinned) })}\n  `;
+}
+
+/**
+ * The page reading its code and styles from its release's folder, with its release guard written
+ * in, since the guard has to run when a file from that folder goes missing.
+ * @param {Record<string, { contentType: string, text?: string, base64?: string }>} files
+ * @param {string} commit
+ */
+export function pinPageFiles(files, commit) {
+  const page = files["index.html"]?.text;
+  const guard = files["shared/release-guard.js"]?.text;
+  if (!page?.includes(RELEASE_GUARD) || !guard)
+    throw new Error("The page's head must load shared/release-guard.js.");
+  const folder = nameReleaseFolder(commit);
+  const text = page
+    .replace(RELEASE_GUARD, () => `<script>\n${guard}</script>`)
+    .replace(IMPORT_MAP, (tag, importMap) =>
+      tag.replace(importMap, pinImportMap(importMap, folder)),
+    )
+    .replace(LOADING_TAG, (tag) => pinTag(tag, folder));
+  return { ...files, "index.html": { ...files["index.html"], text } };
 }
