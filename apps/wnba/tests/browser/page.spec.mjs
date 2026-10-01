@@ -162,6 +162,18 @@ test("the page uses its own fonts, served with it", async ({ page }) => {
   expect(loaded).toEqual(expect.arrayContaining(["Saira Condensed", "Barlow Condensed", "Barlow"]));
 });
 
+test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
+  await openApp(page);
+  for (const [tab, row] of [
+    ["Games", "#gamesWrap .game-row"],
+    ["Teams", "#teamsWrap .team-row"],
+  ]) {
+    await page.getByRole("tab", { name: tab }).click();
+    const box = await page.locator(row).first().boundingBox();
+    expect(box.width, tab).toBeLessThanOrEqual(560);
+  }
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

@@ -213,6 +213,12 @@ header.top h1 {
   color: var(--ink-dim);
 }
 
+/* A list of rows keeps to a phone's width on a wide screen, so each name stays near its score. */
+#gamesWrap,
+#teamsWrap {
+  max-width: 560px;
+}
+
 /* Games: the away and home teams face each other across the score. */
 .games-section + .games-section {
   margin-top: 26px;
