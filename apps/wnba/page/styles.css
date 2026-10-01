@@ -43,8 +43,9 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's, and the round the bracket opens on. Teal marks structure: section labels, the playoff line, Bonus, and how a
- * finished series ended.
+ * Orange marks what's happening now: live games and today's, the round the bracket opens on, and
+ * the Games list's yesterday and tomorrow. Teal marks structure: section labels, the playoff line,
+ * Bonus, and how a finished series ended.
  */
 :root {
   --bg: #ead5b2;
@@ -278,15 +279,14 @@ header.top h1 {
   margin-inline: auto;
 }
 
-/* A bracket's series and a day of games are one kind of card, under a shaded head. */
+/* A bracket's series and a day's games are one kind of card. */
 .series,
-.game-day {
+.game-day .game-list {
   background: var(--tile);
   border: 1px solid color-mix(in srgb, var(--line), var(--bg));
   border-radius: var(--radius);
 }
-.series-head,
-.day-label {
+.series-head {
   border-bottom: 1px solid var(--divider);
   background: color-mix(in srgb, var(--divider) 22%, var(--tile));
 }
@@ -300,30 +300,27 @@ header.top h1 {
   height: 16px;
 }
 
-/* Games: each day's games share a card, under its date as a wall calendar shows it, and in it the
-   away and home teams face each other across the score. */
+/* Games: each day's games share a card, beside its date as a wall calendar shows it, level with
+   the first game, and in it the away and home teams face each other across the score. */
 .game-day {
-  --day-inset: 17px;
-  overflow: clip;
+  --day-inset: 12px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
 }
 .game-day + .game-day {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 .day-label {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 0;
-  padding: 8px var(--day-inset) 8px 13px;
-  font-weight: 400;
-}
-.day-date {
-  flex: none;
-  display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 3px;
-  min-width: 1.4rem;
+  height: var(--game-row-height);
+  margin: 0;
+  font-weight: 400;
 }
 .day-month {
   font-family: var(--heading);
@@ -340,49 +337,56 @@ header.top h1 {
   font-weight: 700;
   line-height: 0.8;
 }
-.day-words {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
 .day-name {
+  margin-top: 3px;
   font-family: var(--text);
-  font-size: 0.95rem;
+  font-size: 0.6rem;
   font-weight: 600;
   line-height: 1;
-}
-.day-rounds {
-  font-family: var(--text);
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-dim);
 }
+.day-name.near {
+  color: var(--orange);
+}
 .game-day .game-list {
-  padding-inline: var(--day-inset);
-  border-top: 0;
+  overflow: clip;
 }
 /* Closer than a row's usual gap, so a long name still fits beside the card's padding. */
 .game-day .game-row {
   column-gap: 6px;
+  padding-inline: var(--day-inset);
 }
 .game-day .game-row:last-child {
   border-bottom: 0;
 }
-/* A narrow phone trims the card's sides, and the narrowest the space around each dot, so a long
-   name still fits. */
-@media (max-width: 389px) {
+/* A phone narrows the date's column and lets it reach into the page's margin, and trims the card's
+   sides, so a long name still fits beside a three-digit score. The narrowest also sets the names
+   and the scores a little closer. */
+@media (max-width: 429px) {
   .game-day {
-    --day-inset: 12px;
+    --day-inset: 6px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    column-gap: 6px;
+    margin-left: -12px;
+  }
+  .game-day .game-row {
+    column-gap: 4px;
+  }
+  .game-day .game-side .club {
+    gap: 6px;
   }
 }
 @media (max-width: 374px) {
   .game-day {
-    --day-inset: 8px;
+    --day-inset: 4px;
   }
   .game-day .game-side .club {
-    gap: 6px;
+    font-size: 1rem;
+  }
+  .game-day .score {
+    gap: 4px;
   }
 }
 .game-side {

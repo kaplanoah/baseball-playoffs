@@ -45,3 +45,22 @@ export function nameDay(day, now) {
   const offset = countDaysBetween(new Date(now), day);
   return (offset !== 0 && NEAR_DAYS[offset]) || DAYS[day.getDay()];
 }
+
+const NEAR_DAY_ABBREVIATIONS = { "-1": "Yest", 1: "Tmrw" };
+
+/**
+ * Whether a day is yesterday or tomorrow, which its name says instead of its weekday.
+ * @param {Date} day
+ * @param {number} now
+ */
+export const isNearDay = (day, now) => Math.abs(countDaysBetween(new Date(now), day)) === 1;
+
+/**
+ * nameDay's short form, for the narrow column beside a day's games.
+ * @param {Date} day
+ * @param {number} now
+ */
+export function abbreviateDay(day, now) {
+  const offset = countDaysBetween(new Date(now), day);
+  return NEAR_DAY_ABBREVIATIONS[offset] ?? DAYS[day.getDay()].slice(0, 3);
+}
