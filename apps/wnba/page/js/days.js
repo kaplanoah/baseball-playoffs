@@ -8,7 +8,7 @@ const EASTERN = new Intl.DateTimeFormat("en-US", {
 });
 
 /** @param {number} ms */
-function readEasternDate(ms) {
+export function readEasternDate(ms) {
   const parts = Object.fromEntries(
     EASTERN.formatToParts(new Date(ms)).map(({ type, value }) => [type, value]),
   );

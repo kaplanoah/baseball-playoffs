@@ -8,6 +8,10 @@ const AFTERNOON = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-afternoon.json`, "utf8"),
 );
 const NOW = Date.parse(AFTERNOON.now);
+// ESPN's answers the next afternoon, with both games of Sep 30 finished.
+const ESPN = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-espn-core.json`, "utf8"),
+);
 
 const FEEDS = {
   [REQUESTS.scoreboard]: "scoreboard",
@@ -18,12 +22,18 @@ const FEEDS = {
 
 /**
  * Answers the league's feeds from the fixture, or from `answers` in its place, counting reads,
- * unless a feed is told to refuse.
- * @param {{ refuse?: Record<string, "page" | "error">, answers?: Record<string, any> }} [options]
+ * unless a feed is told to refuse. ESPN answers from `espn`, by URL, or not at all.
+ * @param {{ refuse?: Record<string, "page" | "error">, answers?: Record<string, any>, espn?: Record<string, any> }} [options]
  */
-function createLeague({ refuse = {}, answers = {} } = {}) {
+function createLeague({ refuse = {}, answers = {}, espn = {} } = {}) {
   const reads = [];
   const fetchImpl = async (url, init) => {
+    if (!FEEDS[url]) {
+      reads.push({ feed: "espn", headers: init.headers });
+      return url in espn
+        ? new Response(JSON.stringify(espn[url]))
+        : new Response("", { status: 404 });
+    }
     const feed = FEEDS[url];
     reads.push({ feed, headers: init.headers, cacheSeconds: init.cf?.cacheTtl });
     if (refuse[feed] === "page") return new Response("<!DOCTYPE html><html></html>");
@@ -76,6 +86,67 @@ test("a feed that answers with a web page counts as missing, and the rest still 
 
   assert.deepEqual(snapshot.missing, ["scoreboard"]);
   assert.equal(snapshot.games.length, 28);
+});
+
+test("while the scoreboard doesn't answer, ESPN stands in for the games it has started", async () => {
+  const league = createLeague({ refuse: { scoreboard: "page" }, espn: ESPN.answers });
+  const server = createSnapshotServer({
+    fetchImpl: league.fetchImpl,
+    now: () => Date.parse(ESPN.now),
+  });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.deepEqual([snapshot.missing, snapshot.standIn], [["scoreboard"], "espn"]);
+  const describe = (id) => {
+    const game = snapshot.games.find((candidate) => candidate.id === id);
+    return [game.state, game.status, game.period, game.away.score, game.home.score];
+  };
+  assert.deepEqual(describe("1042600132"), ["final", "Final", 4, 93, 75]);
+  assert.deepEqual(describe("1042600112"), ["final", "Final/OT", 5, 100, 108]);
+  assert.deepEqual(describe("1042600123"), ["pre", "9:00 pm ET", null, 0, 0]);
+});
+
+test("a game ESPN doesn't answer for doesn't keep its others from standing in", async () => {
+  const espn = structuredClone(ESPN.answers);
+  const dallasStatus = Object.keys(espn).find((url) => url.includes("401918020/status"));
+  delete espn[dallasStatus];
+  const league = createLeague({ refuse: { scoreboard: "page" }, espn });
+  const server = createSnapshotServer({
+    fetchImpl: league.fetchImpl,
+    now: () => Date.parse(ESPN.now),
+  });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.equal(snapshot.standIn, "espn");
+  const readState = (id) => snapshot.games.find((game) => game.id === id).state;
+  assert.deepEqual([readState("1042600132"), readState("1042600112")], ["final", "pre"]);
+});
+
+test("ESPN doesn't stand in until one of its games has started", async () => {
+  const espn = structuredClone(ESPN.answers);
+  const listing = Object.keys(espn).find((url) => url.includes("/events?dates="));
+  espn[listing].items = espn[listing].items.filter((item) => item.$ref.includes("401918022"));
+  const league = createLeague({ refuse: { scoreboard: "page" }, espn });
+  const server = createSnapshotServer({
+    fetchImpl: league.fetchImpl,
+    now: () => Date.parse(ESPN.now),
+  });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.deepEqual([snapshot.missing, snapshot.standIn], [["scoreboard"], null]);
+});
+
+test("while the scoreboard answers, ESPN isn't read", async () => {
+  const league = createLeague({ espn: ESPN.answers });
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.equal(league.countReads("espn"), 0);
+  assert.equal(snapshot.standIn, null);
 });
 
 test("a feed that answers JSON without its data counts as missing", async () => {

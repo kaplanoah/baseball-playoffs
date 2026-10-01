@@ -250,6 +250,22 @@ test("the page uses its own fonts, served with it", async ({ page }) => {
   expect(loaded).toEqual(expect.arrayContaining(["Saira Condensed", "Barlow Condensed", "Barlow"]));
 });
 
+test("the Games lists' days and series labels stand apart from the team names in Barlow", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const readFirstFont = (locator) =>
+    locator
+      .first()
+      .evaluate((element) =>
+        getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
+      );
+  expect(await readFirstFont(page.locator("#gamePager .day-label"))).toBe("Barlow");
+  expect(await readFirstFont(page.locator("#gamePager .series-label"))).toBe("Barlow");
+  expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
+});
+
 test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
   await openApp(page);
   for (const [tab, row] of [
@@ -300,8 +316,8 @@ test("the page reopens on the tab it was last on", async ({ page }) => {
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#view-standings")).toBeVisible();
-  await expect(page.locator("#view-bracket")).toBeHidden();
+  await expect(page.locator("#view-standings")).toHaveCSS("display", "block");
+  await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
 });
 
 test("a page last left on a tab it no longer has opens on the bracket", async ({ page }) => {
@@ -327,4 +343,20 @@ test.describe("on a phone", () => {
       expect(width, tab).toBeLessThanOrEqual(390);
     }
   });
+});
+
+test("the page shows the tab it was last on before its modules have loaded", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("lastTab", "standings"));
+  await page.route(
+    (url) => url.pathname === "/js/app.js",
+    (route) => route.abort(),
+  );
+
+  await openApp(page);
+
+  const tab = page.getByRole("tab", { name: "Standings" });
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(tab).toHaveClass(/\bactive\b/);
+  await expect(page.locator("#view-standings")).toHaveCSS("display", "block");
+  await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
 });
