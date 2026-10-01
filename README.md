@@ -120,8 +120,8 @@ checks that the Worker answers. It keeps the Worker's address out of its output,
 deploy logs are public; step 3 prints it. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
 The session's own branch works once it matches `main`. It sets
 `NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
-proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
-asking and blocks the other ways to deploy.
+proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` has
+the user approve that command, and `set-app-key` below, and blocks the other ways to deploy.
 
 **3. Give the page its address.** Run `npm run set-app-key -- <app>`. It gives
 the Worker a long random `APP_KEY` secret and prints the page's address,

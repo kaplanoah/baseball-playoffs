@@ -102,6 +102,9 @@ test("upload, route, and the Worker URL", async () => {
     `GET ${ROBOTS_URL}`,
   ]);
 
+  const apiCalls = cloudflare.calls.filter((request) => request.url.startsWith(API));
+  assert.ok(apiCalls.every((request) => request.init.signal instanceof AbortSignal));
+
   const form = cloudflare.calls[3].init.body;
   const metadata = JSON.parse(await form.get("metadata").text());
   assert.deepEqual(metadata, {
@@ -548,15 +551,19 @@ test("deploy:api runs the tests before it deploys, and sends its calls through a
   assert.equal(scripts["deploy:api"], "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs");
 });
 
-test("project settings allow only the checked scripts, and deny running them any other way", () => {
+test("the deploy job runs no package's install scripts or tests while it holds the token", () => {
+  const workflow = readFileSync(`${import.meta.dirname}/../.github/workflows/deploy.yml`, "utf8");
+  assert.match(workflow, /- run: npm ci --ignore-scripts\n/);
+  assert.match(workflow, /\n {10}node worker\/deploy\.mjs\n/);
+  assert.doesNotMatch(workflow, /npm run deploy:api|npm test/);
+  assert.match(workflow, /timeout-minutes: \d+/);
+});
+
+test("project settings ask before a deploy or a key change, and deny running them any other way", () => {
   const { permissions } = JSON.parse(
     readFileSync(`${import.meta.dirname}/../.claude/settings.json`, "utf8"),
   );
-  assert.deepEqual(permissions.allow, [
-    "Bash(npm run deploy:api)",
-    "Bash(npm run deploy:api -- *)",
-    "Bash(npm run set-app-key -- *)",
-  ]);
+  assert.equal(permissions.allow, undefined);
   for (const rule of [
     "Bash(npm run deploy)",
     "Bash(npx wrangler *)",
