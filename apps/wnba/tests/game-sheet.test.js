@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { renderBoxScore } from "../page/js/box-score-view.js";
+import { renderBoxScore, renderPendingBoxScore } from "../page/js/box-score-view.js";
 import { renderGames } from "../page/js/games-view.js";
-import { renderPreview } from "../page/js/preview-view.js";
+import { renderPendingPreview, renderPreview } from "../page/js/preview-view.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { describeBoxScore } from "../worker/src/box-score.js";
 import { describePreview } from "../worker/src/preview.js";
@@ -179,4 +179,40 @@ test("a preview missing a part says so, and a split season series says that", ()
   const split = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
   split.meetings = split.meetings.filter((meeting) => meeting.id !== "1022600153");
   assert.match(readText(renderPreview(split)), /Season series split 1-1/);
+});
+
+/**
+ * The titles of a sheet's parts, and the names of its measures, in order.
+ * @param {any} markup
+ */
+const readShape = (markup) =>
+  [...markup.text.matchAll(/<(?:h3|span class="tape-label")>([^<]*)</g)].map(([, name]) => name);
+
+/** @param {any} markup */
+const countPlaceholders = (markup) => markup.text.split('class="placeholder"').length - 1;
+
+test("a box score still loading has the loaded one's parts and measures, with placeholders for its numbers", () => {
+  const pending = renderPendingBoxScore({ away: "LVA", home: "IND" });
+  assert.deepEqual(readShape(pending), readShape(renderBoxScore(readBoxScore("1042600122"))));
+  assert.deepEqual(listRows(pending, "line-score")[0], [
+    "1 2 3 4 T",
+    "Aces 00 00 00 00 00",
+    "Fever 00 00 00 00 00",
+  ]);
+  assert.deepEqual(
+    listRows(pending, "players").map((rows) => rows.length),
+    [4, 4],
+  );
+  assert.ok(countPlaceholders(pending) > 0);
+});
+
+test("a preview still loading has the loaded one's parts and measures, with placeholders for its numbers", () => {
+  const pending = renderPendingPreview({ away: "IND", home: "LVA" });
+  const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
+  assert.deepEqual(readShape(pending), readShape(renderPreview(preview)));
+  assert.deepEqual(
+    listRows(pending, "players").map((rows) => rows.length),
+    [4, 4],
+  );
+  assert.ok(countPlaceholders(pending) > 0);
 });

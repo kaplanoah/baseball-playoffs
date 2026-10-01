@@ -3,13 +3,15 @@
 // swipe down closes, wider screens as a modal, like Settings.
 
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
+import { watchGameOpens } from "#shared/game-row.js";
+import { redrawSheet } from "#shared/sheet-resize.js";
 import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
-import { renderBoxScore } from "./box-score-view.js";
+import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { fetchBoxScore, fetchPreview } from "./game-details-fetch.js";
 import { findLoser, nameGame, renderHeadline, renderStatus } from "./games-view.js";
-import { renderPreview } from "./preview-view.js";
+import { renderPendingPreview, renderPreview } from "./preview-view.js";
 import { describeSeriesStanding } from "./series.js";
 import { session } from "./session.js";
 import { renderSheetMessage } from "./sheet-parts.js";
@@ -17,8 +19,6 @@ import { POLL_LIVE_MS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
 /** @typedef {{ id: string, kind: "box" | "preview", details: any, problem: string }} ShownGame */
-
-const LOADING = { box: "Loading the box score.", preview: "Loading the preview." };
 
 // The game the sheet shows. Each opening, and each switch to a box score, is a new one, so an
 // answer that arrives after it changed is dropped.
@@ -76,17 +76,30 @@ const renderFaceOff = (game) =>
   </div>`;
 
 /** @param {ShownGame} opened */
-function renderDetails(opened) {
-  if (!opened.details) return renderSheetMessage(opened.problem || LOADING[opened.kind]);
-  return opened.kind === "box" ? renderBoxScore(opened.details) : renderPreview(opened.details);
+const isLoading = (opened) => !opened.details && !opened.problem;
+
+/**
+ * @param {ShownGame} opened
+ * @param {Game} game
+ */
+function renderDetails(opened, game) {
+  if (opened.problem) return renderSheetMessage(opened.problem);
+  const teams = { away: game.away.team, home: game.home.team };
+  if (opened.kind === "box")
+    return opened.details ? renderBoxScore(opened.details) : renderPendingBoxScore(teams);
+  return opened.details ? renderPreview(opened.details) : renderPendingPreview(teams);
 }
 
 function renderSheet() {
   const game = shown && findGame(shown.id);
   if (!game) return;
-  findElement("gameTitle").textContent = nameGame(game);
-  setHtml(findElement("gameWhen"), renderWhen(game));
-  setHtml(findElement("gameBody"), html`${renderFaceOff(game)}${renderDetails(shown)}`);
+  const body = findElement("gameBody");
+  redrawSheet(findDialog(), () => {
+    findElement("gameTitle").textContent = nameGame(game);
+    setHtml(findElement("gameWhen"), renderWhen(game));
+    setHtml(body, html`${renderFaceOff(game)}${renderDetails(shown, game)}`);
+    body.setAttribute("aria-busy", String(isLoading(shown)));
+  });
 }
 
 /**
@@ -164,11 +177,17 @@ export function refreshGameSheet() {
   else renderSheet();
 }
 
-/** @param {Event} event */
-function openFromRow(event) {
-  const button = /** @type {HTMLElement} */ (event.target).closest(".game-open");
-  const row = button?.closest("[data-game]");
-  if (row instanceof HTMLElement) openGameSheet(row.dataset.game);
+/** @param {HTMLElement} button */
+const findRowGame = (button) =>
+  /** @type {HTMLElement} */ (button.closest("[data-game]")).dataset.game;
+
+/** @param {HTMLElement} button */
+const openFromRow = (button) => openGameSheet(findRowGame(button));
+
+/** @param {HTMLElement} button */
+function prepareFromRow(button) {
+  const game = findGame(findRowGame(button));
+  if (game) loadDetails(game).catch(() => {});
 }
 
 function forgetGame() {
@@ -178,7 +197,7 @@ function forgetGame() {
 
 export function startGameSheet() {
   const dialog = findDialog();
-  findElement("gamePager").addEventListener("click", openFromRow);
+  watchGameOpens(findElement("gamePager"), { open: openFromRow, prepare: prepareFromRow });
   findElement("gameDoneBtn").addEventListener("click", () => dialog.close());
   dialog.addEventListener("click", (event) => {
     if (event.target === event.currentTarget) dialog.close();

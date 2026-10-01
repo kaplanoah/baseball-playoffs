@@ -52,3 +52,26 @@ const renderSide = (side, place) =>
  */
 const renderExtra = (side, place) =>
   side.extra ? html`<span class="game-extra ${place}">${side.extra}</span>` : html``;
+
+/** @param {Event} event */
+const findOpenButton = (event) =>
+  /** @type {HTMLElement | null} */ (
+    /** @type {HTMLElement} */ (event.target).closest(".game-open")
+  );
+
+/**
+ * Opens a game when its row's button is tapped, and starts loading what it shows as soon as a
+ * finger or pointer comes down on the button, so the wait for it is shorter by the tap's length.
+ * @param {HTMLElement} lists the element that holds the game rows
+ * @param {{ open: (button: HTMLElement) => void, prepare: (button: HTMLElement) => void }} actions
+ */
+export function watchGameOpens(lists, { open, prepare }) {
+  lists.addEventListener("pointerdown", (event) => {
+    const button = findOpenButton(event);
+    if (button) prepare(button);
+  });
+  lists.addEventListener("click", (event) => {
+    const button = findOpenButton(event);
+    if (button) open(button);
+  });
+}

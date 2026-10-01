@@ -1,4 +1,6 @@
 import { test, expect, openApp, GAMES } from "./harness.mjs";
+import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
+import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
 const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
@@ -6,22 +8,32 @@ const VALKYRIES_AT_WINGS = "Game details: Valkyries at Wings, First Round Game 2
 const POLL_LIVE_MS = 15 * 1000;
 
 /**
+ * Shows the Games list that has the game a button names, and finds the button.
+ * @param {import("@playwright/test").Page} page
+ * @param {string} name
+ */
+async function findGameButton(page, name) {
+  await page.getByRole("tab", { name: "Games" }).click();
+  for (const list of ["Today", "Previous", "Next"]) {
+    await page.getByRole("tab", { name: list }).click();
+    const button = page.locator(`#games-${list.toLowerCase()}`).getByRole("button", { name });
+    if (await button.count()) return button;
+  }
+  throw new Error(`No game is named ${name}`);
+}
+
+/**
  * Opens the sheet of the game a button names, from whichever of the Games lists has it.
  * @param {import("@playwright/test").Page} page
  * @param {string} name
  */
 async function openSheet(page, name) {
-  await page.getByRole("tab", { name: "Games" }).click();
-  for (const list of ["Today", "Previous", "Next"]) {
-    await page.getByRole("tab", { name: list }).click();
-    const button = page.locator(`#games-${list.toLowerCase()}`).getByRole("button", { name });
-    if (await button.count()) {
-      await button.click();
-      return page.getByRole("dialog");
-    }
-  }
-  throw new Error(`No game is named ${name}`);
+  await (await findGameButton(page, name)).click();
+  return page.getByRole("dialog");
 }
+
+/** @param {import("@playwright/test").Page} page */
+const holdBoxScores = (page) => holdRequests(page, (url) => url.pathname === "/box-score");
 
 /**
  * Valkyries at Wings, Game 2, under way in the third quarter: the store's game, and the league's
@@ -178,6 +190,104 @@ test("a sheet the Worker can't load says to try again", async ({ page }) => {
   await expect(sheet.locator(".sheet-message")).toHaveText(
     "Couldn't load the box score. Close and try again in a minute.",
   );
+});
+
+test("while its box score loads, the sheet holds the box score's shape, then fills it in", async ({
+  page,
+}) => {
+  await openApp(page);
+  const release = await holdBoxScores(page);
+  const sheet = await openSheet(page, ACES_AT_FEVER);
+  const body = sheet.locator("#gameBody");
+
+  await expect(body).toHaveAttribute("aria-busy", "true");
+  await expect(sheet.locator(".sheet-part-head h3")).toHaveText([
+    "By quarter",
+    "Team stats",
+    "Top scorers",
+  ]);
+  await expect(sheet.locator(".tape-label")).toHaveCount(8);
+  await expect(sheet.locator(".line-score tbody th")).toHaveText(["Aces", "Fever"]);
+  await expect(sheet.locator(".players tbody tr")).toHaveCount(6);
+  await expect(sheet.locator(".tape-value .placeholder")).toHaveCount(16);
+
+  release();
+  await expect(sheet.locator(".line-score tbody tr").first()).toHaveText(
+    /Aces\s*26\s*17\s*17\s*29\s*89/,
+  );
+  await expect(sheet.locator(".placeholder")).toHaveCount(0);
+  await expect(body).toHaveAttribute("aria-busy", "false");
+});
+
+test("while its preview loads, the sheet holds the preview's shape, then fills it in", async ({
+  page,
+}) => {
+  await openApp(page);
+  const release = await holdRequests(page, (url) => url.pathname === "/preview");
+  const sheet = await openSheet(page, FEVER_AT_ACES);
+
+  await expect(sheet.locator(".sheet-part-head h3")).toHaveText([
+    "Meetings",
+    "The two seasons",
+    "Leading scorers",
+  ]);
+  await expect(sheet.locator(".meetings .placeholder")).toHaveCount(9);
+  await expect(sheet.locator(".tape-label")).toHaveCount(6);
+  await expect(sheet.locator(".players tbody tr")).toHaveCount(6);
+
+  release();
+  await expect(sheet.locator(".meetings li")).toHaveCount(5);
+  await expect(sheet.locator(".placeholder")).toHaveCount(0);
+});
+
+test("a finger coming down on a game starts reading its box score, and the sheet the tap opens uses that read", async ({
+  page,
+}) => {
+  await openApp(page);
+  const reads = countBoxScoreReads(page);
+  const button = await findGameButton(page, ACES_AT_FEVER);
+
+  await button.dispatchEvent("pointerdown");
+  await expect.poll(() => reads.count).toBe(1);
+
+  await button.click();
+  await expect(page.getByRole("dialog").locator(".line-score")).toBeVisible();
+  expect(reads.count).toBe(1);
+});
+
+test("a sheet that can't load its box score eases from the box score's shape down to the message", async ({
+  page,
+}) => {
+  const readResizes = await recordSheetResizes(page);
+  await openApp(page);
+  await page.route(
+    (url) => url.pathname === "/box-score",
+    (route) => route.fulfill({ status: 502, json: { error: "Couldn't read the WNBA: test" } }),
+  );
+  const release = await holdBoxScores(page);
+  const sheet = await openSheet(page, ACES_AT_FEVER);
+  await expect(sheet.locator(".tape-label")).toHaveCount(8);
+
+  release();
+  await expect(sheet.locator(".sheet-message")).toBeVisible();
+  const resizes = (await readResizes()).filter((resize) => resize.id === "gameDialog");
+  expect(resizes).toHaveLength(1);
+  const [from, to] = resizes[0].heights.map(parseFloat);
+  expect(to).toBeLessThan(from);
+});
+
+test("with less motion asked for, a sheet takes its new height at once", async ({ page }) => {
+  const readResizes = await recordSheetResizes(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openApp(page);
+  await page.route(
+    (url) => url.pathname === "/box-score",
+    (route) => route.fulfill({ status: 502, json: { error: "Couldn't read the WNBA: test" } }),
+  );
+  const sheet = await openSheet(page, ACES_AT_FEVER);
+
+  await expect(sheet.locator(".sheet-message")).toBeVisible();
+  expect(await readResizes()).toEqual([]);
 });
 
 test.describe("on a phone", () => {

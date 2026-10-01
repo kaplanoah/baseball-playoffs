@@ -1480,6 +1480,9 @@ body.kbd .rank-item .grip:focus {
   stroke-width: 3;
   stroke-linecap: round;
 }
+.pitch-columns .placeholder {
+  fill: var(--divider);
+}
 .pitch-bar,
 .pitch-dot {
   fill: var(--pitch, var(--pitch-other));

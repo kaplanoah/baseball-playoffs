@@ -1,4 +1,6 @@
 import { test, expect, openApp, buildSnapshotWithStarters, swipeSheetDown } from "./harness.mjs";
+import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
+import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 
 // What the Worker answers for Astros at Athletics' starters, Blubaugh and Springs.
 const describePitcher = (id, [firstName, lastName], hand, line, ranks, pitches) => ({
@@ -53,16 +55,39 @@ const PITCHERS = {
   ),
 };
 
+const BLUBAUGH_VS_SPRINGS = "Pitching matchup: Blubaugh vs Springs";
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {Record<number, object>} [pitchers]
+ * @param {object} [snapshot]
+ */
+async function showGames(page, pitchers = PITCHERS, snapshot = buildSnapshotWithStarters()) {
+  await openApp(page, { snapshots: { 2026: snapshot }, pitchers });
+  await page.getByRole("tab", { name: "Games" }).click();
+}
+
 /**
  * @param {import("@playwright/test").Page} page
  * @param {Record<number, object>} [pitchers]
  * @param {object} [snapshot]
  */
 async function openMatchup(page, pitchers = PITCHERS, snapshot = buildSnapshotWithStarters()) {
-  await openApp(page, { snapshots: { 2026: snapshot }, pitchers });
-  await page.getByRole("tab", { name: "Games" }).click();
-  await page.getByRole("button", { name: "Pitching matchup: Blubaugh vs Springs" }).click();
+  await showGames(page, pitchers, snapshot);
+  await page.getByRole("button", { name: BLUBAUGH_VS_SPRINGS }).click();
   return page.getByRole("dialog");
+}
+
+/** @param {import("@playwright/test").Page} page */
+const holdPitchers = (page) => holdRequests(page, (url) => url.pathname === "/pitcher");
+
+/** @param {import("@playwright/test").Page} page */
+function countPitcherReads(page) {
+  const reads = { count: 0 };
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/pitcher") reads.count += 1;
+  });
+  return reads;
 }
 
 test("tapping a game with its starters named opens their matchup, and Done closes it", async ({
@@ -113,7 +138,7 @@ test("on a phone, the matchup rises only when the viewer allows motion", async (
 
   await sheet.press("Escape");
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.getByRole("button", { name: "Pitching matchup: Blubaugh vs Springs" }).click();
+  await page.getByRole("button", { name: BLUBAUGH_VS_SPRINGS }).click();
   await expect(sheet).toHaveCSS("animation-name", "sheet-rise");
 });
 
@@ -292,4 +317,79 @@ test("a start in the game under way says Now instead of its date", async ({ page
   const starts = sheet.locator(".recent-starts").first().locator("li");
   await expect(starts.first()).toHaveText("Now@ Athletics2 IP, 0 R, 3 K");
   await expect(starts.nth(1)).toHaveText("Sep 19vs Mariners5 2/3 IP, 2 R, 6 K");
+});
+
+test("while the starters' numbers load, the matchup holds their shape, then fills it in", async ({
+  page,
+}) => {
+  await showGames(page);
+  const release = await holdPitchers(page);
+  await page.getByRole("button", { name: BLUBAUGH_VS_SPRINGS }).click();
+  const sheet = page.getByRole("dialog");
+  const body = sheet.locator("#matchupBody");
+
+  await expect(body).toHaveAttribute("aria-busy", "true");
+  await expect(sheet.locator(".pitcher-last")).toHaveText(["Blubaugh", "Springs"]);
+  await expect(sheet.locator(".pitcher-first .placeholder")).toHaveCount(2);
+  await expect(sheet.locator(".tape-label")).toHaveText(["ERA", "K/9", "BB/9", "Fastball mph"]);
+  await expect(sheet.locator(".scout h3 span")).toHaveText(["What he throws", "What he throws"]);
+  await expect(sheet.locator(".pitch-columns")).toHaveCount(2);
+  await expect(sheet.locator(".recent-starts li")).toHaveCount(6);
+
+  release();
+  await expect(sheet.locator(".pitcher-first")).toHaveText(["AJ", "Jeffrey"]);
+  await expect(sheet.locator(".placeholder")).toHaveCount(0);
+  await expect(body).toHaveAttribute("aria-busy", "false");
+});
+
+test("while a club's last starters load, its side holds a list's shape, then fills it in", async ({
+  page,
+}) => {
+  await openApp(page, { rotations: { LAA: ANGELS_ROTATION } });
+  await page.getByRole("tab", { name: "Games" }).click();
+  const release = await holdRequests(page, (url) => url.pathname === "/rotation");
+  const row = page.locator("#games-today .game-row").filter({ hasText: "Angels" });
+  await row.getByRole("button", { name: "Pitching matchup: TBD vs TBD" }).click();
+  const angels = page.getByRole("dialog").locator(".scout").first();
+
+  await expect(angels.locator("h3")).toHaveText("AngelsWho's rested");
+  await expect(angels.locator(".rotation li")).toHaveCount(5);
+  await expect(angels.locator(".placeholder").first()).toBeVisible();
+
+  release();
+  await expect(angels.locator(".rotation li")).toHaveCount(2);
+  await expect(angels.locator(".placeholder")).toHaveCount(0);
+});
+
+test("a finger coming down on a game starts reading its starters' numbers", async ({ page }) => {
+  await showGames(page);
+  const reads = countPitcherReads(page);
+  const button = page.getByRole("button", { name: BLUBAUGH_VS_SPRINGS });
+
+  await button.dispatchEvent("pointerdown");
+  await expect.poll(() => reads.count).toBe(2);
+
+  await button.click();
+  await expect(page.getByRole("dialog").locator(".pitch-columns")).toHaveCount(2);
+  expect(reads.count).toBe(2);
+});
+
+test("a matchup whose starters can't load eases from their shape down to the messages", async ({
+  page,
+}) => {
+  const readResizes = await recordSheetResizes(page);
+  await showGames(page, {});
+  const release = await holdPitchers(page);
+  await page.getByRole("button", { name: BLUBAUGH_VS_SPRINGS }).click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.locator(".tape-label")).toHaveCount(4);
+
+  release();
+  await expect(sheet.locator(".scout-note")).toHaveCount(2);
+  await expect(sheet.locator(".placeholder")).toHaveCount(0);
+  const resizes = (await readResizes()).filter((resize) => resize.id === "matchupDialog");
+  expect(resizes.length).toBeGreaterThan(0);
+  const [from] = resizes[0].heights.map(parseFloat);
+  const [, to] = resizes.at(-1).heights.map(parseFloat);
+  expect(to).toBeLessThan(from);
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { renderTapeRow } from "../shared/page/tape.js";
+import { renderPendingTapeRow, renderTapeRow } from "../shared/page/tape.js";
 import { stripTags } from "./text.js";
 
 const readSide = (markup, place) =>
@@ -32,4 +32,14 @@ test("a side without a number is left blank, and one without a bar has none", ()
   assert.doesNotMatch(row.text, /tape-bar/);
   assert.doesNotMatch(row.text, /tape-detail/);
   assert.match(readSide(row, "home"), /4\.02/);
+});
+
+test("a measure still loading keeps its name, with a placeholder over an empty bar on each side", () => {
+  const row = renderPendingTapeRow("ERA");
+
+  assert.match(row.text, /<span class="tape-label">ERA<\/span>/);
+  for (const place of ["away", "home"]) {
+    assert.match(readSide(row, place), /<span class="placeholder" aria-hidden="true">/);
+    assert.match(readSide(row, place), /<i class="" style="width: 0%">/);
+  }
 });

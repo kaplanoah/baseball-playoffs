@@ -1,4 +1,5 @@
 import { html } from "./html.js";
+import { renderPlaceholder } from "./placeholder.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
 
@@ -37,3 +38,16 @@ export const renderTapeRow = ({ label, away, home, leader }) =>
     <span class="tape-label">${label}</span>
     ${renderTapeSide(home, "home", leader)}
   </div>`;
+
+/**
+ * A side whose number is still loading: a stand-in for it over an empty bar.
+ * @type {TapeSide}
+ */
+export const PENDING_TAPE_SIDE = { value: renderPlaceholder("00.0"), bar: 0 };
+
+/**
+ * A measure whose numbers are both still loading.
+ * @param {string} label
+ */
+export const renderPendingTapeRow = (label) =>
+  renderTapeRow({ label, away: PENDING_TAPE_SIDE, home: PENDING_TAPE_SIDE, leader: null });
