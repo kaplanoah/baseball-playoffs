@@ -401,7 +401,10 @@ export const listPitcherRequest = (season, ids) =>
 // Only the starters of the games the page lists are looked up, and those come from the slate.
 function listStarterIds(slate) {
   if (!slate) return [];
-  const games = [slate.today.games, slate.nextDay?.games || [], slate.next].flat();
+  const days = [slate.today, slate.nextDay, slate.lastNight].filter(Boolean);
+  const games = [...days.flatMap((day) => day.games), slate.lastFinal, slate.previous, slate.next]
+    .flat()
+    .filter(Boolean);
   return [
     ...new Set(games.flatMap((game) => (game.starters || []).filter(Boolean).map(({ id }) => id))),
   ];
@@ -539,10 +542,9 @@ function describeStarter(id, pitchers) {
   return { id, name: person.useLastName, hand: person.pitchHand?.code, era: line?.era || null };
 }
 
-// Only a game still to finish names its starters: MLB's probable starter isn't always who
-// started, and a finished game's line already counts it.
+// MLB names a game's probable starters ahead of it, and once it starts, the ones who did.
 function listStarters(game, pitchers) {
-  if (game.state !== "pre" && game.state !== "live") return null;
+  if (game.state === "off") return null;
   const starters = [game.away.starter, game.home.starter].map((id) =>
     describeStarter(id, pitchers),
   );
