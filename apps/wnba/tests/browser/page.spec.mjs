@@ -283,6 +283,18 @@ test("a team opens to its season, and stays open as the season changes", async (
   await expect(aces).toHaveAttribute("open", "");
 });
 
+test("redrawing the teams each minute keeps keyboard focus on the team it was on", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"] summary');
+  await aces.focus();
+
+  await page.clock.runFor(60 * 1000);
+  await expect(aces).toBeFocused();
+});
+
 test("on a phone, the team rows' dividers run edge to edge", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await openApp(page);
