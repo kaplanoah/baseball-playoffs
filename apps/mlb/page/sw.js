@@ -1,2 +1,2 @@
-self.pageName = "MLB Postseason";
+self.pageName = "MLB";
 importScripts("shared/push-worker.js");

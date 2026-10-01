@@ -84,8 +84,8 @@ test("a subscription the browser dropped is made again with the Worker's key", a
 
 test("a push shows its message, and one that can't be read shows the app's name", async () => {
   for (const [app, pageName] of [
-    ["mlb", "MLB Postseason"],
-    ["wnba", "WNBA Playoffs"],
+    ["mlb", "MLB"],
+    ["wnba", "WNBA"],
   ]) {
     const worker = startServiceWorker({ app });
     const message = { title: "The Dream beat the Mystics 84-79", body: "", tag: "final:1" };
