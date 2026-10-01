@@ -35,7 +35,7 @@ const CHANNELS = [
   { name: "Peacock", file: "peacock.svg", names: [], hasDarkVersion: true },
   { name: "TBS", file: "tbs.svg", names: ["TBS (out-of-market only)"], hasDarkVersion: true },
   { name: "truTV", file: "trutv.svg", names: [], hasDarkVersion: true },
-  { name: "USA Network", file: "usa.svg", names: ["USA Net"] },
+  { name: "USA Network", file: "usa.png", names: ["USA Net"] },
   { name: "KPIX+", file: "kpix-plus.png", names: [], hasDarkVersion: true },
   { name: "KSMO", file: "ksmo.png", names: [], hasDarkVersion: true },
   {
