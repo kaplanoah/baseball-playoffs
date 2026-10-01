@@ -727,7 +727,7 @@ test("on a phone, the bracket's round dots sit just above the tab bar and follow
 });
 
 test("on a wide screen, the whole bracket shows without round dots", async ({ page }) => {
-  await page.setViewportSize({ width: 1700, height: 900 });
+  await page.setViewportSize(WIDE_SCREEN);
   await openApp(page);
   await expect(page.locator("#bracketWrap .tree-scroll")).not.toHaveClass(/stacked/);
   await expect(page.locator("#bracketWrap .round-dots")).toHaveCount(0);
