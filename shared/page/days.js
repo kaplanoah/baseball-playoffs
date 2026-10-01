@@ -48,5 +48,8 @@ export const formatShortDate = (date) =>
   date.toLocaleDateString([], { month: "short", day: "numeric" });
 
 /** @param {Date} date */
+export const formatShortMonth = (date) => date.toLocaleDateString([], { month: "short" });
+
+/** @param {Date} date */
 export const formatWeekdayAndDate = (date) =>
   date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });

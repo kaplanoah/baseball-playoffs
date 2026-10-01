@@ -246,16 +246,80 @@ header.top h1 {
   max-width: 560px;
 }
 
-/* Games: the away and home teams face each other across the score. */
+/* Games: each day's games share a box, under its date as a wall calendar shows it, and in it the
+   away and home teams face each other across the score. */
+.game-day {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: clip;
+}
+.game-day + .game-day {
+  margin-top: 12px;
+}
 .day-label {
-  margin: 14px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 8px 17px 8px 13px;
+  background: color-mix(in srgb, var(--bg) 55%, var(--card));
+  border-bottom: 1px solid var(--divider);
+  font-weight: 400;
+}
+.day-date {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 1.4rem;
+}
+.day-month {
+  font-family: var(--display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--teal);
+}
+.day-number {
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 0.8;
+}
+.day-words {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.day-name {
   font-family: var(--text);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1;
+}
+.day-rounds {
+  font-family: var(--text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
   color: var(--ink-dim);
 }
-.day-label:first-child {
-  margin-top: 0;
+.game-day .game-list {
+  padding-inline: 17px;
+  border-top: 0;
+}
+/* Closer than a row's usual gap, so a long name still fits beside the box's padding. */
+.game-day .game-row {
+  column-gap: 6px;
+  border-bottom-color: var(--card-border);
+}
+.game-day .game-row:last-child {
+  border-bottom: 0;
 }
 .game-side {
   gap: 4px;
@@ -263,6 +327,10 @@ header.top h1 {
 .game-side .club {
   max-width: 100%;
   font-size: 1.05rem;
+}
+.game-side .dot {
+  width: 17px;
+  height: 17px;
 }
 .game-side.home .club {
   flex-direction: row-reverse;

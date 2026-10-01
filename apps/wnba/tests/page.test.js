@@ -97,7 +97,7 @@ test("a live game shows its clock and who's in the bonus, and stays with today's
     const text = readGameList(LIVE_TONIGHT, "today");
     assert.match(
       text,
-      /^Wed, Sep 30 4 Dream 1st Rd 1-0 71 68 Q4 3:48 5 Mystics Bonus 2 Valkyries /,
+      /^Sep 30 Wednesday First Round, Game 2 4 Dream 1st Rd 1-0 71 68 Q4 3:48 5 Mystics Bonus 2 Valkyries /,
     );
   }));
 
@@ -109,10 +109,13 @@ test("a final dims the loser, and a game not yet played shows its start in the v
     );
     assert.match(
       readGameList(SEASON, "today"),
-      /^Wed, Sep 30 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics/,
+      /^Sep 30 Wednesday First Round, Game 2 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics/,
     );
     const western = checkInTimeZone("America/Los_Angeles", () => readGameList(SEASON, "today"));
-    assert.match(western, /^Wed, Sep 30 4 Dream 1st Rd 1-0 4:00 PM 5 Mystics/);
+    assert.match(
+      western,
+      /^Sep 30 Wednesday First Round, Game 2 4 Dream 1st Rd 1-0 4:00 PM 5 Mystics/,
+    );
   }));
 
 test("a game a finished series no longer needs is left off, and an empty list says so", () =>
@@ -130,21 +133,24 @@ test("a game a finished series no longer needs is left off, and an empty list sa
     const onlyResults = { ...SEASON, games: SEASON.games.filter((game) => game.state === "final") };
     assert.equal(readGameList(onlyResults, "today"), "No games today.");
     assert.equal(readGameList(onlyResults, "next"), "No more games scheduled.");
-    assert.match(readGameList(onlyResults, "previous"), /^Yesterday .* Final 2 Valkyries$/);
+    assert.match(readGameList(onlyResults, "previous"), /^Sep 29 Yesterday .* Final 2 Valkyries$/);
     assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet.");
     const nothingPlayed = {
       ...SEASON,
       games: SEASON.games.filter((game) => game.state !== "final"),
     };
     assert.equal(readGameList(nothingPlayed, "previous"), "No results yet.");
-    assert.match(readGameList(nothingPlayed, "today"), /^Wed, Sep 30 4 Dream /);
+    assert.match(
+      readGameList(nothingPlayed, "today"),
+      /^Sep 30 Wednesday First Round, Game 2 4 Dream /,
+    );
   }));
 
 test("each game's label counts its series as it stood at tip-off, or after the game once it's final", () =>
   inEastern(() => {
     assert.match(
       readGameList(SEASON, "today"),
-      /^Wed, Sep 30 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics /,
+      /^Sep 30 Wednesday First Round, Game 2 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics /,
     );
     const results = readGameList(SEASON, "previous");
     assert.match(results, / 8 Liberty 1st Rd 1-0 91 75 Final 1 Lynx /);
@@ -155,6 +161,50 @@ test("each game's label counts its series as it stood at tip-off, or after the g
       1,
       "only the game that ended a series marks it decided",
     );
+  }));
+
+/**
+ * Each day's heading in a list, as it reads.
+ * @param {object} season
+ * @param {"previous" | "today" | "next"} list
+ */
+const readDayLabels = (season, list) =>
+  [...renderGames(season, NOW)[list].text.matchAll(/<h3 class="day-label">([\s\S]*?)<\/h3>/g)].map(
+    ([, label]) => readText({ text: label }),
+  );
+
+test("each day's games share a box under its date, named for yesterday, tomorrow, or its weekday", () =>
+  inEastern(() => {
+    const markup = renderGames(SEASON, NOW);
+    assert.equal(markup.previous.text.match(/<section class="game-day">/g).length, 2);
+    assert.deepEqual(readDayLabels(SEASON, "previous"), [
+      "Sep 29 Yesterday First Round, Game 2",
+      "Sep 27 Sunday First Round, Game 1",
+    ]);
+    assert.deepEqual(readDayLabels(SEASON, "today"), ["Sep 30 Wednesday First Round, Game 2"]);
+    assert.deepEqual(readDayLabels(SEASON, "next").slice(0, 3), [
+      "Oct 1 Tomorrow First Round, Game 3",
+      "Oct 2 Friday First Round, Game 3",
+      "Oct 4 Sunday Semifinals, Game 1",
+    ]);
+  }));
+
+test("a day names each of its rounds, with the game only when all of that round's games share it", () =>
+  inEastern(() => {
+    const today = SEASON.games.filter((game) => ["1042600132", "1042600112"].includes(game.id));
+    const withGames = (changes) => ({
+      ...SEASON,
+      games: SEASON.games.map((game) => {
+        const index = today.indexOf(game);
+        return index === -1 ? game : { ...game, ...changes[index] };
+      }),
+    });
+    assert.deepEqual(readDayLabels(withGames([{}, { number: 3 }]), "today"), [
+      "Sep 30 Wednesday First Round",
+    ]);
+    assert.deepEqual(readDayLabels(withGames([{}, { round: 2, number: 1 }]), "today"), [
+      "Sep 30 Wednesday First Round, Game 2 | Semifinals, Game 1",
+    ]);
   }));
 
 test("a game whose teams aren't both known yet names its number instead of a series count", () =>
@@ -302,7 +352,7 @@ test("the header says when the page was updated, or which feeds stopped", () =>
 test("a score shows in scoreboard digits, and still reads as its number", () => {
   const markup = renderScoreboard(89).text;
   assert.match(markup, /<span class="scoreboard-text">89<\/span>/);
-  assert.equal(markup.match(/<svg/g).length, 2);
+  assert.equal(markup.match(/<svg/g).length, 3);
   assert.equal(
     markup.match(/class="on"/g).length,
     7 + 6,
@@ -311,13 +361,15 @@ test("a score shows in scoreboard digits, and still reads as its number", () => 
   assert.match(renderScoreboard(68, { isLoser: true }).text, /class="scoreboard lost"/);
 });
 
-test("a lone 1 sits in the middle of its panel, and a 1 among other digits stays in its place", () => {
-  const readShifts = (score) =>
-    [...renderScoreboard(score).text.matchAll(/translate\(([-\d.]+) 0\)/g)].map((match) =>
-      Number(match[1]),
-    );
-  assert.ok(readShifts(1)[0] < 0);
-  assert.deepEqual(readShifts(101), [0, 0, 0]);
+test("every score fills three places, so each panel is one width, with the unused places dark", () => {
+  const readLitPlaces = (score) =>
+    renderScoreboard(score)
+      .text.split("<svg")
+      .slice(1)
+      .map((place) => (place.match(/class="on"/g) ?? []).length);
+  assert.deepEqual(readLitPlaces(7), [0, 0, 3]);
+  assert.deepEqual(readLitPlaces(89), [0, 7, 6]);
+  assert.deepEqual(readLitPlaces(101), [2, 6, 2]);
 });
 
 test("each game's score shows in scoreboard digits, the loser's dimmed", () =>

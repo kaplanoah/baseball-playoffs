@@ -39,20 +39,18 @@ const LIT = [
   "abcdefg",
   "abcdfg",
 ];
-// A 1 lights only its right side, so on its own it moves to the middle to look centered.
-const LONE_ONE_SHIFT = (WIDTH / 2 - (WIDTH - EDGE - SEGMENT_THICKNESS / 2)).toFixed(2);
+// Every panel holds a basketball score's three places, so all panels are one width, and the places
+// a score doesn't reach stay dark, as on an arena's board.
+const PLACES = 3;
 
-/**
- * @param {number} digit
- * @param {boolean} isAlone
- */
-function renderDigit(digit, isAlone) {
-  const shift = isAlone && digit === 1 ? LONE_ONE_SHIFT : "0";
+/** @param {number | null} digit null for a place the score doesn't reach */
+function renderDigit(digit) {
+  const lit = digit === null ? "" : LIT[digit];
   const segments = SEGMENTS.map(
     ({ name, box: [x, y, width, height] }) =>
-      html`<rect class="${LIT[digit].includes(name) ? "on" : ""}" x="${x}" y="${y}" width="${width}" height="${height}" rx="1.17"/>`,
+      html`<rect class="${lit.includes(name) ? "on" : ""}" x="${x}" y="${y}" width="${width}" height="${height}" rx="1.17"/>`,
   );
-  return html`<svg viewBox="0 0 ${WIDTH} ${HEIGHT}" aria-hidden="true"><g transform="translate(${shift} 0)">${segments}</g></svg>`;
+  return html`<svg viewBox="0 0 ${WIDTH} ${HEIGHT}" aria-hidden="true">${segments}</svg>`;
 }
 
 /**
@@ -61,10 +59,10 @@ function renderDigit(digit, isAlone) {
  * @param {{ isLoser?: boolean }} [options]
  */
 export function renderScoreboard(score, { isLoser = false } = {}) {
-  const digits = [...String(score ?? "")].map(Number);
+  const places = [...String(score ?? "").padStart(PLACES)];
   return html`<span class="scoreboard${isLoser ? " lost" : ""}"
-    ><span class="scoreboard-text">${score}</span>${digits.map((digit) =>
-      renderDigit(digit, digits.length === 1),
+    ><span class="scoreboard-text">${score}</span>${places.map((place) =>
+      renderDigit(place === " " ? null : Number(place)),
     )}</span
   >`;
 }

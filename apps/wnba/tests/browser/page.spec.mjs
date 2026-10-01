@@ -47,7 +47,7 @@ test("the Games tab opens on today's games, and its pill moves to the results an
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#games-previous .day-label").first()).toHaveText("Yesterday");
+  await expect(page.locator("#games-previous .day-name").first()).toHaveText("Yesterday");
   await expect(page.locator("#games-previous")).toContainText("Final");
 
   await page.getByRole("tab", { name: "Next" }).click();
@@ -261,9 +261,24 @@ test("the Games lists' days and series labels stand apart from the team names in
       .evaluate((element) =>
         getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
       );
-  expect(await readFirstFont(page.locator("#gamePager .day-label"))).toBe("Barlow");
+  expect(await readFirstFont(page.locator("#gamePager .day-name"))).toBe("Barlow");
   expect(await readFirstFont(page.locator("#gamePager .series-label"))).toBe("Barlow");
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
+});
+
+test("each day's games sit in a box of their own, apart from the next day's", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const [first, second] = await page
+    .locator("#games-previous .game-day")
+    .evaluateAll((days) => days.map((day) => day.getBoundingClientRect()));
+  expect(second.top - first.bottom).toBe(12);
+  const box = await page
+    .locator("#games-previous .game-day")
+    .first()
+    .evaluate((day) => getComputedStyle(day).borderTopStyle);
+  expect(box).toBe("solid");
 });
 
 test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
