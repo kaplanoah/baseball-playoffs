@@ -1,4 +1,5 @@
 // The page's saved data, kept by the Worker that serves the page and pushed to it as it changes.
+import { reloadWhenSignedOut } from "./access.js";
 
 const RECONNECT_FIRST_MS = 1000;
 const RECONNECT_MAX_MS = 30 * 1000;
@@ -35,6 +36,7 @@ async function requestJson(url, init = {}) {
   } catch (error) {
     throw new StoreError("unavailable", error instanceof Error ? error.message : String(error));
   }
+  reloadWhenSignedOut(response);
   if (response.status === 204) return null;
   const body = await response.json().catch(() => null);
   if (!response.ok)

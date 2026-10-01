@@ -1,5 +1,6 @@
 // A game's details for its sheet, from the Worker, which reads the league for them: the box score
 // of a game that has started, and the preview of one that hasn't.
+import { reloadWhenSignedOut } from "#shared/access.js";
 
 const FETCH_TIMEOUT_MS = 15 * 1000;
 // A box score read as a finger comes down on its game serves the sheet that opens on the tap,
@@ -19,6 +20,7 @@ async function requestJson(path) {
     cache: "no-store",
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   });
+  reloadWhenSignedOut(response);
   const body = await response.json().catch(() => null);
   if (!response.ok)
     throw Object.assign(new Error(body?.error || `The Worker answered ${response.status}`), {

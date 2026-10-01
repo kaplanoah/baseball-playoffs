@@ -1,3 +1,11 @@
+import {
+  ACCESS_PATH,
+  createAccessCookie,
+  readAccess,
+  respondAccessRequired,
+  serveAccess,
+} from "./access-gate.js";
+
 const PAGE_HEADERS = {
   "cache-control": "no-cache",
   "x-robots-tag": "noindex, nofollow",
@@ -87,9 +95,13 @@ function findAppPath(pathname, appKey) {
 const isStorePath = (appPath) =>
   appPath === "/watch" || appPath.startsWith("/store/") || appPath.startsWith("/push/");
 
+const isIndexPath = (appPath) => appPath === "/" || appPath === "/index.html";
+
+const GATE_PATH = "/gate.html";
+
 /**
  * An app's Worker: its page, its store, its live snapshot, and any reads of its own, all under the
- * APP_KEY secret.
+ * APP_KEY secret, and behind the ACCESS_CODE secret when the Worker has one.
  * @param {object} app
  * @param {Parameters<typeof decodePageFiles>[0]} app.pageFiles
  * @param {(url: URL) => Response | Promise<Response>} app.serveSnapshot
@@ -99,16 +111,39 @@ const isStorePath = (appPath) =>
 export function createAppWorker({ pageFiles, serveSnapshot, forwardToStore, reads = {} }) {
   const servePageFile = createPageServer(pageFiles);
   const releaseCommit = readReleaseCommit(pageFiles);
+  const isDataPath = (appPath) =>
+    isStorePath(appPath) || appPath === "/snapshot" || Object.hasOwn(reads, appPath);
+
+  // Until the phone sends the access code, the page's address shows the gate instead, and
+  // nothing from the season answers. The page's other files are the repo's own, and public.
+  async function serveLocked(request, appPath) {
+    if (isDataPath(appPath)) return respondAccessRequired();
+    if (!isIndexPath(appPath)) return servePageFile(request, appPath);
+    const gate = await servePageFile(request, GATE_PATH);
+    gate.headers.set("cache-control", "no-store");
+    return gate;
+  }
+
+  // Each visit to a page with a code renews its cookie, so a phone in use never has to type it again.
+  async function servePage(request, env, appPath) {
+    const page = await servePageFile(request, appPath);
+    if (env.ACCESS_CODE) page.headers.append("set-cookie", await createAccessCookie(request, env));
+    return page;
+  }
+
   return {
-    fetch(request, env = {}) {
+    async fetch(request, env = {}) {
       const url = new URL(request.url);
       if (url.pathname === "/robots.txt") return serveRobots(releaseCommit);
       const appPath = findAppPath(url.pathname, env.APP_KEY);
       if (appPath === null) return serveNotFound();
       if (appPath === "") return redirectToFolder(url);
+      if (appPath === ACCESS_PATH) return serveAccess(request, env);
+      if ((await readAccess(request, env)) !== "open") return serveLocked(request, appPath);
       if (isStorePath(appPath)) return forwardToStore(request, env, appPath);
       if (request.method === "GET" && appPath === "/snapshot") return serveSnapshot(url);
       if (request.method === "GET" && Object.hasOwn(reads, appPath)) return reads[appPath](url);
+      if (isIndexPath(appPath)) return servePage(request, env, appPath);
       return servePageFile(request, appPath);
     },
   };
