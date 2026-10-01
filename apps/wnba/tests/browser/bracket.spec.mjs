@@ -137,6 +137,22 @@ test("every round's cards are one width, and each round's name starts where its 
   }
 });
 
+test("every card's header is in one plain color and weight, whether its series is over, on today, or waiting", async ({
+  page,
+}) => {
+  await openApp(page);
+  const notes = page.locator(".series-note");
+  await expect(notes.filter({ hasText: "Liberty win 2-0" })).toBeVisible();
+  await expect(notes.filter({ hasText: "Today" }).first()).toBeVisible();
+  const styles = await notes.evaluateAll((elements) =>
+    elements.map((note) => {
+      const { color, fontWeight } = getComputedStyle(note);
+      return `${color} ${fontWeight}`;
+    }),
+  );
+  expect(new Set(styles).size).toBe(1);
+});
+
 test("every round's name is one color, even the round the bracket opens on", async ({ page }) => {
   await openApp(page);
   const readColor = (round) =>

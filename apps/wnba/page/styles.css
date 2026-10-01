@@ -43,9 +43,9 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's, the round the bracket opens on, and
- * the Games list's yesterday and tomorrow. Teal marks structure: section labels, the playoff line,
- * Bonus, and how a finished series ended.
+ * Orange marks what's happening now: live games and today's, and the Games list's yesterday and
+ * tomorrow. Teal marks structure: section labels, the playoff line, Bonus, and how a finished
+ * series ended in the Games list. The bracket's card headers keep to the plain ink.
  */
 :root {
   --bg: #ead5b2;
@@ -59,8 +59,9 @@
   --teal: #0b6b63;
   --teal-ink: #ffffff;
   --ink-mid: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
-  /* Bracket and game cards sit halfway between the floor and a sheet, so they read without glare. */
-  --tile: color-mix(in oklab, var(--card) 50%, var(--bg));
+  /* Bracket and game cards sit most of the way from the floor to a sheet, so they stand out
+     without glare. */
+  --tile: color-mix(in oklab, var(--card) 75%, var(--bg));
   --line: color-mix(in srgb, var(--card-border) 80%, var(--ink) 20%);
   --scoreboard: #24180e;
   --led: #ff5a4b;
@@ -283,12 +284,12 @@ header.top h1 {
 .series,
 .game-day .game-list {
   background: var(--tile);
-  border: 1px solid color-mix(in srgb, var(--line), var(--bg));
+  border: 1px solid color-mix(in srgb, var(--line), var(--tile));
   border-radius: var(--radius);
 }
 .series-head {
   border-bottom: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--divider) 22%, var(--tile));
+  background: color-mix(in srgb, var(--divider) 28%, var(--tile));
 }
 .team-line .club,
 .game-side .club {
@@ -911,14 +912,6 @@ table.players td.minutes {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--ink-dim);
-}
-.series-note.decided {
-  color: var(--teal);
-}
-.series-note.live,
-.series-note.today {
-  color: var(--orange);
-  font-weight: 700;
 }
 .team-line {
   position: relative;
