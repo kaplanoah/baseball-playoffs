@@ -9,6 +9,7 @@ import { startSettingsSheet } from "#shared/settings-sheet.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { startAppearance } from "./appearance.js";
 import { renderBracket } from "./bracket-view.js";
+import { refreshGameSheet, startGameSheet } from "./game-sheet.js";
 import { renderGames } from "./games-view.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
@@ -37,6 +38,7 @@ function renderAll() {
   setHtml(findElement("standingsWrap"), renderStandings(session.season));
   setHtml(findElement("teamsWrap"), renderTeams(session.season));
   renderStamp();
+  refreshGameSheet();
 }
 
 // Times read as today or tomorrow, so they're redrawn as the clock moves on.
@@ -71,6 +73,7 @@ async function boot() {
   trackKeyboardFocus();
   startPageTabs();
   startGamePager();
+  startGameSheet();
   startSettingsSheet();
   session.db = createWorkerStore();
   drawLastSeen();

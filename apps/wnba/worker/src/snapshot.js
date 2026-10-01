@@ -1,12 +1,14 @@
 import * as WNBASnapshot from "../../page/js/snapshot.js";
 import { readEasternDate } from "../../page/js/days.js";
 import { describeError, respondJson } from "../../../../shared/worker/responses.js";
+import {
+  FEED_HEADERS,
+  fetchWnbaJson,
+  readSeasonParam,
+  SEASON_RULE,
+  UPSTREAM_TIMEOUT_MS,
+} from "./wnba.js";
 
-const FIRST_SEASON = 1997;
-const LAST_SEASON = 2100;
-const SEASON_RULE = `season must be a whole year between ${FIRST_SEASON} and ${LAST_SEASON}`;
-
-const UPSTREAM_TIMEOUT_MS = 8000;
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
 // The schedule and standings change a few times a day, and the stats site is slow and quick to
@@ -16,20 +18,6 @@ const SLOW_FEED_MS = {
   schedule: 60 * 60 * 1000,
   standings: 60 * 60 * 1000,
   bracket: 10 * 60 * 1000,
-};
-
-// The league's feeds answer only what looks like its own site in a browser: without these, the
-// CDN answers with a web page and the stats site never answers at all.
-const FEED_HEADERS = {
-  accept: "application/json, text/plain, */*",
-  "accept-language": "en-US,en;q=0.9",
-  "user-agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
-  origin: "https://www.wnba.com",
-  referer: "https://www.wnba.com/",
-  "sec-fetch-dest": "empty",
-  "sec-fetch-mode": "cors",
-  "sec-fetch-site": "same-site",
 };
 
 // Where each feed's answer keeps its data.
@@ -55,14 +43,6 @@ const readEventId = (link) => String(link).match(/\/events\/(\d+)/)?.[1] ?? null
 const countFinals = (scoreboard) =>
   (scoreboard?.scoreboard?.games ?? []).filter((game) => game.gameStatus === 3).length;
 
-function parseJson(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
 // Reads the league for the page, so every open page shares one trip to it at a time.
 export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
@@ -72,21 +52,12 @@ export function createSnapshotServer({
   const slowFeeds = new Map();
   let lastFinals = null;
 
-  // A refusal comes back as a web page with a 200, so only JSON holding the feed's data counts
-  // as an answer.
-  async function fetchFeed(name, url) {
-    const response = await fetchImpl(url, {
-      headers: FEED_HEADERS,
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      cf: { cacheTtl: EDGE_CACHE_SECONDS, cacheEverything: true },
-    });
-    const path = new URL(url).pathname;
-    if (!response.ok) throw new Error(`The WNBA answered ${response.status} for ${path}`);
-    const answer = parseJson(await response.text());
-    if (!hasFeedData(name, answer))
-      throw new Error(`The WNBA answered ${path} with something other than data`);
-    return answer;
-  }
+  /**
+   * @param {keyof typeof FEED_DATA} name
+   * @param {string} url
+   */
+  const fetchFeed = (name, url) =>
+    fetchWnbaJson(fetchImpl, url, EDGE_CACHE_SECONDS, (answer) => hasFeedData(name, answer));
 
   // A slow feed's last good answer stands in when a read fails.
   async function readSlowFeed(name, url, isStale) {
@@ -167,16 +138,9 @@ export function createSnapshotServer({
     return promise;
   }
 
-  function readSeason(searchParams) {
-    if (!searchParams.has("season")) return new Date(now()).getUTCFullYear();
-    const season = Number(searchParams.get("season"));
-    const isValid = Number.isInteger(season) && season >= FIRST_SEASON && season <= LAST_SEASON;
-    return isValid ? season : null;
-  }
-
   /** @param {URL} url */
   async function serveSnapshot(url) {
-    const season = readSeason(url.searchParams);
+    const season = readSeasonParam(url.searchParams, now());
     if (season == null) return respondJson({ error: SEASON_RULE }, 400);
     try {
       return respondJson(await loadSnapshot(season));

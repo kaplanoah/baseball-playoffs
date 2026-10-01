@@ -38,6 +38,12 @@ export default [
     },
   },
   {
+    // A plain script the page loads before its modules, whose functions the page calls.
+    files: ["shared/page/open-last-tab.js"],
+    languageOptions: { sourceType: "script" },
+    rules: { "no-unused-vars": ["error", { vars: "local" }] },
+  },
+  {
     files: ["apps/*/page/sw.js", "shared/page/push-worker.js"],
     languageOptions: { globals: globals.serviceworker },
   },

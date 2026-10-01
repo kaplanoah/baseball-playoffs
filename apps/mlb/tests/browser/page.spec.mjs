@@ -1763,6 +1763,22 @@ test("the page reopens on the tab it was last on", async ({ page }) => {
     "aria-selected",
     "true",
   );
-  await expect(page.locator("#view-standings")).toBeVisible();
-  await expect(page.locator("#view-bracket")).toBeHidden();
+  await expect(page.locator("#view-standings")).toHaveCSS("display", "block");
+  await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
+});
+
+test("the page shows the tab it was last on before its modules have loaded", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("lastTab", "games"));
+  await page.route(
+    (url) => url.pathname === "/js/app.js",
+    (route) => route.abort(),
+  );
+
+  await openApp(page);
+
+  const tab = page.getByRole("tab", { name: "Games" });
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+  await expect(tab).toHaveClass(/\bactive\b/);
+  await expect(page.locator("#view-games")).toHaveCSS("display", "block");
+  await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
 });

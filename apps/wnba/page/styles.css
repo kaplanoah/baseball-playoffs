@@ -323,6 +323,276 @@ header.top h1 {
   letter-spacing: 0.08em;
 }
 
+/* The game sheet: the two teams across the score, then the game's parts, each under a teal
+   title. The better side of each measure gets the orange bar. */
+.game-sheet-body {
+  display: grid;
+  gap: 20px;
+  padding-top: 4px;
+}
+.faceoff {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--divider);
+}
+.faceoff-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.faceoff-side.home {
+  align-items: flex-end;
+}
+.faceoff-side .club {
+  max-width: 100%;
+  font-size: 1.15rem;
+}
+.faceoff-side.home .club {
+  flex-direction: row-reverse;
+}
+.faceoff-side.lost .club {
+  color: var(--ink-dim);
+}
+.faceoff-record {
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+}
+.faceoff-middle {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.faceoff .score {
+  gap: 14px;
+  font-size: 2.3rem;
+}
+.faceoff .time {
+  font-size: 1.3rem;
+  white-space: nowrap;
+}
+.faceoff-status {
+  font-family: var(--display);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.sheet-part {
+  display: grid;
+  gap: 8px;
+}
+.sheet-part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sheet-part-head h3 {
+  font-family: var(--display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+.sheet-part-head span {
+  font-size: 0.68rem;
+  text-align: right;
+  color: var(--ink-dim);
+}
+.sheet-message {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-dim);
+}
+.tape-teams {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tape-teams .club {
+  font-size: 0.85rem;
+}
+.tape-teams .club + .club {
+  flex-direction: row-reverse;
+}
+.tape-label {
+  font-size: 0.6rem;
+}
+.tape-value {
+  font-family: var(--numbers);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.tape-detail {
+  font-family: var(--text);
+  font-size: 0.65rem;
+}
+.tape-note {
+  font-size: 0.7rem;
+}
+
+table.line-score,
+table.players {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.line-score th,
+table.players thead th {
+  padding: 0 0 5px;
+  font-family: var(--display);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--ink-dim);
+}
+table.line-score td,
+table.line-score tbody th {
+  padding: 6px 0;
+  border-top: 1px solid var(--divider);
+  font-family: var(--numbers);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+table.line-score tbody th {
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  color: var(--ink);
+}
+table.line-score tbody th .club {
+  font-size: 0.9rem;
+}
+table.line-score td {
+  width: 11%;
+}
+table.line-score .now {
+  color: var(--orange);
+}
+table.line-score th.now {
+  font-weight: 700;
+}
+table.line-score .ahead {
+  color: var(--ink-dim);
+  opacity: 0.5;
+}
+table.line-score .total {
+  font-weight: 700;
+}
+table.line-score .lost {
+  color: var(--ink-dim);
+}
+
+.player-tables {
+  display: grid;
+  gap: 14px;
+}
+table.players thead th {
+  padding-left: 8px;
+  text-align: right;
+}
+table.players thead th:first-child {
+  padding-left: 0;
+  text-align: left;
+}
+table.players thead th .club {
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink);
+}
+table.players td,
+table.players tbody th {
+  padding: 6px 0 6px 8px;
+  border-top: 1px solid var(--divider);
+  font-family: var(--numbers);
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+table.players tbody th {
+  padding-left: 0;
+  font-family: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  white-space: normal;
+}
+table.players td.minutes {
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+.first-name {
+  font-weight: 400;
+  color: var(--ink-dim);
+}
+.foul-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  font-family: var(--display);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+  white-space: nowrap;
+  color: var(--orange);
+}
+
+.meetings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--divider);
+}
+.meetings li {
+  display: grid;
+  grid-template-columns: 4em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--divider);
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+}
+.meeting-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.meeting-result .club {
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+.meeting-score {
+  font-family: var(--numbers);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.meeting-round {
+  font-family: var(--display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
 /* Bracket: the rounds side by side under names level with each other. Each series takes an equal
    share of the height the first round sets, so it sits beside the two it follows. */
 .bracket {

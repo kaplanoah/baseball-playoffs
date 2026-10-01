@@ -53,6 +53,9 @@ const nameSeries = (round, series) => `${round}-${series}`;
 
 const GAME_STATES = { 1: "pre", 2: "live", 3: "final" };
 
+/** @param {number} gameStatus the feeds' 1, 2, or 3 */
+export const readGameState = (gameStatus) => GAME_STATES[gameStatus] ?? "pre";
+
 // The CDN's clock reads like PT04M32.00S; the page shows 4:32, and tenths under a minute.
 export function readClock(clock) {
   const [, minutes, seconds] = String(clock ?? "").match(/^PT(\d+)M([\d.]+)S$/) ?? [];
@@ -75,7 +78,7 @@ const readSide = (team) => ({
 // A playoff game from the scoreboard or the schedule, which name their fields alike.
 function normalizeGame(game) {
   const place = readPlayoffGameId(game.gameId);
-  const state = GAME_STATES[game.gameStatus] ?? "pre";
+  const state = readGameState(game.gameStatus);
   return {
     id: String(game.gameId),
     round: place?.round ?? null,
@@ -303,7 +306,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   };
 }
 
-const POLL_LIVE_MS = 15 * 1000;
+export const POLL_LIVE_MS = 15 * 1000;
 const POLL_LEAD_MS = 15 * 60 * 1000;
 const POLL_CHECK_MS = 60 * 60 * 1000;
 
