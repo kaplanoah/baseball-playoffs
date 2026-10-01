@@ -416,31 +416,23 @@ test("a day of games and a series in the bracket share one thin outline, lighter
   expect(await readOutline(page.locator("#games-today .game-day"))).toEqual(series);
 });
 
-test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
-  await openApp(page);
-  for (const [tab, row] of [
-    ["Games", "#games-today .game-row"],
-    ["Standings", "#standingsWrap table.standings"],
-    ["Teams", "#teamsWrap .team"],
-  ]) {
-    await page.getByRole("tab", { name: tab }).click();
-    const box = await page.locator(row).first().boundingBox();
-    expect(box.width, tab).toBeLessThanOrEqual(560);
-  }
-});
-
-test("on a wide screen, the Games pill and lists sit in the middle of the page", async ({
+test("on a wide screen, the Games, Standings, and Teams lists keep to one phone's width, in the middle of the page", async ({
   page,
 }) => {
   await openApp(page);
-  await page.getByRole("tab", { name: "Games" }).click();
   const pageMiddle = page.viewportSize().width / 2;
-  for (const locator of [
-    page.getByRole("tablist", { name: "Games" }),
-    page.locator("#games-today .game-row").first(),
+  for (const { tab, pill, list } of [
+    { tab: "Games", pill: "#gamePager .game-tabs", list: "#games-today .game-day" },
+    { tab: "Standings", pill: ".standings-views", list: "#standingsWrap table.standings" },
+    { tab: "Teams", list: "#teamsWrap .team" },
   ]) {
-    const box = await locator.boundingBox();
-    expect(Math.abs(box.x + box.width / 2 - pageMiddle)).toBeLessThanOrEqual(1);
+    await page.getByRole("tab", { name: tab }).click();
+    for (const selector of [pill, list].filter(Boolean)) {
+      const box = await page.locator(selector).first().boundingBox();
+      expect(Math.abs(box.x + box.width / 2 - pageMiddle), selector).toBeLessThanOrEqual(1);
+    }
+    const listBox = await page.locator(list).first().boundingBox();
+    expect(listBox.width, tab).toBe(560);
   }
 });
 

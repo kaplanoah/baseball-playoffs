@@ -245,10 +245,12 @@ header.top h1 {
   color: var(--ink-dim);
 }
 
-/* A list of rows keeps to a phone's width on a wide screen, so each name stays near its score,
-   as game-pager.css keeps the Games lists. */
+/* The Standings and Teams lists keep to a phone's width, centered on a wide screen, so each name
+   stays near its score, as game-pager.css keeps the Games lists. */
+.standings-block,
 #teamsWrap {
   max-width: 560px;
+  margin-inline: auto;
 }
 
 /* A bracket's series and a day of games are one kind of card, under a shaded head. */
@@ -987,10 +989,6 @@ table.players td.minutes {
 
 /* Standings: one table at a phone's width, of the league or a conference, chosen on a pill like
    the Games view's. W-L and GB lead as the season; L10 and Strk follow, smaller, as recent form. */
-.standings-block {
-  max-width: 560px;
-  margin-inline: auto;
-}
 .standings-views {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
