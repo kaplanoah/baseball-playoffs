@@ -114,7 +114,11 @@ test("each appearance choice shows the home-screen icon it offers", async ({ pag
     await expect(images).toHaveCount(sources.length);
     for (const [index, source] of sources.entries()) {
       await expect(images.nth(index)).toHaveAttribute("src", source);
-      expect(await images.nth(index).evaluate((image) => image.naturalWidth)).toBeGreaterThan(0);
+      expect(
+        await images
+          .nth(index)
+          .evaluate((image) => /** @type {HTMLImageElement} */ (image).naturalWidth),
+      ).toBeGreaterThan(0);
     }
   }
 });
