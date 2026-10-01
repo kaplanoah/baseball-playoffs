@@ -43,9 +43,9 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's, the round the bracket opens on, and
- * the Games list's yesterday and tomorrow. Teal marks structure: section labels, the playoff line,
- * Bonus, and how a finished series ended.
+ * Orange marks what's happening now: live games and today's, and the Games list's yesterday and
+ * tomorrow. Teal marks structure: section labels, the playoff line, Bonus, and how a finished
+ * series ended in the Games list. The bracket's card headers keep to the plain ink.
  */
 :root {
   --bg: #ead5b2;
@@ -59,8 +59,9 @@
   --teal: #0b6b63;
   --teal-ink: #ffffff;
   --ink-mid: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
-  /* Bracket and game cards sit halfway between the floor and a sheet, so they read without glare. */
-  --tile: color-mix(in oklab, var(--card) 50%, var(--bg));
+  /* Bracket and game cards sit most of the way from the floor to a sheet, so they stand out
+     without glare. */
+  --tile: color-mix(in oklab, var(--card) 75%, var(--bg));
   --line: color-mix(in srgb, var(--card-border) 80%, var(--ink) 20%);
   --scoreboard: #24180e;
   --led: #ff5a4b;
@@ -283,12 +284,12 @@ header.top h1 {
 .series,
 .game-day .game-list {
   background: var(--tile);
-  border: 1px solid color-mix(in srgb, var(--line), var(--bg));
+  border: 1px solid color-mix(in srgb, var(--line), var(--tile));
   border-radius: var(--radius);
 }
 .series-head {
   border-bottom: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--divider) 22%, var(--tile));
+  background: color-mix(in srgb, var(--divider) 28%, var(--tile));
 }
 .team-line .club,
 .game-side .club {
@@ -784,19 +785,12 @@ table.players td.minutes {
   font-weight: 700;
   color: var(--ink);
 }
-.meeting-round {
-  font-family: var(--display);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--teal);
-}
 
 /* Bracket: the rounds left to right, each series beside the two it follows, every round as wide as
    the next. The first round's seed labels sit in room of their own to its left. On a phone each
    round takes most of the screen's width and the bracket swipes sideways, with the next round
-   showing at the edge. Bracket lines join each pair of series into the one they feed
+   showing at the edge, and ends with room for the Finals to stop in the screen's middle. Bracket
+   lines join each pair of series into the one they feed
    (js/bracket-tree.js). */
 #bracketWrap {
   container-type: inline-size;
@@ -812,7 +806,8 @@ table.players td.minutes {
   column-gap: var(--round-gap);
   row-gap: 16px;
   margin-inline: calc(-1 * var(--page-gutter));
-  padding: 2px var(--page-gutter) 2px calc(var(--page-gutter) + var(--seed-room));
+  padding: 2px calc((100cqw - var(--round-width)) / 2 + var(--page-gutter)) 2px
+    calc(var(--page-gutter) + var(--seed-room));
   scroll-padding-inline: var(--page-gutter);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -864,6 +859,7 @@ table.players td.minutes {
 }
 .round-name.round-3 {
   grid-column: 3;
+  scroll-snap-align: center;
 }
 .bracket-cell {
   position: relative;
@@ -911,14 +907,6 @@ table.players td.minutes {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--ink-dim);
-}
-.series-note.decided {
-  color: var(--teal);
-}
-.series-note.live,
-.series-note.today {
-  color: var(--orange);
-  font-weight: 700;
 }
 .team-line {
   position: relative;
