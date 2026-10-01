@@ -325,7 +325,7 @@ function prepareFromRow(button) {
 
 export function startMatchups() {
   const dialog = findDialog();
-  watchGameOpens(findElement("gamePages"), { open: openFromRow, prepare: prepareFromRow });
+  watchGameOpens(findElement("games-pages"), { open: openFromRow, prepare: prepareFromRow });
   findElement("matchupDoneBtn").addEventListener("click", () => closeSheet(dialog));
   dialog.addEventListener("click", (event) => {
     if (event.target === event.currentTarget) closeSheet(dialog);

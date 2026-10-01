@@ -53,6 +53,23 @@ test.describe("on a phone, the bracket", () => {
     await expect(readRoundName(page, 2)).toBeInViewport({ ratio: 1 });
   });
 
+  test("pins its round dots just above the tab bar, and lights the last round at the scroll's end", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const dots = page.locator(".round-dots");
+    await expect(dots.locator('[data-round="1"]')).toHaveClass("on");
+    const dotsBox = await dots.boundingBox();
+    const bar = await page.locator("#tabBar").boundingBox();
+    expect(bar.y - (dotsBox.y + dotsBox.height)).toBeGreaterThan(0);
+    expect(bar.y - (dotsBox.y + dotsBox.height)).toBeLessThanOrEqual(16);
+
+    await page
+      .locator(".bracket")
+      .evaluate((tree) => tree.scrollTo({ left: tree.scrollWidth, behavior: "instant" }));
+    await expect(dots.locator('[data-round="3"]')).toHaveClass("on");
+  });
+
   test("shows the next round's edge beside the one it opens on", async ({ page }) => {
     await openApp(page);
     await expect(page.locator('[data-series="2-0"]')).toBeVisible();
