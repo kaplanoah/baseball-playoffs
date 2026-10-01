@@ -30,6 +30,31 @@ function renderStamp() {
   stamp.hidden = !text;
 }
 
+function drawStandings() {
+  setHtml(findElement("standingsWrap"), renderStandings(session.season, session.standingsView));
+}
+
+// The pill's buttons are drawn again with the table, so the chosen one takes the focus back.
+function focusChosenStandingsView() {
+  const selector = `[data-standings-view="${session.standingsView}"]`;
+  const chosen = /** @type {HTMLElement | null} */ (
+    findElement("standingsWrap").querySelector(selector)
+  );
+  chosen?.focus();
+}
+
+function chooseStandingsView(/** @type {MouseEvent} */ event) {
+  const button = /** @type {HTMLElement | null} */ (
+    /** @type {Element} */ (event.target).closest("[data-standings-view]")
+  );
+  if (!button) return;
+  session.standingsView = /** @type {typeof session.standingsView} */ (
+    button.dataset.standingsView
+  );
+  drawStandings();
+  focusChosenStandingsView();
+}
+
 function renderAll() {
   const now = Date.now();
   findElement("yearTag").textContent = String(session.year);
@@ -38,7 +63,7 @@ function renderAll() {
   placeBracket(session.season?.series ?? [], keptLeft);
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
-  setHtml(findElement("standingsWrap"), renderStandings(session.season));
+  drawStandings();
   setHtml(findElement("teamsWrap"), renderTeams(session.season));
   renderStamp();
   refreshGameSheet();
@@ -79,6 +104,7 @@ async function boot() {
   startGameSheet();
   startSettingsSheet();
   startBracket();
+  findElement("standingsWrap").addEventListener("click", chooseStandingsView);
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);
