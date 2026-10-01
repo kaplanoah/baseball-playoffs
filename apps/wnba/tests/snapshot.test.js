@@ -18,9 +18,28 @@ const buildAfternoon = (responses = RESPONSES) =>
   });
 
 test("a playoff game's ID names its round, series, and game", () => {
-  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042600132"), { round: 1, series: 3, game: 2 });
-  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042600307"), { round: 3, series: 0, game: 7 });
+  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042600132"), {
+    season: 2026,
+    round: 1,
+    series: 3,
+    game: 2,
+  });
+  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042500307"), {
+    season: 2025,
+    round: 3,
+    series: 0,
+    game: 7,
+  });
   assert.equal(WNBASnapshot.readPlayoffGameId("1022600097"), null);
+});
+
+test("a new year's snapshot leaves out the last season's games, which the feeds still hold", () => {
+  const nextYear = WNBASnapshot.buildSnapshot(
+    { ...RESPONSES, bracket: null },
+    { season: 2027, now: Date.parse(AFTERNOON.now) },
+  );
+  assert.deepEqual([nextYear.games, nextYear.series], [[], []]);
+  assert.equal(buildAfternoon().games.length, 28);
 });
 
 test("the clock reads as minutes and seconds, and tenths in the last minute", () => {

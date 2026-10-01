@@ -24,6 +24,9 @@ const FEEDS = {
   [REQUESTS.bracket(2026)]: "bracket",
   [REQUESTS.standings(2026)]: "standings",
   [REQUESTS.players(2026)]: "players",
+  [REQUESTS.bracket(2025)]: "bracket",
+  [REQUESTS.standings(2025)]: "standings",
+  [REQUESTS.players(2025)]: "players",
 };
 
 /**
@@ -226,6 +229,17 @@ test("a scoreboard that misses a read doesn't look like a game ending once it's 
   await server.loadSnapshot(2026);
 
   assert.deepEqual(countSlowReads(league), [1, 1]);
+});
+
+test("each season's slow feeds are kept apart", async () => {
+  const league = createLeague();
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  await server.loadSnapshot(2026);
+  await server.loadSnapshot(2025);
+
+  for (const feed of ["bracket", "standings", "players"]) assert.equal(league.countReads(feed), 2);
+  assert.equal(league.countReads("schedule"), 1);
 });
 
 test("a slow feed that stops answering keeps its last good answer", async () => {
