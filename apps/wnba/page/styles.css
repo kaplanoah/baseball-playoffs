@@ -856,19 +856,41 @@ table.players td.minutes {
   }
 }
 
-/* Standings: the league's table, with the playoff line after eighth, then each conference's. */
-.standings-block + .standings-block,
-.conferences {
-  margin-top: 24px;
+/* Standings: one table at a phone's width, of the league or a conference, chosen on a pill like
+   the Games view's. W-L and GB lead as the season; L10 and Strk follow, smaller, as recent form. */
+.standings-block {
+  max-width: 560px;
+  margin-inline: auto;
 }
-.conferences {
+.standings-views {
   display: grid;
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 260px;
+  margin: 0 auto 14px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--pager-track);
+  box-shadow: inset 0 0 0 1px var(--pager-track-edge);
 }
-@media (min-width: 700px) {
-  .conferences {
-    grid-template-columns: 1fr 1fr;
-  }
+.standings-views button {
+  font: inherit;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink-dim);
+  padding: 7px 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.standings-views button[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--pager-thumb);
+  box-shadow:
+    inset 0 1px 0 var(--pager-thumb-edge),
+    0 2px 6px -2px rgba(0, 0, 0, 0.5);
 }
 table.standings {
   width: 100%;
@@ -876,50 +898,93 @@ table.standings {
   font-size: 0.85rem;
 }
 table.standings th {
-  padding: 0 0 6px;
+  padding: 0 0 6px 12px;
   font-family: var(--display);
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  text-align: right;
+  text-align: center;
   color: var(--ink-dim);
+}
+table.standings tr.groups th {
+  padding-bottom: 2px;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  color: var(--teal);
 }
 table.standings td {
-  padding: 7px 0 7px 10px;
+  padding: 8px 0 8px 12px;
   border-top: 1px solid var(--divider);
-  text-align: right;
+  text-align: center;
+  white-space: nowrap;
 }
 table.standings .team {
+  width: 100%;
+  padding-left: 0;
   text-align: left;
-  padding-left: 0;
 }
-table.standings td.place {
-  width: 26px;
-  padding-left: 0;
+table.standings .place {
+  width: 33px;
+  min-width: 33px;
+  padding-left: 5px;
   text-align: left;
   color: var(--ink-dim);
 }
-table.standings td.team .club {
-  font-size: 0.95rem;
+/* The rows' content sits a little in from the ends of the lines between them. */
+table.standings th:first-child {
+  padding-left: 5px;
 }
-/* A gradient, not a dashed border: a collapsed table restarts dashes at every column edge. */
-table.standings tr.cut td {
-  border-top: 0;
-  background: linear-gradient(to right, var(--teal) 50%, transparent 50%) top / 8px 2px repeat-x;
+table.standings th:last-child,
+table.standings td:last-child {
+  padding-right: 5px;
+}
+table.standings .pair-end {
+  padding-left: 18px;
+}
+table.standings .recent-start {
+  padding-left: 28px;
+}
+table.standings td.season {
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+table.standings td.recent {
+  font-size: 0.74rem;
+  color: var(--ink-dim);
+}
+table.standings th.recent {
+  font-size: 0.62rem;
 }
 table.standings tr.below td {
   color: var(--ink-dim);
 }
+.streak-won {
+  font-weight: 600;
+}
+/* Bold reads darker, so a winning streak below the line steps paler to sit with its row. */
+tr.below .streak-won {
+  color: color-mix(in srgb, var(--ink-dim) 65%, var(--bg));
+}
+/* The chip centers on the name, rather than sharing its baseline. */
+.team-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  vertical-align: middle;
+}
+table.standings td.team .club {
+  font-size: 0.98rem;
+}
 .conference-tag {
-  margin-left: 6px;
   padding: 0 4px;
   border: 1px solid currentColor;
   border-radius: var(--radius);
   font-family: var(--display);
   font-size: 0.6rem;
   font-weight: 600;
-  vertical-align: 1px;
+  line-height: 1.35;
 }
 .conference-tag.east {
   color: var(--teal);
@@ -927,10 +992,26 @@ table.standings tr.below td {
 .conference-tag.west {
   color: var(--orange);
 }
-@media (max-width: 519px) {
-  table.standings .wide-only {
-    display: none;
-  }
+.seed-note {
+  font-family: var(--display);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--teal);
+}
+/* One cell across the table, so its dashes run unbroken, in place of the line above the first
+   team below it, so every row keeps its spacing. */
+table.standings tr.playoff-line td {
+  height: 1.5px;
+  padding: 0;
+  border-top: 0;
+  font-size: 0;
+  line-height: 0;
+  background: linear-gradient(to right, var(--teal) 3px, transparent 3px) left center / 6px 1.5px
+    repeat-x;
+}
+table.standings tr.playoff-line + tr td {
+  border-top: 0;
 }
 
 /* Teams: every team in the league's order, each row opening to its season. Conference and seed

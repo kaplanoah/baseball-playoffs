@@ -266,18 +266,69 @@ test("each winner's line runs to the row it holds next, and one still going to w
   assert.equal(findLink(finished, "2-0").toRow, "middle");
 });
 
-test("the league's standings draw the playoff line after eighth, and each conference ranks its own", () => {
-  const markup = renderStandings(SEASON).text;
-  const rows = markup.split("<tr").slice(1);
-  const cutRow = rows.findIndex((row) => row.includes('class="cut below"'));
-  assert.equal(cutRow, 9, "the header row, then eight teams above the line");
+// The rows of a standings table's body, each with its class and text.
+const readStandingsRows = (markup) =>
+  markup.text
+    .split("<tbody>")[1]
+    .split("<tr")
+    .slice(1)
+    .map((row) => ({
+      className: row.match(/^ class="([^"]*)"/)?.[1] ?? "",
+      text: readText({ text: `<tr${row}` }),
+    }));
+
+test("the league's standings show the season, then recent form, with the playoff line above ninth", () => {
   const text = readText(renderStandings(SEASON));
   assert.match(
     text,
-    /^League Team W-L GB L10 Strk 1 Lynx W 33-11 - 6-4 W 1 2 Valkyries W 32-12 1\.0 /,
+    /^League East West Season Recent Team W-L GB L10 Strk 1 Lynx W 33-11 - 6-4 W 1 2 Valkyries W 32-12 1\.0 7-3 W 1 /,
   );
-  assert.match(text, /East Team W-L GB L10 Strk 1 Dream 30-14 - /);
-  assert.match(text, /West Team W-L GB L10 Strk 1 Lynx 33-11 -/);
+  const rows = readStandingsRows(renderStandings(SEASON));
+  const line = rows.findIndex((row) => row.className === "playoff-line");
+  assert.equal(line, 8, "eight teams above the line");
+  assert.match(rows[line + 1].text, /^9 Fire W 17-27 16\.0 3-7 W 1$/);
+  assert.deepEqual(
+    rows.filter((row) => row.className === "below").length,
+    7,
+    "every team below the line is marked",
+  );
+});
+
+test("a conference's standings rank its own teams, note each playoff team's league seed, and draw the line after its last one", () => {
+  const text = readText(renderStandings(SEASON, "East"));
+  assert.match(
+    text,
+    /Strk 1 Dream Seed 4 30-14 - 9-1 W 5 2 Mystics Seed 5 28-16 2\.0 8-2 W 4 3 Fever Seed 6 /,
+  );
+  const rows = readStandingsRows(renderStandings(SEASON, "East"));
+  assert.deepEqual(
+    rows.map((row) => row.className),
+    ["", "", "", "", "playoff-line", "below", "below", "below"],
+  );
+  assert.match(rows[5].text, /^5 Sky 16-28 14\.0 4-6 L 1$/, "no seed below the line");
+  assert.match(readText(renderStandings(SEASON, "West")), /Strk 1 Lynx Seed 1 33-11 - /);
+});
+
+test("the standings pill marks the view it shows", () => {
+  const markup = renderStandings(SEASON, "West").text;
+  const pressed = [...markup.matchAll(/data-standings-view="(\w+)" aria-pressed="(\w+)"/g)];
+  assert.deepEqual(
+    pressed.map(([, view, isPressed]) => [view, isPressed]),
+    [
+      ["League", "false"],
+      ["East", "false"],
+      ["West", "true"],
+    ],
+  );
+  assert.match(markup, /aria-label="West standings"/);
+});
+
+test("a winning streak is marked, so one below the line can show paler than one above it", () => {
+  const rows = renderStandings(SEASON).text.split("<tr").slice(1);
+  const fire = rows.find((row) => row.includes(">Fire<"));
+  const lynx = rows.find((row) => row.includes(">Lynx<"));
+  assert.match(fire, /^ class="below"[\s\S]*<span class="streak-won">W 1<\/span>/);
+  assert.match(lynx, /^ class=""[\s\S]*<span class="streak-won">W 1<\/span>/);
 });
 
 /**

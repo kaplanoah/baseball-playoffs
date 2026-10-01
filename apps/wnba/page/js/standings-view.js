@@ -2,83 +2,116 @@ import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
 
 /** @typedef {{ team: string, conference: string, wins: number, losses: number, place: number, conferencePlace: number, gamesBack: number | null, conferenceGamesBack: number | null, clinch: string | null, streak: string | null, lastTen: string | null, pointsFor?: number | null, pointsAgainst?: number | null, margin?: number | null, home?: string | null, road?: string | null }} StandingsRow */
+/** @typedef {"League" | "East" | "West"} StandingsView */
+
+/** @type {StandingsView[]} */
+const STANDINGS_VIEWS = ["League", "East", "West"];
 
 // The top eight across the league make the playoffs, whatever their conference.
 const PLAYOFF_SPOTS = 8;
 
+const PLAYOFF_LINE = html`<tr class="playoff-line" aria-hidden="true"><td colspan="6"></td></tr>`;
+
+/** @param {StandingsRow} row */
+const isAboveLine = (row) => row.place <= PLAYOFF_SPOTS;
+
 /** @param {number | null} gamesBack */
 const formatGamesBack = (gamesBack) => (gamesBack ? gamesBack.toFixed(1) : "-");
 
-/** @param {string} conference */
-const renderConferenceTag = (conference) =>
-  html`<span class="conference-tag ${conference.toLowerCase()}">${conference.charAt(0)}</span>`;
+/**
+ * The league view tags each team's conference, and a conference view each playoff team's league seed.
+ * @param {StandingsRow} row
+ * @param {StandingsView} view
+ */
+function renderTeamTag(row, view) {
+  if (view === "League") {
+    return html`<span class="conference-tag ${row.conference.toLowerCase()}">${row.conference.charAt(0)}</span>`;
+  }
+  return isAboveLine(row) ? html`<span class="seed-note">Seed ${row.place}</span>` : "";
+}
+
+/** @param {string | null} streak */
+const renderStreak = (streak) =>
+  streak?.startsWith("W") ? html`<span class="streak-won">${streak}</span>` : (streak ?? "");
 
 /**
  * @param {StandingsRow} row
- * @param {{ place: number, gamesBack: number | null, isLeague: boolean }} view
+ * @param {StandingsView} view
  */
-function renderRow(row, { place, gamesBack, isLeague }) {
-  const isCut = isLeague && place === PLAYOFF_SPOTS + 1;
-  const isBelow = isLeague && place > PLAYOFF_SPOTS;
-  const classes = [isCut && "cut", isBelow && "below"].filter(Boolean).join(" ");
-  return html`<tr class="${classes}">
-    <td class="place tabular">${place}</td>
-    <td class="team">${renderClub(row.team)}${isLeague && renderConferenceTag(row.conference)}</td>
-    <td class="tabular">${row.wins}-${row.losses}</td>
-    <td class="tabular">${formatGamesBack(gamesBack)}</td>
-    <td class="tabular wide-only">${row.lastTen ?? ""}</td>
-    <td class="tabular wide-only">${row.streak ?? ""}</td>
+function renderRow(row, view) {
+  const isLeague = view === "League";
+  return html`<tr class="${isAboveLine(row) ? "" : "below"}">
+    <td class="place tabular">${isLeague ? row.place : row.conferencePlace}</td>
+    <td class="team"><span class="team-cell">${renderClub(row.team)}${renderTeamTag(row, view)}</span></td>
+    <td class="tabular season">${row.wins}-${row.losses}</td>
+    <td class="tabular season pair-end">${formatGamesBack(isLeague ? row.gamesBack : row.conferenceGamesBack)}</td>
+    <td class="tabular recent recent-start">${row.lastTen ?? ""}</td>
+    <td class="tabular recent pair-end">${renderStreak(row.streak)}</td>
   </tr>`;
 }
 
 /**
- * @param {string} title
+ * The view's teams in its own order, with the playoff line above the first team below it.
  * @param {StandingsRow[]} rows
- * @param {boolean} isLeague
+ * @param {StandingsView} view
  */
-function renderTable(title, rows, isLeague) {
-  const body = rows.map((row) =>
-    renderRow(row, {
-      place: isLeague ? row.place : row.conferencePlace,
-      gamesBack: isLeague ? row.gamesBack : row.conferenceGamesBack,
-      isLeague,
-    }),
-  );
-  return html`<section class="standings-block">
-    <h2 class="section-label">${title}</h2>
-    <table class="standings">
+function renderBody(rows, view) {
+  return rows.map((row, index) => {
+    const isFirstBelow = index > 0 && isAboveLine(rows[index - 1]) && !isAboveLine(row);
+    return html`${isFirstBelow && PLAYOFF_LINE}${renderRow(row, view)}`;
+  });
+}
+
+/**
+ * @param {StandingsRow[]} league
+ * @param {StandingsView} view
+ */
+function listViewRows(league, view) {
+  if (view === "League") return league;
+  return league
+    .filter((row) => row.conference === view)
+    .sort((first, second) => first.conferencePlace - second.conferencePlace);
+}
+
+/** @param {StandingsView} chosen */
+const renderViewPill = (chosen) =>
+  html`<div class="standings-views" role="group" aria-label="Standings">
+    ${STANDINGS_VIEWS.map(
+      (view) =>
+        html`<button type="button" data-standings-view="${view}" aria-pressed="${String(view === chosen)}">${view}</button>`,
+    )}
+  </div>`;
+
+/**
+ * One table, of the league or a conference, with the playoff line after the league's eighth.
+ * @param {{ standings?: StandingsRow[] } | null} season
+ * @param {StandingsView} [view]
+ */
+export function renderStandings(season, view = "League") {
+  const rows = season?.standings ?? [];
+  if (!rows.length) return html`<p class="empty-note">No standings yet.</p>`;
+  const league = [...rows].sort((first, second) => first.place - second.place);
+  return html`<div class="standings-block">
+    ${renderViewPill(view)}
+    <table class="standings" aria-label="${view} standings">
       <thead>
+        <tr class="groups">
+          <th colspan="2"></th>
+          <th colspan="2">Season</th>
+          <th colspan="2" class="recent-start">Recent</th>
+        </tr>
         <tr>
           <th></th>
           <th class="team">Team</th>
           <th>W-L</th>
-          <th>GB</th>
-          <th class="wide-only">L10</th>
-          <th class="wide-only">Strk</th>
+          <th class="pair-end">GB</th>
+          <th class="recent recent-start">L10</th>
+          <th class="recent pair-end">Strk</th>
         </tr>
       </thead>
       <tbody>
-        ${body}
+        ${renderBody(listViewRows(league, view), view)}
       </tbody>
     </table>
-  </section>`;
-}
-
-/**
- * The league's standings, with the playoff line after eighth, then each conference's.
- * @param {{ standings?: StandingsRow[] } | null} season
- */
-export function renderStandings(season) {
-  const rows = season?.standings ?? [];
-  if (!rows.length) return html`<p class="empty-note">No standings yet.</p>`;
-  const league = [...rows].sort((first, second) => first.place - second.place);
-  const listConference = (conference) =>
-    league
-      .filter((row) => row.conference === conference)
-      .sort((first, second) => first.conferencePlace - second.conferencePlace);
-  return html`${renderTable("League", league, true)}
-    <div class="conferences">
-      ${renderTable("East", listConference("East"), false)}
-      ${renderTable("West", listConference("West"), false)}
-    </div>`;
+  </div>`;
 }
