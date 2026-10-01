@@ -1,5 +1,7 @@
 // Runs in both the browser page and the Worker, so it uses no DOM and no globals.
 
+import { addDays, readEasternDay } from "#shared/days.js";
+
 export const MLB_API = "https://statsapi.mlb.com";
 
 // Postseason placeholders ("AL #3 Seed") have made-up ids, so a miss means no real club yet.
@@ -345,29 +347,6 @@ const GAME_TYPES = new Set(["R", "F", "D", "L", "W"]);
 export const POLL_LIVE_MS = 30 * 1000;
 const POLL_LEAD_MS = 15 * 60 * 1000;
 export const POLL_CHECK_MS = 60 * 60 * 1000;
-
-// Baseball's day is Eastern: a game ending after midnight belongs to the night before.
-const EASTERN = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/New_York",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  hourCycle: "h23",
-});
-export function readEasternDay(ms) {
-  const parts = {};
-  for (const { type, value } of EASTERN.formatToParts(new Date(ms))) parts[type] = value;
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    hour: Number(parts.hour),
-    year: Number(parts.year),
-  };
-}
-export function addDays(date, days) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
 
 export function listMlbRequests(season, now, regularSeasonEnd = null) {
   const today = readEasternDay(now);

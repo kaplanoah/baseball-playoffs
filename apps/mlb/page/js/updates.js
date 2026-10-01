@@ -1,6 +1,6 @@
 import { renderRankTag, renderTeamTag } from "./clubs.js";
 import { describeEntry, describeUpdate } from "./entry-text.js";
-import { DAYS, countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
+import { countDaysBetween, formatClockTime, nameDay } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, readSeasonYear } from "./session.js";
@@ -28,20 +28,14 @@ export const renderUpdateText = (entries) => describeUpdate(entries, readTextCon
 function formatWhen(iso, now = new Date()) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  const days = countDaysBetween(date, now);
-  if (days <= 0) return formatClockTime(date);
-  if (days === 1) return "Yesterday";
-  if (days < 7) return DAYS[date.getDay()];
-  return formatShortDate(date);
+  if (countDaysBetween(date, now) <= 0) return formatClockTime(date);
+  return nameDay(date, now, { isCapitalized: true });
 }
 function formatSince(iso, now = new Date()) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  const days = countDaysBetween(date, now);
-  if (days <= 0) return "since earlier today";
-  if (days === 1) return "since yesterday";
-  if (days < 7) return `since ${DAYS[date.getDay()]}`;
-  return `since ${formatShortDate(date)}`;
+  if (countDaysBetween(date, now) <= 0) return "since earlier today";
+  return `since ${nameDay(date, now)}`;
 }
 
 // Freshness goes by when a change was noticed; the list shows when it happened, which for a

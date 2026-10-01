@@ -1,4 +1,5 @@
-import { MLB_API, readEasternDay } from "../../page/js/snapshot.js";
+import { readEasternDay } from "#shared/days.js";
+import { MLB_API } from "../../page/js/snapshot.js";
 import { createSeasonParam, LAST_SEASON } from "../../../../shared/worker/seasons.js";
 import { fetchUpstream } from "../../../../shared/worker/upstream.js";
 

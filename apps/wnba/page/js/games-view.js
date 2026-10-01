@@ -2,7 +2,7 @@ import { countDaysBetween, formatClockTime, formatShortMonth } from "#shared/day
 import { renderGameRow } from "#shared/game-row.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
-import { abbreviateDay, isNearDay, nameDay, readGameDay } from "./days.js";
+import { abbreviateDay, isNearDay, nameListDay, readGameDay } from "./days.js";
 import { renderScoreboard } from "./scoreboard.js";
 import { nameTeam } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
@@ -162,7 +162,7 @@ const renderGameList = (games, allGames) =>
  */
 const renderDay = ({ day, games }, allGames, now) =>
   html`<section class="game-day">
-    <h3 class="day-label" aria-label="${nameDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
+    <h3 class="day-label" aria-label="${nameListDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
       <span class="day-month">${formatShortMonth(day)}</span
       ><span class="day-number tabular">${day.getDate()}</span
       ><span class="day-name${isNearDay(day, now) ? " near" : ""}">${abbreviateDay(day, now)}</span>

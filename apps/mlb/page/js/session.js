@@ -1,6 +1,7 @@
 import { isSameJson } from "#shared/compare.js";
+import { readEasternDay } from "#shared/days.js";
 import { composeLog } from "./readings.js";
-import { readEasternDay, hasKnownField } from "./snapshot.js";
+import { hasKnownField } from "./snapshot.js";
 
 const FRESH_FINAL_MS = 10 * 60 * 1000;
 const APRIL = 4;
