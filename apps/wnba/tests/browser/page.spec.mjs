@@ -281,6 +281,25 @@ test("each day's games sit in a box of their own, apart from the next day's", as
   expect(box).toBe("solid");
 });
 
+for (const width of [375, 360]) {
+  test.describe(`on a ${width}px phone`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("every team's whole name fits in its game row", async ({ page }) => {
+      await openApp(page);
+      await page.getByRole("tab", { name: "Games" }).click();
+      const cutNames = await page
+        .locator("#gamePager .game-side .team-name")
+        .evaluateAll((names) =>
+          names
+            .filter((name) => name.scrollWidth > name.getBoundingClientRect().width + 0.5)
+            .map((name) => name.textContent),
+        );
+      expect(cutNames).toEqual([]);
+    });
+  });
+}
+
 test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
   await openApp(page);
   for (const [tab, row] of [
