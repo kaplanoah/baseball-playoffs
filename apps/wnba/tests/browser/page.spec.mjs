@@ -206,6 +206,41 @@ test("on a wide screen, the game and team rows keep to a phone's width", async (
   }
 });
 
+test("clicking the tab that's showing scrolls back to the top", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 400 });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  await expect(page.locator("#teamsWrap .team-row").first()).toBeVisible();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+
+  await page.getByRole("tab", { name: "Teams" }).dispatchEvent("click");
+
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+});
+
+test("the page reopens on the tab it was last on", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+
+  await page.reload();
+
+  await expect(page.getByRole("tab", { name: "Standings" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#view-standings")).toBeVisible();
+  await expect(page.locator("#view-bracket")).toBeHidden();
+});
+
+test("a page last left on a tab it no longer has opens on the bracket", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("lastTab", "schedule"));
+  await openApp(page);
+
+  await expect(page.getByRole("tab", { name: "Bracket" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#view-bracket")).toBeVisible();
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
