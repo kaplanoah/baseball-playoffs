@@ -102,6 +102,16 @@ test("choosing Walnut or Maple overrides the phone, and the choice stays after a
   await expectTheme(page, "dark");
 });
 
+test("changing the appearance says how to match the home-screen icon", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const note = page.locator("#appearanceNote");
+  await expect(note).toBeHidden();
+  await page.getByRole("combobox", { name: "Appearance" }).selectOption({ label: "Walnut" });
+  await expect(note).toBeVisible();
+  await expect(note).toHaveText(/Apple sets a home-screen icon only when the page is added/);
+});
+
 test("the page serves both themes' icons", async ({ page }) => {
   await openApp(page);
   for (const href of ["icon-180.png", "icon-light-180.png", "icon.svg", "icon-light.svg"]) {

@@ -9,6 +9,11 @@ const THEMES = {
   dark: { barColor: "#1d1511", tabIcon: "icon.svg", homeScreenIcon: "icon-180.png" },
 };
 
+// A home-screen page keeps its settings apart from the browser's, so matching the icon takes
+// choosing again in the browser.
+const HOME_SCREEN_NOTE =
+  "Apple sets a home-screen icon only when the page is added. To match this look, choose it in your browser and add the page again.";
+
 const darkScheme = matchMedia("(prefers-color-scheme: dark)");
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
@@ -58,6 +63,7 @@ export function startAppearance() {
   picker.addEventListener("change", () => {
     saveChoice(picker.value);
     showChosenTheme();
+    findElement("appearanceNote").textContent = HOME_SCREEN_NOTE;
   });
   darkScheme.addEventListener("change", showChosenTheme);
 }
