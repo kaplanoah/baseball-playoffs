@@ -144,7 +144,7 @@ test("the standings run 1 to 15 across the league, each with its conference plac
   assert.equal(standings[8].clinch, "o");
 });
 
-test("polling waits until 15 minutes before the next set start, and runs every 30 seconds in a game", () => {
+test("polling waits until 15 minutes before the next set start, and runs every 15 seconds in a game", () => {
   const snapshot = buildAfternoon();
   const now = Date.parse(AFTERNOON.now);
   assert.equal(
@@ -156,5 +156,5 @@ test("polling waits until 15 minutes before the next set start, and runs every 3
       game.id === "1042600132" ? { ...game, state: "live" } : game,
     ),
   };
-  assert.equal(WNBASnapshot.choosePollDelay(live, now), WNBASnapshot.POLL_LIVE_MS);
+  assert.equal(WNBASnapshot.choosePollDelay(live, now), 15 * 1000);
 });

@@ -6,7 +6,7 @@ const LAST_SEASON = 2100;
 const SEASON_RULE = `season must be a whole year between ${FIRST_SEASON} and ${LAST_SEASON}`;
 
 const UPSTREAM_TIMEOUT_MS = 8000;
-const EDGE_CACHE_SECONDS = 15;
+const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
 // The schedule and standings change a few times a day, and the stats site is slow and quick to
 // turn away a busy caller, so they're read at most this often. The bracket changes only when a
