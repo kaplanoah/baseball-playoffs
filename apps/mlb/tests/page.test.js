@@ -860,7 +860,10 @@ test("games list: a game still to play names its starters, with their arm and ER
   const rendered = String(renderGameList(slate, "today"));
   assert.match(rendered, /title="Throws left-handed">L</);
   assert.match(rendered, /<span class="starter home" title="Starting pitcher">/);
-  assert.equal(rendered.match(/class="game-row pre with-starters"/g)?.length, 2);
+  assert.deepEqual(
+    [...rendered.matchAll(/class="game-extra (\w+)"/g)].map(([, place]) => place),
+    ["away", "home", "home"],
+  );
 });
 
 test("games list: a game without a named starter keeps its row as it was", () => {
@@ -881,6 +884,7 @@ test("games list: a game without a named starter keeps its row as it was", () =>
   const rendered = String(renderGameList(slate, "today"));
   assert.match(rendered, /class="game-row pre"/);
   assert.doesNotMatch(rendered, /class="starter/);
+  assert.doesNotMatch(rendered, /class="game-extra/);
 });
 
 test("games list: an empty list says so without a closing period", () => {

@@ -385,14 +385,6 @@ test("a postseason game today names its round and the series, away wins first, o
     await readColor(page, "--gold"),
   );
 
-  for (const headline of [".game-time", ".game-score"]) {
-    const middle = page
-      .locator("#games-today .game-middle")
-      .filter({ has: page.locator(headline) });
-    const labelBox = await middle.first().locator(".series-label").boundingBox();
-    const headlineBox = await middle.first().locator(headline).boundingBox();
-    expect(headlineBox.y - (labelBox.y + labelBox.height)).toBeCloseTo(7, 0);
-  }
   const row = await page.locator("#games-today .game-row").first().boundingBox();
   const time = await page.locator("#games-today .game-time").boundingBox();
   expect(Math.abs(time.x + time.width / 2 - (row.x + row.width / 2))).toBeLessThan(1);
@@ -459,12 +451,12 @@ function buildSnapshotWithStarters() {
   return buildFixtureSnapshot(fixture);
 }
 
-test("with starters named, a game's start time centers on the clubs and records, over the starters", async ({
+test("with starters named, each sits under its club, its arm and ERA on its name's baseline", async ({
   page,
 }) => {
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
-  const row = page.locator("#games-today .game-row.with-starters");
+  const row = page.locator("#games-today .game-row:has(.starter)");
   const clubs = await row.locator(".game-side.away").boundingBox();
   const time = await row.locator(".game-time").boundingBox();
   const facts = await row.locator(".game-side.away .game-facts").boundingBox();
@@ -489,7 +481,6 @@ test("with starters named, a game's start time centers on the clubs and records,
   expect(nameBaseline - eraBaseline).toBeCloseTo(0.25, 2);
   expect(clubs.x).toBeLessThan(time.x);
   expect(time.x + time.width).toBeLessThan(home.x);
-  expect(Math.abs(time.y + time.height / 2 - (clubs.y + clubs.height / 2))).toBeLessThan(1);
   expect(starter.y - (facts.y + facts.height)).toBeCloseTo(3.25, 1);
 });
 
@@ -500,6 +491,71 @@ test("a game still to come is as tall as a finished one", async ({ page }) => {
     (await page.locator(`#games-today .game-row.${state}`).first().boundingBox()).height;
 
   expect(await readRowHeight("pre")).toBe(await readRowHeight("final"));
+});
+
+const readToken = (page, token) =>
+  page.evaluate(
+    (name) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)),
+    token,
+  );
+
+// How far each piece's middle sits below its row's, measured on the row's middle column.
+const measureOffsets = (row, selectors) =>
+  row.evaluate((element, pieces) => {
+    const middle = element.querySelector(".game-middle").getBoundingClientRect();
+    const findCenter = (box) => box.top + box.height / 2;
+    return pieces.map(
+      (piece) =>
+        findCenter(element.querySelector(piece).getBoundingClientRect()) - findCenter(middle),
+    );
+  }, selectors);
+
+test("every game is one height, with each piece at its own offset from the row's middle", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openWildCardDay(page);
+  const [height, side, label, headline, status] = await Promise.all(
+    ["height", "side", "label", "headline", "status"].map((piece) =>
+      readToken(page, piece === "height" ? "--game-row-height" : `--game-${piece}-offset`),
+    ),
+  );
+  const rows = page.locator("#games-today .game-row");
+  for (const row of await rows.all()) expect((await row.boundingBox()).height).toBe(height);
+
+  const live = rows.filter({ has: page.locator(".game-status") }).first();
+  const offsets = await measureOffsets(live, [
+    ".game-side.away",
+    ".game-label",
+    ".game-headline",
+    ".game-status",
+  ]);
+  for (const [index, expected] of [side, label, headline, status].entries())
+    expect(offsets[index]).toBeCloseTo(expected, 1);
+  const upcoming = rows.filter({ has: page.locator(".game-time") }).first();
+  expect((await measureOffsets(upcoming, [".game-headline"]))[0]).toBeCloseTo(headline, 1);
+});
+
+test("without a series line, a time centers in its row, and a score and its status center as a pair", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const headline = await readToken(page, "--game-headline-offset");
+  const status = await readToken(page, "--game-status-offset");
+  const rows = page.locator("#games-today .game-row");
+  const [timeOffset] = await measureOffsets(
+    rows.filter({ has: page.locator(".game-time") }).first(),
+    [".game-headline"],
+  );
+  expect(timeOffset).toBeCloseTo(0, 1);
+  const [scoreOffset, statusOffset] = await measureOffsets(
+    rows.filter({ has: page.locator(".game-score") }).first(),
+    [".game-headline", ".game-status"],
+  );
+  expect(scoreOffset).toBeCloseTo((headline - status) / 2, 1);
+  expect(statusOffset - scoreOffset).toBeCloseTo(status - headline, 1);
 });
 
 const PHONE = { width: 390, height: 844 };

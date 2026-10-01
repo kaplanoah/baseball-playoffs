@@ -1,7 +1,7 @@
-import { html, joinWithSeparator } from "#shared/html.js";
+import { renderGameRow } from "#shared/game-row.js";
+import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
 import { countDaysBetween, describeDay, formatStartTime, readGameDay } from "./days.js";
-import { describeSeriesStanding } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
@@ -25,6 +25,10 @@ function findLoser(game) {
   return game.away.score < game.home.score ? "away" : "home";
 }
 
+/** @param {Game} game */
+const findWinningTeam = (game) =>
+  game.away.score > game.home.score ? game.away.team : game.home.team;
+
 /** @param {number} period */
 function describePeriod(period) {
   if (period <= 4) return `Q${period}`;
@@ -39,79 +43,109 @@ function describeLiveClock(game) {
 }
 
 /** @param {Game} game */
-function renderMiddle(game) {
+function renderHeadline(game) {
   if (game.state === "pre") {
     const time = game.isTimeSet && game.start ? formatStartTime(game.start) : "TBD";
     return html`<span class="time tabular">${time}</span>`;
   }
   const loser = findLoser(game);
-  const score = html`<span class="score tabular"
+  return html`<span class="score tabular"
     ><span class="${loser === "away" ? "lost" : ""}">${game.away.score}</span
     ><span class="${loser === "home" ? "lost" : ""}">${game.home.score}</span></span
   >`;
-  if (game.state === "live")
-    return html`${score}<span class="clock tabular">${describeLiveClock(game)}</span>`;
-  return html`${score}<span class="status">${game.status || "Final"}</span>`;
 }
 
+/** @param {Game} game */
+function renderStatus(game) {
+  if (game.state === "live")
+    return html`<span class="clock tabular">${describeLiveClock(game)}</span>`;
+  if (game.state === "final") return html`${game.status || "Final"}`;
+  return game.isIfNeeded && html`If needed`;
+}
+
+// A game shows its series as it stood at tip-off, and once it's over, as it stood after.
+/**
+ * @param {Game} game
+ * @param {Game[]} games
+ */
+function countSeriesWins(game, games) {
+  const isCounted = (other) =>
+    other.series === game.series &&
+    other.state === "final" &&
+    (other === game || other.number < game.number);
+  const winners = games.filter(isCounted).map(findWinningTeam);
+  const countWins = (team) => winners.filter((winner) => winner === team).length;
+  return [countWins(game.away.team), countWins(game.home.team)];
+}
+
+// Short names, since the label shares the row's middle with the time or score. Until both teams
+// are known, the game's number tells the series' games apart instead.
+/**
+ * @param {Game} game
+ * @param {Game[]} games
+ */
+function renderSeriesLabel(game, games) {
+  if (!game.round) return false;
+  const round = ROUNDS[game.round];
+  if (!game.away.team || !game.home.team)
+    return html`<span class="series-label">${round.shortName} G${game.number}</span>`;
+  const wins = countSeriesWins(game, games);
+  const isDecided = Math.max(...wins) > round.bestOf / 2;
+  return html`<span class="series-label${isDecided ? " decided" : ""}"
+    >${round.shortName} <span class="series-count tabular">${wins.join("-")}</span></span
+  >`;
+}
+
+// Every game holds a line for Bonus under each team, so the teams stay put as it comes and goes.
 /**
  * @param {Game} game
  * @param {"away" | "home"} place
  */
-function renderSide(game, place) {
+function describeSide(game, place) {
   const side = game[place];
-  const isLost = findLoser(game) === place;
   const bonus = game.state === "live" && side.isInBonus && html`<span class="bonus">Bonus</span>`;
-  return html`<div class="side ${place}${isLost ? " lost" : ""}">
-    ${renderClub(side.team, { seed: side.seed })}${bonus}
-  </div>`;
+  return {
+    lines: renderClub(side.team, { seed: side.seed }),
+    classes: [findLoser(game) === place && "lost"],
+    extra: html`${bonus}`,
+  };
 }
 
 /**
  * @param {Game} game
- * @param {Map<string, Series>} seriesById
+ * @param {Game[]} games
  */
-function renderGameNote(game, seriesById) {
-  const round = game.round ? ROUNDS[game.round].name : "";
-  const facts = [
-    round && `${round} Game ${game.number}`,
-    describeSeriesStanding(seriesById.get(game.series ?? "")),
-    game.isIfNeeded && game.state === "pre" && "If needed",
-  ].filter(Boolean);
-  return html`<p class="game-note">${joinWithSeparator(facts)}</p>`;
-}
-
-/**
- * @param {Game} game
- * @param {Map<string, Series>} seriesById
- */
-const renderGame = (game, seriesById) =>
-  html`<li class="game-row ${game.state}" data-game="${game.id}">
-    ${renderSide(game, "away")}
-    <div class="middle">${renderMiddle(game)}</div>
-    ${renderSide(game, "home")} ${renderGameNote(game, seriesById)}
-  </li>`;
+const renderGame = (game, games) =>
+  renderGameRow({
+    id: game.id,
+    classes: [game.state],
+    away: describeSide(game, "away"),
+    home: describeSide(game, "home"),
+    label: renderSeriesLabel(game, games),
+    headline: renderHeadline(game),
+    status: renderStatus(game),
+  });
 
 /**
  * @param {Game[]} games
- * @param {Map<string, Series>} seriesById
+ * @param {Game[]} allGames every game of the season, which the series labels count from
  */
-const renderGameList = (games, seriesById) =>
+const renderGameList = (games, allGames) =>
   html`<ul class="game-list">
-    ${games.map((game) => renderGame(game, seriesById))}
+    ${games.map((game) => renderGame(game, allGames))}
   </ul>`;
 
 /**
  * Games grouped by day, in the order given.
  * @param {{ day: Date, games: Game[] }[]} days
- * @param {Map<string, Series>} seriesById
+ * @param {Game[]} allGames
  * @param {number} now
  */
-const renderDays = (days, seriesById, now) =>
+const renderDays = (days, allGames, now) =>
   days.map(
     ({ day, games }) =>
       html`<h3 class="day-label">${describeDay(day, now)}</h3>
-        ${renderGameList(games, seriesById)}`,
+        ${renderGameList(games, allGames)}`,
   );
 
 /**
@@ -156,13 +190,12 @@ export function sortGamesByDay(games, now) {
  */
 export function renderGames(season, now) {
   const seriesById = new Map((season?.series ?? []).map((series) => [series.id, series]));
-  const shown = (season?.games ?? []).filter(
-    (game) => hasATeam(game) && !isCalledOff(game, seriesById),
-  );
+  const allGames = season?.games ?? [];
+  const shown = allGames.filter((game) => hasATeam(game) && !isCalledOff(game, seriesById));
   if (!shown.length) return html`<p class="empty-note">No playoff games yet.</p>`;
   const { today, ahead, before } = sortGamesByDay(shown, now);
   const todayList = today.length
-    ? renderGameList(today, seriesById)
+    ? renderGameList(today, allGames)
     : html`<p class="empty-note">No games today.</p>`;
   return html`<section class="games-section">
       <h2 class="section-label">Today</h2>
@@ -172,14 +205,14 @@ export function renderGames(season, now) {
       ahead.length > 0 &&
       html`<section class="games-section">
       <h2 class="section-label">Upcoming</h2>
-      ${renderDays(ahead, seriesById, now)}
+      ${renderDays(ahead, allGames, now)}
     </section>`
     }
     ${
       before.length > 0 &&
       html`<section class="games-section">
       <h2 class="section-label">Results</h2>
-      ${renderDays(before, seriesById, now)}
+      ${renderDays(before, allGames, now)}
     </section>`
     }`;
 }
