@@ -17,6 +17,7 @@ jobs:
   deploy:
     if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: production
     concurrency:
       group: deploy
@@ -31,7 +32,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      # CI already ran the tests on this commit, and no package's install script runs where the
+      # token is.
+      - run: npm ci --ignore-scripts
       # A secret, so the account ID is masked in this public log.
       - name: Deploy the Worker
         env:
@@ -42,4 +45,4 @@ jobs:
             echo "::notice::No CLOUDFLARE_API_TOKEN in the production environment, so nothing was deployed."
             exit 0
           fi
-          npm run deploy:api
+          node worker/deploy.mjs
