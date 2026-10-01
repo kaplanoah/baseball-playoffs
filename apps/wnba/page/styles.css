@@ -600,6 +600,18 @@ header.top h1 {
 .tape-label {
   font-size: 0.68rem;
 }
+/* Road on the visitors' side and Home on the hosts', with a thin rule between. */
+.label-split {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.label-split i {
+  width: 1px;
+  height: 1.1em;
+  background: currentColor;
+  opacity: 0.6;
+}
 .tape-value {
   font-family: var(--numbers);
   font-size: 0.95rem;

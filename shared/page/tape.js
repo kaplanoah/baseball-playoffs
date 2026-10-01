@@ -47,7 +47,7 @@ export const PENDING_TAPE_SIDE = { value: renderPlaceholder("00.0"), bar: 0 };
 
 /**
  * A measure whose numbers are both still loading.
- * @param {string} label
+ * @param {Markup | string} label
  */
 export const renderPendingTapeRow = (label) =>
   renderTapeRow({ label, away: PENDING_TAPE_SIDE, home: PENDING_TAPE_SIDE, leader: null });
