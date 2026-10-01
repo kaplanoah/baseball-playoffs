@@ -28,9 +28,9 @@ import { ROUNDS } from "./snapshot.js";
 
 /** @type {("away" | "home")[]} */
 const SIDES = ["away", "home"];
-const SEASON_ROW_LABELS = ["Record", "Points", "Allowed", "Margin", "Road / Home", "Last 10"];
-const SEASON_NOTE =
-  "Points per game. Road / Home is the visitors' road record and the hosts' home record.";
+const ROAD_HOME = html`<span class="label-split">Road <i aria-hidden="true"></i> Home</span>`;
+const SEASON_ROW_LABELS = ["Record", "PPG", "Opp PPG", "Differential", ROAD_HOME, "Last 10"];
+const SEASONS_TITLE = "Season stats";
 // Teams in a playoff series have usually met a few times by then.
 const PENDING_MEETINGS = 3;
 // The Worker sends each team's three leading scorers.
@@ -95,7 +95,7 @@ const formatMargin = (value) => `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
 
 /**
  * A row that compares two records, like 15-7, by the share of games each won.
- * @param {string} label
+ * @param {import("#shared/html.js").Markup | string} label
  * @param {[string, string]} records
  */
 function describeRecords(label, records) {
@@ -114,7 +114,7 @@ function describeRecords(label, records) {
 
 /**
  * A row that compares two numbers, each bar as long as its share of the larger.
- * @param {string} label
+ * @param {import("#shared/html.js").Markup | string} label
  * @param {[number, number]} values
  * @param {{ format: (value: number) => string, isLowerBetter?: boolean }} options
  */
@@ -139,7 +139,7 @@ function describeNumbers(label, values, { format, isLowerBetter = false }) {
  * @param {TeamSeason} home
  */
 const describeSeasonRows = (away, home) => {
-  const [record, points, allowed, margin, roadHome, lastTen] = SEASON_ROW_LABELS;
+  const [record, points, allowed, differential, roadHome, lastTen] = SEASON_ROW_LABELS;
   return [
     describeRecords(record, [`${away.wins}-${away.losses}`, `${home.wins}-${home.losses}`]),
     describeNumbers(points, [away.pointsFor, home.pointsFor], { format: formatAverage }),
@@ -147,7 +147,7 @@ const describeSeasonRows = (away, home) => {
       format: formatAverage,
       isLowerBetter: true,
     }),
-    describeNumbers(margin, [away.margin, home.margin], { format: formatMargin }),
+    describeNumbers(differential, [away.margin, home.margin], { format: formatMargin }),
     describeRecords(roadHome, [away.road, home.home]),
     describeRecords(lastTen, [away.lastTen, home.lastTen]),
   ];
@@ -159,19 +159,16 @@ const describeSeasonRows = (away, home) => {
  */
 const renderSeasonsTape = (teams, rows) =>
   renderSheetPart(
-    "The two seasons",
+    SEASONS_TITLE,
     html`${renderTapeTeams(teams.away, teams.home)}
-      <div class="tape">
-        ${rows}
-        <p class="tape-note">${SEASON_NOTE}</p>
-      </div>`,
+      <div class="tape">${rows}</div>`,
   );
 
 /** @param {Preview} preview */
 function renderSeasons(preview) {
   const [away, home] = SIDES.map((place) => preview[place].season);
   if (!away || !home)
-    return renderSheetPart("The two seasons", renderSheetMessage("Couldn't load the standings."));
+    return renderSheetPart(SEASONS_TITLE, renderSheetMessage("Couldn't load the standings."));
   const teams = { away: preview.away.team, home: preview.home.team };
   return renderSeasonsTape(teams, describeSeasonRows(away, home).map(renderTapeRow));
 }

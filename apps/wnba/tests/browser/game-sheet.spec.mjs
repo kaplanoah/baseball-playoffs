@@ -122,7 +122,7 @@ test("a live game's sheet reads its box score again as often as the score, until
   expect(reads.count).toBe(2);
 });
 
-test("a game that hasn't started previews the meetings, the two seasons, and the leading scorers", async ({
+test("a game that hasn't started previews the meetings, the season stats, and the leading scorers", async ({
   page,
 }) => {
   await openApp(page);
@@ -139,12 +139,13 @@ test("a game that hasn't started previews the meetings, the two seasons, and the
   );
   await expect(sheet.locator(".tape-label")).toHaveText([
     "Record",
-    "Points",
-    "Allowed",
-    "Margin",
-    "Road / Home",
+    "PPG",
+    "Opp PPG",
+    "Differential",
+    /^Road\s+Home$/,
     "Last 10",
   ]);
+  await expect(sheet.locator(".tape-note")).toHaveCount(0);
   await expect(sheet.locator(".players tbody tr").first()).toHaveText(
     /Kelsey Mitchell\s*24\.7\s*1\.7\s*2\.8/,
   );
@@ -229,7 +230,7 @@ test("while its preview loads, the sheet holds the preview's shape, then fills i
 
   await expect(sheet.locator(".sheet-part-head h3")).toHaveText([
     "Meetings",
-    "The two seasons",
+    "Season stats",
     "Leading scorers",
   ]);
   await expect(sheet.locator(".meetings .placeholder")).toHaveCount(9);
