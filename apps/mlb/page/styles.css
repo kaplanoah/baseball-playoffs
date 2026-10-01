@@ -35,8 +35,6 @@
   --network-logo-height: 13px;
   --logos-for-light: none;
   --logos-for-dark: inline;
-  --chip-for-light: var(--ink);
-  --chip-for-dark: transparent;
   /* Pitch colors run by family: fastballs warm, breaking balls blue, changeups pink. */
   --pitch-four-seam: var(--gold);
   --pitch-sinker: var(--copper);

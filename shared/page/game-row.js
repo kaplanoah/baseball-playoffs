@@ -65,20 +65,15 @@ const renderExtra = (side, place) =>
 const renderLogoImage = (file, alt, classes) =>
   html`<img class="${classes}" src="shared/networks/${file}" alt="${alt}" />`;
 
-// A logo with a version for each background shows the page's. One drawn for only one background
-// sits on a chip of it, which shows only on a page of the other.
+// A logo with a version for each background shows the page's.
 /** @param {import("./network-logos.js").NetworkLogo} logo */
 function renderLogo(logo) {
-  if (logo.darkFile)
-    return html`${renderLogoImage(logo.file, logo.name, "network-logo for-light")}${renderLogoImage(
-      logo.darkFile,
-      logo.name,
-      "network-logo for-dark",
-    )}`;
-  const image = renderLogoImage(logo.file, logo.name, "network-logo");
-  return logo.drawnFor
-    ? html`<span class="network-chip for-${logo.drawnFor}">${image}</span>`
-    : image;
+  if (!logo.darkFile) return renderLogoImage(logo.file, logo.name, "network-logo");
+  return html`${renderLogoImage(logo.file, logo.name, "network-logo for-light")}${renderLogoImage(
+    logo.darkFile,
+    logo.name,
+    "network-logo for-dark",
+  )}`;
 }
 
 /** @param {string[]} networks */

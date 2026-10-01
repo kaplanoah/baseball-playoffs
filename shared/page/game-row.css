@@ -16,8 +16,6 @@
  * is drawn for one or the other:
  *   --logos-for-light        inline when a logo with a version for each shows its version for a
  *   --logos-for-dark         light (or dark) background, and none when it doesn't
- *   --chip-for-light         the chip under a logo drawn only for a light (or dark) background:
- *   --chip-for-dark          transparent on a page of that background, and a color otherwise
  * Without a label, the time or score and its status center as a pair, as far apart as under one.
  * Its lines and the hover on a row that opens take chrome.css's --divider and --ink.
  */
@@ -129,17 +127,6 @@
 }
 .network-logo.for-dark {
   display: var(--logos-for-dark);
-}
-.network-chip {
-  display: inline-flex;
-  padding: 2px 4px;
-  border-radius: 3px;
-}
-.network-chip.for-light {
-  background: var(--chip-for-light);
-}
-.network-chip.for-dark {
-  background: var(--chip-for-dark);
 }
 /* An action that covers the whole row, so a tap anywhere on the game opens it. */
 .game-open {

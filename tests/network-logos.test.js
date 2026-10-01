@@ -16,10 +16,10 @@ function renderNetworksLine(networks) {
 }
 
 test("a channel's logo is found by any name the feeds give it, whatever its case", () => {
-  const logos = listNetworkLogos(["NBC", "peacock", "USA Net", "KFMB 8.1 (CBS)"]);
+  const logos = listNetworkLogos(["NBC", "peacock", "USA Net", "WPIX"]);
   assert.deepEqual(
     logos.map((logo) => typeof logo === "object" && logo.name),
-    ["NBC", "Peacock", "USA Network", "CBS 8"],
+    ["NBC", "Peacock", "USA Network", "PIX11"],
   );
 });
 
@@ -29,14 +29,10 @@ test("two names for one channel show its logo once, and a channel with no logo k
   assert.deepEqual(rest, ["Reds.TV", "Rays.TV"]);
 });
 
-test("a logo has a version for each background, or says which one it's drawn for", () => {
-  const [nbc, fanDuel] = listNetworkLogos(["NBC", "FanDuel Sports Network West"]);
+test("a logo that works on one background has a version for the other", () => {
+  const [nbc, espn] = listNetworkLogos(["NBC", "ESPN"]);
   assert.deepEqual(nbc, { name: "NBC", file: "nbc.svg", darkFile: "nbc-dark.svg" });
-  assert.deepEqual(fanDuel, {
-    name: "FanDuel Sports Network West",
-    file: "fanduel-west.svg",
-    drawnFor: "light",
-  });
+  assert.deepEqual(espn, { name: "ESPN", file: "espn.svg" });
 });
 
 test("every logo the table names is in its folder, and every file there is one it names", () => {
@@ -62,7 +58,7 @@ test("every logo is a PNG or a plain drawing: no scripts, links, or anything it 
 });
 
 test("the line under a game shows each logo, its dark version beside it, and names without one", () => {
-  const line = renderNetworksLine(["NBC", "ESPN", "FanDuel Sports Network West", "Reds.TV"]);
+  const line = renderNetworksLine(["NBC", "ESPN", "Reds.TV"]);
   const images = [...line.matchAll(/<img class="([^"]*)" src="([^"]*)" alt="([^"]*)"/g)].map(
     ([, classes, source, alt]) => [classes, source, alt],
   );
@@ -70,9 +66,7 @@ test("the line under a game shows each logo, its dark version beside it, and nam
     ["network-logo for-light", "shared/networks/nbc.svg", "NBC"],
     ["network-logo for-dark", "shared/networks/nbc-dark.svg", "NBC"],
     ["network-logo", "shared/networks/espn.svg", "ESPN"],
-    ["network-logo", "shared/networks/fanduel-west.svg", "FanDuel Sports Network West"],
   ]);
-  assert.match(line, /<span class="network-chip for-light"><img [^>]*fanduel-west/);
   assert.match(line, /<span class="sep">&bull;<\/span>Reds\.TV<\/span\s*>/);
 });
 
