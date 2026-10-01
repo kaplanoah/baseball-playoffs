@@ -1,4 +1,4 @@
-import { countDaysBetween, formatWeekdayAndDate, readPlayingDay } from "#shared/days.js";
+import { DAYS, countDaysBetween, formatWeekdayAndDate, readPlayingDay } from "#shared/days.js";
 
 const EASTERN = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
@@ -34,4 +34,14 @@ const NEAR_DAYS = { "-1": "Yesterday", 0: "Today", 1: "Tomorrow" };
  */
 export function describeDay(day, now) {
   return NEAR_DAYS[countDaysBetween(new Date(now), day)] ?? formatWeekdayAndDate(day);
+}
+
+/**
+ * A day's name beside its date, which doesn't need "Today": the Games list it heads already says so.
+ * @param {Date} day
+ * @param {number} now
+ */
+export function nameDay(day, now) {
+  const offset = countDaysBetween(new Date(now), day);
+  return (offset !== 0 && NEAR_DAYS[offset]) || DAYS[day.getDay()];
 }
