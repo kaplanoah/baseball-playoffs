@@ -491,6 +491,7 @@ const measureOffsets = (row, selectors) =>
     );
   }, selectors);
 
+// Measured on the text itself, which is what has to sit where the offsets say.
 test("every game is one height, with each piece at its own offset from the row's middle", async ({
   page,
 }) => {
@@ -507,14 +508,14 @@ test("every game is one height, with each piece at its own offset from the row's
   const live = rows.filter({ has: page.locator(".game-status") }).first();
   const offsets = await measureOffsets(live, [
     ".game-side.away",
-    ".game-label",
-    ".game-headline",
+    ".series-label",
+    ".game-score",
     ".game-status",
   ]);
   for (const [index, expected] of [side, label, headline, status].entries())
     expect(offsets[index]).toBeCloseTo(expected, 1);
   const upcoming = rows.filter({ has: page.locator(".game-time") }).first();
-  expect((await measureOffsets(upcoming, [".game-headline"]))[0]).toBeCloseTo(headline, 1);
+  expect((await measureOffsets(upcoming, [".game-time"]))[0]).toBeCloseTo(headline, 1);
 });
 
 test("without a series line, a time centers in its row, and a score and its status center as a pair", async ({
@@ -528,12 +529,12 @@ test("without a series line, a time centers in its row, and a score and its stat
   const rows = page.locator("#games-today .game-row");
   const [timeOffset] = await measureOffsets(
     rows.filter({ has: page.locator(".game-time") }).first(),
-    [".game-headline"],
+    [".game-time"],
   );
   expect(timeOffset).toBeCloseTo(0, 1);
   const [scoreOffset, statusOffset] = await measureOffsets(
     rows.filter({ has: page.locator(".game-score") }).first(),
-    [".game-headline", ".game-status"],
+    [".game-score", ".game-status"],
   );
   expect(scoreOffset).toBeCloseTo((headline - status) / 2, 1);
   expect(statusOffset - scoreOffset).toBeCloseTo(status - headline, 1);

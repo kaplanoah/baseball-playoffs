@@ -80,6 +80,11 @@
   grid-area: 1 / 1;
   white-space: nowrap;
 }
+/* Flex, so each is as tall as what it holds, not a line of the row's larger text. */
+.game-label,
+.game-headline {
+  display: flex;
+}
 .game-label {
   translate: 0 var(--game-label-offset);
 }
