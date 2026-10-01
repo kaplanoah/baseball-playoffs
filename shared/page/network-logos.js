@@ -36,6 +36,13 @@ const CHANNELS = [
   { name: "TBS", file: "tbs.svg", names: ["TBS (out-of-market only)"], hasDarkVersion: true },
   { name: "truTV", file: "trutv.svg", names: [], hasDarkVersion: true },
   { name: "USA Network", file: "usa.png", names: ["USA Net"] },
+  {
+    name: "MLB Network",
+    file: "mlb-network.png",
+    names: ["MLBN", "MLBN (out-of-market only)"],
+  },
+  { name: "NBA TV", file: "nba-tv.png", names: [] },
+  { name: "WNBA League Pass", file: "league-pass.png", names: [] },
   { name: "KPIX+", file: "kpix-plus.png", names: [], hasDarkVersion: true },
   { name: "KSMO", file: "ksmo.png", names: [], hasDarkVersion: true },
   {
