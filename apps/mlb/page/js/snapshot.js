@@ -37,6 +37,9 @@ const MLB_TEAM = {
 };
 // Postseason placeholders have made-up ids, so this is null for them.
 export const readClubId = (mlbTeamId) => MLB_TEAM[mlbTeamId] || null;
+// The MLB id of one of the page's clubs, or null for a name that isn't one.
+export const readMlbTeamId = (club) =>
+  Number(Object.keys(MLB_TEAM).find((mlbTeamId) => MLB_TEAM[mlbTeamId] === club)) || null;
 
 const MLB_DIVISION = {
   200: "AL West",
@@ -361,7 +364,7 @@ export function readEasternDay(ms) {
     year: Number(parts.year),
   };
 }
-function addDays(date, days) {
+export function addDays(date, days) {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }

@@ -1,5 +1,6 @@
 // The matchup sheet a game with named starters opens: the two starters face to face, where each
-// ranks among the season's starters, what each throws, and their last starts.
+// ranks among the season's starters, what each throws, and their last starts. A club yet to name
+// its starter shows who started its last games instead, and how rested each would be.
 // Phones show it as a sheet from the bottom that a swipe down closes, wider screens as a modal,
 // like Settings.
 
@@ -8,11 +9,12 @@ import { describeStart, formatGameDay, renderArm } from "./games-view.js";
 import { formatShortDate, readCalendarDate } from "#shared/days.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { renderPitchColumns } from "./pitch-columns.js";
-import { fetchPitcher } from "./pitcher-fetch.js";
+import { fetchPitcher, fetchRotation } from "./pitcher-fetch.js";
 import { session } from "./session.js";
 import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
 
 const SIDES = ["away", "home"];
+const USUAL_REST_DAYS = 4;
 const TAPE = [
   { key: "era", label: "ERA", format: (line) => line.era },
   { key: "k9", label: "K/9", format: (line) => line.k9.toFixed(1) },
@@ -45,7 +47,7 @@ function renderBio(pitcher) {
 // Until his numbers load, a starter has only the last name the game row shows.
 function renderName({ starter, pitcher }) {
   const first = pitcher?.firstName && html`<span class="pitcher-first">${pitcher.firstName}</span>`;
-  const last = pitcher?.lastName || starter?.name || "Not named yet";
+  const last = pitcher?.lastName || starter?.name || (starter ? "Not named yet" : "Still TBD");
   return html`<span class="pitcher-name">${first}<span class="pitcher-last">${last}</span></span>`;
 }
 
@@ -138,7 +140,47 @@ function renderStart(start, isNow) {
   return html`<li>${day}<span>${opponent}</span><span class="tabular">${line}</span></li>`;
 }
 
+function describeRest(rest) {
+  if (rest === 1) return "1 day's rest";
+  return `${rest} days' rest`;
+}
+
+function renderRotationStarter(starter) {
+  const { start } = starter;
+  const pitches = start.pitches != null ? `, ${start.pitches} pitches` : "";
+  const isRested = starter.rest >= USUAL_REST_DAYS;
+  return html`<li class="${isRested ? "rested" : ""}">
+    <span class="rotation-name"><span>${starter.name}</span>${renderArm(starter.hand)}</span>
+    <span class="tabular">${formatInnings(start.ip)} IP${pitches}</span>
+    <span class="tabular">${describeRest(starter.rest)}</span>
+  </li>`;
+}
+
+function describeRotationNote(side, game) {
+  if (side.failed) return "Couldn't load who started lately. Close and try again in a minute.";
+  if (!side.rotation) return "Loading who started lately";
+  if (!side.rotation.starters.length) return "No starts in the last two weeks to go by";
+  return `No starter named yet. Each recent starter's last start, and the rest he'd have on ${formatStartDay(game.date)}.`;
+}
+
+function renderRotation(side, game) {
+  const starters = side.rotation?.starters || [];
+  const list =
+    starters.length > 0 &&
+    html`<ul class="rotation">${starters.map(renderRotationStarter)}</ul>
+      <p class="tape-note">Gold is a starter's usual rest, ${USUAL_REST_DAYS} days or more</p>`;
+  return html`<section class="scout">
+    <h3>${nameTeam(side.club)}<span>Who's rested</span></h3>
+    <p class="scout-note">${describeRotationNote(side, game)}</p>
+    ${list}
+  </section>`;
+}
+
+const isAwaitingStarter = (side, game) =>
+  !side.starter && Boolean(side.club) && game.state === "pre";
+
 function renderScouting(side, game) {
+  if (isAwaitingStarter(side, game)) return renderRotation(side, game);
   if (!side.starter?.name) return html``;
   const name = side.starter.name;
   if (side.failed)
@@ -175,13 +217,15 @@ const listSides = (game) =>
     opponent: game[SIDES[1 - index]],
     starter: game.starters?.[index] || null,
     pitcher: null,
+    rotation: null,
     failed: false,
   }));
 
-async function loadSide(side, season) {
-  if (!side.starter?.name) return;
+async function loadSide(side, game, season) {
   try {
-    side.pitcher = await fetchPitcher(side.starter.id, season);
+    if (side.starter?.name) side.pitcher = await fetchPitcher(side.starter.id, season);
+    else if (isAwaitingStarter(side, game))
+      side.rotation = await fetchRotation(side.club, game.date);
   } catch {
     side.failed = true;
   }
@@ -201,7 +245,7 @@ async function openMatchup(game) {
   const season = session.activeYear;
   await Promise.all(
     sides.map((side) =>
-      loadSide(side, season).then(() => {
+      loadSide(side, game, season).then(() => {
         if (sequence === opening) renderMatchup(game, sides);
       }),
     ),

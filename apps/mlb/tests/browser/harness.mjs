@@ -80,6 +80,8 @@ async function answerFromStore(route, store) {
  * @param {boolean} [options.liveAvailable]
  * @param {boolean} [options.portalReadsDocuments] a captive portal answers reading a document
  * @param {Record<number, object>} [options.pitchers] what the Worker answers for each pitcher id
+ * @param {Record<string, object>} [options.rotations] what the Worker answers for each club's last
+ *   starters
  */
 export async function openApp(
   page,
@@ -90,6 +92,7 @@ export async function openApp(
     liveAvailable = true,
     portalReadsDocuments = false,
     pitchers = {},
+    rotations = {},
   } = {},
 ) {
   const context = createDurableObjectContext();
@@ -136,6 +139,15 @@ export async function openApp(
       if (!pitcher)
         return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
       return route.fulfill({ json: pitcher });
+    },
+  );
+  await page.route(
+    (url) => url.pathname === "/rotation",
+    (route) => {
+      const rotation = rotations[new URL(route.request().url()).searchParams.get("club")];
+      if (!rotation)
+        return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
+      return route.fulfill({ json: rotation });
     },
   );
   await page.route(

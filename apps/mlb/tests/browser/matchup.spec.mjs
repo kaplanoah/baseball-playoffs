@@ -149,10 +149,96 @@ test("a starter the Worker can't describe says so, and the other still shows", a
   );
 });
 
-test("a game without its starters named has no matchup to open", async ({ page }) => {
+test("a game under way or on a later day without its starters named has no matchup to open", async ({
+  page,
+}) => {
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
-  await expect(page.locator("#games-today .game-open")).toHaveCount(1);
+  await expect(page.locator("#games-today .game-row.live .game-open")).toHaveCount(0);
+  await expect(page.locator("#games-today .game-row.final .game-open")).toHaveCount(0);
+  await expect(page.locator("#games-next .game-open")).toHaveCount(0);
+  await expect(page.locator("#games-next .starter.pending")).toHaveCount(0);
+});
+
+test("on a desktop, a game that opens lights up under the pointer, and one that doesn't stays as it is", async ({
+  page,
+}) => {
+  await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
+  await page.getByRole("tab", { name: "Games" }).click();
+  const readBackground = (row) =>
+    row.evaluate((element) => getComputedStyle(element).backgroundColor);
+  const opens = page.locator("#games-today .game-row:has(.game-open)").first();
+  const stays = page.locator("#games-today .game-row.final").first();
+  const resting = await readBackground(opens);
+
+  await opens.hover();
+  await expect.poll(() => readBackground(opens)).not.toBe(resting);
+  await stays.hover();
+  await expect.poll(() => readBackground(opens)).toBe(resting);
+  expect(await readBackground(stays)).toBe(resting);
+});
+
+// What the Worker answers for the last starters of the Angels, who play at Seattle tonight.
+const ANGELS_ROTATION = {
+  club: "LAA",
+  date: "2026-09-24",
+  starters: [
+    {
+      id: 11,
+      name: "Kochanowicz",
+      hand: "R",
+      start: { date: "2026-09-23", ip: "6.1", pitches: 98 },
+      rest: 0,
+    },
+    {
+      id: 12,
+      name: "Soriano",
+      hand: "R",
+      start: { date: "2026-09-19", ip: "5.0", pitches: 101 },
+      rest: 4,
+    },
+  ],
+};
+
+async function openStillTbd(page, rotations) {
+  await openApp(page, { rotations });
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator("#games-today .game-row").filter({ hasText: "Angels" });
+  await expect(row.locator(".starter.pending")).toHaveText(["Still TBD", "Still TBD"]);
+  await row.getByRole("button", { name: "Pitching matchup: TBD vs TBD" }).click();
+  return page.getByRole("dialog");
+}
+
+test("a game later today without a starter says Still TBD, and opens to who started lately and how rested each is", async ({
+  page,
+}) => {
+  const sheet = await openStillTbd(page, { LAA: ANGELS_ROTATION });
+  await expect(sheet.locator(".pitcher-last")).toHaveText(["Still TBD", "Still TBD"]);
+  const angels = sheet.locator(".scout").first();
+  await expect(angels.locator("h3")).toHaveText("AngelsWho's rested");
+  await expect(angels.locator(".scout-note")).toHaveText(
+    "No starter named yet. Each recent starter's last start, and the rest he'd have on Sep 24.",
+  );
+  const starters = angels.locator(".rotation li");
+  await expect(starters.first()).toHaveText(
+    /Kochanowicz\s*R\s*6 1\/3 IP, 98 pitches\s*0 days' rest/,
+  );
+  await expect(starters.nth(1)).toHaveText(/Soriano\s*R\s*5 IP, 101 pitches\s*4 days' rest/);
+  await expect(starters.nth(1)).toHaveClass("rested");
+  await expect(starters.first()).not.toHaveClass("rested");
+  await expect(sheet.locator(".scout").nth(1).locator(".scout-note")).toHaveText(
+    "Couldn't load who started lately. Close and try again in a minute.",
+  );
+});
+
+test("a club with no starts to go by says so", async ({ page }) => {
+  const sheet = await openStillTbd(page, {
+    LAA: { ...ANGELS_ROTATION, starters: [] },
+  });
+  await expect(sheet.locator(".scout").first().locator(".scout-note")).toHaveText(
+    "No starts in the last two weeks to go by",
+  );
+  await expect(sheet.locator(".scout").first().locator(".rotation")).toHaveCount(0);
 });
 
 test("a starter with too few starts to rank has his numbers, and a line saying why he has no bars", async ({
