@@ -1,6 +1,6 @@
 import { html } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
-import { describeFinishedDay, renderStampTime } from "#shared/stamp.js";
+import { describeFinishedDay, renderStampNow, renderStampTime } from "#shared/stamp.js";
 import { TEAMS } from "./teams.js";
 
 export function formatStampName(id) {
@@ -85,24 +85,32 @@ function pickLeadGame(slate, started, context) {
   return pickGame(finals, context, PICK_ENDED);
 }
 
+const isLive = (game) => game.state === "live";
+const markLive = (line, isOn) => (isOn ? html`${renderStampNow()} ${line}` : line);
+
+// On a day of one or two games, each game under way is named, or once none is, each final.
+function describeFewGames(started, describeWithNote) {
+  const live = started.filter(isLive);
+  const inOrder = (live.length ? live : started)
+    .slice()
+    .sort((first, second) => parseTime(first.start) - parseTime(second.start));
+  const line = html`${inOrder.map((game, index) => html`${index ? ", " : ""}${describeWithNote(game)}`)}`;
+  return markLive(line, live.length > 0);
+}
+
 export function describeLastStamp(slate, context) {
   const games = (slate.today && slate.today.games) || [];
   const started = games.filter((game) => game.state !== "pre");
   if (!started.length) return describeLastFinal(slate.lastFinal, context.now);
   const describeWithNote = (game) =>
     html`${describeGame(game)}${(game.state === "final" && context.seriesNote?.(game)) || ""}`;
-  if (games.length <= 2) {
-    const inOrder = started
-      .slice()
-      .sort((first, second) => parseTime(first.start) - parseTime(second.start));
-    return html`${inOrder.map((game, index) => html`${index ? ", " : ""}${describeWithNote(game)}`)}`;
-  }
-  return joinClause(describeWithNote(pickLeadGame(slate, started, context)), describeSlate(games));
+  if (games.length <= 2) return describeFewGames(started, describeWithNote);
+  const lead = pickLeadGame(slate, started, context);
+  return markLive(joinClause(describeWithNote(lead), describeSlate(games)), isLive(lead));
 }
 
 export function describeUpNextGame(slate, context) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
-  if (days.some((day) => (day.games || []).some((game) => game.state === "live"))) return null;
   for (const day of days) {
     const games = day.games || [];
     const ahead = games.filter((game) => game.state === "pre");

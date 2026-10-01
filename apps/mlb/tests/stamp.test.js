@@ -156,7 +156,7 @@ test("a final's time is set apart as the stamp's times are", () => {
   assert.match(markup, /final at <b>3:30<span class="ap">PM<\/span><\/b>/);
 });
 
-test("early afternoon: one game on, and no next line while it is", () => {
+test("early afternoon: one game on, and the next first pitch still shows", () => {
   const slate = {
     since: toEasternIso(TODAY, "02:21"),
     today: {
@@ -168,8 +168,15 @@ test("early afternoon: one game on, and no next line while it is", () => {
       ],
     },
   };
-  assert.equal(describeLast(slate), "Cardinals @ Pirates 1-1 in the 3rd, slate of 12 under way");
-  assert.equal(describeUpNext(slate), null);
+  assert.equal(
+    describeLast(slate),
+    "NOW Cardinals @ Pirates 1-1 in the 3rd, slate of 12 under way",
+  );
+  assert.deepEqual(describeUpNext(slate), {
+    at: toEasternIso(TODAY, "14:10"),
+    tbd: false,
+    text: "White Sox @ Royals",
+  });
 });
 
 test("your club's game leads while games are on", () => {
@@ -184,7 +191,7 @@ test("your club's game leads while games are on", () => {
       ],
     },
   };
-  assert.equal(describeLast(slate), "White Sox @ Royals 2-0 in the 1st, slate of 12 under way");
+  assert.equal(describeLast(slate), "NOW White Sox @ Royals 2-0 in the 1st, slate of 12 under way");
 });
 
 test("a fresh final outranks the games still going", () => {
@@ -237,11 +244,11 @@ test("ties go to your ranking, then to a club still alive", () => {
   const slate = { since: toEasternIso(TODAY, "19:15"), today: { date: TODAY, games } };
   assert.equal(
     describeLast(slate, createContext({ ranking: [], out: ["WSH", "DET"] })),
-    "Blue Jays @ Orioles 1-0 in the 4th, slate of 3 under way",
+    "NOW Blue Jays @ Orioles 1-0 in the 4th, slate of 3 under way",
   );
   assert.equal(
     describeLast(slate, createContext({ ranking: ["DET"], out: ["WSH", "DET"] })),
-    "Nationals @ Tigers 2-2 in the 4th, slate of 3 under way",
+    "NOW Nationals @ Tigers 2-2 in the 4th, slate of 3 under way",
   );
 });
 
@@ -304,8 +311,19 @@ test("one or two games: named, with no slate", () => {
   };
   assert.equal(
     describeLast(two),
-    "Rays @ Yankees 3-3 in the 5th, White Sox @ Royals 1-0 in the 2nd",
+    "NOW Rays @ Yankees 3-3 in the 5th, White Sox @ Royals 1-0 in the 2nd",
   );
+  const oneOver = {
+    since: toEasternIso(TODAY, "21:15"),
+    today: {
+      date: TODAY,
+      games: [
+        createFinal("TB", "NYY", "19:05", [2, 5], "21:58"),
+        createLiveGame("CWS", "KC", "20:10", [1, 0], 6),
+      ],
+    },
+  };
+  assert.equal(describeLast(oneOver), "NOW White Sox @ Royals 1-0 in the 6th");
   const one = {
     since: toEasternIso(TODAY, "12:15"),
     today: { date: TODAY, games: [createPregame("HOU", "SEA", "21:40")] },

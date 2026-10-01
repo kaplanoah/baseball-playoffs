@@ -80,6 +80,9 @@ export const renderStampWhen = (date, now = new Date()) =>
  */
 export const renderStampTime = (date) => html`<b>${renderMeridiem(formatClockTime(date))}</b>`;
 
+/** Leads a line about the games under way, set apart as a time is. */
+export const renderStampNow = () => html`<b class="now">NOW</b>`;
+
 /**
  * @param {string} label
  * @param {Markup | string} when

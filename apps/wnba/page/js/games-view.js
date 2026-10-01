@@ -33,14 +33,14 @@ const findWinningTeam = (game) =>
   game.away.score > game.home.score ? game.away.team : game.home.team;
 
 /** @param {number} period */
-function describePeriod(period) {
+export function describePeriod(period) {
   if (period <= 4) return `Q${period}`;
   return period === 5 ? "OT" : `${period - 4}OT`;
 }
 
 // Between periods the clock stops at zero, and the league's own status says which break it is.
 /** @param {Game} game */
-export function describeLiveClock(game) {
+function describeLiveClock(game) {
   const isRunning = game.clock && game.clock !== "0.0" && game.period;
   return isRunning ? `${describePeriod(game.period)} ${game.clock}` : game.status;
 }

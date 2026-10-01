@@ -142,6 +142,9 @@ header.top h1 {
   margin-left: 0.5ch;
   font-size: 0.95em;
 }
+.stamp b.now {
+  margin-right: 0.5ch;
+}
 .stamp-wrap {
   display: flex;
   align-items: center;

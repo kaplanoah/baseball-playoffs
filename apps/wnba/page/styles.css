@@ -201,8 +201,14 @@ header.top h1 {
   display: none;
 }
 .stamp b {
-  font-weight: 400;
+  font-weight: 500;
   color: var(--ink);
+}
+.stamp b.now {
+  margin-right: 0.25ch;
+}
+.stamp .sep {
+  margin: 0 3px;
 }
 .stamp .ap {
   margin-left: 0.5ch;
