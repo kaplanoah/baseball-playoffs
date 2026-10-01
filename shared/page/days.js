@@ -1,6 +1,5 @@
-// Days and times on the viewer's own calendar and clock, in the viewer's own words, and a league's
-// own day, which is Eastern. A league's day, written "YYYY-MM-DD", is a date on a calendar, not an
-// instant, so it's read as one.
+// Days and times on the viewer's own calendar and clock, and a league's own day, which is Eastern.
+// A league's day, written "YYYY-MM-DD", is a date on a calendar, not an instant, so it's read as one.
 
 const MS_PER_DAY = 86400000;
 
@@ -13,7 +12,9 @@ const EASTERN_PARTS = new Intl.DateTimeFormat("en-US", {
   hourCycle: "h23",
 });
 
-const NEAR_DAY_WORDS = new Intl.RelativeTimeFormat([], { numeric: "auto" });
+// The pages' sentences are English, so the words for near days are too, whatever the browser's
+// language. Weekdays and dates follow the viewer's locale.
+const NEAR_DAY_WORDS = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
 const NEAR_DAYS = [-1, 0, 1];
 

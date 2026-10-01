@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   addDays,
   countDaysBetween,
@@ -158,6 +159,25 @@ test("a day's name says only the near days asked for, in the form asked for", ()
       "Wed, Sep 30",
     );
   }));
+
+// Node takes its default locale from the environment when it starts, so a German one needs a
+// process of its own.
+test("near days are named in English in any language, and weekdays in the viewer's", () => {
+  const script = `
+    import { formatWeekday, nameDay } from ${JSON.stringify(import.meta.resolve("../shared/page/days.js"))};
+    const now = new Date(2026, 9, 1, 12);
+    const names = [-1, 0, 1, 3].map((offset) => nameDay(new Date(2026, 9, 1 + offset, 12), now));
+    console.log(JSON.stringify({ names, weekday: formatWeekday(now) }));
+  `;
+  const output = execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+    env: { ...process.env, LANG: "de_DE.UTF-8", LC_ALL: "de_DE.UTF-8", TZ: EASTERN },
+    encoding: "utf8",
+  });
+  assert.deepEqual(JSON.parse(output), {
+    names: ["yesterday", "today", "tomorrow", "Sonntag"],
+    weekday: "Donnerstag",
+  });
+});
 
 test("a day's name is the same on the viewer's calendar in any zone", () => {
   for (const zone of ["Pacific/Honolulu", EASTERN, "Asia/Tokyo"])
