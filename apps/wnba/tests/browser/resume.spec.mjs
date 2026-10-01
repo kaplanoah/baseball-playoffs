@@ -1,7 +1,10 @@
+import { buildReleaseServer, servePageFiles } from "../../../../tests/browser/release-worker.mjs";
 import { NEXT_RELEASE, serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 import { test, expect, openApp } from "./harness.mjs";
 
 const MINUTE_MS = 60 * 1000;
+const LAST_RELEASE = { version: "1.4.0", commit: "abc1234", builtAt: "2026-10-01T22:00:00Z" };
+const NEW_RELEASE = { version: "1.4.1", commit: "def5678", builtAt: "2026-10-01T23:00:00Z" };
 
 // A reload clears whatever the test left on the window.
 /** @param {import("@playwright/test").Page} page */
@@ -99,6 +102,97 @@ test("a page whose first load failed loads the last season once the store answer
 
   await expect(findFinal(page)).toContainText("Liberty win 2-0");
   await expect(page.locator("#stamp")).not.toContainText("Can't reach the page's server");
+});
+
+test("a page that asks a server still on the last release for one of its files reloads until they match", async ({
+  page,
+}) => {
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
+  const loads = { page: 0, skewed: 0 };
+  await servePageFiles(page, (url) => {
+    if (url.pathname === "/") loads.page++;
+    const isSkewed = url.pathname === `/release/${NEW_RELEASE.commit}/styles.css` && !loads.skewed;
+    if (isSkewed) loads.skewed++;
+    return (isSkewed ? serveRelease : serveNextRelease)(url);
+  });
+  await openApp(page);
+  expect(loads).toEqual({ page: 1, skewed: 1 });
+
+  await page.clock.runFor(2000);
+
+  await expect.poll(() => loads.page).toBe(2);
+  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(page.locator(".view.active")).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("releaseReloads"))).toBe(null);
+  await page.clock.runFor(2000);
+  expect(loads.page).toBe(2);
+});
+
+test("a page from the last release reloads when it comes back, though the Worker already served the next one's version", async ({
+  page,
+}) => {
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
+  await servePageFiles(page, (url) =>
+    (url.pathname === "/version.json" ? serveNextRelease : serveRelease)(url),
+  );
+  await openApp(page);
+  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await markPage(page);
+
+  const reloaded = page.waitForEvent("load");
+  await sleepUnannounced(page, 5);
+  await reloaded;
+
+  expect(await isSameLoad(page)).toBe(false);
+});
+
+/** @param {import("@playwright/test").Page} page */
+const readReleaseReloads = (page) => page.evaluate(() => sessionStorage.getItem("releaseReloads"));
+
+test("a page that has reloaded as often as it may for a missing file stays as it is", async ({
+  page,
+}) => {
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
+  await servePageFiles(page, (url) => {
+    const isSkewed = url.pathname === `/release/${NEW_RELEASE.commit}/styles.css`;
+    return (isSkewed ? serveRelease : serveNextRelease)(url);
+  });
+  await page.addInitScript(() => sessionStorage.setItem("releaseReloads", "15"));
+  await openApp(page);
+  await markPage(page);
+
+  await page.clock.runFor(10_000);
+
+  expect(await readReleaseReloads(page)).toBe("15");
+  expect(await isSameLoad(page)).toBe(true);
+  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+});
+
+test("a file outside the release's folder that fails to load leaves the page as it is", async ({
+  page,
+}) => {
+  await servePageFiles(page, buildReleaseServer("wnba", LAST_RELEASE));
+  await openApp(page);
+  await markPage(page);
+
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const link = Object.assign(document.createElement("link"), {
+          rel: "stylesheet",
+          href: "missing.css",
+          onerror: resolve,
+        });
+        document.head.append(link);
+      }),
+  );
+  await page.clock.runFor(10_000);
+
+  expect(await readReleaseReloads(page)).toBe(null);
+  expect(await isSameLoad(page)).toBe(true);
 });
 
 test("a page coming back reloads itself once a deploy has replaced it", async ({ page }) => {

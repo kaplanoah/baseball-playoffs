@@ -3,6 +3,8 @@ import { reloadWhenSignedOut } from "./access.js";
 
 const RECONNECT_FIRST_MS = 1000;
 const RECONNECT_MAX_MS = 30 * 1000;
+// A proxy or captive portal can hold a socket's handshake open without ever answering it.
+const HANDSHAKE_WAIT_MS = 3 * 1000;
 
 class StoreError extends Error {
   constructor(code, message) {
@@ -74,6 +76,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // Each watched collection keeps its documents by id, so a push changes one without a new listing.
   const collectionWatches = new Map();
   let socket = null;
+  let handshakeTimer = null;
   let reconnectTimer = null;
   let reconnectDelay = RECONNECT_FIRST_MS;
   // Reads overlap, so one that started before a pushed change, or before a read that already
@@ -162,6 +165,8 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // While the socket is down, each reconnect attempt also reads the watched documents again.
   function scheduleReconnect() {
     socket = null;
+    clearTimeout(handshakeTimer);
+    handshakeTimer = null;
     if (reconnectTimer || !hasWatchers()) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
@@ -176,7 +181,15 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const opened = new WebSocket(url);
     socket = opened;
+    clearTimeout(handshakeTimer);
+    handshakeTimer = setTimeout(() => {
+      handshakeTimer = null;
+      refreshWatchedPaths();
+    }, HANDSHAKE_WAIT_MS);
     opened.addEventListener("open", () => {
+      if (socket !== opened) return;
+      clearTimeout(handshakeTimer);
+      handshakeTimer = null;
       reconnectDelay = RECONNECT_FIRST_MS;
       refreshWatchedPaths();
     });
@@ -187,10 +200,10 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   }
 
   // A phone suspends a page in the background, and its socket can still look open after the
-  // connection is gone, never to push again, so a page coming back reads again on a new socket.
+  // connection is gone, never to push again, so a page coming back reads again as a new socket
+  // opens.
   function catchUp() {
     if (!hasWatchers()) return;
-    refreshWatchedPaths();
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
     reconnectDelay = RECONNECT_FIRST_MS;
@@ -200,12 +213,19 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     openSocket();
   }
 
+  // A read sent before the socket opens can miss a change saved before the socket could hear of
+  // it, so while a socket's handshake is under way, the read waits for the one the socket makes
+  // as it opens, or for the one made once the handshake has taken too long.
+  function readWhenWatching(refresh) {
+    if (!socket && !reconnectTimer) openSocket();
+    else if (!handshakeTimer) refresh();
+  }
+
   function watchPath(path, onNext, onError) {
     const listener = { onNext, onError };
     if (!listenersByPath.has(path)) listenersByPath.set(path, new Set());
     listenersByPath.get(path).add(listener);
-    refreshPath(path);
-    if (!socket && !reconnectTimer) openSocket();
+    readWhenWatching(() => refreshPath(path));
     return () => {
       const listeners = listenersByPath.get(path);
       listeners?.delete(listener);
@@ -224,8 +244,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
         pushes: new Map(),
       });
     collectionWatches.get(name).listeners.add(listener);
-    refreshCollection(name);
-    if (!socket && !reconnectTimer) openSocket();
+    readWhenWatching(() => refreshCollection(name));
     return () => {
       const watch = collectionWatches.get(name);
       watch?.listeners.delete(listener);

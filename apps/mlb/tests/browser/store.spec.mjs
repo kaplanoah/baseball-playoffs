@@ -18,6 +18,20 @@ test("the page saves to the Worker's store, and loads from it", async ({ page })
   await expect(page.locator("#rankList .rank-item").nth(1)).toHaveAttribute("data-id", movedClubId);
 });
 
+test("loading the page reads each saved document once", async ({ page }) => {
+  const app = await openApp(page);
+  await expect(page.locator("#bracketWrap .matchup-row")).toHaveCount(22);
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
+  await page.waitForLoadState("networkidle");
+
+  expect(app.listStoreReads().sort()).toEqual([
+    "/store/readings-2026?limit=100",
+    "/store/seasons/2026",
+    "/store/seasons?limit=50",
+    "/store/standings/2026",
+  ]);
+});
+
 const listShownRanking = (page) =>
   page
     .locator("#rankList .rank-item")

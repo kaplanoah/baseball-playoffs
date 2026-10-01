@@ -12,6 +12,18 @@ const PAGE_HEADERS = {
   "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff",
 };
+// No other release uses a release folder's addresses, so a browser keeps its files for good.
+const RELEASE_FILE_HEADERS = {
+  ...PAGE_HEADERS,
+  "cache-control": "public, max-age=31536000, immutable",
+};
+
+/**
+ * The folder the page reads a release's code and styles from. A server still on another release
+ * has none of its files, so a page never runs two releases' files together.
+ * @param {string} commit
+ */
+export const nameReleaseFolder = (commit) => `release/${commit}/`;
 
 const decodeBase64 = (text) => Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
 const textEncoder = new TextEncoder();
@@ -48,18 +60,36 @@ const serveNotFound = () => respondText("Not found\n", 404, PAGE_HEADERS);
 const redirectToFolder = (url) =>
   new Response(null, { status: 301, headers: { location: `${url.pathname}/${url.search}` } });
 
-/** @param {Parameters<typeof decodePageFiles>[0]} pageFiles */
-function createPageServer(pageFiles) {
+/**
+ * The file a page path names, and how long a browser may keep it.
+ * @param {string} pagePath
+ * @param {string | null} releaseFolder
+ */
+function findPageFile(pagePath, releaseFolder) {
+  const path = pagePath === "/" ? "index.html" : pagePath.slice(1);
+  if (releaseFolder && path.startsWith(releaseFolder))
+    return { path: path.slice(releaseFolder.length), headers: RELEASE_FILE_HEADERS };
+  return { path, headers: PAGE_HEADERS };
+}
+
+/**
+ * @param {Parameters<typeof decodePageFiles>[0]} pageFiles
+ * @param {string | null} releaseCommit
+ */
+function createPageServer(pageFiles, releaseCommit) {
   const files = decodePageFiles(pageFiles);
-  // Every load asks again, and a browser that already has a file gets a 304 instead of the file.
+  const releaseFolder = releaseCommit && nameReleaseFolder(releaseCommit);
+  // Every load asks again for a file outside the release's folder, and a browser that already has
+  // it gets a 304 instead of the file.
   return async function servePageFile(request, pagePath) {
     if (request.method !== "GET" && request.method !== "HEAD")
       return respondText("GET only.\n", 405, { allow: "GET, HEAD" });
-    const file = files.get(pagePath === "/" ? "index.html" : pagePath.slice(1));
+    const { path, headers: cacheHeaders } = findPageFile(pagePath, releaseFolder);
+    const file = files.get(path);
     if (!file) return serveNotFound();
     file.etag ??= hashBody(file.body);
     const etag = await file.etag;
-    const headers = { "content-type": file.contentType, etag, ...PAGE_HEADERS };
+    const headers = { "content-type": file.contentType, etag, ...cacheHeaders };
     if (hasMatchingTag(request, etag)) return new Response(null, { status: 304, headers });
     const body = request.method === "HEAD" ? null : file.body;
     return new Response(body, { headers });
@@ -109,8 +139,8 @@ const GATE_PATH = "/gate.html";
  * @param {Record<string, (url: URL) => Response | Promise<Response>>} [app.reads] more GET paths
  */
 export function createAppWorker({ pageFiles, serveSnapshot, forwardToStore, reads = {} }) {
-  const servePageFile = createPageServer(pageFiles);
   const releaseCommit = readReleaseCommit(pageFiles);
+  const servePageFile = createPageServer(pageFiles, releaseCommit);
   const isDataPath = (appPath) =>
     isStorePath(appPath) || appPath === "/snapshot" || Object.hasOwn(reads, appPath);
 

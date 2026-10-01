@@ -9,9 +9,12 @@ let loadedRelease = null;
 
 // The deploy writes version.json into the Worker's bundle; a local server has none, and answers
 // null. A read that gets no answer rejects, so a caller can try again.
-/** @returns {Promise<Release | null>} */
-export async function fetchRelease() {
-  const response = await fetch(new URL("version.json", location.href), {
+/**
+ * @param {URL} url
+ * @returns {Promise<Release | null>}
+ */
+async function readRelease(url) {
+  const response = await fetch(url, {
     cache: "no-store",
     signal: AbortSignal.timeout(RELEASE_TIMEOUT_MS),
   });
@@ -20,12 +23,21 @@ export async function fetchRelease() {
   return response.json();
 }
 
-// The release this page was loaded from; a deploy since then serves a newer one. A failed read
-// isn't kept, so the next load tries again.
+export const fetchRelease = () => readRelease(new URL("version.json", location.href));
+
+// The release this page's files came from, read from their own folder, since the Worker may
+// already serve a newer one, and a server still on another release has no such folder. A read
+// that found nothing isn't kept, so the next check tries again.
 export function loadRelease() {
-  loadedRelease ??= fetchRelease().catch((error) => {
-    loadedRelease = null;
-    throw error;
-  });
+  loadedRelease ??= readRelease(new URL("../version.json", import.meta.url)).then(
+    (release) => {
+      if (!release) loadedRelease = null;
+      return release;
+    },
+    (error) => {
+      loadedRelease = null;
+      throw error;
+    },
+  );
   return loadedRelease;
 }

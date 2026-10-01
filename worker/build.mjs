@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { findAppRoot, findPageRoot, listAppsOrExit } from "./apps.mjs";
-import { readPageFiles } from "./page-files.mjs";
+import { pinPageFiles, readPageFiles } from "./page-files.mjs";
 import { readVersion } from "./release.mjs";
 
 const root = new URL("../", import.meta.url);
@@ -32,11 +32,15 @@ export function readRelease(app, git = runGit, now = new Date()) {
   return { version: readVersion(app, git), commit, builtAt: now.toISOString() };
 }
 
-function listBundledFiles(app, release) {
+/**
+ * @param {string} app
+ * @param {ReturnType<typeof readRelease>} release
+ */
+export function listBundledFiles(app, release) {
   const files = readPageFiles(findPageRoot(app));
   if (!release) return files;
   return {
-    ...files,
+    ...pinPageFiles(files, release.commit),
     "version.json": { contentType: "application/json", text: JSON.stringify(release) },
   };
 }
