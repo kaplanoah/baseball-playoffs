@@ -5,7 +5,7 @@
 
 import { joinWithSeparator, setHtml } from "./html.js";
 import { loadRelease } from "./release.js";
-import { closeOnSwipeDown } from "./sheet-swipe.js";
+import { closeOnSwipeDown, closeSheet } from "./sheet-swipe.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const findDialog = () =>
@@ -41,7 +41,7 @@ async function showRelease() {
 
 // A click on the backdrop lands on the dialog itself; its content fills it edge to edge.
 function closeOnBackdropClick(event) {
-  if (event.target === event.currentTarget) findDialog().close();
+  if (event.target === event.currentTarget) closeSheet(findDialog());
 }
 
 // A line under the pinned header shows once the settings have scrolled under it.
@@ -67,7 +67,7 @@ function openSettings() {
 export function startSettingsSheet({ isOwnGesture = () => false } = {}) {
   const dialog = findDialog();
   findElement("settingsBtn").addEventListener("click", openSettings);
-  findElement("settingsDoneBtn").addEventListener("click", () => dialog.close());
+  findElement("settingsDoneBtn").addEventListener("click", () => closeSheet(dialog));
   dialog.addEventListener("click", closeOnBackdropClick);
   dialog.addEventListener("scroll", markScrolled);
   closeOnSwipeDown(dialog, isOwnGesture);
