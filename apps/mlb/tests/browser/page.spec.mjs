@@ -343,7 +343,7 @@ test("today's games still to come or under way say where they're on, on a line u
   const pirates = rows.filter({ hasText: "Pirates" });
 
   await expect(reds.locator(".game-networks")).toHaveText(
-    /^Watch FS1\s*•\s*FOX ONE\s*•\s*Reds.TV\s*•\s*BravesVision$/,
+    /^FS1\s*•\s*FOX ONE\s*•\s*Reds.TV\s*•\s*BravesVision$/,
   );
   await expect(page.locator("#games-today .game-networks")).toHaveCount(7);
   await expect(pirates.locator(".game-networks")).toHaveCount(0);

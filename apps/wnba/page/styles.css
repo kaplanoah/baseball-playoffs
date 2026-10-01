@@ -427,7 +427,6 @@ header.top h1 {
   color: var(--ink-mid);
 }
 .game-status,
-.networks-label,
 .series-label {
   font-weight: 600;
   text-transform: uppercase;
@@ -439,7 +438,6 @@ header.top h1 {
   letter-spacing: 0.08em;
 }
 /* Labels in the text face stand apart from the condensed team names around them. */
-.networks-label,
 .series-label {
   font-family: var(--text);
   font-size: 0.6rem;

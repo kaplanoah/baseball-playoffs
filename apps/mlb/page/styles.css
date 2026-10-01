@@ -591,12 +591,6 @@ table.st .seed-cell {
   font-size: 0.62rem;
   color: var(--ink-mid);
 }
-.networks-label {
-  font-size: 0.56rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--ink-dim);
-}
 .series-label {
   font-size: 0.56rem;
   text-transform: uppercase;

@@ -22,7 +22,7 @@ test("today's games still to come or under way say where they're on, and a finis
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const washington = page.locator('#games-today [data-game="1042600132"]');
-  await expect(washington.locator(".game-networks")).toHaveText(/^Watch\s+ESPN$/);
+  await expect(washington.locator(".game-networks")).toHaveText("ESPN");
   await expect(page.locator("#games-today .game-networks")).toHaveCount(2);
   await expect(page.locator("#games-previous .game-networks")).toHaveCount(0);
 

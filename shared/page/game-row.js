@@ -59,9 +59,7 @@ const renderExtra = (side, place) =>
 /** @param {string[]} networks */
 const renderNetworks = (networks) =>
   networks.length
-    ? html`<span class="game-networks"
-        ><span class="networks-label">Watch</span> ${joinWithSeparator(networks)}</span
-      >`
+    ? html`<span class="game-networks">${joinWithSeparator(networks)}</span>`
     : html``;
 
 /** @param {Event} event */
