@@ -72,6 +72,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // Each watched collection keeps its documents by id, so a push changes one without a new listing.
   const collectionWatches = new Map();
   let socket = null;
+  let isSocketOpen = false;
   let reconnectTimer = null;
   let reconnectDelay = RECONNECT_FIRST_MS;
   // Reads overlap, so one that started before a pushed change, or before a read that already
@@ -160,6 +161,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // While the socket is down, each reconnect attempt also reads the watched documents again.
   function scheduleReconnect() {
     socket = null;
+    isSocketOpen = false;
     if (reconnectTimer || !hasWatchers()) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
@@ -174,7 +176,10 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const opened = new WebSocket(url);
     socket = opened;
+    isSocketOpen = false;
     opened.addEventListener("open", () => {
+      if (socket !== opened) return;
+      isSocketOpen = true;
       reconnectDelay = RECONNECT_FIRST_MS;
       refreshWatchedPaths();
     });
@@ -185,10 +190,10 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   }
 
   // A phone suspends a page in the background, and its socket can still look open after the
-  // connection is gone, never to push again, so a page coming back reads again on a new socket.
+  // connection is gone, never to push again, so a page coming back reads again as a new socket
+  // opens.
   function catchUp() {
     if (!hasWatchers()) return;
-    refreshWatchedPaths();
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
     reconnectDelay = RECONNECT_FIRST_MS;
@@ -198,12 +203,18 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     openSocket();
   }
 
+  // A read sent before the socket opens can miss a change saved before the socket could hear of
+  // it, so while a socket is on its way, the read waits for the one the socket makes as it opens.
+  function readWhenWatching(refresh) {
+    if (isSocketOpen || reconnectTimer) refresh();
+    else if (!socket) openSocket();
+  }
+
   function watchPath(path, onNext, onError) {
     const listener = { onNext, onError };
     if (!listenersByPath.has(path)) listenersByPath.set(path, new Set());
     listenersByPath.get(path).add(listener);
-    refreshPath(path);
-    if (!socket && !reconnectTimer) openSocket();
+    readWhenWatching(() => refreshPath(path));
     return () => {
       const listeners = listenersByPath.get(path);
       listeners?.delete(listener);
@@ -222,8 +233,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
         pushes: new Map(),
       });
     collectionWatches.get(name).listeners.add(listener);
-    refreshCollection(name);
-    if (!socket && !reconnectTimer) openSocket();
+    readWhenWatching(() => refreshCollection(name));
     return () => {
       const watch = collectionWatches.get(name);
       watch?.listeners.delete(listener);

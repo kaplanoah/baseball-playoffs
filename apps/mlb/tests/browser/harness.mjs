@@ -104,6 +104,7 @@ export async function openApp(
   };
   const harness = {
     snapshotRequests: 0,
+    storeReads: [],
     transformSnapshot: (snapshot) => snapshot,
     failWrites: false,
   };
@@ -157,12 +158,13 @@ export async function openApp(
   await page.route(
     (url) => url.pathname.startsWith("/store/"),
     (route) => {
+      const url = new URL(route.request().url());
+      if (!isWriteRequest(route.request())) harness.storeReads.push(url.pathname + url.search);
       if (harness.failWrites && isWriteRequest(route.request()))
         return route.fulfill({ status: 503, json: { error: { code: "unavailable" } } });
       // A captive portal answers in place of the Worker.
       const isDocumentRead =
-        route.request().method() === "GET" &&
-        /^\/store\/[^/]+\/[^/]+$/.test(new URL(route.request().url()).pathname);
+        route.request().method() === "GET" && /^\/store\/[^/]+\/[^/]+$/.test(url.pathname);
       if (portalReadsDocuments && isDocumentRead)
         return route.fulfill({ contentType: "text/html", body: "<h1>Sign in to Wi-Fi</h1>" });
       return answerFromStore(route, seasonStore);
@@ -187,6 +189,7 @@ export async function openApp(
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,
+    listStoreReads: () => [...harness.storeReads],
     countSubscriptions: () =>
       [...context.stored.keys()].filter((key) => key.startsWith("push:subscription:")).length,
     /** @param {(snapshot: any) => any} transform */
