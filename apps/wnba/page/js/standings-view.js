@@ -1,7 +1,7 @@
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
 
-/** @typedef {{ team: string, conference: string, wins: number, losses: number, place: number, conferencePlace: number, gamesBack: number | null, conferenceGamesBack: number | null, clinch: string | null, streak: string | null, lastTen: string | null }} StandingsRow */
+/** @typedef {{ team: string, conference: string, wins: number, losses: number, place: number, conferencePlace: number, gamesBack: number | null, conferenceGamesBack: number | null, clinch: string | null, streak: string | null, lastTen: string | null, pointsFor?: number | null, pointsAgainst?: number | null, margin?: number | null, home?: string | null, road?: string | null }} StandingsRow */
 /** @typedef {"League" | "East" | "West"} StandingsView */
 
 /** @type {StandingsView[]} */

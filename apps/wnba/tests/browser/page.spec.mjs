@@ -13,7 +13,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standingsWrap tr.playoff-line + tr")).toContainText("Fire");
   await page.getByRole("tab", { name: "Teams" }).click();
-  await expect(page.locator("#teamsWrap .team-row").first()).toContainText("Minnesota Lynx");
+  await expect(page.locator("#teamsWrap .team").first()).toContainText("Minnesota Lynx");
 });
 
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
@@ -266,6 +266,43 @@ test("the Games lists' days and series labels stand apart from the team names in
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
 });
 
+test("a team opens to its season, and stays open as the season changes", async ({ page }) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"]');
+  await expect(aces.locator(".team-season")).toBeHidden();
+
+  await aces.locator("summary").click();
+  await expect(aces.locator(".team-season")).toContainText("Top scorer");
+  await app.changeSeason((season) => {
+    season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
+    return season;
+  });
+
+  await expect(aces.locator(".team-season")).toContainText(/Last 10\s*9-1/);
+  await expect(aces).toHaveAttribute("open", "");
+});
+
+test("redrawing the teams each minute keeps keyboard focus on the team it was on", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"] summary');
+  await aces.focus();
+
+  await page.clock.runFor(60 * 1000);
+  await expect(aces).toBeFocused();
+});
+
+test("on a phone, the team rows' dividers run edge to edge", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const box = await page.locator("#teamsWrap .team").first().boundingBox();
+  expect([box.x, box.width]).toEqual([0, 390]);
+});
+
 test("each day's games sit in a box of their own, apart from the next day's", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
@@ -305,7 +342,7 @@ test("on a wide screen, the game and team rows keep to a phone's width", async (
   for (const [tab, row] of [
     ["Games", "#games-today .game-row"],
     ["Standings", "#standingsWrap table.standings"],
-    ["Teams", "#teamsWrap .team-row"],
+    ["Teams", "#teamsWrap .team"],
   ]) {
     await page.getByRole("tab", { name: tab }).click();
     const box = await page.locator(row).first().boundingBox();
@@ -367,7 +404,7 @@ test("clicking the tab that's showing scrolls back to the top", async ({ page })
   await page.setViewportSize({ width: 1280, height: 400 });
   await openApp(page);
   await page.getByRole("tab", { name: "Teams" }).click();
-  await expect(page.locator("#teamsWrap .team-row").first()).toBeVisible();
+  await expect(page.locator("#teamsWrap .team").first()).toBeVisible();
   await page.mouse.wheel(0, 800);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
 

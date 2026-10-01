@@ -1,15 +1,15 @@
 // Runs in both the browser page and the Worker, so it uses no DOM and no globals.
 // The league's own feeds: today's scoreboard and the season's schedule from its CDN, and the
-// playoff bracket and standings from its stats site. When the scoreboard doesn't answer, ESPN's
-// stands in for today's scores and clocks.
+// playoff bracket, the standings, and the players' season averages from its stats site. When the
+// scoreboard doesn't answer, ESPN's stands in for today's scores and clocks.
 
-import { findTeamCode, findTeamCodeByEspnId } from "./teams.js";
+import { findTeamCode, findTeamCodeByEspnId, TEAMS } from "./teams.js";
 
 const WNBA_CDN = "https://cdn.wnba.com";
 const WNBA_STATS = "https://stats.wnba.com";
 const ESPN_CORE = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/wnba";
 
-const LEAGUE_FEEDS = ["bracket", "schedule", "scoreboard", "standings"];
+const LEAGUE_FEEDS = ["bracket", "players", "schedule", "scoreboard", "standings"];
 
 export const REQUESTS = {
   scoreboard: `${WNBA_CDN}/static/json/liveData/scoreboard/todaysScoreboard_10.json`,
@@ -20,6 +20,45 @@ export const REQUESTS = {
   /** @param {number} season */
   standings: (season) =>
     `${WNBA_STATS}/stats/leaguestandingsv3?LeagueID=10&Season=${season}&SeasonType=Regular+Season`,
+  /** @param {number} season */
+  players: (season) =>
+    `${WNBA_STATS}/stats/leaguedashplayerstats?${new URLSearchParams({
+      College: "",
+      Conference: "",
+      Country: "",
+      DateFrom: "",
+      DateTo: "",
+      Division: "",
+      DraftPick: "",
+      DraftYear: "",
+      GameScope: "",
+      GameSegment: "",
+      Height: "",
+      LastNGames: "0",
+      LeagueID: "10",
+      Location: "",
+      MeasureType: "Base",
+      Month: "0",
+      OpponentTeamID: "0",
+      Outcome: "",
+      PORound: "0",
+      PaceAdjust: "N",
+      PerMode: "PerGame",
+      Period: "0",
+      PlayerExperience: "",
+      PlayerPosition: "",
+      PlusMinus: "N",
+      Rank: "N",
+      Season: String(season),
+      SeasonSegment: "",
+      SeasonType: "Regular Season",
+      ShotClockRange: "",
+      StarterBench: "",
+      TeamID: "0",
+      VsConference: "",
+      VsDivision: "",
+      Weight: "",
+    })}`,
 };
 
 export const BACKUP_REQUESTS = {
@@ -115,28 +154,78 @@ function readBracketSeries(series) {
   };
 }
 
-// The standings' PlayoffRank is the league-wide place, and its LeagueRank the conference place.
-function readStandingsRows(response) {
+/**
+ * The stats site answers with a table: its column names, then a row of values for each line.
+ * @param {any} response
+ * @returns {Record<string, any>[]}
+ */
+export function readStatsTable(response) {
   const table = response?.resultSets?.[0];
   if (!table) return [];
-  const column = Object.fromEntries(table.headers.map((header, index) => [header, index]));
-  return table.rowSet
+  return table.rowSet.map((row) =>
+    Object.fromEntries(table.headers.map((header, index) => [header, row[index]])),
+  );
+}
+
+// The standings' PlayoffRank is the league-wide place, and its LeagueRank the conference place.
+function readStandingsRows(response) {
+  return readStatsTable(response)
     .map((row) => ({
-      team: findTeamCode(row[column.TeamID]),
-      conference: row[column.Conference],
-      wins: row[column.WINS],
-      losses: row[column.LOSSES],
-      place: row[column.PlayoffRank],
-      conferencePlace: row[column.LeagueRank],
-      gamesBack: row[column.LeagueGamesBack] ?? null,
-      conferenceGamesBack: row[column.ConferenceGamesBack] ?? null,
-      clinch: String(row[column.ClinchIndicator] ?? "").replace(/^\s*-\s*/, "") || null,
-      streak: row[column.strCurrentStreak] || null,
-      lastTen: row[column.L10] || null,
+      team: findTeamCode(row.TeamID),
+      conference: row.Conference,
+      wins: row.WINS,
+      losses: row.LOSSES,
+      place: row.PlayoffRank,
+      conferencePlace: row.LeagueRank,
+      gamesBack: row.LeagueGamesBack ?? null,
+      conferenceGamesBack: row.ConferenceGamesBack ?? null,
+      clinch: String(row.ClinchIndicator ?? "").replace(/^\s*-\s*/, "") || null,
+      streak: row.strCurrentStreak || null,
+      lastTen: row.L10 || null,
+      pointsFor: row.PointsPG ?? null,
+      pointsAgainst: row.OppPointsPG ?? null,
+      margin: row.DiffPointsPG ?? null,
+      home: row.HOME || null,
+      road: row.ROAD || null,
     }))
     .filter((row) => row.team)
     .sort((first, second) => first.place - second.place);
 }
+
+// The feed gives a player's name whole; everything after the first space is her last name.
+function splitName(name) {
+  const [firstName, ...rest] = String(name).split(" ");
+  return { firstName, lastName: rest.join(" ") };
+}
+
+/**
+ * A team's best scorers by points a game. A player who has missed most of the team's games
+ * doesn't lead it, however well she scores.
+ * @param {any} players the stats site's season averages
+ * @param {string} team
+ * @param {number} count
+ */
+export function listTeamLeaders(players, team, count) {
+  const rows = readStatsTable(players).filter((row) => findTeamCode(row.TEAM_ID) === team);
+  const most = Math.max(0, ...rows.map((row) => row.GP));
+  return rows
+    .filter((row) => row.GP >= most / 2)
+    .sort((first, second) => second.PTS - first.PTS)
+    .slice(0, count)
+    .map((row) => ({
+      id: row.PLAYER_ID,
+      ...splitName(row.PLAYER_NAME),
+      games: row.GP,
+      points: row.PTS,
+      rebounds: row.REB,
+      assists: row.AST,
+    }));
+}
+
+const listTopScorers = (players) =>
+  Object.keys(TEAMS).flatMap((team) =>
+    listTeamLeaders(players, team, 1).map((leader) => ({ team, ...leader })),
+  );
 
 const listPlayoffGames = (games) => games.filter((game) => readPlayoffGameId(game.gameId));
 
@@ -286,7 +375,7 @@ function applyBackupGame(game, backup) {
 }
 
 /**
- * @param {{ scoreboard?: any, schedule?: any, bracket?: any, standings?: any, backup?: { games: any[] } | null }} responses
+ * @param {{ scoreboard?: any, schedule?: any, bracket?: any, standings?: any, players?: any, backup?: { games: any[] } | null }} responses
  * @param {{ season: number, now?: number }} options
  */
 export function buildSnapshot(responses, { season, now = Date.now() }) {
@@ -309,6 +398,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     games,
     series,
     standings: readStandingsRows(responses.standings),
+    leaders: listTopScorers(responses.players),
     missing: LEAGUE_FEEDS.filter((name) => !responses[name]),
     standIn: standIns.size ? "espn" : null,
   };

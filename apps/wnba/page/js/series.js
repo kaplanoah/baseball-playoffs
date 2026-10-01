@@ -79,9 +79,10 @@ export function describeSeriesStanding(series) {
 }
 
 /**
- * How far each team got: the round it's playing or went out in, and whether it won it all.
+ * How far each team got: its seed, the round it's playing or went out in, and whether it won it
+ * all.
  * @param {Series[]} allSeries
- * @returns {Map<string, { round: number, isOut: boolean, isChampion: boolean }>}
+ * @returns {Map<string, { seed: number | null, round: number, isOut: boolean, isChampion: boolean }>}
  */
 export function readPlayoffRuns(allSeries) {
   const runs = new Map();
@@ -91,7 +92,7 @@ export function readPlayoffRuns(allSeries) {
       if (!side?.team) continue;
       const isOut = !!series.winner && series.winner !== side.team;
       const isChampion = series.round === 3 && series.winner === side.team;
-      runs.set(side.team, { round: series.round, isOut, isChampion });
+      runs.set(side.team, { seed: side.seed, round: series.round, isOut, isChampion });
     }
   }
   return runs;
