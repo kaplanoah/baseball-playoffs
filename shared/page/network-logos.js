@@ -29,7 +29,7 @@ const CHANNELS = [
   { name: "FOX ONE", file: "fox-one.svg", names: [], hasDarkVersion: true },
   { name: "FS1", file: "fs1.svg", names: [] },
   { name: "HBO Max", file: "hbo-max.svg", names: [], hasDarkVersion: true },
-  { name: "ION", file: "ion.svg", names: [], hasDarkVersion: true },
+  { name: "ION", file: "ion.png", names: [] },
   { name: "NBC", file: "nbc.svg", names: [], hasDarkVersion: true },
   { name: "Paramount+", file: "paramount-plus.svg", names: [], hasDarkVersion: true },
   { name: "Peacock", file: "peacock.svg", names: [], hasDarkVersion: true },
