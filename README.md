@@ -35,7 +35,7 @@ setting, or the one you pick in its settings. Added to the home screen, it keeps
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
-every 30 seconds during games. Saved to an iPhone's home screen, the page opens
+every 15 seconds during games. Saved to an iPhone's home screen, the page opens
 full screen like an app, and can send a notification with the score when any
 playoff game ends.
 

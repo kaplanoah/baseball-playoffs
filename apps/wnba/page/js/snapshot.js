@@ -231,7 +231,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   };
 }
 
-export const POLL_LIVE_MS = 30 * 1000;
+const POLL_LIVE_MS = 15 * 1000;
 const POLL_LEAD_MS = 15 * 60 * 1000;
 const POLL_CHECK_MS = 60 * 60 * 1000;
 

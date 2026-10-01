@@ -25,7 +25,7 @@ function createLeague({ refuse = {}, answers = {} } = {}) {
   const reads = [];
   const fetchImpl = async (url, init) => {
     const feed = FEEDS[url];
-    reads.push({ feed, headers: init.headers });
+    reads.push({ feed, headers: init.headers, cacheSeconds: init.cf?.cacheTtl });
     if (refuse[feed] === "page") return new Response("<!DOCTYPE html><html></html>");
     if (refuse[feed] === "error") return new Response("", { status: 503 });
     return new Response(JSON.stringify(answers[feed] ?? AFTERNOON.responses[feed]));
@@ -56,6 +56,16 @@ test("the Worker reads every feed as the league's own site would", async () => {
   }
   assert.equal(snapshot.games.length, 28);
   assert.deepEqual(snapshot.missing, []);
+});
+
+test("the scoreboard comes from Cloudflare's cache no more than 5 seconds old", async () => {
+  const league = createLeague();
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  await server.loadSnapshot(2026);
+
+  const scoreboardRead = league.reads.find((read) => read.feed === "scoreboard");
+  assert.ok(scoreboardRead.cacheSeconds <= 5);
 });
 
 test("a feed that answers with a web page counts as missing, and the rest still show", async () => {
