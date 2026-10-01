@@ -256,6 +256,21 @@ test("on a wide screen, the game and team rows keep to a phone's width", async (
   }
 });
 
+test("on a wide screen, the Games pill and lists sit in the middle of the page", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const pageMiddle = page.viewportSize().width / 2;
+  for (const locator of [
+    page.getByRole("tablist", { name: "Games" }),
+    page.locator("#games-today .game-row").first(),
+  ]) {
+    const box = await locator.boundingBox();
+    expect(Math.abs(box.x + box.width / 2 - pageMiddle)).toBeLessThanOrEqual(1);
+  }
+});
+
 test("clicking the tab that's showing scrolls back to the top", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 400 });
   await openApp(page);
