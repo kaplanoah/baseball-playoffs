@@ -7,6 +7,7 @@
     "tests/*.test.js",
     "tests/browser/serve.mjs",
     "shared/page/push-worker.js",
+    "shared/page/open-last-tab.js",
     "apps/*/tests/*.test.js",
     "apps/*/tests/browser/*.spec.mjs",
     "apps/*/tests/fixtures/record.js"

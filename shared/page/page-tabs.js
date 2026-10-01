@@ -1,4 +1,4 @@
-import { readLastTab, saveLastTab } from "./last-tab.js";
+import { saveLastTab } from "./last-tab.js";
 import { scrollToTop } from "./scroll-to-top.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
 import { readSelectedTab, selectTab, wireTabs } from "./tabs.js";
@@ -30,15 +30,8 @@ function chooseTab(tab) {
   else switchTab(tab);
 }
 
-// A tab saved before the page dropped it is left alone, so the page opens on its first tab.
-function reopenLastTab() {
-  const lastTab = readLastTab();
-  if (findTabButtons().some((button) => button.dataset.tab === lastTab)) showTab(lastTab);
-}
-
-// The last tab reopens before the tab bar starts, so its pill starts there instead of sliding there.
+// The page has already reopened its last tab (open-last-tab.js), so the pill starts there.
 export function startPageTabs() {
-  reopenLastTab();
   wireTabs(findTabButtons(), chooseTab);
   startTabBar(chooseTab);
 }
