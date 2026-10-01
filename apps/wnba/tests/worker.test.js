@@ -78,6 +78,15 @@ test("a feed that answers with a web page counts as missing, and the rest still 
   assert.equal(snapshot.games.length, 28);
 });
 
+test("a feed that answers JSON without its data counts as missing", async () => {
+  const league = createLeague({ answers: { scoreboard: { meta: { code: 200 } } } });
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.deepEqual(snapshot.missing, ["scoreboard"]);
+});
+
 test("the schedule, bracket, and standings are read again only after a while", async () => {
   const league = createLeague();
   let now = NOW;
