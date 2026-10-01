@@ -129,24 +129,27 @@ test("a box score id that isn't a game's is refused before reading the league", 
   assert.equal(league.reads.length, 0);
 });
 
-test("a preview lists the teams' finished meetings this season, newest first, playoffs included", () => {
+test("a preview lists the teams' finished regular-season meetings, newest first, without the playoffs", () => {
   const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
 
   assert.deepEqual(
-    preview.meetings.map(({ round, number, away, home }) => [
-      round,
-      number,
+    preview.meetings.map(({ id, away, home }) => [
+      id.slice(0, 3),
       `${away.team} ${away.score}`,
       `${home.team} ${home.score}`,
     ]),
     [
-      [1, 2, "LVA 89", "IND 99"],
-      [1, 1, "IND 85", "LVA 102"],
-      [null, null, "LVA 86", "IND 84"],
-      [null, null, "IND 109", "LVA 75"],
-      [null, null, "IND 84", "LVA 68"],
+      ["102", "LVA 86", "IND 84"],
+      ["102", "IND 109", "LVA 75"],
+      ["102", "IND 84", "LVA 68"],
     ],
   );
+  const games = GAMES.preview.schedule.leagueSchedule.gameDates.flatMap((day) => day.games);
+  const playedInPlayoffs = (game) =>
+    game.gameId.startsWith("104") &&
+    game.gameStatus === 3 &&
+    [game.awayTeam.teamTricode, game.homeTeam.teamTricode].sort().join() === "IND,LVA";
+  assert.equal(games.filter(playedInPlayoffs).length, 2);
 });
 
 test("a preview leaves out the preseason, games not yet played, and another season's schedule", () => {
@@ -222,7 +225,7 @@ test("the preview route reads each feed on its own, outside Cloudflare's edge", 
 
   assert.equal(response.status, 200);
   const preview = await response.json();
-  assert.equal(preview.meetings.length, 5);
+  assert.equal(preview.meetings.length, 3);
   assert.equal(preview.away.season, null);
   assert.equal(preview.away.leaders, null);
   assert.deepEqual(
