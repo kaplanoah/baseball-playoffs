@@ -97,11 +97,19 @@ function isOut(id) {
   return isOutOfPostseason || describeRace(findStandingsRow(id))?.standing === "out";
 }
 
-function describeSide(id, place, starter, hasWon) {
+const renderPendingStarter = (side) =>
+  html`<span class="starter ${side} pending" title="Starting pitcher"><span class="starter-name">Still TBD</span></span>`;
+
+function renderStarterLine(starter, place, isPending) {
+  if (isNamed(starter)) return renderStarter(starter, place);
+  return isPending && renderPendingStarter(place);
+}
+
+function describeSide(id, place, starter, hasWon, isPending) {
   return {
     lines: html`${renderClub(id)}${renderFacts(id)}`,
     classes: [hasWon && "won", isOut(id) && "out"],
-    extra: isNamed(starter) && renderStarter(starter, place),
+    extra: renderStarterLine(starter, place, isPending),
   };
 }
 
@@ -151,22 +159,31 @@ function renderMatchupButton(game, [awayStarter, homeStarter]) {
   return html`<button type="button" class="game-open" aria-label="Pitching matchup: ${names.join(" vs ")}" data-game="${details}"></button>`;
 }
 
-/** @param {object | null} series the postseason series the game belongs to, when it's labeled */
-function renderGame(game, series) {
+// Today's games still to start open even before a club names its starter, to show who it might be.
+const isAwaitingStarter = (game, id, starter, isToday) =>
+  isToday && game.state === "pre" && Boolean(id) && !starter;
+
+/**
+ * @param {object | null} series the postseason series the game belongs to, when it's labeled
+ * @param {boolean} isToday
+ */
+function renderGame(game, series, isToday) {
   const [awayScore, homeScore] = game.score || [];
   const isFinal = game.state === "final";
   const awayLost = isFinal && awayScore < homeScore;
   const homeLost = isFinal && homeScore < awayScore;
   const [awayStarter, homeStarter] = game.starters || [];
-  const hasStarters = isNamed(awayStarter) || isNamed(homeStarter);
+  const isAwayPending = isAwaitingStarter(game, game.away, awayStarter, isToday);
+  const isHomePending = isAwaitingStarter(game, game.home, homeStarter, isToday);
+  const canOpen = isNamed(awayStarter) || isNamed(homeStarter) || isAwayPending || isHomePending;
   return renderGameRow({
     classes: [game.state, game.delay && "delayed"],
-    away: describeSide(game.away, "away", awayStarter, homeLost),
-    home: describeSide(game.home, "home", homeStarter, awayLost),
+    away: describeSide(game.away, "away", awayStarter, homeLost, isAwayPending),
+    home: describeSide(game.home, "home", homeStarter, awayLost, isHomePending),
     label: Boolean(series) && renderSeriesLabel(game, series),
     headline: renderHeadline(game, awayLost, homeLost),
     status: renderStatus(game),
-    action: hasStarters && renderMatchupButton(game, [awayStarter, homeStarter]),
+    action: canOpen && renderMatchupButton(game, [awayStarter, homeStarter]),
   });
 }
 
@@ -214,9 +231,10 @@ export function renderGameList(slate, list) {
   if (!slate) return html`<p class="stand-empty">${describeMissingSlate()}</p>`;
   const games = listGames(slate, list);
   if (!games.length) return html`<p class="stand-empty">${EMPTY_LIST_TEXT[list]}</p>`;
+  const isToday = list === "today";
   return html`${groupByDay(games, list === "previous").map(
     (day) => html`<h3 class="game-day">${formatGameDay(day.date)}</h3>
-      <ul class="game-list">${day.games.map((game) => renderGame(game, list === "today" ? findGameSeries(game) : null))}</ul>`,
+      <ul class="game-list">${day.games.map((game) => renderGame(game, isToday ? findGameSeries(game) : null, isToday))}</ul>`,
   )}`;
 }
 

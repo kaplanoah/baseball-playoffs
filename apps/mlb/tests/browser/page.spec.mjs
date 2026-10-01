@@ -437,7 +437,7 @@ test("with starters named, each sits under its club, its arm and ERA on its name
 }) => {
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
-  const row = page.locator("#games-today .game-row:has(.starter)");
+  const row = page.locator("#games-today .game-row:has(.starter:not(.pending))");
   const clubs = await row.locator(".game-side.away").boundingBox();
   const time = await row.locator(".game-time").boundingBox();
   const facts = await row.locator(".game-side.away .game-facts").boundingBox();
@@ -469,7 +469,7 @@ test("on a phone, a long starter's name keeps his arm and ERA on its line", asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
-  const starter = page.locator("#games-today .starter.home");
+  const starter = page.locator("#games-today .starter.home:not(.pending)");
   const readHeight = async () => (await starter.boundingBox()).height;
   const oneLine = await readHeight();
   await starter.locator(".starter-name").evaluate((name) => (name.textContent = "Misiorowski"));
