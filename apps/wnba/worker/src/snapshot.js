@@ -94,7 +94,8 @@ export function createSnapshotServer({
     return { competition, status, scores };
   }
 
-  // Yesterday's games too, since a late game is still being played after midnight Eastern.
+  // Yesterday's games too, since a late game is still being played after midnight Eastern. A game
+  // ESPN didn't answer for is left out, so it doesn't keep the others from standing in.
   async function fetchBackup() {
     const request = WNBASnapshot.BACKUP_REQUESTS.events(
       formatEspnDay(now() - DAY_MS),
@@ -102,7 +103,8 @@ export function createSnapshotServer({
     );
     const listing = await fetchBackupJson(request);
     const eventIds = (listing.items ?? []).map((item) => readEventId(item.$ref)).filter(Boolean);
-    return { games: await Promise.all(eventIds.map(fetchBackupGame)) };
+    const games = await Promise.all(eventIds.map((id) => fetchBackupGame(id).catch(() => null)));
+    return { games: games.filter(Boolean) };
   }
 
   async function fetchResponses(season) {
