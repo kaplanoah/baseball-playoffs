@@ -539,6 +539,15 @@ test("while a game is on, the header gives its score and clock, and still the ne
       Object.assign(game, { status: "Half", period: 2, clock: "0.0" });
     });
     assert.equal(readStampLines(atHalf, NOW)[0], "Dream @ Mystics 30-27, Half");
+    const bothLive = changeGame(live, "1042600112", (game) => {
+      Object.assign(game, { state: "live", status: "Q1 2:00", period: 1, clock: "2:00" });
+      Object.assign(game.away, { score: 10 });
+      Object.assign(game.home, { score: 8 });
+    });
+    assert.deepEqual(readStampLines(bothLive, NOW), [
+      "Dream @ Mystics 30-27, Q2 5:10 | Valkyries @ Wings 10-8, Q1 2:00",
+      "Next tip-off tomorrow 9:00 PM - Fever @ Aces",
+    ]);
   }));
 
 test("a game whose time isn't set tips off on its day, and one its series no longer needs never does", () =>

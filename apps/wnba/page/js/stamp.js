@@ -1,4 +1,4 @@
-import { html } from "#shared/html.js";
+import { html, joinWithSeparator } from "#shared/html.js";
 import {
   describeFinishedDay,
   formatStampDay,
@@ -76,7 +76,7 @@ const listGamesInState = (games, state) =>
  */
 function describeLatest(games, seriesById, now) {
   const live = listGamesInState(games, "live");
-  if (live.length) return live.map(describeLiveGame).join(", ");
+  if (live.length) return joinWithSeparator(live.map(describeLiveGame));
   const latestFinal = listGamesInState(games, "final").at(-1);
   return latestFinal ? describeLatestFinal(latestFinal, seriesById, now) : "";
 }
