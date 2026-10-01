@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildSnapshot } from "../page/js/snapshot.js";
-import { listNotifications, readUpdates, saveSnapshot } from "../worker/src/season-updater.js";
+import {
+  listNotifications,
+  loadCurrentSnapshot,
+  readUpdates,
+  saveSnapshot,
+} from "../worker/src/season-updater.js";
 
 const AFTERNOON = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-afternoon.json`, "utf8"),
@@ -183,4 +188,19 @@ test("games already finished, or found finished long after, aren't news", () => 
     listNotifications({ before: null, after, now: Date.parse("2026-10-02T12:00:00Z") }),
     [],
   );
+});
+
+test("the new year's season is followed only once it has games or standings with games played", async () => {
+  const newYear = Date.parse("2027-01-01T00:30:00Z");
+  const unplayed = SNAPSHOT.standings.map((row) => ({ ...row, wins: 0, losses: 0 }));
+  const seasons = {
+    2026: SNAPSHOT,
+    2027: { ...SNAPSHOT, season: 2027, games: [], series: [], standings: unplayed },
+  };
+  const loadSnapshot = async (season) => seasons[season];
+
+  assert.equal((await loadCurrentSnapshot(loadSnapshot, newYear)).season, 2026);
+
+  seasons[2027] = { ...seasons[2027], standings: SNAPSHOT.standings };
+  assert.equal((await loadCurrentSnapshot(loadSnapshot, newYear)).season, 2027);
 });

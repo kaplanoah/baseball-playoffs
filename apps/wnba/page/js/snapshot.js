@@ -80,12 +80,18 @@ const countWinsNeeded = (round) => Math.ceil(ROUNDS[round].bestOf / 2);
 
 // A playoff game's ID spells out where it sits: 104, the season's last two digits, 00, then its
 // round, its series in that round from 0, and its game in the series.
-const PLAYOFF_GAME_ID = /^104\d{2}00([1-3])(\d)(\d)$/;
+const PLAYOFF_GAME_ID = /^104(\d{2})00([1-3])(\d)(\d)$/;
 
 /** @param {string} id */
 export function readPlayoffGameId(id) {
-  const [, round, series, game] = String(id).match(PLAYOFF_GAME_ID) ?? [];
-  return round ? { round: Number(round), series: Number(series), game: Number(game) } : null;
+  const [, season, round, series, game] = String(id).match(PLAYOFF_GAME_ID) ?? [];
+  if (!round) return null;
+  return {
+    season: 2000 + Number(season),
+    round: Number(round),
+    series: Number(series),
+    game: Number(game),
+  };
 }
 
 const nameSeries = (round, series) => `${round}-${series}`;
@@ -227,14 +233,17 @@ const listTopScorers = (players) =>
     listTeamLeaders(players, team, 1).map((leader) => ({ team, ...leader })),
   );
 
-const listPlayoffGames = (games) => games.filter((game) => readPlayoffGameId(game.gameId));
+// The schedule and the scoreboard hold the last season's games until the league starts the next.
+const listPlayoffGames = (games, season) =>
+  games.filter((game) => readPlayoffGameId(game.gameId)?.season === season);
 
 // The scoreboard is the freshest word on today's games, so it replaces the schedule's copy.
-function mergeGames(schedule, scoreboard) {
+function mergeGames(schedule, scoreboard, season) {
   const scheduled = listPlayoffGames(
     (schedule?.leagueSchedule?.gameDates ?? []).flatMap((day) => day.games),
+    season,
   ).map(normalizeGame);
-  const today = listPlayoffGames(scoreboard?.scoreboard?.games ?? []).map(normalizeGame);
+  const today = listPlayoffGames(scoreboard?.scoreboard?.games ?? [], season).map(normalizeGame);
   const byId = new Map(scheduled.map((game) => [game.id, game]));
   for (const game of today) byId.set(game.id, game);
   return [...byId.values()].sort(
@@ -381,7 +390,7 @@ function applyBackupGame(game, backup) {
 export function buildSnapshot(responses, { season, now = Date.now() }) {
   const backupGames =
     !responses.scoreboard && responses.backup ? responses.backup.games.map(readBackupGame) : [];
-  const leagueGames = mergeGames(responses.schedule, responses.scoreboard);
+  const leagueGames = mergeGames(responses.schedule, responses.scoreboard, season);
   const standIns = matchBackupGames(leagueGames, backupGames);
   const games = leagueGames.map((game) =>
     standIns.has(game.id) ? applyBackupGame(game, standIns.get(game.id)) : game,

@@ -61,13 +61,13 @@ export function createSnapshotServer({
   const fetchFeed = (name, url) =>
     fetchWnbaJson(fetchImpl, url, EDGE_CACHE_SECONDS, (answer) => hasFeedData(name, answer));
 
-  // A slow feed's last good answer stands in when a read fails.
+  // A slow feed's last good answer stands in when a read fails. Each season's are kept apart.
   async function readSlowFeed(name, url, isStale) {
-    const kept = slowFeeds.get(name);
+    const kept = slowFeeds.get(url);
     if (kept && !isStale && now() - kept.at < SLOW_FEED_MS[name]) return kept.data;
     try {
       const data = await fetchFeed(name, url);
-      slowFeeds.set(name, { at: now(), data });
+      slowFeeds.set(url, { at: now(), data });
       return data;
     } catch (error) {
       if (kept) return kept.data;

@@ -15,8 +15,16 @@ const MAX_NOTIFIED = 4;
 
 const nameSeasonKey = (year) => `seasons/${year}`;
 
-export const loadCurrentSnapshot = (loadSnapshot, now) =>
-  loadSnapshot(new Date(now).getUTCFullYear());
+// The new year's season starts once it has games, or standings with games played. Until then the
+// last one's stays current, so the new year doesn't start with an empty season.
+const hasSeasonStarted = (snapshot) =>
+  snapshot.games.length > 0 || snapshot.standings.some((row) => row.wins + row.losses > 0);
+
+export async function loadCurrentSnapshot(loadSnapshot, now) {
+  const year = new Date(now).getUTCFullYear();
+  const upcoming = await loadSnapshot(year);
+  return hasSeasonStarted(upcoming) ? upcoming : loadSnapshot(year - 1);
+}
 
 const STATE_ORDER = { pre: 0, live: 1, final: 2 };
 
