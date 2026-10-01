@@ -873,6 +873,7 @@ test("games list: a game still to play names its starters, with their arm and ER
   assert.deepEqual(details, {
     date: "2026-09-29",
     start: "2026-09-30T00:08:00Z",
+    state: "pre",
     away: "BOS",
     home: "NYY",
     starters: slate.today.games[0].starters,

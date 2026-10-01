@@ -465,6 +465,17 @@ test("with starters named, each sits under its club, its arm and ERA on its name
   expect(starter.y - (facts.y + facts.height)).toBeCloseTo(3.25, 1);
 });
 
+test("on a phone, a long starter's name keeps his arm and ERA on its line", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
+  await page.getByRole("tab", { name: "Games" }).click();
+  const starter = page.locator("#games-today .starter.home");
+  const readHeight = async () => (await starter.boundingBox()).height;
+  const oneLine = await readHeight();
+  await starter.locator(".starter-name").evaluate((name) => (name.textContent = "Misiorowski"));
+  expect(await readHeight()).toBe(oneLine);
+});
+
 test("a game still to come is as tall as a finished one", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();

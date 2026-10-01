@@ -670,10 +670,12 @@ const findSlateGame = (snapshot, away, home) =>
   [
     ...snapshot.slate.today.games,
     ...(snapshot.slate.nextDay?.games || []),
+    ...snapshot.slate.previous,
     ...snapshot.slate.next,
   ].find((game) => game.away === away && game.home === home);
 
 const EVENING_STARTERS = {
+  824223: [7, null], // WSH at DET, yesterday
   823326: [1, 2], // STL at PIT, final
   824707: [3, 4], // CLE at BOS, live
   823895: [5, null], // SD at LAD, not started
@@ -687,8 +689,12 @@ const EVENING_PEOPLE = [
   describePerson(5, "King", "R", null),
 ];
 
-test("starters: a game still to finish names each club's starter, his arm, and his ERA", () => {
+test("starters: every game listed names each club's starter, his arm, and his ERA", () => {
   const snapshot = buildSnapshot(addStarters(EVENING, EVENING_STARTERS, EVENING_PEOPLE));
+  assert.deepEqual(findSlateGame(snapshot, "STL", "PIT").starters, [
+    { id: 1, name: "Liberatore", hand: "L", era: "4.10" },
+    { id: 2, name: "Keller", hand: "R", era: "3.40" },
+  ]);
   assert.deepEqual(findSlateGame(snapshot, "CLE", "BOS").starters, [
     { id: 3, name: "Bibee", hand: "R", era: "3.62" },
     { id: 4, name: "Crochet", hand: "L", era: "2.51" },
@@ -700,21 +706,17 @@ test("starters: a game still to finish names each club's starter, his arm, and h
   assert.deepEqual(snapshot.missing, []);
 });
 
-test("starters: a finished game names none, and one MLB couldn't describe keeps his id", () => {
+test("starters: one MLB couldn't describe keeps his id", () => {
   const snapshot = buildSnapshot(addStarters(EVENING, EVENING_STARTERS, EVENING_PEOPLE));
-  const finished = snapshot.slate.today.games.find(
-    (game) => game.away === "STL" && game.home === "PIT",
-  );
-  assert.equal(finished.state, "final");
-  assert.equal(finished.starters, undefined);
   assert.deepEqual(findSlateGame(snapshot, "CHC", "BOS").starters, [{ id: 6 }, null]);
+  assert.deepEqual(findSlateGame(snapshot, "WSH", "DET").starters, [{ id: 7 }, null]);
 });
 
 test("fetchSnapshot looks up the listed games' starters in one sorted request", async () => {
   const fixture = addStarters(EVENING, EVENING_STARTERS, EVENING_PEOPLE);
   const regularSeasonEnd = fixture.responses.season.seasons[0].regularSeasonEndDate;
   const requests = MLBSnapshot.listMlbRequests(2026, Date.parse(fixture.now), regularSeasonEnd);
-  const pitcherRequest = MLBSnapshot.listPitcherRequest(2026, [3, 4, 5, 6]);
+  const pitcherRequest = MLBSnapshot.listPitcherRequest(2026, [7, 1, 2, 3, 4, 5, 6]);
   const byPath = {
     ...Object.fromEntries(
       Object.entries(requests).map(([key, path]) => [path, fixture.responses[key]]),
@@ -731,7 +733,7 @@ test("fetchSnapshot looks up the listed games' starters in one sorted request", 
     Date.parse(fixture.now),
   );
   assert.equal(asked.at(-1), pitcherRequest);
-  assert.match(pitcherRequest, /personIds=3,4,5,6&/);
+  assert.match(pitcherRequest, /personIds=1,2,3,4,5,6,7&/);
   assert.deepEqual(snapshot, buildSnapshot(fixture));
 });
 
@@ -751,6 +753,7 @@ test("fetchSnapshot still builds the games when MLB can't name their starters", 
     Date.parse(fixture.now),
   );
   assert.deepEqual(findSlateGame(snapshot, "CLE", "BOS").starters, [{ id: 3 }, { id: 4 }]);
+  assert.deepEqual(findSlateGame(snapshot, "STL", "PIT").starters, [{ id: 1 }, { id: 2 }]);
   assert.deepEqual(snapshot.missing, []);
 });
 

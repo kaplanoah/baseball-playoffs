@@ -587,7 +587,7 @@ table.st .seed-cell {
   align-items: baseline;
   gap: 2px 1ch;
   max-width: 100%;
-  font-size: 0.65rem;
+  font-size: 0.55rem;
   color: var(--ink-mid);
 }
 .starter.home {
@@ -607,6 +607,9 @@ table.st .seed-cell {
   border-radius: 3px;
   color: var(--ink-dim);
 }
+.starter .arm {
+  font-size: 0.48rem;
+}
 /* The smaller number and letters sit a hair high on the name's baseline, so they read level. */
 .starter-era {
   position: relative;
@@ -615,11 +618,11 @@ table.st .seed-cell {
   white-space: nowrap;
 }
 .starter-era b {
-  font-size: 0.55rem;
+  font-size: 0.47rem;
   font-weight: 400;
 }
 .starter-era-label {
-  font-size: 0.53rem;
+  font-size: 0.45rem;
 }
 /* A character width from the word, like the number, and a pixel low so it reads level with the text. */
 .seed-lock {
@@ -1560,6 +1563,9 @@ body.kbd .rank-item .grip:focus {
   display: grid;
   grid-template-columns: 4.2em minmax(0, 1fr) auto;
   gap: 8px;
+}
+.start-now {
+  color: var(--copper-ink);
 }
 .recent-starts li > :last-child {
   color: var(--ink-mid);

@@ -125,7 +125,7 @@ test("a starter ranks among the pitchers with at least half the most starts, tie
     bb9: { rank: 2, of: 4 },
     speed: { rank: 2, of: 3 },
   });
-  assert.deepEqual(pitcher.line, { era: "3.03", k9: 10.4, bb9: 2.4, speed: 96.1 });
+  assert.deepEqual(pitcher.line, { starts: 26, era: "3.03", k9: 10.4, bb9: 2.4, speed: 96.1 });
   assert.deepEqual(pitcher.starters, { count: 4, minimum: 15 });
 });
 
@@ -141,7 +141,7 @@ test("a pitcher with too few starts has his numbers but no ranks", () => {
     buildLeague(LEAGUE, SPEEDS),
   );
   assert.equal(pitcher.ranks, null);
-  assert.deepEqual(pitcher.line, { era: "0.90", k9: 12, bb9: 1, speed: 95 });
+  assert.deepEqual(pitcher.line, { starts: 2, era: "0.90", k9: 12, bb9: 1, speed: 95 });
 });
 
 test("a pitcher yet to pitch this season has no line, and no ranks", () => {
