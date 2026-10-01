@@ -36,11 +36,13 @@ test.describe("on a phone, the bracket", () => {
   test("opens on the earliest round still playing, and swipes either way", async ({ page }) => {
     const app = await openApp(page);
     await expect(readRoundName(page, 1)).toBeInViewport({ ratio: 1 });
+    await expect(page.locator('[data-series="1-0"] .seed-label').first()).toBeInViewport({
+      ratio: 1,
+    });
     await expect(page.locator('.round-dots [data-round="1"]')).toHaveClass("on");
 
     await app.changeSeason(finishFirstRound);
     await expect(readRoundName(page, 2)).toBeInViewport({ ratio: 1 });
-    await expect(readRoundName(page, 2)).toHaveClass(/\bnow\b/);
     await expect(readRoundName(page, 1)).not.toBeInViewport();
     await expect(page.locator('.round-dots [data-round="2"]')).toHaveClass("on");
 
@@ -97,50 +99,113 @@ test("a first-round seed's label sits outside its card, beside its row", async (
   await expect(page.locator('[data-series="2-0"] .seed-label')).toHaveCount(0);
 });
 
-/** Each line's end, and the middle of each team row, in the page's coordinates. */
-const readLines = (page) =>
+test("a seed's label centers Seed on its larger number", async ({ page }) => {
+  await openApp(page);
+  const label = page.locator('[data-series="1-0"] .seed-label').first();
+  await expect(label).toBeVisible();
+  // Each text's own box, so the two compare at their fonts' sizes, not their elements' heights.
+  const [word, number] = await label.evaluate((element) => {
+    const readTextMiddle = (/** @type {Node} */ text) => {
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      const box = range.getBoundingClientRect();
+      return (box.top + box.bottom) / 2;
+    };
+    const number = /** @type {Element} */ (element.querySelector(".seed-number"));
+    return [
+      readTextMiddle(/** @type {Node} */ (element.firstChild)),
+      readTextMiddle(/** @type {Node} */ (number.firstChild)),
+    ];
+  });
+  expect(Math.abs(word - number)).toBeLessThan(0.3);
+});
+
+test("every round's cards are one width, and each round's name starts where its cards do", async ({
+  page,
+}) => {
+  await openApp(page);
+  await expect(page.locator('[data-series="3-0"]')).toBeVisible();
+  const readBox = (selector) => page.locator(selector).boundingBox();
+  const cards = await Promise.all(
+    ["1-0", "2-0", "3-0"].map((id) => readBox(`[data-series="${id}"]`)),
+  );
+  for (const card of cards) expect(card.width).toBeCloseTo(cards[0].width, 0);
+  for (const [index, card] of cards.entries()) {
+    const name = await readRoundName(page, index + 1).boundingBox();
+    expect(name.x).toBeCloseTo(card.x, 0);
+    expect(name.width).toBeCloseTo(card.width, 0);
+  }
+});
+
+test("every round's name is one color, even the round the bracket opens on", async ({ page }) => {
+  await openApp(page);
+  const readColor = (round) =>
+    readRoundName(page, round)
+      .locator(":scope > span")
+      .first()
+      .evaluate((name) => {
+        return getComputedStyle(name).color;
+      });
+  await expect(readRoundName(page, 1)).toBeVisible();
+  expect(await readColor(1)).toBe(await readColor(2));
+  expect(await readColor(1)).toBe(await readColor(3));
+});
+
+/**
+ * Each bracket's corners, and the middle of each card's two rows, in the page's coordinates.
+ * @param {import("@playwright/test").Page} page
+ */
+const readBrackets = (page) =>
   page.evaluate(() => {
     const svg = document.querySelector(".bracket-lines").getBoundingClientRect();
-    const readEnd = (path) => {
-      const end = path.getPointAtLength(path.getTotalLength());
-      return { x: svg.left + end.x, y: svg.top + end.y };
+    const readMiddle = (id) => {
+      const rows = [...document.querySelectorAll(`.series[data-series="${id}"] .team-line`)];
+      const [top, bottom] = rows.map((row) => row.getBoundingClientRect());
+      return (top.top + bottom.bottom) / 2;
     };
-    const readRow = (id, index) => {
-      const row = document.querySelectorAll(`[data-series="${id}"] .team-line`)[index];
-      const box = row.getBoundingClientRect();
-      return box.top + box.height / 2;
-    };
+    const paths = /** @type {SVGPathElement[]} */ ([
+      ...document.querySelectorAll(".bracket-lines path"),
+    ]);
     return {
-      decided: [...document.querySelectorAll(".bracket-lines .decided")].map(readEnd),
-      open: [...document.querySelectorAll(".bracket-lines .open")].map(readEnd),
-      rows: {
-        semifinalTop: readRow("2-0", 0),
-        semifinalBottom: readRow("2-0", 1),
-        finalsMiddle: (readRow("3-0", 0) + readRow("3-0", 1)) / 2,
-      },
+      brackets: paths.map((path) => {
+        const length = path.getTotalLength();
+        const start = path.getPointAtLength(0);
+        const end = path.getPointAtLength(length);
+        return {
+          next: path.dataset.next,
+          shape: path.getAttribute("d"),
+          start: svg.top + start.y,
+          end: svg.top + end.y,
+        };
+      }),
+      middles: Object.fromEntries(
+        ["1-0", "1-3", "1-1", "1-2", "2-0", "2-1", "3-0"].map((id) => [id, readMiddle(id)]),
+      ),
     };
   });
 
-test("each winner's line runs to the row it holds next, crossing when the seeds flip", async ({
+test("square bracket lines join each pair of series into the middle of the one they feed", async ({
   page,
 }) => {
   const app = await openApp(page);
-  await expect(page.locator(".bracket-lines .decided")).toHaveCount(1);
-  await expect
-    .poll(async () => {
-      const { decided, rows } = await readLines(page);
-      return Math.round(decided[0].y - rows.semifinalTop);
-    })
-    .toBe(0);
+  await expect(page.locator(".bracket-lines path")).toHaveCount(3);
+  const expectJoins = async () => {
+    const { brackets, middles } = await readBrackets(page);
+    const feeders = { "2-0": "1-0", "2-1": "1-1", "3-0": "2-0" };
+    expect(brackets.map((bracket) => bracket.next)).toEqual(["2-0", "2-1", "3-0"]);
+    for (const bracket of brackets) {
+      expect(bracket.shape).toMatch(/^M[\d. ]+( [HV][\d.]+| M[\d. ]+)+$/);
+      expect(bracket.start).toBeCloseTo(middles[feeders[bracket.next]], 0);
+      expect(bracket.end).toBeCloseTo(middles[bracket.next], 0);
+    }
+  };
+  await expect.poll(async () => (await readBrackets(page)).brackets[0].end).toBeGreaterThan(0);
+  await expectJoins();
 
+  // The 8-seed Liberty win the upper series and play under the 4-seed Dream; the lines don't move.
   await app.changeSeason(finishFirstRound);
-  await expect(page.locator(".bracket-lines .decided")).toHaveCount(4);
-  const finished = await readLines(page);
-  const countEndsAt = (y) => finished.decided.filter((end) => Math.abs(end.y - y) < 1).length;
-  expect(countEndsAt(finished.rows.semifinalTop)).toBe(1);
-  expect(countEndsAt(finished.rows.semifinalBottom)).toBe(1);
-  expect(finished.open).toHaveLength(2);
-  for (const end of finished.open) expect(end.y).toBeCloseTo(finished.rows.finalsMiddle, 0);
+  await expect(page.locator('[data-series="2-1"] .team-line').first()).toContainText("Valkyries");
+  await expectJoins();
 });
 
 test("a team's dot splits its colors top and bottom, with nothing between them", async ({

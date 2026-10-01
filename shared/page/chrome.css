@@ -38,9 +38,10 @@
   margin: -8px -10px -8px -14px;
   padding: 4px;
   border: 0;
-  border-radius: 50%;
+  /* The padding trims this to a smaller rounding on the hover square. */
+  border-radius: 9px;
   background: none;
-  /* The hover circle stays inside the padding, smaller than the tap area. */
+  /* The hover square stays inside the padding, smaller than the tap area. */
   background-clip: content-box;
   color: var(--ink-mid);
   cursor: pointer;
