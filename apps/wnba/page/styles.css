@@ -69,6 +69,11 @@
   --numbers: "Barlow Condensed", "Arial Narrow", sans-serif;
   --text: "Barlow", system-ui, sans-serif;
   --radius: 2px;
+  --page-gutter: 16px;
+  --pager-track: rgba(42, 28, 16, 0.07);
+  --pager-track-edge: rgba(42, 28, 16, 0.08);
+  --pager-thumb: var(--card);
+  --pager-thumb-edge: rgba(255, 255, 255, 0.6);
   --game-row-height: 84px;
   --game-side-offset: 9px;
   --game-label-offset: -21.5px;
@@ -91,6 +96,10 @@
   --glass-light: 255, 255, 255;
   --glass-solid: rgba(42, 31, 24, 0.94);
   --glass-contrast: #000000;
+  --pager-track: rgba(255, 255, 255, 0.07);
+  --pager-track-edge: rgba(255, 255, 255, 0.06);
+  --pager-thumb: rgba(255, 255, 255, 0.11);
+  --pager-thumb-edge: rgba(255, 255, 255, 0.14);
   color-scheme: dark;
 }
 
@@ -218,22 +227,22 @@ header.top h1 {
   color: var(--ink-dim);
 }
 
-/* A list of rows keeps to a phone's width on a wide screen, so each name stays near its score. */
-#gamesWrap,
+/* A list of rows keeps to a phone's width on a wide screen, so each name stays near its score,
+   as game-pager.css keeps the Games lists. */
 #teamsWrap {
   max-width: 560px;
 }
 
 /* Games: the away and home teams face each other across the score. */
-.games-section + .games-section {
-  margin-top: 26px;
-}
 .day-label {
   margin: 14px 0 4px;
   font-family: var(--display);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--ink-dim);
+}
+.day-label:first-child {
+  margin-top: 0;
 }
 .game-side {
   gap: 4px;

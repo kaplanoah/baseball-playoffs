@@ -21,6 +21,11 @@
   --glass-light: 255, 255, 255;
   --glass-solid: rgba(28, 44, 36, 0.94);
   --glass-contrast: #000;
+  --page-gutter: 18px;
+  --pager-track: rgba(255, 255, 255, 0.07);
+  --pager-track-edge: rgba(255, 255, 255, 0.06);
+  --pager-thumb: rgba(255, 255, 255, 0.11);
+  --pager-thumb-edge: rgba(255, 255, 255, 0.14);
   --game-row-height: 63.5px;
   --game-side-offset: 1px;
   --game-label-offset: -21px;
@@ -452,81 +457,6 @@ table.st .seed-cell {
   max-width: 60ch;
 }
 
-/* The pill stays at the top of the screen while the games scroll under it. Its bar reaches up
-   under the status bar and fills with the page's color once the pill is held in place, and lets
-   touches through to whatever it overlaps. */
-.game-tabs-bar {
-  --bar-top: calc(env(safe-area-inset-top) + 10px);
-  position: sticky;
-  z-index: 5;
-  top: 0;
-  margin: calc(-1 * var(--bar-top)) -18px 0;
-  padding: var(--bar-top) 18px 18px;
-  pointer-events: none;
-}
-.game-tabs-bar.stuck {
-  background: linear-gradient(to bottom, var(--bg) calc(100% - 18px), transparent);
-}
-/* The Games lists sit side by side on a pill like the tab bar's. Its thumb follows --swipe, set
-   from the lists' scroll position: 0 at the first list, 2 at the last, in between mid-swipe. */
-.game-tabs {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  max-width: 560px;
-  padding: 3px;
-  pointer-events: auto;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-.game-tabs-thumb {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc((100% - 6px) / 3);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.11);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 2px 6px -2px rgba(0, 0, 0, 0.5);
-  transform: translateX(calc(var(--swipe, 1) * 100%));
-  pointer-events: none;
-}
-/* --nearness runs from 0 to 1 as the thumb reaches a label, which brightens with it. */
-.game-tabs button {
-  position: relative;
-  font: inherit;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  background: none;
-  border: 0;
-  border-radius: 999px;
-  color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--ink-dim));
-  padding: 7px 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-/* The lists run to the screen's edges, so a swiped list slides off the screen, not off the gutter. */
-.game-pages {
-  display: flex;
-  align-items: flex-start;
-  max-width: calc(560px + 36px);
-  margin-inline: -18px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x mandatory;
-}
-.game-page {
-  flex: 0 0 100%;
-  min-width: 0;
-  padding-inline: 18px;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
 .game-day {
   font-size: 0.64rem;
   font-weight: 400;

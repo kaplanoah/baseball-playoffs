@@ -1,10 +1,10 @@
 import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
-import { wireGameTabs } from "./games-view.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fetchLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
+import { startGamePager } from "#shared/game-pager.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { startMatchups } from "./matchup.js";
@@ -131,7 +131,7 @@ function finishReordering(order) {
 
 function wireControls() {
   startPageTabs();
-  wireGameTabs();
+  startGamePager();
   startMatchups();
   startSettings();
   const picker = findYearPicker();

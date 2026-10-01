@@ -1,4 +1,4 @@
-import { countDaysBetween, formatClockTime } from "#shared/days.js";
+import { countDaysBetween, formatClockTime, formatWeekdayAndDate } from "#shared/days.js";
 import { renderGameRow } from "#shared/game-row.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
@@ -143,11 +143,11 @@ const renderGameList = (games, allGames) =>
  * @param {number} now
  */
 const renderDays = (days, allGames, now) =>
-  days.map(
+  html`${days.map(
     ({ day, games }) =>
       html`<h3 class="day-label">${describeDay(day, now)}</h3>
         ${renderGameList(games, allGames)}`,
-  );
+  )}`;
 
 /**
  * @param {Game[]} games
@@ -185,7 +185,22 @@ export function sortGamesByDay(games, now) {
   return { today, ahead: groupByDay(ahead), before: groupByDay(before).reverse() };
 }
 
+/** @param {string} text */
+const renderEmptyNote = (text) => html`<p class="empty-note">${text}</p>`;
+
 /**
+ * @param {Game[]} today
+ * @param {Game[]} allGames
+ * @param {number} now
+ */
+const renderToday = (today, allGames, now) =>
+  today.length
+    ? html`<h3 class="day-label">${formatWeekdayAndDate(new Date(now))}</h3>
+        ${renderGameList(today, allGames)}`
+    : renderEmptyNote("No games today.");
+
+/**
+ * The Games view's three lists: results, newest first, today's games, and the games ahead.
  * @param {{ games?: Game[], series?: Series[] } | null} season
  * @param {number} now
  */
@@ -193,27 +208,18 @@ export function renderGames(season, now) {
   const seriesById = new Map((season?.series ?? []).map((series) => [series.id, series]));
   const allGames = season?.games ?? [];
   const shown = allGames.filter((game) => hasATeam(game) && !isCalledOff(game, seriesById));
-  if (!shown.length) return html`<p class="empty-note">No playoff games yet.</p>`;
+  if (!shown.length) {
+    const note = renderEmptyNote("No playoff games yet.");
+    return { previous: note, today: note, next: note };
+  }
   const { today, ahead, before } = sortGamesByDay(shown, now);
-  const todayList = today.length
-    ? renderGameList(today, allGames)
-    : html`<p class="empty-note">No games today.</p>`;
-  return html`<section class="games-section">
-      <h2 class="section-label">Today</h2>
-      ${todayList}
-    </section>
-    ${
-      ahead.length > 0 &&
-      html`<section class="games-section">
-      <h2 class="section-label">Upcoming</h2>
-      ${renderDays(ahead, allGames, now)}
-    </section>`
-    }
-    ${
-      before.length > 0 &&
-      html`<section class="games-section">
-      <h2 class="section-label">Results</h2>
-      ${renderDays(before, allGames, now)}
-    </section>`
-    }`;
+  return {
+    previous: before.length
+      ? renderDays(before, allGames, now)
+      : renderEmptyNote("No results yet."),
+    today: renderToday(today, allGames, now),
+    next: ahead.length
+      ? renderDays(ahead, allGames, now)
+      : renderEmptyNote("No more games scheduled."),
+  };
 }
