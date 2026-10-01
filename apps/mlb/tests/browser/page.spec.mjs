@@ -950,6 +950,31 @@ test("on a phone, the World Series card scrolls all the way to the middle of the
   expect((await readBracketFit(page)).pageOverflow).toBe(0);
 });
 
+test("on a phone, the bracket opens on the earliest round still playing, and swipes either way", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  const scroller = page.locator(".tree-scroll");
+  await expect(page.locator('.box[data-round="WC"]').first()).toBeInViewport();
+  expect(await scroller.evaluate((element) => element.scrollLeft)).toBe(0);
+
+  await chooseSeason(page, "2025");
+  const worldSeries = page.locator('.box[data-round="WS"]');
+  await expect(worldSeries).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.box[data-round="WC"]').first()).not.toBeInViewport();
+
+  await scroller.evaluate((element) => (element.scrollLeft = 0));
+  await expect(page.locator('.box[data-round="WC"]').first()).toBeInViewport();
+  await expect(worldSeries).not.toBeInViewport();
+
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Bracket" }).click();
+  await expect(worldSeries).toBeInViewport({ ratio: 1 });
+});
+
 const readStackedSpaces = (page) =>
   page.evaluate(() => {
     const readBox = (element) => element.getBoundingClientRect();

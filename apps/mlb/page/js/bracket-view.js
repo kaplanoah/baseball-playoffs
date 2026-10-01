@@ -10,6 +10,7 @@ import { readGameDay } from "./dates.js";
 import { countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 import { describeInning, renderOutLights } from "./games-view.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
+import { findOpeningRound, watchOpeningRound } from "#shared/opening-round.js";
 import { session } from "./session.js";
 
 const findRank = (id) => {
@@ -203,7 +204,7 @@ function renderCardNote(series, champLine) {
 
 function renderSeriesCard(series, top, left, champLine = "", width = CARD.width) {
   const [first, second] = orderRows(series);
-  return html`<div class="box" style="left:${left}px; top:${top}px; width:${width}px;">
+  return html`<div class="box" data-round="${series.round}" style="left:${left}px; top:${top}px; width:${width}px;">
     <div class="series ${series.round === "WS" ? "world" : ""}">
       <div class="bestof"><span>${ROUND_LABEL[series.round]}</span><span>BO${series.bestOf}</span></div>
       ${renderMatchupRow(series, first)}${renderMatchupRow(series, second)}
@@ -385,6 +386,18 @@ function renderStackedStage(bracket, growth) {
   </div>`;
 }
 
+const ROUND_ORDER = ["WC", "DS", "CS", "WS"];
+
+/** @param {any} bracket */
+function findOpeningRoundCode(bracket) {
+  const { al, nl, ws } = bracket;
+  const rounds = [[...al.wc, ...nl.wc], [...al.ds, ...nl.ds], [...al.cs, ...nl.cs], [ws]];
+  return ROUND_ORDER[findOpeningRound(rounds, (series) => !!series.winner)];
+}
+
+/** @type {ReturnType<typeof watchOpeningRound> | null} */
+let placeBracket = null;
+
 export function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
   const noFieldNote = document.getElementById("noFieldNote");
@@ -407,7 +420,17 @@ export function renderBracket() {
     html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
   );
   const scroller = /** @type {HTMLElement} */ (wrap.querySelector(".tree-scroll"));
-  scroller.scrollLeft = scrollLeft;
+  const openingRound = findOpeningRoundCode(bracket);
+  const target = /** @type {HTMLElement} */ (
+    scroller.querySelector(`.box[data-round="${openingRound}"]`)
+  );
+  placeBracket ??= watchOpeningRound(wrap);
+  placeBracket({
+    scroller,
+    target,
+    round: ROUND_ORDER.indexOf(openingRound),
+    keptLeft: scrollLeft,
+  });
   if (hadFocus) scroller.focus({ preventScroll: true });
   renderedGrowth = growth;
   renderBanner(bracket);
