@@ -11,6 +11,7 @@ import { renderPitchColumns } from "./pitch-columns.js";
 import { fetchPitcher } from "./pitcher-fetch.js";
 import { session } from "./session.js";
 import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
+import { renderTapeRow } from "#shared/tape.js";
 
 const SIDES = ["away", "home"];
 const TAPE = [
@@ -70,17 +71,10 @@ function findLeader(sides, key) {
   return away < home ? "away" : "home";
 }
 
-function renderTapeSide(side, measure, leader) {
+function describeTapeSide(side, measure) {
   const line = side.pitcher?.line;
-  const value = line?.[measure.key];
-  if (value == null) return html`<div class="tape-side ${side.key}"></div>`;
-  const beaten = measureBeaten(side.pitcher.ranks?.[measure.key]);
-  const bar =
-    beaten != null &&
-    html`<span class="tape-bar"><i class="${leader === side.key ? "lead" : ""}" style="width: ${beaten}%"></i></span>`;
-  return html`<div class="tape-side ${side.key}">
-    <span class="tape-value tabular">${measure.format(line)}</span>${bar}
-  </div>`;
+  if (line?.[measure.key] == null) return null;
+  return { value: measure.format(line), bar: measureBeaten(side.pitcher.ranks?.[measure.key]) };
 }
 
 const isUnranked = (side) => Boolean(side.pitcher?.line && !side.pitcher.ranks);
@@ -103,14 +97,14 @@ function renderTapeNotes(sides, counted) {
 function renderTape(sides) {
   const counted = sides.find((side) => side.pitcher?.line)?.pitcher.starters;
   if (!counted) return html``;
-  const rows = TAPE.map((measure) => {
-    const leader = findLeader(sides, measure.key);
-    return html`<div class="tape-row">
-      ${renderTapeSide(sides[0], measure, leader)}
-      <span class="tape-label">${measure.label}</span>
-      ${renderTapeSide(sides[1], measure, leader)}
-    </div>`;
-  });
+  const rows = TAPE.map((measure) =>
+    renderTapeRow({
+      label: measure.label,
+      away: describeTapeSide(sides[0], measure),
+      home: describeTapeSide(sides[1], measure),
+      leader: findLeader(sides, measure.key),
+    }),
+  );
   return html`<div class="tape">
     ${rows}
     ${renderTapeNotes(sides, counted)}

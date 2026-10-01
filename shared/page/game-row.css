@@ -94,3 +94,13 @@
 .game-status {
   translate: 0 var(--status-offset);
 }
+/* An action that covers the whole row, so a tap anywhere on the game opens it. */
+.game-open {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
