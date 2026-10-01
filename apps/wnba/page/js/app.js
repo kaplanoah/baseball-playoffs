@@ -1,5 +1,6 @@
 import { setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
+import { fillGameLists, startGamePager } from "#shared/game-pager.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
@@ -30,7 +31,8 @@ function renderAll() {
   const now = Date.now();
   findElement("yearTag").textContent = String(session.year);
   setHtml(findElement("bracketWrap"), renderBracket(session.season, now));
-  setHtml(findElement("gamesWrap"), renderGames(session.season, now));
+  const gameLists = renderGames(session.season, now);
+  fillGameLists((list) => gameLists[list]);
   setHtml(findElement("standingsWrap"), renderStandings(session.season));
   setHtml(findElement("teamsWrap"), renderTeams(session.season));
   renderStamp();
@@ -46,6 +48,7 @@ async function boot() {
   watchReturns();
   trackKeyboardFocus();
   startPageTabs();
+  startGamePager();
   startSettingsSheet();
   session.db = createWorkerStore();
   await loadSeason();

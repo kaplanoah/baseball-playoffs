@@ -9,7 +9,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await expect(page.locator("#stamp")).toHaveText(/^Updated 5:55\sPM$/);
 
   await page.getByRole("tab", { name: "Games" }).click();
-  await expect(page.locator("#gamesWrap .game-row").first()).toContainText("7:00");
+  await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standingsWrap tr.cut")).toContainText("Fire");
   await page.getByRole("tab", { name: "Teams" }).click();
@@ -31,6 +31,56 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
   await expect(row.locator(".game-headline .score")).toHaveText(/30\s*27/);
   await expect(row.locator(".game-extra.home .bonus")).toHaveText("Bonus");
   await expect(row.locator(".game-extra.away")).toBeEmpty();
+});
+
+test("the Games tab opens on today's games, and its pill moves to the results and the games ahead", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const today = page.getByRole("tab", { name: "Today" });
+  await expect(today).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#games-today")).toContainText("Dream");
+
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.locator("#games-previous .day-label").first()).toHaveText("Yesterday");
+  await expect(page.locator("#games-previous")).toContainText("Final");
+
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expect(page.getByRole("tab", { name: "Next" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#games-next")).toContainText("Semis");
+  await expect(page.locator("#games-today")).toHaveJSProperty("inert", true);
+});
+
+test.describe("on a phone, the Games lists", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("swipe sideways from today's to the results, and the pill follows", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Games" }).click();
+    const pages = page.locator("#gamePages");
+    await expect(page.locator("#games-today")).toContainText("Dream");
+
+    await pages.evaluate((element) => element.scrollTo({ left: 0, behavior: "instant" }));
+
+    await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await expect(page.locator("#games-previous")).toBeInViewport();
+  });
+
+  test("reach the screen's edges, so a swiped list slides off the screen", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Games" }).click();
+    const box = await page.locator("#gamePages").boundingBox();
+    expect(box.x).toBe(0);
+    expect(box.width).toBe(390);
+  });
 });
 
 test("a team stays put as Bonus comes and goes, level with the score", async ({ page }) => {
@@ -197,7 +247,7 @@ test("the page uses its own fonts, served with it", async ({ page }) => {
 test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
   await openApp(page);
   for (const [tab, row] of [
-    ["Games", "#gamesWrap .game-row"],
+    ["Games", "#games-today .game-row"],
     ["Teams", "#teamsWrap .team-row"],
   ]) {
     await page.getByRole("tab", { name: tab }).click();

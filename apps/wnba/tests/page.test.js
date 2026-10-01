@@ -27,6 +27,18 @@ const readText = (markup) =>
     .trim();
 const inEastern = (check) => checkInTimeZone(EASTERN, check);
 
+/**
+ * @param {object} season
+ * @param {"previous" | "today" | "next"} list
+ */
+const readGameList = (season, list) => readText(renderGames(season, NOW)[list]);
+
+/** @param {object} season */
+const readGameMarkup = (season) =>
+  Object.values(renderGames(season, NOW))
+    .map((list) => list.text)
+    .join("");
+
 function replaceGame(season, id, changes) {
   return {
     ...season,
@@ -81,22 +93,28 @@ test("a game without a set time falls on the league's day, even out west", () =>
 
 test("a live game shows its clock and who's in the bonus, and stays with today's", () =>
   inEastern(() => {
-    const text = readText(renderGames(LIVE_TONIGHT, NOW));
-    assert.match(text, /^Today 4 Dream 1st Rd 1-0 71 68 Q4 3:48 5 Mystics Bonus 2 Valkyries /);
+    const text = readGameList(LIVE_TONIGHT, "today");
+    assert.match(
+      text,
+      /^Wed, Sep 30 4 Dream 1st Rd 1-0 71 68 Q4 3:48 5 Mystics Bonus 2 Valkyries /,
+    );
   }));
 
 test("a final dims the loser, and a game not yet played shows its start in the viewer's time", () =>
   inEastern(() => {
-    const markup = renderGames(SEASON, NOW).text;
-    assert.match(markup, /data-game="1042600102">\s*<span class="game-side away lost">/);
-    assert.match(readText(renderGames(SEASON, NOW)), /^Today 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics/);
-    const western = checkInTimeZone("America/Los_Angeles", () =>
-      readText(renderGames(SEASON, NOW)),
+    assert.match(
+      readGameMarkup(SEASON),
+      /data-game="1042600102">\s*<span class="game-side away lost">/,
     );
-    assert.match(western, /^Today 4 Dream 1st Rd 1-0 4:00 PM 5 Mystics/);
+    assert.match(
+      readGameList(SEASON, "today"),
+      /^Wed, Sep 30 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics/,
+    );
+    const western = checkInTimeZone("America/Los_Angeles", () => readGameList(SEASON, "today"));
+    assert.match(western, /^Wed, Sep 30 4 Dream 1st Rd 1-0 4:00 PM 5 Mystics/);
   }));
 
-test("a game a finished series no longer needs is left off, and an empty section says nothing", () =>
+test("a game a finished series no longer needs is left off, and an empty list says so", () =>
   inEastern(() => {
     const game3 = {
       ...SEASON.games.find((game) => game.id === "1042600102"),
@@ -107,20 +125,30 @@ test("a game a finished series no longer needs is left off, and an empty section
       start: "2026-10-02T23:00:00Z",
     };
     const season = { ...SEASON, games: [...SEASON.games, game3] };
-    assert.doesNotMatch(renderGames(season, NOW).text, /1042600103/);
+    assert.doesNotMatch(readGameMarkup(season), /1042600103/);
     const onlyResults = { ...SEASON, games: SEASON.games.filter((game) => game.state === "final") };
-    const text = readText(renderGames(onlyResults, NOW));
-    assert.match(text, /^Today No games today\. Results /);
-    assert.match(text, /Final 2 Valkyries$/);
+    assert.equal(readGameList(onlyResults, "today"), "No games today.");
+    assert.equal(readGameList(onlyResults, "next"), "No more games scheduled.");
+    assert.match(readGameList(onlyResults, "previous"), /^Yesterday .* Final 2 Valkyries$/);
+    assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet.");
+    const nothingPlayed = {
+      ...SEASON,
+      games: SEASON.games.filter((game) => game.state !== "final"),
+    };
+    assert.equal(readGameList(nothingPlayed, "previous"), "No results yet.");
+    assert.match(readGameList(nothingPlayed, "today"), /^Wed, Sep 30 4 Dream /);
   }));
 
 test("each game's label counts its series as it stood at tip-off, or after the game once it's final", () =>
   inEastern(() => {
-    const text = readText(renderGames(SEASON, NOW));
-    assert.match(text, /^Today 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics /);
-    assert.match(text, / 8 Liberty 1st Rd 1-0 91 75 Final 1 Lynx /);
-    assert.match(text, / 1 Lynx 1st Rd 0-2 71 87 Final 8 Liberty /);
-    const labels = [...renderGames(SEASON, NOW).text.matchAll(/class="series-label( decided)?"/g)];
+    assert.match(
+      readGameList(SEASON, "today"),
+      /^Wed, Sep 30 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics /,
+    );
+    const results = readGameList(SEASON, "previous");
+    assert.match(results, / 8 Liberty 1st Rd 1-0 91 75 Final 1 Lynx /);
+    assert.match(results, / 1 Lynx 1st Rd 0-2 71 87 Final 8 Liberty /);
+    const labels = [...readGameMarkup(SEASON).matchAll(/class="series-label( decided)?"/g)];
     assert.deepEqual(
       labels.filter(([, decided]) => decided).length,
       1,
@@ -130,16 +158,15 @@ test("each game's label counts its series as it stood at tip-off, or after the g
 
 test("a game whose teams aren't both known yet names its number instead of a series count", () =>
   inEastern(() => {
-    const text = readText(renderGames(SEASON, NOW));
+    const text = readGameList(SEASON, "next");
     assert.match(text, / 8 Liberty Semis G1 TBD TBD /);
     assert.match(text, / TBD Semis G3 TBD 8 Liberty /);
   }));
 
 test("a game that may not be needed says so under its time", () =>
   inEastern(() => {
-    const markup = renderGames(SEASON, NOW).text;
     assert.match(
-      markup,
+      readGameMarkup(SEASON),
       /<span class="time tabular">TBD<\/span><\/span\s*><span class="game-status">If needed<\/span>/,
     );
   }));
