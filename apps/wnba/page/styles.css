@@ -246,16 +246,112 @@ header.top h1 {
   max-width: 560px;
 }
 
-/* Games: the away and home teams face each other across the score. */
+/* A bracket's series and a day of games are one kind of card, under a shaded head. */
+.series,
+.game-day {
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+}
+.series-head,
 .day-label {
-  margin: 14px 0 4px;
+  border-bottom: 1px solid var(--divider);
+  background: color-mix(in srgb, var(--divider) 35%, var(--card));
+}
+.team-line .club,
+.game-side .club {
+  gap: 8px;
+}
+.team-line .dot,
+.game-side .dot {
+  width: 16px;
+  height: 16px;
+}
+
+/* Games: each day's games share a card, under its date as a wall calendar shows it, and in it the
+   away and home teams face each other across the score. */
+.game-day {
+  --day-inset: 17px;
+  overflow: clip;
+}
+.game-day + .game-day {
+  margin-top: 12px;
+}
+.day-label {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 8px var(--day-inset) 8px 13px;
+  font-weight: 400;
+}
+.day-date {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 1.4rem;
+}
+.day-month {
+  font-family: var(--display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--teal);
+}
+.day-number {
+  font-family: var(--display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 0.8;
+}
+.day-words {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.day-name {
   font-family: var(--text);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1;
+}
+.day-rounds {
+  font-family: var(--text);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
   color: var(--ink-dim);
 }
-.day-label:first-child {
-  margin-top: 0;
+.game-day .game-list {
+  padding-inline: var(--day-inset);
+  border-top: 0;
+}
+/* Closer than a row's usual gap, so a long name still fits beside the card's padding. */
+.game-day .game-row {
+  column-gap: 6px;
+}
+.game-day .game-row:last-child {
+  border-bottom: 0;
+}
+/* A narrow phone trims the card's sides, and the narrowest the space around each dot, so a long
+   name still fits. */
+@media (max-width: 389px) {
+  .game-day {
+    --day-inset: 12px;
+  }
+}
+@media (max-width: 374px) {
+  .game-day {
+    --day-inset: 8px;
+  }
+  .game-day .game-side .club {
+    gap: 6px;
+  }
 }
 .game-side {
   gap: 4px;
@@ -753,9 +849,6 @@ table.players td.minutes {
 .series {
   width: 100%;
   min-width: 0;
-  background: var(--card);
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius);
 }
 .series.finals {
   border-color: var(--orange);
@@ -764,8 +857,6 @@ table.players td.minutes {
 .series-head {
   min-height: 25px;
   padding: 4px 10px;
-  border-bottom: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--divider) 35%, var(--card));
 }
 .series-note {
   display: block;
@@ -798,13 +889,6 @@ table.players td.minutes {
 }
 .team-line + .team-line {
   border-top: 1px solid var(--divider);
-}
-.team-line .club {
-  gap: 8px;
-}
-.team-line .dot {
-  width: 16px;
-  height: 16px;
 }
 .team-line .wins {
   min-width: 18px;
