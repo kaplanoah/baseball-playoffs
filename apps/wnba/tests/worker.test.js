@@ -107,6 +107,21 @@ test("while the scoreboard doesn't answer, ESPN stands in for the games it has s
   assert.deepEqual(describe("1042600123"), ["pre", "9:00 pm ET", null, 0, 0]);
 });
 
+test("ESPN doesn't stand in until one of its games has started", async () => {
+  const espn = structuredClone(ESPN.answers);
+  const listing = Object.keys(espn).find((url) => url.includes("/events?dates="));
+  espn[listing].items = espn[listing].items.filter((item) => item.$ref.includes("401918022"));
+  const league = createLeague({ refuse: { scoreboard: "page" }, espn });
+  const server = createSnapshotServer({
+    fetchImpl: league.fetchImpl,
+    now: () => Date.parse(ESPN.now),
+  });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.deepEqual([snapshot.missing, snapshot.standIn], [["scoreboard"], null]);
+});
+
 test("while the scoreboard answers, ESPN isn't read", async () => {
   const league = createLeague({ espn: ESPN.answers });
   const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });

@@ -261,23 +261,28 @@ function findBackupGame(game, backupGames) {
   return nearest ?? null;
 }
 
-// A game ESPN hasn't started keeps the league's own word on it.
-function applyBackupGames(games, backupGames) {
+// Each league game a started ESPN game stands for, by the league's game ID. A game ESPN hasn't
+// started keeps the league's own word on it.
+function matchBackupGames(games, backupGames) {
   const startedGames = backupGames.filter((backup) => backup.state !== "pre");
-  return games.map((game) => {
-    const backup = findBackupGame(game, startedGames);
-    if (!backup) return game;
-    const { state, status, period, clock } = backup;
-    return {
-      ...game,
-      state,
-      status,
-      period,
-      clock,
-      away: { ...game.away, score: backup.away.score },
-      home: { ...game.home, score: backup.home.score },
-    };
-  });
+  return new Map(
+    games
+      .map((game) => [game.id, findBackupGame(game, startedGames)])
+      .filter(([, backup]) => backup),
+  );
+}
+
+function applyBackupGame(game, backup) {
+  const { state, status, period, clock } = backup;
+  return {
+    ...game,
+    state,
+    status,
+    period,
+    clock,
+    away: { ...game.away, score: backup.away.score },
+    home: { ...game.home, score: backup.home.score },
+  };
 }
 
 /**
@@ -288,7 +293,10 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   const backupGames =
     !responses.scoreboard && responses.backup ? responses.backup.games.map(readBackupGame) : [];
   const leagueGames = mergeGames(responses.schedule, responses.scoreboard);
-  const games = backupGames.length ? applyBackupGames(leagueGames, backupGames) : leagueGames;
+  const standIns = matchBackupGames(leagueGames, backupGames);
+  const games = leagueGames.map((game) =>
+    standIns.has(game.id) ? applyBackupGame(game, standIns.get(game.id)) : game,
+  );
   const bracket = responses.bracket?.bracket?.playoffBracketSeries;
   const countedSeries = countSeriesFromGames(games);
   const series = bracket
@@ -302,7 +310,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     series,
     standings: readStandingsRows(responses.standings),
     missing: LEAGUE_FEEDS.filter((name) => !responses[name]),
-    standIn: backupGames.length ? "espn" : null,
+    standIn: standIns.size ? "espn" : null,
   };
 }
 
