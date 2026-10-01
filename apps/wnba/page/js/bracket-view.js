@@ -1,4 +1,4 @@
-import { countDaysBetween, formatClockTime } from "#shared/days.js";
+import { formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { findOpeningRound } from "#shared/opening-round.js";
 import { renderRoundDots } from "#shared/round-dots.js";
@@ -59,17 +59,16 @@ function describeWait(series, seriesById) {
  */
 function renderSeriesNote(series, games, now, seriesById) {
   const live = games.find((game) => game.series === series.id && game.state === "live");
-  if (live) return html`<span class="series-note live">Live, Game ${live.number}</span>`;
+  if (live) return html`<span class="series-note">Live, Game ${live.number}</span>`;
   if (series.winner)
-    return html`<span class="series-note decided">${describeSeriesStanding(series)}</span>`;
+    return html`<span class="series-note">${describeSeriesStanding(series)}</span>`;
   const next = games.find((game) => game.id === series.nextGame?.id);
   if (!next || !series.top || !series.bottom)
     return html`<span class="series-note">${describeWait(series, seriesById)}</span>`;
   const day = readGameDay(next);
   const time = next.isTimeSet && next.start ? formatClockTime(new Date(next.start)) : "";
   const when = [day && describeDay(day, now), time].filter(Boolean).join(" ");
-  const isToday = !!day && countDaysBetween(new Date(now), day) === 0;
-  return html`<span class="series-note${isToday ? " today" : ""}">${joinWithSeparator(
+  return html`<span class="series-note">${joinWithSeparator(
     [`Game ${next.number}`, when].filter(Boolean),
   )}</span>`;
 }
