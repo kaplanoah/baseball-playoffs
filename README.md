@@ -32,8 +32,11 @@ happens to a team in your ranking.
 
 A private web page that tracks the WNBA playoffs. It shows the bracket, every
 game with live scores and clocks, the league and conference standings with the
-playoff line, and how far each team got. It follows the phone's dark or light
-setting, or the one you pick in its settings. Added to the home screen, it keeps
+playoff line, and how far each team got. Tap a game for its details: once it
+starts, its points by quarter, the two teams' stats side by side, and each team's
+top scorers; before it does, the two teams' meetings this season, how their
+seasons compare, and each team's leading scorers. It follows the phone's dark or
+light setting, or the one you pick in its settings. Added to the home screen, it keeps
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
