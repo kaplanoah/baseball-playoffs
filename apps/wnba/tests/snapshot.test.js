@@ -194,3 +194,11 @@ test("polling waits until 15 minutes before the next set start, and runs every 1
   };
   assert.equal(WNBASnapshot.choosePollDelay(live, now), 15 * 1000);
 });
+
+test("a game that hasn't started an hour late keeps polling fast, and one hours late doesn't", () => {
+  const lateGame = buildAfternoon().games.find((game) => game.id === "1042600132");
+  const start = Date.parse(lateGame.start);
+  const snapshot = { games: [lateGame] };
+  assert.equal(WNBASnapshot.choosePollDelay(snapshot, start + 60 * 60 * 1000), 15 * 1000);
+  assert.equal(WNBASnapshot.choosePollDelay(snapshot, start + 4 * 60 * 60 * 1000), 60 * 60 * 1000);
+});

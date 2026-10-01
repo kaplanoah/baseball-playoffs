@@ -109,5 +109,6 @@ test("a push goes to the endpoint encrypted, with the push service's headers", a
   assert.equal(init.headers["content-encoding"], "aes128gcm");
   assert.equal(init.headers.ttl, "21600");
   assert.match(init.headers.authorization, /^vapid t=.+, k=.+$/);
+  assert.ok(init.signal instanceof AbortSignal, "a push service that doesn't answer gives up");
   assert.deepEqual(await readPushMessage(init.body, keys), { title: "Hello" });
 });

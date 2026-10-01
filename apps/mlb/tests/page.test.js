@@ -690,7 +690,7 @@ test("each series keeps whichever of the saved and live records has counted more
   try {
     Object.assign(session, { activeYear: 2026, readings: null });
     session.seasonDoc = { year: 2026, teams, series: savedSeries, ranking: [], log: [] };
-    session.live = { ...live, projected: false, standings: null, teams, series: liveSeries };
+    session.live = { ...live, projected: false, standings: {}, teams, series: liveSeries };
     composeState();
     assert.deepEqual(session.state.series, {
       AL_WC1: savedSeries.AL_WC1,
