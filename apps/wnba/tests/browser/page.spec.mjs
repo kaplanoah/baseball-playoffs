@@ -32,17 +32,98 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
   await expect(row.locator(".side.home .bonus")).toHaveText("Bonus");
 });
 
-test("the page follows the phone's dark or light setting", async ({ page }) => {
+const readBackground = (page) =>
+  page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+const MAPLE = "rgb(233, 212, 176)";
+const WALNUT = "rgb(29, 21, 17)";
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {"light" | "dark"} theme
+ */
+async function expectTheme(page, theme) {
+  const isDark = theme === "dark";
+  await expect.poll(() => readBackground(page)).toBe(isDark ? WALNUT : MAPLE);
+  await expect(page.locator("#homeScreenIcon")).toHaveAttribute(
+    "href",
+    isDark ? "icon-180.png" : "icon-light-180.png",
+  );
+  await expect(page.locator("#tabIcon")).toHaveAttribute(
+    "href",
+    isDark ? "icon.svg" : "icon-light.svg",
+  );
+  await expect(page.locator("#themeColor")).toHaveAttribute(
+    "content",
+    isDark ? "#1d1511" : "#e9d4b0",
+  );
+  // The select's down arrow is drawn in the theme's dim ink.
+  const arrow = await page
+    .locator("#appearanceSel")
+    .evaluate((select) => getComputedStyle(select).backgroundImage);
+  expect(arrow).toContain(isDark ? "b19a86" : "6f563c");
+}
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string} choice
+ */
+async function chooseAppearance(page, choice) {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("combobox", { name: "Appearance" }).selectOption({ label: choice });
+  await page.keyboard.press("Escape");
+}
+
+test("on Automatic, the page and its icons follow the phone's dark or light setting", async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await openApp(page);
-  const readBackground = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(await readBackground()).toBe("rgb(29, 21, 17)");
+  await expect(page.locator("#appearanceSel")).toHaveValue("auto");
+  await expectTheme(page, "dark");
   await page.emulateMedia({ colorScheme: "light" });
-  expect(await readBackground()).toBe("rgb(233, 212, 176)");
+  await expectTheme(page, "light");
+});
+
+test("choosing Walnut or Maple overrides the phone, and the choice stays after a reload", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openApp(page);
+  await chooseAppearance(page, "Walnut");
+  await expectTheme(page, "dark");
+  await page.reload();
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  await expectTheme(page, "dark");
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await chooseAppearance(page, "Maple");
+  await expectTheme(page, "light");
+  await chooseAppearance(page, "Automatic");
+  await expectTheme(page, "dark");
+});
+
+test("the page serves both themes' icons", async ({ page }) => {
+  await openApp(page);
+  for (const href of ["icon-180.png", "icon-light-180.png", "icon.svg", "icon-light.svg"]) {
+    const answer = await page.request.get(href);
+    expect(answer.ok(), href).toBe(true);
+  }
+});
+
+test("the home screen names the app WNBA", async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute(
+    "content",
+    "WNBA",
+  );
+  const manifest = await (await page.request.get("manifest.webmanifest")).json();
+  expect(manifest.short_name).toBe("WNBA");
 });
 
 test("the page uses its own fonts, served with it", async ({ page }) => {
   await openApp(page);
+  // The bracket's wins are the first text in Barlow Condensed, so its font loads once they show.
+  await expect(page.locator('[data-series="1-0"] .wins').first()).toBeVisible();
   await page.evaluate(() => document.fonts.ready);
   const loaded = await page.evaluate(() =>
     [...document.fonts].filter((font) => font.status === "loaded").map((font) => font.family),

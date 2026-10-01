@@ -21,7 +21,7 @@ test("the page is a whole document with what an iPhone needs to save it as an ap
     'content="width=device-width, initial-scale=1, viewport-fit=cover"',
     '<link rel="manifest" href="manifest.webmanifest" />',
     '<link rel="apple-touch-icon" href="icon-180.png" />',
-    '<meta name="apple-mobile-web-app-title" content="Postseason" />',
+    '<meta name="apple-mobile-web-app-title" content="MLB" />',
   ])
     assert.ok(page.includes(tag), tag);
   assert.ok(page.includes('<script type="module" src="js/app.js"></script>'));
@@ -76,6 +76,7 @@ test("the page's files are served with their types, and the icon as PNG bytes", 
   const manifest = await (await requestPage("/k3y/manifest.webmanifest")).json();
   assert.equal(manifest.display, "standalone");
   assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.short_name, "MLB");
   for (const { src } of manifest.icons)
     assert.equal((await requestPage(`/k3y/${src}`)).status, 200, src);
 });

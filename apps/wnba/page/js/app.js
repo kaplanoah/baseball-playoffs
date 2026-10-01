@@ -8,6 +8,7 @@ import { startSettingsSheet } from "#shared/settings-sheet.js";
 import { moveTabSelection, startTabBar } from "#shared/tab-bar.js";
 import { readSelectedTab, selectTab, wireTabs } from "#shared/tabs.js";
 import { createWorkerStore } from "#shared/worker-store.js";
+import { startAppearance } from "./appearance.js";
 import { renderBracket } from "./bracket-view.js";
 import { renderGames } from "./games-view.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
@@ -78,6 +79,7 @@ function startTabs() {
 }
 
 async function boot() {
+  startAppearance();
   watchReturns();
   trackKeyboardFocus();
   startTabs();

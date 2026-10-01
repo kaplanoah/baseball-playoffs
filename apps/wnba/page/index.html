@@ -3,13 +3,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="icon-180.png" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" id="tabIcon" />
+  <link rel="apple-touch-icon" href="icon-180.png" id="homeScreenIcon" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="Playoffs" />
+  <meta name="apple-mobile-web-app-title" content="WNBA" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#e9d4b0" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#1d1511" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#1d1511" id="themeColor" />
+  <script>
+    // Picks the theme before the first paint, so Walnut never flashes Maple. js/appearance.js
+    // keeps it, and the icons and bar color that go with it, current.
+    try {
+      const choice = localStorage.getItem("appearance");
+      const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = choice === "dark" || (choice !== "light" && prefersDark);
+      document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    } catch {
+      document.documentElement.dataset.theme = "light";
+    }
+  </script>
   <title>WNBA Playoffs</title>
   <meta
     name="description"
@@ -159,6 +170,14 @@
         </div>
       </div>
       <div class="settings-controls">
+        <label class="control-row">
+          <span>Appearance</span>
+          <select id="appearanceSel" class="select-field" aria-label="Appearance">
+            <option value="auto">Automatic</option>
+            <option value="light">Maple</option>
+            <option value="dark">Walnut</option>
+          </select>
+        </label>
         <div class="control-row" id="notifyRow" hidden>
           <span class="control-label">
             <span id="notifyTitle">Notifications</span>

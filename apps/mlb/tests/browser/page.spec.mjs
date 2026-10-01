@@ -331,23 +331,43 @@ test("a game still to come shows its start time centered in its row, under the T
   expect(Math.abs(findCenterX(timeBox) - findCenterX(todayBox))).toBeLessThan(1);
 });
 
-const openWildCardDay = async (page) => {
+// A series' teamA is its higher seed or its first feeder's winner, not the game's away club.
+const openPostseasonDay = async (page, series, games) => {
   const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
   const start = "2026-09-24T18:08:00Z";
-  Object.assign(snapshot.series, {
-    NL_WC1: { winsA: 1, winsB: 0 },
-    AL_WC1: { winsA: 0, winsB: 1 },
-    AL_WC2: { winsA: 1, winsB: 1 },
-    NL_WC2: { winsA: 0, winsB: 2 },
-  });
-  snapshot.slate.today.games = [
-    { away: "PHI", home: "ATL", state: "pre", start, postseason: true },
-    { away: "CWS", home: "TEX", state: "live", start, score: [3, 1], inning: 5, half: "top" },
-    { away: "BOS", home: "NYY", state: "final", start, score: [4, 6] },
-    { away: "CHC", home: "SD", state: "final", start, score: [5, 2] },
-  ].map((game) => ({ postseason: true, ...game }));
+  Object.assign(snapshot.series, series);
+  snapshot.slate.today.games = games.map((game) => ({
+    state: "pre",
+    start,
+    postseason: true,
+    ...game,
+  }));
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   await page.getByRole("tab", { name: "Games" }).click();
+};
+
+const openWildCardDay = (page) =>
+  openPostseasonDay(
+    page,
+    {
+      NL_WC1: { winsA: 1, winsB: 0 },
+      AL_WC1: { winsA: 0, winsB: 1 },
+      AL_WC2: { winsA: 1, winsB: 1 },
+      NL_WC2: { winsA: 0, winsB: 2 },
+    },
+    [
+      { away: "PHI", home: "ATL" },
+      { away: "CWS", home: "TEX", state: "live", score: [3, 1], inning: 5, half: "top" },
+      { away: "BOS", home: "NYY", state: "final", score: [4, 6] },
+      { away: "CHC", home: "SD", state: "final", score: [5, 2] },
+    ],
+  );
+
+const WILD_CARDS_WON_BY_HIGHER_SEEDS = {
+  AL_WC1: { winsA: 2, winsB: 0 },
+  AL_WC2: { winsA: 2, winsB: 0 },
+  NL_WC1: { winsA: 2, winsB: 0 },
+  NL_WC2: { winsA: 2, winsB: 0 },
 };
 
 test("a postseason game today names its round and the series, away wins first, over its time or score", async ({
@@ -357,12 +377,7 @@ test("a postseason game today names its round and the series, away wins first, o
   await openWildCardDay(page);
   const labels = page.locator("#games-today .series-label");
 
-  await expect(labels).toHaveText([
-    "NL Wild Card 0-1",
-    "AL Wild Card 1-0",
-    "AL Wild Card 1-1",
-    "NL Wild Card 2-0",
-  ]);
+  await expect(labels).toHaveText(["NL WC 0-1", "AL WC 1-0", "AL WC 1-1", "NL WC 2-0"]);
   await expect(labels.first()).toHaveCSS("text-transform", "uppercase");
   await expect(labels.first()).toHaveCSS("color", await readColor(page, "--ink-dim"));
   await expect(labels.last()).toHaveCSS("color", await readColor(page, "--gold"));
@@ -382,6 +397,40 @@ test("a postseason game today names its round and the series, away wins first, o
   const row = await page.locator("#games-today .game-row").first().boundingBox();
   const time = await page.locator("#games-today .game-time").boundingBox();
   expect(Math.abs(time.x + time.width / 2 - (row.x + row.width / 2))).toBeLessThan(1);
+});
+
+test("later rounds read DS, CS and WS in the series label", async ({ page }) => {
+  await openPostseasonDay(
+    page,
+    {
+      ...WILD_CARDS_WON_BY_HIGHER_SEEDS,
+      AL_DS1: { winsA: 1, winsB: 0 },
+      NL_DS1: { winsA: 3, winsB: 0 },
+      NL_DS2: { winsA: 3, winsB: 1 },
+      NL_CS: { winsA: 2, winsB: 1 },
+    },
+    [
+      { away: "NYY", home: "TB" },
+      { away: "LAD", home: "MIL" },
+    ],
+  );
+  await expect(page.locator("#games-today .series-label")).toHaveText(["ALDS 0-1", "NLCS 1-2"]);
+
+  await openPostseasonDay(
+    page,
+    {
+      ...WILD_CARDS_WON_BY_HIGHER_SEEDS,
+      AL_DS1: { winsA: 3, winsB: 0 },
+      AL_DS2: { winsA: 3, winsB: 0 },
+      AL_CS: { winsA: 4, winsB: 2 },
+      NL_DS1: { winsA: 3, winsB: 0 },
+      NL_DS2: { winsA: 3, winsB: 0 },
+      NL_CS: { winsA: 4, winsB: 1 },
+      WS: { winsA: 2, winsB: 2 },
+    },
+    [{ away: "MIL", home: "TB" }],
+  );
+  await expect(page.locator("#games-today .series-label")).toHaveText(["WS 2-2"]);
 });
 
 test("only today's postseason games carry a series label", async ({ page }) => {
@@ -405,6 +454,20 @@ test("with starters named, a game's start time centers on the clubs and records,
   const home = await row.locator(".game-side.home").boundingBox();
 
   await expect(row.locator(".starter")).toHaveText(["BlubaughR3.66 ERA", "SpringsL4.02 ERA"]);
+  const readBaselines = () =>
+    row.locator(".starter.away").evaluate((starter) =>
+      [".starter-name", ".starter-era b", ".starter-era-label"].map((selector) => {
+        const marker = document.createElement("span");
+        marker.style.cssText = "display: inline-block; vertical-align: baseline";
+        starter.querySelector(selector).append(marker);
+        const { top } = marker.getBoundingClientRect();
+        marker.remove();
+        return top;
+      }),
+    );
+  const [nameBaseline, eraBaseline, labelBaseline] = await readBaselines();
+  expect(labelBaseline).toBeCloseTo(eraBaseline, 2);
+  expect(nameBaseline - eraBaseline).toBeCloseTo(0.25, 2);
   expect(clubs.x).toBeLessThan(time.x);
   expect(time.x + time.width).toBeLessThan(home.x);
   expect(Math.abs(time.y + time.height / 2 - (clubs.y + clubs.height / 2))).toBeLessThan(1);

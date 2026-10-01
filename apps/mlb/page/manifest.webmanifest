@@ -1,6 +1,6 @@
 {
   "name": "MLB Postseason",
-  "short_name": "Postseason",
+  "short_name": "MLB",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
