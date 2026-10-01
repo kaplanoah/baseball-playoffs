@@ -8,6 +8,7 @@ import { watchReturns } from "#shared/resume.js";
 import { startSettingsSheet } from "#shared/settings-sheet.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { startAppearance } from "./appearance.js";
+import { placeBracket, readBracketScroll, startBracket } from "./bracket-tree.js";
 import { renderBracket } from "./bracket-view.js";
 import { refreshGameSheet, startGameSheet } from "./game-sheet.js";
 import { renderGames } from "./games-view.js";
@@ -32,7 +33,9 @@ function renderStamp() {
 function renderAll() {
   const now = Date.now();
   findElement("yearTag").textContent = String(session.year);
+  const keptLeft = readBracketScroll();
   setHtml(findElement("bracketWrap"), renderBracket(session.season, now));
+  placeBracket(session.season?.series ?? [], keptLeft);
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
   setHtml(findElement("standingsWrap"), renderStandings(session.season));
@@ -75,6 +78,7 @@ async function boot() {
   startGamePager();
   startGameSheet();
   startSettingsSheet();
+  startBracket();
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);

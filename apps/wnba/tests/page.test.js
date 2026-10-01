@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import { renderBracket } from "../page/js/bracket-view.js";
 import { readGameDay } from "../page/js/days.js";
 import { renderGames, sortGamesByDay } from "../page/js/games-view.js";
-import { describeSeriesStanding } from "../page/js/series.js";
+import { renderScoreboard } from "../page/js/scoreboard.js";
+import { describeSeriesStanding, listBracketLinks } from "../page/js/series.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { describeStamp } from "../page/js/stamp.js";
 import { renderStandings } from "../page/js/standings-view.js";
@@ -179,16 +180,84 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     const text = readText(renderBracket(SEASON, NOW));
     assert.match(
       text,
-      /^First Round 1 Lynx 0 8 Liberty 2 Liberty win 2-0 4 Dream 1 5 Mystics 0 Game 2 Today 7:00 PM /,
+      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 Liberty win 2-0 1 Lynx 0 8 Liberty 2 Game 2 \| Today 7:00 PM 4 Dream 1 5 Mystics 0 /,
     );
-    assert.match(text, /Semifinals 8 Liberty 0 TBD TBD TBD/);
+    assert.match(
+      text,
+      /Waits on 4-5 8 Liberty 0 TBD Waits on 2-7 and 3-6 TBD TBD Starts after the Semifinals TBD TBD$/,
+    );
     assert.match(markup, /class="team-line out"[\s\S]*?Lynx/);
+    assert.match(markup, /class="series-note decided">Liberty win 2-0/);
+    assert.match(markup, /class="series-note today">Game 2/);
   }));
 
 test("a series with a game under way says so", () =>
   inEastern(() => {
-    assert.match(readText(renderBracket(LIVE_TONIGHT, NOW)), /Mystics 0 Live, Game 2/);
+    assert.match(readText(renderBracket(LIVE_TONIGHT, NOW)), /Live, Game 2 4 Dream 1 5 Mystics 0/);
   }));
+
+/**
+ * The afternoon's season with every first-round series won by the side named, and the semifinals
+ * set with the higher seed on top.
+ */
+function finishFirstRound() {
+  const season = structuredClone(SEASON);
+  const findSeries = (id) => season.series.find((series) => series.id === id);
+  const finish = (id, side) => {
+    const series = findSeries(id);
+    series.winner = series[side].team;
+    series[side].wins = 2;
+  };
+  finish("1-1", "top");
+  finish("1-2", "bottom");
+  finish("1-3", "top");
+  const semifinal = findSeries("2-0");
+  semifinal.top = { team: "ATL", seed: 4, wins: 0 };
+  semifinal.bottom = { team: "NYL", seed: 8, wins: 0 };
+  Object.assign(findSeries("2-1"), {
+    top: { team: "GSV", seed: 2, wins: 0 },
+    bottom: { team: "IND", seed: 6, wins: 0 },
+  });
+  return season;
+}
+
+test("the bracket opens on the earliest round with a series still to finish", () =>
+  inEastern(() => {
+    assert.match(renderBracket(SEASON, NOW).text, /data-opening-round="1"/);
+    assert.match(renderBracket(SEASON, NOW).text, /class="round-name round-1 now"/);
+    const markup = renderBracket(finishFirstRound(), NOW).text;
+    assert.match(markup, /data-opening-round="2"/);
+    assert.match(markup, /class="round-name round-2 now"/);
+  }));
+
+test("each winner's line runs to the row it holds next, and one still going to where it will go", () => {
+  const findLink = (links, from) => links.find((link) => link.from === from);
+  const afternoon = listBracketLinks(SEASON.series);
+  assert.deepEqual(findLink(afternoon, "1-0"), {
+    from: "1-0",
+    fromRow: "bottom",
+    to: "2-0",
+    toRow: "top",
+    isDecided: true,
+  });
+  assert.deepEqual(findLink(afternoon, "1-3"), {
+    from: "1-3",
+    fromRow: "middle",
+    to: "2-0",
+    toRow: "bottom",
+    isDecided: false,
+  });
+  assert.equal(findLink(afternoon, "1-1").toRow, "middle");
+
+  // The 8-seed Liberty win the upper series but play under the 4-seed Dream, so the lines cross.
+  const finished = listBracketLinks(finishFirstRound().series);
+  assert.equal(findLink(finished, "1-0").toRow, "bottom");
+  assert.equal(findLink(finished, "1-3").fromRow, "top");
+  assert.equal(findLink(finished, "1-3").toRow, "top");
+  assert.equal(findLink(finished, "1-2").fromRow, "bottom");
+  assert.equal(findLink(finished, "1-2").toRow, "bottom");
+  assert.equal(findLink(finished, "2-0").toRow, "middle");
+});
 
 test("the league's standings draw the playoff line after eighth, and each conference ranks its own", () => {
   const markup = renderStandings(SEASON).text;
@@ -228,4 +297,32 @@ test("the header says when the page was updated, or which feeds stopped", () =>
       describeStamp({ season, status: standingIn, problem: "", now: NOW }).text,
       "The WNBA stopped sending today's scores. Scores are from ESPN for now.",
     );
+  }));
+
+test("a score shows in scoreboard digits, and still reads as its number", () => {
+  const markup = renderScoreboard(89).text;
+  assert.match(markup, /<span class="scoreboard-text">89<\/span>/);
+  assert.equal(markup.match(/<svg/g).length, 2);
+  assert.equal(
+    markup.match(/class="on"/g).length,
+    7 + 6,
+    "an 8 lights every segment, a 9 all but one",
+  );
+  assert.match(renderScoreboard(68, { isLoser: true }).text, /class="scoreboard lost"/);
+});
+
+test("a lone 1 sits in the middle of its panel, and a 1 among other digits stays in its place", () => {
+  const readShifts = (score) =>
+    [...renderScoreboard(score).text.matchAll(/translate\(([-\d.]+) 0\)/g)].map((match) =>
+      Number(match[1]),
+    );
+  assert.ok(readShifts(1)[0] < 0);
+  assert.deepEqual(readShifts(101), [0, 0, 0]);
+});
+
+test("each game's score shows in scoreboard digits, the loser's dimmed", () =>
+  inEastern(() => {
+    const markup = renderGames(SEASON, NOW).previous.text;
+    assert.match(markup, /class="scoreboard lost"\s*><span class="scoreboard-text">71<\/span>/);
+    assert.match(markup, /class="scoreboard"\s*><span class="scoreboard-text">87<\/span>/);
   }));
