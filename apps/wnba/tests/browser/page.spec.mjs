@@ -6,7 +6,11 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await openApp(page);
   await expect(page.locator('[data-series="1-0"]')).toContainText("Liberty win 2-0");
   await expect(page.locator("header.top .title-row")).toHaveText("WNBA Playoffs");
-  await expect(page.locator("#stamp")).toHaveText(/^Updated 5:55\sPM$/);
+  const stampLines = page.locator("#stamp > span");
+  await expect(stampLines.nth(0)).toHaveText(
+    "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty win 2-0",
+  );
+  await expect(stampLines.nth(1)).toHaveText(/^Next tip-off 7:00\s?PM \u2014 Dream @ Mystics$/);
 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
@@ -31,6 +35,7 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
   await expect(row.locator(".game-headline .score")).toHaveText(/30\s*27/);
   await expect(row.locator(".game-extra.home .bonus")).toHaveText("Bonus");
   await expect(row.locator(".game-extra.away")).toBeEmpty();
+  await expect(page.locator("#stamp > span").first()).toHaveText("Dream @ Mystics 30-27, Q2 5:10");
 });
 
 test("the Games tab opens on today's games, and its pill moves to the results and the games ahead", async ({
@@ -333,6 +338,18 @@ test("redrawing the teams each minute keeps keyboard focus on the team it was on
 
   await page.clock.runFor(60 * 1000);
   await expect(aces).toBeFocused();
+});
+
+test("redrawing the games each minute keeps keyboard focus on the game it was on", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const game = page.locator('[data-game="1042600132"] .game-open');
+  await game.focus();
+
+  await page.clock.runFor(60 * 1000);
+  await expect(game).toBeFocused();
 });
 
 test("on a phone, the team rows' dividers run edge to edge", async ({ page }) => {

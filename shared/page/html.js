@@ -60,11 +60,18 @@ const SEPARATOR = new Markup('<span class="sep">&bull;</span>');
 export const joinWithSeparator = (items) =>
   html`${items.flatMap((item, index) => (index ? [SEPARATOR, item] : [item]))}`;
 
+// Views redraw on every update and every minute, so markup the element already holds is left as
+// it is, with the focus, scrolling, and running animations inside it.
+const writtenMarkup = new WeakMap();
+
 /**
  * The page's only way to write markup, so nothing reaches it unescaped.
  * @param {Element} element
  * @param {Markup | string} markup plain text is escaped
  */
 export function setHtml(element, markup) {
-  element.innerHTML = renderValue(markup);
+  const text = renderValue(markup);
+  if (writtenMarkup.get(element) === text) return;
+  writtenMarkup.set(element, text);
+  element.innerHTML = text;
 }
