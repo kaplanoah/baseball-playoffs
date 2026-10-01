@@ -2,22 +2,24 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { findTitleProblem, readVersion } from "../worker/release.mjs";
 
-const MLB_BASELINE = "ccc75f8c1d899d98c35153d55921b6d52d43d5bc";
-const WNBA_FIRST = "d".repeat(40);
+const BASELINE = "3cf716ccf7c056c3e598a7e4ce82c0c591ac210c";
+const NEW_APP_FIRST = "d".repeat(40);
+
+const MLB_PAGE_FILE = "apps/mlb/page/js/app.js";
 
 /**
- * main's squash merges since the app's baseline, oldest first, each a subject or a subject and
- * the files it changed.
+ * main's squash merges since the app's baseline, oldest first, each a subject, which changes
+ * baseball's page, or a subject and the files it changed.
  * @param {(string | { subject: string, files: string[] })[]} merges
  * @param {string} [baseline]
  */
 const createGit =
-  (merges, baseline = MLB_BASELINE) =>
+  (merges, baseline = BASELINE) =>
   (args) => {
     if (args[0] === "merge-base") return "";
     if (args.includes("--format=%H")) {
-      assert.deepEqual(args.slice(-2), ["--", "apps/wnba/"]);
-      return `${WNBA_FIRST}\n`;
+      assert.deepEqual(args.slice(-2), ["--", "apps/nhl/"]);
+      return `${NEW_APP_FIRST}\n`;
     }
     assert.deepEqual(args, [
       "log",
@@ -25,28 +27,33 @@ const createGit =
       "--reverse",
       "--format=\x1e%s",
       "--name-only",
+      "--diff-merges=first-parent",
+      "--no-renames",
       `${baseline}..HEAD`,
     ]);
     return merges
-      .map((merge) => (typeof merge === "string" ? { subject: merge, files: [] } : merge))
+      .map((merge) =>
+        typeof merge === "string" ? { subject: merge, files: [MLB_PAGE_FILE] } : merge,
+      )
       .map(({ subject, files }) => `\x1e${subject}\n\n${files.map((file) => `${file}\n`).join("")}`)
       .join("");
   };
 
-test("the baseline commit is version 2.12.2", () => {
-  assert.equal(readVersion("mlb", createGit([])), "2.12.2");
+test("each app's baseline commit is its version there", () => {
+  assert.equal(readVersion("mlb", createGit([])), "2.32.2");
+  assert.equal(readVersion("wnba", createGit([])), "1.14.1");
 });
 
 test("each merge's type moves the version from the one before it", () => {
   const cases = [
-    { version: "2.12.3", merges: ["fix: Keep the tab bar at the bottom (#113)"] },
-    { version: "2.12.3", merges: ["refactor: Name the release helpers (#113)"] },
-    { version: "2.12.3", merges: ["build: Bump the dev-tools group (#113)"] },
-    { version: "2.13.0", merges: ["feat: Show outs on live games (#113)"] },
+    { version: "2.32.3", merges: ["fix: Keep the tab bar at the bottom (#113)"] },
+    { version: "2.32.3", merges: ["refactor: Name the release helpers (#113)"] },
+    { version: "2.32.3", merges: ["build: Bump the dev-tools group (#113)"] },
+    { version: "2.33.0", merges: ["feat: Show outs on live games (#113)"] },
     { version: "3.0.0", merges: ["feat!: Move the page to a new address (#113)"] },
     { version: "3.0.0", merges: ["fix!: Drop the old saved rankings (#113)"] },
-    { version: "2.12.2", merges: ["docs: Explain versions (#113)", "test: Cover it (#114)"] },
-    { version: "2.12.2", merges: ["ci: Retry the review (#113)", "chore: Tidy lint (#114)"] },
+    { version: "2.32.2", merges: ["docs: Explain versions (#113)", "test: Cover it (#114)"] },
+    { version: "2.32.2", merges: ["ci: Retry the review (#113)", "chore: Tidy lint (#114)"] },
   ];
   for (const { version, merges } of cases) {
     assert.equal(readVersion("mlb", createGit(merges)), version, merges.join(" / "));
@@ -69,25 +76,59 @@ test("merges add up in order, and a bigger bump resets the smaller numbers", () 
 
 test("a merge whose title has no known type counts as a fix", () => {
   const merges = ["Count down to first pitch (#111)", "style: Even out rows (#113)"];
-  assert.equal(readVersion("mlb", createGit(merges)), "2.12.4");
+  assert.equal(readVersion("mlb", createGit(merges)), "2.32.4");
 });
 
 test("a merge that changes only other apps' folders leaves an app's version alone", () => {
   const merges = [
     { subject: "feat: Show the WNBA bracket (#130)", files: ["apps/wnba/page/js/app.js"] },
-    { subject: "fix: Tidy both pages (#131)", files: ["apps/wnba/page/styles.css", "README.md"] },
+    {
+      subject: "fix: Tidy both pages (#131)",
+      files: ["apps/wnba/page/styles.css", "shared/page/chrome.css"],
+    },
     { subject: "fix: Tidy the baseball page (#132)", files: ["apps/mlb/page/styles.css"] },
     { subject: "fix: Tidy the tooling (#133)", files: ["worker/build.mjs"] },
   ];
-  assert.equal(readVersion("mlb", createGit(merges)), "2.12.5");
+  assert.equal(readVersion("mlb", createGit(merges)), "2.32.5");
+});
+
+test("a merge that changes only what the app's deploy skips leaves its version alone", () => {
+  const merges = [
+    { subject: "fix: Cover the bracket (#134)", files: ["apps/mlb/tests/bracket.test.js"] },
+    { subject: "fix: Correct the README (#135)", files: ["README.md", "apps/mlb/README.md"] },
+    { subject: "feat!: Check titles more (#136)", files: ["worker/check-pr-title.mjs"] },
+    { subject: "fix: Run the tooling's tests (#137)", files: ["tests/release.test.js"] },
+  ];
+  assert.equal(readVersion("mlb", createGit(merges)), "2.32.2");
+});
+
+test("a merge that changes the app's page, or what every app deploys, moves its version", () => {
+  const merges = [
+    {
+      subject: "fix: Tidy the page and its test (#134)",
+      files: [MLB_PAGE_FILE, "tests/a.test.js"],
+    },
+    { subject: "fix: Share a module (#135)", files: ["shared/page/days.js"] },
+    { subject: "build: Bump the dev-tools group (#136)", files: ["package-lock.json"] },
+  ];
+  assert.equal(readVersion("mlb", createGit(merges)), "2.32.5");
+});
+
+test("a merge commit's files are read against its first parent", () => {
+  const git = (args) => {
+    if (args[0] === "merge-base") return "";
+    const files = args.includes("--diff-merges=first-parent") ? `${MLB_PAGE_FILE}\n` : "";
+    return `\x1eMerge pull request #114 from a branch\n\n${files}`;
+  };
+  assert.equal(readVersion("mlb", git), "2.32.3");
 });
 
 test("an app with no baseline counts from 1.0.0 at the merge that added its folder", () => {
   const merges = [
     { subject: "fix: Tidy the baseball page (#132)", files: ["apps/mlb/page/styles.css"] },
-    { subject: "feat: Show the WNBA scores (#133)", files: ["apps/wnba/page/js/app.js"] },
+    { subject: "feat: Show the hockey scores (#133)", files: ["apps/nhl/page/js/app.js"] },
   ];
-  assert.equal(readVersion("wnba", createGit(merges, WNBA_FIRST)), "1.1.0");
+  assert.equal(readVersion("nhl", createGit(merges, NEW_APP_FIRST)), "1.1.0");
 });
 
 test("without the baseline in HEAD's history, there's no version", () => {
@@ -100,7 +141,7 @@ test("without the baseline in HEAD's history, there's no version", () => {
 
 test("an app with no baseline and no merges yet has no version", () => {
   assert.equal(
-    readVersion("wnba", () => ""),
+    readVersion("nhl", () => ""),
     null,
   );
 });
@@ -147,6 +188,16 @@ test("a type that doesn't release may change only what the deploy skips", () => 
     ]),
     "chore: doesn't release, but this changes what the Worker runs: apps/mlb/page/js/app.js, apps/mlb/page/styles.css. Use feat:, fix:, refactor:, build:.",
   );
+});
+
+test("a type that doesn't release can't mark a major change", () => {
+  for (const title of ["docs!: Explain versions", "chore!: Tidy"]) {
+    assert.match(
+      findTitleProblem(title, ["README.md"]),
+      /^(docs|chore): doesn't release, so it can't mark a major change\. Drop the !, or use feat:, fix:, refactor:, build:\.$/,
+      title,
+    );
+  }
 });
 
 test("a type that releases may also change only what the deploy skips", () => {
