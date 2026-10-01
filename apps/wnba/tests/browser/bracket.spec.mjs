@@ -28,6 +28,24 @@ function finishFirstRound(season) {
   return season;
 }
 
+/**
+ * The season with both Semifinals over too, so the Finals are the round still playing.
+ * @param {any} season
+ */
+function finishSemifinals(season) {
+  finishFirstRound(season);
+  const findSeries = (id) => season.series.find((series) => series.id === id);
+  Object.assign(findSeries("2-0"), { winner: "NYL" });
+  Object.assign(findSeries("2-0").bottom, { wins: 3 });
+  Object.assign(findSeries("2-1"), { winner: "GSV" });
+  Object.assign(findSeries("2-1").top, { wins: 3 });
+  Object.assign(findSeries("3-0"), {
+    top: { team: "GSV", seed: 2, wins: 0 },
+    bottom: { team: "NYL", seed: 8, wins: 0 },
+  });
+  return season;
+}
+
 const readRoundName = (page, round) => page.locator(`.round-name[data-round="${round}"]`);
 
 test.describe("on a phone, the bracket", () => {
@@ -53,6 +71,30 @@ test.describe("on a phone, the bracket", () => {
     await page.getByRole("tab", { name: "Games" }).click();
     await page.getByRole("tab", { name: "Bracket" }).click();
     await expect(readRoundName(page, 2)).toBeInViewport({ ratio: 1 });
+  });
+
+  test("centers the Finals on the screen, opening on them or swiped to them", async ({ page }) => {
+    const app = await openApp(page);
+    const readFinalsOffCenter = () =>
+      page.locator(".bracket").evaluate((tree) => {
+        const middle = (/** @type {Element} */ element) => {
+          const box = element.getBoundingClientRect();
+          return box.left + box.width / 2;
+        };
+        const finals = /** @type {Element} */ (tree.querySelector('[data-series="3-0"]'));
+        return Math.abs(middle(finals) - middle(tree));
+      });
+
+    await app.changeSeason(finishSemifinals);
+    await expect(readRoundName(page, 3)).toBeInViewport({ ratio: 1 });
+    await expect.poll(readFinalsOffCenter).toBeLessThan(1);
+    await expect(page.locator('.round-dots [data-round="3"]')).toHaveClass("on");
+
+    await page.locator(".bracket").evaluate((tree) => (tree.scrollLeft = 0));
+    await page
+      .locator(".bracket")
+      .evaluate((tree) => tree.scrollTo({ left: tree.scrollWidth, behavior: "instant" }));
+    await expect.poll(readFinalsOffCenter).toBeLessThan(1);
   });
 
   test("pins its round dots just above the tab bar, and lights the last round at the scroll's end", async ({

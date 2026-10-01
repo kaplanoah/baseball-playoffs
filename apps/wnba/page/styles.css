@@ -796,7 +796,8 @@ table.players td.minutes {
 /* Bracket: the rounds left to right, each series beside the two it follows, every round as wide as
    the next. The first round's seed labels sit in room of their own to its left. On a phone each
    round takes most of the screen's width and the bracket swipes sideways, with the next round
-   showing at the edge. Bracket lines join each pair of series into the one they feed
+   showing at the edge, and ends with room for the Finals to stop in the screen's middle. Bracket
+   lines join each pair of series into the one they feed
    (js/bracket-tree.js). */
 #bracketWrap {
   container-type: inline-size;
@@ -812,7 +813,8 @@ table.players td.minutes {
   column-gap: var(--round-gap);
   row-gap: 16px;
   margin-inline: calc(-1 * var(--page-gutter));
-  padding: 2px var(--page-gutter) 2px calc(var(--page-gutter) + var(--seed-room));
+  padding: 2px calc((100cqw - var(--round-width)) / 2 + var(--page-gutter)) 2px
+    calc(var(--page-gutter) + var(--seed-room));
   scroll-padding-inline: var(--page-gutter);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -864,6 +866,7 @@ table.players td.minutes {
 }
 .round-name.round-3 {
   grid-column: 3;
+  scroll-snap-align: center;
 }
 .bracket-cell {
   position: relative;

@@ -1,6 +1,8 @@
 // A phone keeps a home-screen page suspended for days and resumes it as it was, with no way to
 // reload it but quitting the app. So a page coming back catches up on what changed while it was
 // away, and reloads itself only when a deploy has replaced it, since a reload blanks the screen.
+// A phone waking a page often fails its first requests, so a release check that got no answer
+// tries again on each tick until one does.
 
 import { fetchRelease, loadRelease } from "./release.js";
 
@@ -12,6 +14,7 @@ const ASLEEP_MS = 60 * 1000;
 let activeAt = Date.now();
 let wasHidden = false;
 let isCheckingRelease = false;
+let isReleaseCheckOwed = false;
 let isReloadPending = false;
 /** @type {() => boolean} */
 let isBusy = () => false;
@@ -36,7 +39,10 @@ export async function reloadIfReplaced() {
   isCheckingRelease = true;
   try {
     const [loaded, current] = await Promise.all([loadRelease(), fetchRelease()]);
+    isReleaseCheckOwed = false;
     if (isReplaced(loaded, current)) reloadPage();
+  } catch {
+    isReleaseCheckOwed = true;
   } finally {
     isCheckingRelease = false;
   }
@@ -57,7 +63,10 @@ function tick() {
   if (document.hidden) return;
   if (isReloadPending) reloadPage();
   else if (Date.now() - activeAt >= ASLEEP_MS) catchUpOnReturn();
-  else activeAt = Date.now();
+  else {
+    activeAt = Date.now();
+    if (isReleaseCheckOwed) reloadIfReplaced();
+  }
 }
 
 // iOS doesn't always report a home-screen page coming back, so every sign of it counts.
@@ -65,7 +74,9 @@ function tick() {
 export function watchReturns(options = {}) {
   isBusy = options.isBusy ?? isBusy;
   catchUp = options.catchUp ?? catchUp;
-  loadRelease();
+  loadRelease().catch(() => {
+    isReleaseCheckOwed = true;
+  });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
       activeAt = Date.now();

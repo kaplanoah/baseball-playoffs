@@ -35,7 +35,7 @@ function renderRelease({ version, commit, builtAt }) {
 }
 
 async function showRelease() {
-  const release = await loadRelease();
+  const release = await loadRelease().catch(() => null);
   if (release) renderRelease(release);
 }
 
