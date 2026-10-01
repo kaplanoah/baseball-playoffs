@@ -19,7 +19,7 @@ const hasATeam = (game) => !!(game.away.team || game.home.team);
  * @param {Game} game
  * @param {Map<string, Series>} seriesById
  */
-const isCalledOff = (game, seriesById) =>
+export const isCalledOff = (game, seriesById) =>
   game.state === "pre" && game.isIfNeeded && !!seriesById.get(game.series ?? "")?.winner;
 
 /** @param {Game} game */
@@ -40,7 +40,7 @@ function describePeriod(period) {
 
 // Between periods the clock stops at zero, and the league's own status says which break it is.
 /** @param {Game} game */
-function describeLiveClock(game) {
+export function describeLiveClock(game) {
   const isRunning = game.clock && game.clock !== "0.0" && game.period;
   return isRunning ? `${describePeriod(game.period)} ${game.clock}` : game.status;
 }
