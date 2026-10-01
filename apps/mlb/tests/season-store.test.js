@@ -119,6 +119,22 @@ test("a season that loads after the viewer picked another year is dropped", asyn
   assert.equal(session.seasonDoc.year, 2026);
 });
 
+test("an update to a season the viewer just switched away from is dropped", async () => {
+  const documents = { "seasons/2026": structuredClone(STORED) };
+  const { database, deliver } = createStore(documents);
+  session.db = database;
+  await loadSeason(2026);
+  let redraws = 0;
+  watchSeason(2026, () => redraws++);
+
+  session.activeYear = 2025;
+  const newEntry = { kind: "elim", team: "SEA", at: "2026-10-01T00:00:00Z" };
+  deliver("seasons/2026", { ...structuredClone(STORED), log: [...STORED.log, newEntry] });
+
+  assert.equal(session.seasonDoc.log.length, 1);
+  assert.equal(redraws, 0);
+});
+
 test("stored clubs the page doesn't know are dropped on load", async () => {
   const documents = {
     "seasons/2026": { ...structuredClone(STORED), teams: { NYY: STORED.teams.NYY, "<b>": {} } },

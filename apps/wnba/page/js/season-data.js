@@ -28,9 +28,13 @@ export async function loadSeason() {
   }
 }
 
+/** @type {(() => void) | null} */
+let unwatchSeason = null;
+
 /** @param {() => void} onChange */
 export function watchSeason(onChange) {
-  session.db.doc(nameSeasonPath(session.year)).onSnapshot(
+  unwatchSeason?.();
+  unwatchSeason = session.db.doc(nameSeasonPath(session.year)).onSnapshot(
     (snapshot) => {
       if (!snapshot.exists) return;
       session.season = snapshot.data();
