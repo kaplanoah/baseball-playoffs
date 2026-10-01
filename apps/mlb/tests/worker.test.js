@@ -119,7 +119,7 @@ test("the release names the version, the commit, and when it was built", async (
   const { readRelease } = await import("../../../worker/build.mjs");
   const git = (args) => (args[0] === "log" && args[1] === "-1" ? "b102733\n" : "");
   assert.deepEqual(readRelease("mlb", git, new Date("2026-09-28T00:10:41Z")), {
-    version: "2.12.2",
+    version: "2.32.2",
     commit: "b102733",
     builtAt: "2026-09-28T00:10:41.000Z",
   });

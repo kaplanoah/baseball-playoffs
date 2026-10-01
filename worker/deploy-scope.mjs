@@ -45,14 +45,6 @@ const isForApp = (path, app) => {
 export const findDeployedChanges = (paths, app) =>
   paths.filter((path) => !isSkipped(path) && isForApp(path, app));
 
-// Every file in the change is in other apps' folders.
-/**
- * @param {string[]} paths
- * @param {string} app
- */
-export const isOnlyForOtherApps = (paths, app) =>
-  paths.length > 0 && paths.every((path) => readAppFolder(path) && !isForApp(path, app));
-
 const root = fileURLToPath(new URL("../", import.meta.url));
 const runGit = (args) => execFileSync("git", args, { cwd: root, encoding: "utf8" });
 

@@ -1,13 +1,16 @@
 // Names each app's releases with semantic versions. Each squash merge's title starts with a type
 // that says how far it moves the version, so main's history alone gives every commit's version:
-// no tags, and nothing written back to the repo. A merge that changes only other apps' folders
-// leaves an app's version where it was.
-import { findDeployedChanges, isOnlyForOtherApps } from "./deploy-scope.mjs";
+// no tags, and nothing written back to the repo. A merge that changes nothing an app's deploy
+// counts, such as only its tests or other apps' folders, leaves that app's version where it was,
+// so the app's version moves only for a merge that would deploy it.
+import { findDeployedChanges } from "./deploy-scope.mjs";
 
-// Worked out by sorting every pull request before versioning began into the types below. An app
-// not listed counts from FIRST_VERSION at the merge that added its folder.
+// Each app's version at the commit its count starts from, so a change to how merges count never
+// moves a version that already shipped. An app not listed counts from FIRST_VERSION at the merge
+// that added its folder.
 const BASELINES = {
-  mlb: { commit: "ccc75f8c1d899d98c35153d55921b6d52d43d5bc", version: "2.12.2" },
+  mlb: { commit: "3cf716ccf7c056c3e598a7e4ce82c0c591ac210c", version: "2.32.2" },
+  wnba: { commit: "3cf716ccf7c056c3e598a7e4ce82c0c591ac210c", version: "1.14.1" },
 };
 const FIRST_VERSION = "1.0.0";
 const RECORD_SEPARATOR = "\x1e";
@@ -28,20 +31,24 @@ const BUMPS = {
 
 const TITLE_PATTERN = /^([a-z]+)(!?): \S/;
 
+/** @param {string} type */
+const isReleasingType = (type) => BUMPS[type] !== null;
+
+/** @param {boolean} isReleasing */
 const listTypes = (isReleasing) =>
   Object.keys(BUMPS)
-    .filter((type) => (BUMPS[type] !== null) === isReleasing)
+    .filter((type) => isReleasingType(type) === isReleasing)
     .map((type) => `${type}:`)
     .join(", ");
 
 /**
  * @param {string} title
- * @returns {{ type: string, bump: Bump } | null} null when the title has no known type
+ * @returns {{ type: string, isBreaking: boolean } | null} null when the title has no known type
  */
 function readTitleType(title) {
-  const [, type, breaking] = title.match(TITLE_PATTERN) ?? [];
+  const [, type, breakingMark] = title.match(TITLE_PATTERN) ?? [];
   if (!type || !Object.hasOwn(BUMPS, type)) return null;
-  return { type, bump: breaking ? "major" : BUMPS[type] };
+  return { type, isBreaking: breakingMark === "!" };
 }
 
 /**
@@ -54,9 +61,13 @@ export function findTitleProblem(title, changedFiles) {
   const titleType = readTitleType(title);
   if (!titleType)
     return `Start the title with a type: ${listTypes(true)}, ${listTypes(false)}. A ! after the type, as in feat!:, marks a major change.`;
+  const { type, isBreaking } = titleType;
+  if (isReleasingType(type)) return null;
+  if (isBreaking)
+    return `${type}: doesn't release, so it can't mark a major change. Drop the !, or use ${listTypes(true)}.`;
   const deployed = findDeployedChanges(changedFiles);
-  if (titleType.bump === null && deployed.length)
-    return `${titleType.type}: doesn't release, but this changes what the Worker runs: ${deployed.join(", ")}. Use ${listTypes(true)}.`;
+  if (deployed.length)
+    return `${type}: doesn't release, but this changes what the Worker runs: ${deployed.join(", ")}. Use ${listTypes(true)}.`;
   return null;
 }
 
@@ -75,7 +86,8 @@ function bumpVersion(version, bump) {
 // A title without a known type still shipped something, so it counts as a fix.
 const readBump = (subject) => {
   const titleType = readTitleType(subject);
-  return titleType ? titleType.bump : "patch";
+  if (!titleType) return "patch";
+  return titleType.isBreaking ? "major" : BUMPS[titleType.type];
 };
 
 /**
@@ -100,8 +112,11 @@ const readMerges = (log) =>
       return { subject, files };
     });
 
+// Without --diff-merges=first-parent, older Git lists no files for a merge commit; without
+// --no-renames, a file moved out of an app's page/ lists only where it went.
 /**
- * The app's version at HEAD, from the merges on main's first-parent history since its baseline.
+ * The app's version at HEAD, from the merges on main's first-parent history since its baseline
+ * that change what the app's deploy counts.
  * @param {string} app
  * @param {(args: string[]) => string} git
  * @returns {string | null} null when HEAD's history doesn't reach the baseline
@@ -119,12 +134,14 @@ export function readVersion(app, git) {
       "--reverse",
       `--format=${RECORD_SEPARATOR}%s`,
       "--name-only",
+      "--diff-merges=first-parent",
+      "--no-renames",
       `${baseline.commit}..HEAD`,
     ]);
   } catch {
     return null;
   }
   return readMerges(log)
-    .filter(({ files }) => !isOnlyForOtherApps(files, app))
+    .filter(({ files }) => findDeployedChanges(files, app).length > 0)
     .reduce((version, { subject }) => bumpVersion(version, readBump(subject)), baseline.version);
 }
