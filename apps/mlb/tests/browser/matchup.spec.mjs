@@ -1,5 +1,6 @@
 import { test, expect, openApp, buildSnapshotWithStarters, swipeSheetDown } from "./harness.mjs";
 import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
+import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 
 // What the Worker answers for Astros at Athletics' starters, Blubaugh and Springs.
@@ -128,6 +129,31 @@ test("on a phone, the matchup rises as a sheet that a swipe down closes", async 
     stepMs: 30,
   });
   await expect(sheet).toBeHidden();
+});
+
+test("on a phone, Done and a tap outside slide the matchup down as its backdrop fades out", async ({
+  page,
+}) => {
+  const readMotions = await recordSheetMotions(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const closings = {
+    Done: () => page.locator("#matchupDoneBtn").dispatchEvent("click"),
+    "a tap outside": () => page.mouse.click(195, 20),
+  };
+  await showGames(page);
+  for (const [way, close] of Object.entries(closings)) {
+    await page.getByRole("button", { name: BLUBAUGH_VS_SPRINGS }).click();
+    const sheet = page.getByRole("dialog");
+    await page.waitForFunction(() => document.getAnimations().length === 0);
+    await readMotions();
+
+    await close();
+    await expect(sheet, way).toBeHidden();
+    expect(await readMotions(), way).toEqual([
+      { id: "matchupDialog", part: "sheet", to: { transform: "translateY(100%)" } },
+      { id: "matchupDialog", part: "::backdrop", to: { opacity: 0 } },
+    ]);
+  }
 });
 
 test("on a phone, the matchup rises only when the viewer allows motion", async ({ page }) => {

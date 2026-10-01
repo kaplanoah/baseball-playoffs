@@ -1,5 +1,6 @@
 import { test, expect, openApp, GAMES } from "./harness.mjs";
 import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
+import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
@@ -305,5 +306,34 @@ test.describe("on a phone", () => {
     expect(Math.round(box.y + box.height)).toBe(844);
     expect(box.width).toBe(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  });
+
+  test("the game sheet's backdrop fades in, and Done, a tap outside, or Escape slides the sheet down as the backdrop fades out", async ({
+    page,
+  }) => {
+    const readMotions = await recordSheetMotions(page);
+    await openApp(page);
+    const closings = {
+      Done: () => page.locator("#gameDoneBtn").dispatchEvent("click"),
+      "a tap outside": () => page.touchscreen.tap(195, 20),
+      Escape: () => page.keyboard.press("Escape"),
+    };
+    for (const [way, close] of Object.entries(closings)) {
+      const sheet = await openSheet(page, ACES_AT_FEVER);
+      await expect.poll(readMotions, way).toContainEqual({
+        id: "gameDialog",
+        part: "::backdrop",
+        name: "backdrop-fade-in",
+      });
+      await page.waitForFunction(() => document.getAnimations().length === 0);
+      await readMotions();
+
+      await close();
+      await expect(sheet, way).toBeHidden();
+      expect(await readMotions(), way).toEqual([
+        { id: "gameDialog", part: "sheet", to: { transform: "translateY(100%)" } },
+        { id: "gameDialog", part: "::backdrop", to: { opacity: 0 } },
+      ]);
+    }
   });
 });

@@ -125,6 +125,9 @@
     .sheet-panel[open] {
       animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
+    .sheet-panel[open]::backdrop {
+      animation: backdrop-fade-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
   }
   .sheet-content {
     --head-height: 63px;

@@ -15,7 +15,7 @@ import { renderPendingPitchColumns, renderPitchColumns } from "./pitch-columns.j
 import { fetchPitcher, fetchRotation } from "./pitcher-fetch.js";
 import { session } from "./session.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
-import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
+import { closeOnSwipeDown, closeSheet } from "#shared/sheet-swipe.js";
 import { PENDING_TAPE_SIDE, renderTapeRow } from "#shared/tape.js";
 
 const SIDES = ["away", "home"];
@@ -326,9 +326,9 @@ function prepareFromRow(button) {
 export function startMatchups() {
   const dialog = findDialog();
   watchGameOpens(findElement("gamePages"), { open: openFromRow, prepare: prepareFromRow });
-  findElement("matchupDoneBtn").addEventListener("click", () => dialog.close());
+  findElement("matchupDoneBtn").addEventListener("click", () => closeSheet(dialog));
   dialog.addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) dialog.close();
+    if (event.target === event.currentTarget) closeSheet(dialog);
   });
   dialog.addEventListener("scroll", markScrolled);
   closeOnSwipeDown(dialog);

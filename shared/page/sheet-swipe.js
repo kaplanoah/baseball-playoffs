@@ -1,4 +1,5 @@
-// On phones, a dialog shown as a sheet from the bottom closes with a swipe down.
+// On phones, a dialog shown as a sheet from the bottom closes with a swipe down, and slides down
+// whichever way it closes.
 
 // Matches chrome.css's phone layout, where dialogs are sheets.
 const SHEET_MEDIA = "(max-width: 779px)";
@@ -24,11 +25,43 @@ function slideSheet(dialog, to) {
   });
 }
 
+function fadeBackdropOut(dialog) {
+  const duration = prefersReducedMotion() ? 0 : SHEET_MOTION_MS;
+  return dialog.animate([{ opacity: 1 }, { opacity: 0 }], {
+    pseudoElement: "::backdrop",
+    duration,
+    easing: SHEET_EASING,
+    fill: "forwards",
+  });
+}
+
+/** @type {WeakSet<HTMLDialogElement>} */
+const closingSheets = new WeakSet();
+
 async function slideSheetClosed(dialog) {
-  const slide = slideSheet(dialog, "translateY(100%)");
-  await slide.finished;
+  if (closingSheets.has(dialog)) return;
+  closingSheets.add(dialog);
+  const motions = [slideSheet(dialog, "translateY(100%)"), fadeBackdropOut(dialog)];
+  await motions[0].finished;
   dialog.close();
-  slide.cancel();
+  for (const motion of motions) motion.cancel();
+  closingSheets.delete(dialog);
+}
+
+/**
+ * Closes a dialog, sliding it down first where it shows as a sheet.
+ * @param {HTMLDialogElement} dialog
+ */
+export function closeSheet(dialog) {
+  if (isSheet()) slideSheetClosed(dialog);
+  else dialog.close();
+}
+
+// Escape closes a sheet the same way as its other ways to close.
+function slideClosedOnCancel(event) {
+  if (!isSheet()) return;
+  event.preventDefault();
+  slideSheetClosed(event.currentTarget);
 }
 
 /**
@@ -91,4 +124,5 @@ export function closeOnSwipeDown(dialog, isOwnGesture = () => false) {
   dialog.addEventListener("touchmove", followSwipe, { passive: false });
   dialog.addEventListener("touchend", endSwipe);
   dialog.addEventListener("touchcancel", endSwipe);
+  dialog.addEventListener("cancel", slideClosedOnCancel);
 }
