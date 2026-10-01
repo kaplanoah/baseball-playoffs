@@ -21,6 +21,11 @@
   --glass-light: 255, 255, 255;
   --glass-solid: rgba(28, 44, 36, 0.94);
   --glass-contrast: #000;
+  --game-row-height: 63.5px;
+  --game-side-offset: 1px;
+  --game-label-offset: -21px;
+  --game-headline-offset: -1px;
+  --game-status-offset: 19.5px;
   /* Pitch colors run by family: fastballs warm, breaking balls blue, changeups pink. */
   --pitch-four-seam: var(--gold);
   --pitch-sinker: var(--copper);
@@ -533,32 +538,8 @@ table.st .seed-cell {
 .game-day:first-child {
   margin-top: 0;
 }
-/* A line above and below every game closes each day, so the next date starts in open space. */
-.game-list {
-  border-top: 1px solid var(--divider);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-/* The away and home clubs face each other across the score. */
-.game-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  column-gap: 10px;
-  align-items: center;
-  padding: 11px 0;
-  border-bottom: 1px solid var(--divider);
-}
 .game-side {
-  display: flex;
-  flex-direction: column;
   gap: 4px;
-  min-width: 0;
-}
-.game-side.home {
-  align-items: flex-end;
-  text-align: right;
 }
 .game-side .club {
   font-size: 0.8rem;
@@ -586,11 +567,8 @@ table.st .seed-cell {
   color: var(--ink-dim);
   white-space: nowrap;
 }
-/* The starters get a row of their own under the clubs, so the time or score in the middle
-   centers on the clubs and their records alone. The middle takes no height there: its content
-   centers on the first row and may reach past it, into the row's padding or beside the starters. */
-.game-row.with-starters {
-  row-gap: 3.25px;
+.game-extra {
+  margin-top: 3.25px;
 }
 /* Covers the whole row, so a tap anywhere on a game with starters opens its matchup. */
 .game-open {
@@ -602,14 +580,8 @@ table.st .seed-cell {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.game-row.with-starters .game-middle {
-  grid-area: 1 / 2;
-  height: 0;
-  align-content: center;
-}
 /* On a narrow row the ERA wraps under the name, and a long name gives way before it. */
 .starter {
-  grid-row: 2;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -618,13 +590,8 @@ table.st .seed-cell {
   font-size: 0.65rem;
   color: var(--ink-mid);
 }
-.starter.away {
-  grid-column: 1;
-}
 .starter.home {
-  grid-column: 3;
   flex-direction: row-reverse;
-  justify-self: end;
 }
 .starter-name {
   min-width: 0;
@@ -670,10 +637,6 @@ table.st .seed-cell {
   color: var(--copper-ink);
 }
 .game-middle {
-  display: grid;
-  grid-template-rows: 20px auto;
-  justify-items: center;
-  row-gap: 3px;
   min-width: 4.5em;
 }
 .game-score {
@@ -682,68 +645,25 @@ table.st .seed-cell {
   gap: 8px;
   font-size: 1.05rem;
   font-weight: 700;
+  line-height: 20px;
 }
 .score-dash {
   color: var(--card-border);
   font-weight: 400;
 }
-/* A start time takes a score's line height, the middle's first row, so every row is as tall as a
-   finished game's. */
-.game-score,
-.game-time {
-  line-height: 20px;
-}
 .game-time {
   font-size: 0.78rem;
-  white-space: nowrap;
+  line-height: 20px;
 }
 .game-status {
   font-size: 0.6rem;
   color: var(--ink-dim);
-  white-space: nowrap;
-  grid-row: 2;
-}
-/* An empty status line still holds its place, so every row is as tall as a finished game's, and
-   the time centers across both lines. */
-.game-status:empty::before {
-  content: "\00a0";
-}
-/* Every line shares the one column, or the spanning time pushes the status into a second one. */
-.game-middle > * {
-  grid-column: 1;
-}
-.game-middle > :is(.game-score, .game-time) {
-  grid-row-start: 1;
-}
-.game-middle:not(.with-series):has(> .game-status:empty) > :is(.game-score, .game-time) {
-  grid-row-end: -1;
-  align-self: center;
-}
-/* A postseason game names its round and the series so far over its time or score. */
-.game-middle.with-series {
-  grid-template-rows: auto 20px auto;
-}
-.game-middle.with-series > :is(.game-score, .game-time) {
-  grid-row-start: 2;
-}
-.game-middle.with-series > .game-status {
-  grid-row: 3;
-}
-/* Under a series label, the block of lines centers in the row instead, so an empty status goes. */
-.game-middle.with-series:has(> .game-status:empty) {
-  grid-template-rows: auto 20px;
-}
-.game-middle.with-series > .game-status:empty {
-  display: none;
 }
 .series-label {
-  grid-row: 1;
-  margin-bottom: 4px;
   font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--ink-dim);
-  white-space: nowrap;
 }
 .series-count {
   color: var(--ink-mid);

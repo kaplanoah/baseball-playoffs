@@ -27,9 +27,41 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
     return season;
   });
   const row = page.locator('[data-game="1042600132"]');
-  await expect(row.locator(".clock")).toHaveText("Q2 5:10");
-  await expect(row.locator(".score")).toHaveText(/30\s*27/);
-  await expect(row.locator(".side.home .bonus")).toHaveText("Bonus");
+  await expect(row.locator(".game-status .clock")).toHaveText("Q2 5:10");
+  await expect(row.locator(".game-headline .score")).toHaveText(/30\s*27/);
+  await expect(row.locator(".game-extra.home .bonus")).toHaveText("Bonus");
+  await expect(row.locator(".game-extra.away")).toBeEmpty();
+});
+
+test("a team stays put as Bonus comes and goes, level with the score", async ({ page }) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator('[data-game="1042600132"]');
+  const findCenter = async (locator) => {
+    const box = await locator.boundingBox();
+    return box.y + box.height / 2;
+  };
+  const readTeamCenters = () =>
+    Promise.all(
+      [".game-side.away", ".game-side.home"].map((side) => findCenter(row.locator(side))),
+    );
+  const goLive = (isInBonus) =>
+    app.changeSeason((season) => {
+      const game = season.games.find((each) => each.id === "1042600132");
+      Object.assign(game, { state: "live", status: "Q2 5:10", period: 2, clock: "5:10" });
+      Object.assign(game.away, { score: 30 });
+      Object.assign(game.home, { score: 27, isInBonus });
+      return season;
+    });
+
+  const before = await readTeamCenters();
+  await goLive(true);
+  await expect(row.locator(".bonus")).toHaveText("Bonus");
+  expect(await readTeamCenters()).toEqual(before);
+  await goLive(false);
+  await expect(row.locator(".bonus")).toHaveCount(0);
+  expect(await readTeamCenters()).toEqual(before);
+  expect(Math.abs(before[0] - (await findCenter(row.locator(".score"))))).toBeLessThan(1);
 });
 
 const readBackground = (page) =>

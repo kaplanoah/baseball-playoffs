@@ -1,6 +1,7 @@
 import { findSeriesBetween, isEliminated } from "./bracket.js";
 import { renderTeamTag } from "./clubs.js";
 import { html, setHtml } from "#shared/html.js";
+import { renderGameRow } from "#shared/game-row.js";
 import { formatOrdinal } from "#shared/ordinal.js";
 import { describeRace, findStandingsRow, isSeedFinal } from "./race.js";
 import { session } from "./session.js";
@@ -108,7 +109,6 @@ export const renderArm = (hand) =>
   ARMS[hand] ? html`<span class="arm" title="${ARMS[hand]}">${hand}</span>` : html``;
 
 function renderStarter(starter, side) {
-  if (!isNamed(starter)) return html``;
   const era =
     starter.era &&
     html`<span class="starter-era tabular"><b>${starter.era}</b> <span class="starter-era-label">ERA</span></span>`;
@@ -121,8 +121,12 @@ function isOut(id) {
   return isOutOfPostseason || describeRace(findStandingsRow(id))?.standing === "out";
 }
 
-function renderSide(id, side, hasWon) {
-  return html`<span class="game-side ${side} ${hasWon ? "won" : ""} ${isOut(id) ? "out" : ""}">${renderClub(id)}${renderFacts(id)}</span>`;
+function describeSide(id, place, starter, hasWon) {
+  return {
+    lines: html`${renderClub(id)}${renderFacts(id)}`,
+    classes: [hasWon && "won", isOut(id) && "out"],
+    extra: isNamed(starter) && renderStarter(starter, place),
+  };
 }
 
 function renderScore(game, awayLost, homeLost) {
@@ -152,11 +156,15 @@ function renderSeriesLabel(game, series) {
   return html`<span class="series-label ${series.winner ? "decided" : ""}">${nameRound(series)} <span class="series-count tabular">${awayWins}-${homeWins}</span></span>`;
 }
 
-function renderMiddle(game, awayLost, homeLost, series) {
-  const headline = game.score
-    ? renderScore(game, awayLost, homeLost)
-    : html`<span class="game-time">${game.state === "off" ? game.detail || "Postponed" : describeStart(game)}</span>`;
-  return html`<span class="game-middle ${series ? "with-series" : ""}">${series && renderSeriesLabel(game, series)}${headline}<span class="game-status">${describeStatus(game)}${renderOutLights(game)}</span></span>`;
+function renderHeadline(game, awayLost, homeLost) {
+  if (game.score) return renderScore(game, awayLost, homeLost);
+  const time = game.state === "off" ? game.detail || "Postponed" : describeStart(game);
+  return html`<span class="game-time">${time}</span>`;
+}
+
+function renderStatus(game) {
+  const status = describeStatus(game);
+  return Boolean(status) && html`${status}${renderOutLights(game)}`;
 }
 
 // The whole row opens the matchup sheet, which needs only what the row shows.
@@ -173,19 +181,17 @@ function renderGame(game, series) {
   const isFinal = game.state === "final";
   const awayLost = isFinal && awayScore < homeScore;
   const homeLost = isFinal && homeScore < awayScore;
-  const awayWon = isFinal && awayScore > homeScore;
-  const homeWon = isFinal && homeScore > awayScore;
   const [awayStarter, homeStarter] = game.starters || [];
   const hasStarters = isNamed(awayStarter) || isNamed(homeStarter);
-  const classes = [game.state, game.delay && "delayed", hasStarters && "with-starters"];
-  return html`<li class="game-row ${classes.filter(Boolean).join(" ")}">
-    ${renderSide(game.away, "away", awayWon)}
-    ${renderMiddle(game, awayLost, homeLost, series)}
-    ${renderSide(game.home, "home", homeWon)}
-    ${renderStarter(awayStarter, "away")}
-    ${renderStarter(homeStarter, "home")}
-    ${hasStarters && renderMatchupButton(game, [awayStarter, homeStarter])}
-  </li>`;
+  return renderGameRow({
+    classes: [game.state, game.delay && "delayed"],
+    away: describeSide(game.away, "away", awayStarter, homeLost),
+    home: describeSide(game.home, "home", homeStarter, awayLost),
+    label: Boolean(series) && renderSeriesLabel(game, series),
+    headline: renderHeadline(game, awayLost, homeLost),
+    status: renderStatus(game),
+    action: hasStarters && renderMatchupButton(game, [awayStarter, homeStarter]),
+  });
 }
 
 // A doubleheader's games sit together in game order, since MLB can list game 2 with the earlier start.

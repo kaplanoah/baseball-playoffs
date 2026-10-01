@@ -1,0 +1,91 @@
+/*
+ * A list of games, as game-row.js builds them. Every game is one fixed height, and each piece sits
+ * at its own offset from the row's middle, measured to the piece's own middle, so moving one moves
+ * nothing else. Apps link it after chrome.css, before their own styles.css, which styles what the
+ * pieces hold.
+ *
+ * An app's :root defines these tokens, each a length:
+ *   --game-row-height        every game's height
+ *   --game-side-offset       each side and the line under it, as one block
+ *   --game-label-offset      the label over the time or score
+ *   --game-headline-offset   the time or score
+ *   --game-status-offset     the status under the time or score
+ * Without a label, the time or score and its status center as a pair, as far apart as under one.
+ */
+
+.game-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--divider);
+}
+/* Positioned, so an action can cover the whole row. */
+.game-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: 1fr auto auto 1fr;
+  column-gap: 10px;
+  box-sizing: border-box;
+  height: var(--game-row-height);
+  border-bottom: 1px solid var(--divider);
+}
+.game-side,
+.game-extra {
+  min-width: 0;
+  translate: 0 var(--game-side-offset);
+}
+.game-side {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+}
+.game-extra {
+  grid-row: 3;
+  display: flex;
+}
+.game-side.away,
+.game-extra.away {
+  grid-column: 1;
+}
+.game-side.home,
+.game-extra.home {
+  grid-column: 3;
+}
+.game-side.home {
+  align-items: flex-end;
+  text-align: right;
+}
+.game-extra.home {
+  justify-content: flex-end;
+}
+/* The middle's pieces share one cell as tall as the row, each centered in it and moved from there. */
+.game-middle {
+  --headline-offset: var(--game-headline-offset);
+  --status-offset: var(--game-status-offset);
+  grid-area: 1 / 2 / -1 / 3;
+  display: grid;
+  grid-template-rows: 1fr;
+  justify-items: center;
+  align-items: center;
+}
+.game-middle:not(:has(> .game-label)) {
+  --headline-offset: calc((var(--game-headline-offset) - var(--game-status-offset)) / 2);
+  --status-offset: calc((var(--game-status-offset) - var(--game-headline-offset)) / 2);
+}
+.game-middle:not(:has(> .game-label, > .game-status)) {
+  --headline-offset: 0px;
+}
+.game-middle > * {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+}
+.game-label {
+  translate: 0 var(--game-label-offset);
+}
+.game-headline {
+  translate: 0 var(--headline-offset);
+}
+.game-status {
+  translate: 0 var(--status-offset);
+}

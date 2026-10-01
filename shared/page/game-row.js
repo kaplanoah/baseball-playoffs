@@ -1,0 +1,54 @@
+import { html } from "./html.js";
+
+/** @typedef {import("./html.js").Markup} Markup */
+
+/** @param {(string | false)[]} names */
+const joinClasses = (...names) => names.filter(Boolean).join(" ");
+
+/**
+ * One club's half of a game row.
+ * @typedef {object} GameRowSide
+ * @property {Markup} lines the club, and any facts under it
+ * @property {(string | false)[]} [classes] falsy ones are left out
+ * @property {Markup | false} [extra] a line of its own under the side, like a starter; false
+ *   leaves none, and empty markup still holds the line's place
+ */
+
+/**
+ * A game in a list, as game-row.css lays it out: the away and home sides face each other across
+ * the middle, which holds the time or score, with an optional label over it and status under it.
+ * An action, like a button that opens the game, may cover the whole row.
+ * @param {{ id?: string, classes?: (string | false)[], away: GameRowSide, home: GameRowSide, label?: Markup | false, headline: Markup, status?: Markup | false, action?: Markup | false }} row
+ */
+export const renderGameRow = ({
+  id,
+  classes = [],
+  away,
+  home,
+  label = false,
+  headline,
+  status = false,
+  action = false,
+}) =>
+  html`<li class="${joinClasses("game-row", ...classes)}"${id && html` data-game="${id}"`}>
+    ${renderSide(away, "away")}
+    <span class="game-middle"
+      >${label && html`<span class="game-label">${label}</span>`}<span class="game-headline">${headline}</span
+      >${status && html`<span class="game-status">${status}</span>`}</span
+    >
+    ${renderSide(home, "home")} ${renderExtra(away, "away")} ${renderExtra(home, "home")} ${action}
+  </li>`;
+
+/**
+ * @param {GameRowSide} side
+ * @param {"away" | "home"} place
+ */
+const renderSide = (side, place) =>
+  html`<span class="${joinClasses("game-side", place, ...(side.classes ?? []))}">${side.lines}</span>`;
+
+/**
+ * @param {GameRowSide} side
+ * @param {"away" | "home"} place
+ */
+const renderExtra = (side, place) =>
+  side.extra ? html`<span class="game-extra ${place}">${side.extra}</span>` : html``;

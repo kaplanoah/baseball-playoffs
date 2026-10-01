@@ -19,9 +19,9 @@ export const REQUESTS = {
 };
 
 export const ROUNDS = {
-  1: { name: "First Round", bestOf: 3 },
-  2: { name: "Semifinals", bestOf: 5 },
-  3: { name: "WNBA Finals", bestOf: 7 },
+  1: { name: "First Round", shortName: "1st Rd", bestOf: 3 },
+  2: { name: "Semifinals", shortName: "Semis", bestOf: 5 },
+  3: { name: "WNBA Finals", shortName: "Finals", bestOf: 7 },
 };
 const countWinsNeeded = (round) => Math.ceil(ROUNDS[round].bestOf / 2);
 

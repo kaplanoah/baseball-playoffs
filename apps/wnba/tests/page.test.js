@@ -82,21 +82,18 @@ test("a game without a set time falls on the league's day, even out west", () =>
 test("a live game shows its clock and who's in the bonus, and stays with today's", () =>
   inEastern(() => {
     const text = readText(renderGames(LIVE_TONIGHT, NOW));
-    assert.match(
-      text,
-      /^Today 4 Dream 71 68 Q4 3:48 5 Mystics Bonus First Round Game 2 \| Dream lead 1-0 /,
-    );
+    assert.match(text, /^Today 4 Dream 1st Rd 1-0 71 68 Q4 3:48 5 Mystics Bonus 2 Valkyries /);
   }));
 
 test("a final dims the loser, and a game not yet played shows its start in the viewer's time", () =>
   inEastern(() => {
     const markup = renderGames(SEASON, NOW).text;
-    assert.match(markup, /data-game="1042600102"[\s\S]*?class="side home lost"/);
-    assert.match(readText(renderGames(SEASON, NOW)), /^Today 4 Dream 7:00 PM 5 Mystics/);
+    assert.match(markup, /data-game="1042600102">\s*<span class="game-side away lost">/);
+    assert.match(readText(renderGames(SEASON, NOW)), /^Today 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics/);
     const western = checkInTimeZone("America/Los_Angeles", () =>
       readText(renderGames(SEASON, NOW)),
     );
-    assert.match(western, /^Today 4 Dream 4:00 PM 5 Mystics/);
+    assert.match(western, /^Today 4 Dream 1st Rd 1-0 4:00 PM 5 Mystics/);
   }));
 
 test("a game a finished series no longer needs is left off, and an empty section says nothing", () =>
@@ -114,7 +111,37 @@ test("a game a finished series no longer needs is left off, and an empty section
     const onlyResults = { ...SEASON, games: SEASON.games.filter((game) => game.state === "final") };
     const text = readText(renderGames(onlyResults, NOW));
     assert.match(text, /^Today No games today\. Results /);
-    assert.match(text, /Valkyries lead 1-0$/);
+    assert.match(text, /Final 2 Valkyries$/);
+  }));
+
+test("each game's label counts its series as it stood at tip-off, or after the game once it's final", () =>
+  inEastern(() => {
+    const text = readText(renderGames(SEASON, NOW));
+    assert.match(text, /^Today 4 Dream 1st Rd 1-0 7:00 PM 5 Mystics /);
+    assert.match(text, / 8 Liberty 1st Rd 1-0 91 75 Final 1 Lynx /);
+    assert.match(text, / 1 Lynx 1st Rd 0-2 71 87 Final 8 Liberty /);
+    const labels = [...renderGames(SEASON, NOW).text.matchAll(/class="series-label( decided)?"/g)];
+    assert.deepEqual(
+      labels.filter(([, decided]) => decided).length,
+      1,
+      "only the game that ended a series marks it decided",
+    );
+  }));
+
+test("a game whose teams aren't both known yet names its number instead of a series count", () =>
+  inEastern(() => {
+    const text = readText(renderGames(SEASON, NOW));
+    assert.match(text, / 8 Liberty Semis G1 TBD TBD /);
+    assert.match(text, / TBD Semis G3 TBD 8 Liberty /);
+  }));
+
+test("a game that may not be needed says so under its time", () =>
+  inEastern(() => {
+    const markup = renderGames(SEASON, NOW).text;
+    assert.match(
+      markup,
+      /<span class="time tabular">TBD<\/span><\/span\s*><span class="game-status">If needed<\/span>/,
+    );
   }));
 
 test("the bracket pairs each semifinal with the first-round series that feed it", () =>

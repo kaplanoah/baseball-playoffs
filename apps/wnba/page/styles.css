@@ -69,6 +69,11 @@
   --numbers: "Barlow Condensed", "Arial Narrow", sans-serif;
   --text: "Barlow", system-ui, sans-serif;
   --radius: 2px;
+  --game-row-height: 84px;
+  --game-side-offset: 9px;
+  --game-label-offset: -24px;
+  --game-headline-offset: 0px;
+  --game-status-offset: 23px;
   color-scheme: light;
 }
 /* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
@@ -230,45 +235,24 @@ header.top h1 {
   font-weight: 600;
   color: var(--ink-dim);
 }
-.game-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--divider);
-}
-.game-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 4px;
-  align-items: center;
-  padding: 11px 0 9px;
-  border-bottom: 1px solid var(--divider);
-}
-.side {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+.game-side {
   gap: 4px;
-  min-width: 0;
 }
-.side .club {
+.game-side .club {
   max-width: 100%;
   font-size: 1.05rem;
 }
-.side.home {
-  align-items: flex-end;
-}
-.side.home .club {
+.game-side.home .club {
   flex-direction: row-reverse;
 }
-.side.lost .club {
+.game-side.lost .club {
   color: var(--ink-dim);
 }
-.middle {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
+.game-extra {
+  min-height: 14px;
+  margin-top: 4px;
+}
+.game-middle {
   min-width: 76px;
 }
 .score {
@@ -282,18 +266,34 @@ header.top h1 {
 .score .lost {
   color: var(--ink-dim);
 }
-.status {
+.game-status,
+.series-label {
   font-family: var(--display);
-  font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--ink-dim);
+}
+.game-status {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+.series-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+}
+.series-count {
+  color: var(--ink-mid);
+}
+.series-label.decided,
+.series-label.decided .series-count {
+  color: var(--teal);
 }
 .clock {
   font-family: var(--numbers);
   font-size: 0.85rem;
   font-weight: 700;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--orange);
 }
 .time {
@@ -309,15 +309,9 @@ header.top h1 {
   font-family: var(--display);
   font-size: 0.55rem;
   font-weight: 700;
+  line-height: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-}
-.game-note {
-  grid-column: 1 / -1;
-  margin: 0;
-  text-align: center;
-  font-size: 0.7rem;
-  color: var(--ink-dim);
 }
 
 /* Bracket: the rounds side by side under names level with each other. Each series takes an equal
