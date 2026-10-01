@@ -100,6 +100,18 @@ test("on a phone, the matchup rises as a sheet that a swipe down closes", async 
   await expect(sheet).toBeHidden();
 });
 
+test("on a phone, the matchup rises only when the viewer allows motion", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const sheet = await openMatchup(page);
+  await expect(sheet).toHaveCSS("animation-name", "none");
+
+  await sheet.press("Escape");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.getByRole("button", { name: "Pitching matchup: Blubaugh vs Springs" }).click();
+  await expect(sheet).toHaveCSS("animation-name", "sheet-rise");
+});
+
 test("each bar is the share of starters he beats, gold for whichever starter ranks higher", async ({
   page,
 }) => {

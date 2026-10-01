@@ -168,6 +168,20 @@ test("on a phone, settings rise from the bottom as a sheet with a wide grabber a
 const readSheetTop = (page) =>
   page.locator("#settingsDialog").evaluate((dialog) => dialog.getBoundingClientRect().top);
 
+test("on a phone, settings rise only when the viewer allows motion", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openApp(page);
+  await openSettings(page);
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await expect(settings).toHaveCSS("animation-name", "none");
+
+  await settings.press("Escape");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSettings(page);
+  await expect(settings).toHaveCSS("animation-name", "sheet-rise");
+});
+
 test("on a phone, a slow swipe down far enough closes settings, and a short one springs back", async ({
   page,
 }) => {

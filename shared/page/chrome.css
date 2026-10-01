@@ -325,9 +325,6 @@ section.view.active {
   .switch-knob {
     transition: none;
   }
-  .settings-panel[open] {
-    animation: none;
-  }
   .settings-btn,
   .sheet-top {
     transition: none;
@@ -361,8 +358,10 @@ section.view.active {
     border-radius: 22px 22px 0 0;
     box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
   }
-  .settings-panel[open] {
-    animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  @media (prefers-reduced-motion: no-preference) {
+    .settings-panel[open] {
+      animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
   }
   .settings-body {
     padding-inline: 18px;
