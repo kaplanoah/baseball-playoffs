@@ -602,6 +602,28 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
   await expect(eliminated).toHaveCSS("text-decoration-line", "none");
 });
 
+test("a club's seed shows only where it enters the bracket: its Wild Card slot or its bye's Division Series slot", async ({
+  page,
+}) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+  const bracket = page.locator("#bracketWrap");
+  const readSeed = (round, club) =>
+    bracket
+      .locator(`.box[data-round="${round}"] .matchup-row`)
+      .filter({ hasText: club })
+      .locator(".seed-pre");
+
+  await expect(readSeed("WC", "Yankees")).toHaveText("4");
+  await expect(readSeed("DS", "Blue Jays")).toHaveText("1");
+  await expect(readSeed("DS", "Yankees")).toHaveCount(0);
+  await expect(readSeed("CS", "Blue Jays")).toHaveCount(0);
+  await expect(readSeed("WS", "Dodgers")).toHaveCount(0);
+  await expect(bracket.locator(".seed-pre")).toHaveCount(12);
+});
+
 test("the bracket leaves a score empty until its series' first game starts, and gives each TBD row one too", async ({
   page,
 }) => {

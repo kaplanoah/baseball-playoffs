@@ -11,6 +11,7 @@ import { ROUNDS } from "./snapshot.js";
 /** @typedef {import("./games-view.js").Game} Game */
 
 /**
+ * A seed shows only in the first round, where its team enters the bracket.
  * @param {SeriesSide | null} side
  * @param {Series} series
  */
@@ -20,7 +21,7 @@ function renderTeamLine(side, series) {
   const isWinner = series.winner === side.team;
   const state = isOut ? " out" : isWinner ? " won" : "";
   return html`<div class="team-line${state}">
-    ${renderClub(side.team, { seed: side.seed })}<span class="wins tabular"><span>${side.wins}</span></span>
+    ${renderClub(side.team, { seed: series.round === 1 ? side.seed : null })}<span class="wins tabular"><span>${side.wins}</span></span>
   </div>`;
 }
 

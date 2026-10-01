@@ -241,7 +241,7 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     );
     assert.match(
       text,
-      /Waits on 4-5 8 Liberty 0 TBD Waits on 2-7 and 3-6 TBD TBD Starts after the Semifinals TBD TBD$/,
+      /Waits on 4-5 Liberty 0 TBD Waits on 2-7 and 3-6 TBD TBD Starts after the Semifinals TBD TBD$/,
     );
     assert.match(markup, /class="team-line out"[\s\S]*?Lynx/);
     assert.match(markup, /class="series-note decided">Liberty win 2-0/);
@@ -277,6 +277,13 @@ function finishFirstRound() {
   });
   return season;
 }
+
+test("a seed shows only in the first round, where its team enters the bracket", () =>
+  inEastern(() => {
+    const text = readText(renderBracket(finishFirstRound(), NOW));
+    assert.match(text, /Dream win 2-0 4 Dream 2 5 Mystics 0 /);
+    assert.match(text, /Oct 4 Dream 0 Liberty 0 Game 1 \| Sun, Oct 4 Valkyries 0 Fever 0 /);
+  }));
 
 test("the bracket opens on the earliest round with a series still to finish", () =>
   inEastern(() => {

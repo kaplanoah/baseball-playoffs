@@ -36,6 +36,11 @@ function findPreferredSide(series) {
 const renderSeriesWins = (wins, isWinner = false) =>
   html`<span class="nscore tabular ${isWinner ? "lead" : ""}">${wins ?? ""}</span>`;
 
+// A seed shows only where its club enters the bracket: both Wild Card slots, and the bye's slot in
+// each Division Series, which is teamA.
+const isEntrySlot = (series, side) =>
+  series.round === "WC" || (series.round === "DS" && side === "A");
+
 function renderMatchupRow(series, side) {
   const id = side === "A" ? series.teamA : series.teamB;
   const wins = side === "A" ? series.winsA : series.winsB;
@@ -46,7 +51,7 @@ function renderMatchupRow(series, side) {
   const isPreferred = findPreferredSide(series) === side;
   // A score stays empty until the series' first game starts, and counts from 0 after.
   const shownWins = series.started ? wins : null;
-  const seed = session.state.teams[id] && session.state.teams[id].seed;
+  const seed = isEntrySlot(series, side) ? session.state.teams[id]?.seed : null;
   return html`<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
     <div class="team-id">${renderRankTag(id, isPreferred)}${renderSeedMark(seed)}${renderTeamTag(id)}</div>
     ${renderSeriesWins(shownWins, isWinner)}
