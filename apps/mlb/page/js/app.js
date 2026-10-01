@@ -15,15 +15,11 @@ import { renderAll } from "./render.js";
 import { reloadPage, watchReturns } from "#shared/resume.js";
 import {
   applyDeferredSeason,
-  loadReadings,
-  loadSeason,
   loadSeasonList,
-  loadStandings,
   saveRanking,
+  showUnsavedSeason,
   stopSavingAfterFailedLoad,
-  watchReadings,
-  watchSeason,
-  watchStandings,
+  watchYear,
 } from "./season-store.js";
 import { composeState, hasSpringStarted, session, readSeasonYear } from "./session.js";
 import { startSettings } from "./settings.js";
@@ -37,24 +33,27 @@ const SPRING_CHECK_MS = 60 * 60 * 1000;
 
 const findYearPicker = () => /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
 
-function watchActiveSeason() {
-  watchSeason(session.activeYear, renderAll);
-  watchStandings(session.activeYear, () => {
+const YEAR_REDRAWS = {
+  onSeasonChange: renderAll,
+  onStandingsChange: () => {
     renderStandings();
     renderStamp();
-  });
-  watchReadings(session.activeYear, renderUpdates);
-}
+  },
+  onReadingsChange: renderUpdates,
+};
 
+// Watching a year reads each of its documents, so the watches' first answers are its load.
 async function loadActiveSeason() {
-  try {
-    await loadSeason(session.activeYear);
-  } catch {
-    stopSavingAfterFailedLoad();
-    await loadSeason(session.activeYear);
+  const year = session.activeYear;
+  if (session.db) {
+    try {
+      await watchYear(year, YEAR_REDRAWS);
+      return;
+    } catch {
+      stopSavingAfterFailedLoad();
+    }
   }
-  await loadStandings(session.activeYear);
-  await loadReadings(session.activeYear);
+  showUnsavedSeason(year);
 }
 
 async function switchYear(year) {
@@ -62,7 +61,6 @@ async function switchYear(year) {
   await loadActiveSeason();
   if (session.activeYear !== year) return;
   renderAll();
-  watchActiveSeason();
   startLive();
 }
 
@@ -200,11 +198,10 @@ async function boot() {
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);
-  fillYearPicker(await listYears());
-  await loadActiveSeason();
+  const [years] = await Promise.all([listYears(), loadActiveSeason()]);
+  fillYearPicker(years);
   renderAll();
   watchBracketSpace();
-  watchActiveSeason();
   refreshClockEveryMinute();
   watchPageVisibility();
   startLive();
