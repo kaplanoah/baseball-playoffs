@@ -9,13 +9,18 @@ const API = "https://api.cloudflare.com/client/v4";
 const WORKER_URL = "https://mlb-live.example-subdomain.workers.dev/";
 const ROBOTS_URL = `${WORKER_URL}robots.txt`;
 const LIVE_VERSIONS = [{ version_id: "v-live", percentage: 100 }];
-const LIVE_COMMIT = "1".repeat(40);
-const NEW_COMMIT = "2".repeat(40);
 const LIVE_DEPLOYMENTS = [
   { created_on: "2026-09-24T10:00:00Z", versions: [{ version_id: "v-older", percentage: 100 }] },
   { created_on: "2026-09-25T10:00:00Z", versions: LIVE_VERSIONS },
 ];
-const ANSWER_ROBOTS = () => new Response("User-agent: *\nDisallow: /\n");
+const LIVE_COMMIT = "1".repeat(40);
+const NEW_COMMIT = "2".repeat(40);
+// The Worker names the commit it was built from, as the build writes it: in short form.
+const answerRobotsFrom = (commit) => () =>
+  new Response("User-agent: *\nDisallow: /\n", {
+    headers: { "x-release-commit": commit.slice(0, 7) },
+  });
+const ANSWER_ROBOTS = answerRobotsFrom(NEW_COMMIT);
 const skipPause = async () => {};
 
 /**
@@ -419,15 +424,39 @@ test("a Worker that doesn't answer puts the live version back", async () => {
       log: () => {},
       pause: skipPause,
     }),
-    /didn't answer, so the earlier version is live again/,
+    /didn't answer as the new version, so the earlier version is live again/,
   );
   const calls = describeCalls(cloudflare.calls);
-  assert.equal(calls.filter((call) => call === `GET ${ROBOTS_URL}`).length, 6);
+  assert.equal(calls.filter((call) => call === `GET ${ROBOTS_URL}`).length, 12);
   assert.equal(calls.at(-1), "POST /accounts/acct123/workers/scripts/mlb-live/deployments");
   assert.deepEqual(JSON.parse(cloudflare.calls.at(-1).init.body), {
     strategy: "percentage",
     versions: LIVE_VERSIONS,
   });
+});
+
+test("a Worker still answering as the version before isn't the new one, and is put back", async () => {
+  const { deploy } = await loadDeployModule();
+  const deployWhileAnswering = (answerWorker) =>
+    deploy({
+      app: "mlb",
+      fetchImpl: createFakeCloudflare({ liveCommit: LIVE_COMMIT, answerWorker }).fetchImpl,
+      env: ENV,
+      script: "",
+      commit: NEW_COMMIT,
+      findChanges: () => ["apps/mlb/page/js/app.js"],
+      log: () => {},
+      pause: skipPause,
+    });
+
+  await assert.rejects(
+    deployWhileAnswering(answerRobotsFrom(LIVE_COMMIT)),
+    /didn't answer as the new version, so the earlier version is live again/,
+  );
+  let checks = 0;
+  const catchingUp = () => (++checks < 3 ? answerRobotsFrom(LIVE_COMMIT) : ANSWER_ROBOTS)();
+  assert.equal(await deployWhileAnswering(catchingUp), WORKER_URL);
+  assert.equal(checks, 3);
 });
 
 test("a failed check says so when there's nothing to go back to, or going back fails", async () => {
@@ -443,7 +472,7 @@ test("a failed check says so when there's nothing to go back to, or going back f
       log: () => {},
       pause: skipPause,
     }),
-    /didn't answer, and no earlier version exists/,
+    /didn't answer as the new version, and no earlier version exists/,
   );
   assert.ok(
     !describeCalls(brandNew.calls).some((call) =>
