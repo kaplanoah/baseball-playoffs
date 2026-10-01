@@ -9,3 +9,9 @@ export const normalizeSpaces = (value) => {
 };
 
 export const stripTags = (value) => readText(value).replace(/<[^>]+>/g, "");
+
+// A stamp's markup as it reads: its AM/PM is set apart by a margin, which reads as a space.
+export const readStampText = (value) =>
+  stripTags(normalizeSpaces(value).replace(/<span class="ap">/g, " "))
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&amp;/g, "&");

@@ -63,15 +63,20 @@ export function listBracketLinks(allSeries) {
 export const nameTeam = (code) => (code && TEAMS[code]?.name) || "TBD";
 
 /**
+ * A series' two sides, the one with more wins first.
+ * @param {SeriesSide} top
+ * @param {SeriesSide} bottom
+ */
+export const orderBySeriesWins = (top, bottom) =>
+  top.wins >= bottom.wins ? [top, bottom] : [bottom, top];
+
+/**
  * Where a series stands, as "Dream lead 1-0", "Tied 1-1", or "Liberty win 2-0".
  * @param {Series | undefined} series
  */
 export function describeSeriesStanding(series) {
   if (!series?.top || !series.bottom) return "";
-  const [ahead, behind] =
-    series.top.wins >= series.bottom.wins
-      ? [series.top, series.bottom]
-      : [series.bottom, series.top];
+  const [ahead, behind] = orderBySeriesWins(series.top, series.bottom);
   const score = `${ahead.wins}-${behind.wins}`;
   if (series.winner) return `${nameTeam(series.winner)} win ${score}`;
   if (ahead.wins === behind.wins) return `Tied ${score}`;

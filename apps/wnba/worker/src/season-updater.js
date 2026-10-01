@@ -38,6 +38,18 @@ function keepFurtherGames(savedGames, games) {
   });
 }
 
+// The feeds give no time a game ended, so it's when the Worker, checking every few seconds while
+// the game is live, first finds it final. A game found final without being seen live has no end.
+function addEndTimes(savedGames, games, asOf) {
+  const savedById = new Map((savedGames ?? []).map((game) => [game.id, game]));
+  return games.map((game) => {
+    if (game.state !== "final") return game;
+    const saved = savedById.get(game.id);
+    const end = saved?.end ?? (saved?.state === "live" ? asOf : null);
+    return end ? { ...game, end } : game;
+  });
+}
+
 // A feed that didn't answer leaves its saved field as it was. The games need both of theirs: the
 // schedule alone can be behind on today's, and the scoreboard alone has only today's, unless ESPN
 // stood in for the scoreboard. Series counted from games ESPN may lack wait for the bracket.
@@ -47,10 +59,8 @@ export async function saveSnapshot(docs, snapshot) {
   const missing = new Set(snapshot.missing);
   const isStandIn = missing.has("scoreboard") && !!snapshot.standIn;
   const hasGames = (!missing.has("scoreboard") || isStandIn) && !missing.has("schedule");
-  const saving = {
-    ...snapshot,
-    games: isStandIn ? keepFurtherGames(doc.games, snapshot.games) : snapshot.games,
-  };
+  const games = isStandIn ? keepFurtherGames(doc.games, snapshot.games) : snapshot.games;
+  const saving = { ...snapshot, games: addEndTimes(doc.games, games, snapshot.asOf) };
   const answered = {
     games: hasGames,
     series: !missing.has("bracket") || (hasGames && !isStandIn),

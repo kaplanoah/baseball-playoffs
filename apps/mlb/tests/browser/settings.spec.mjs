@@ -35,10 +35,13 @@ test("the sliders button opens settings, and Done, Escape, or the backdrop close
 test("the sliders icon takes the stamp's time color and brightens on hover", async ({ page }) => {
   await openApp(page);
   const button = page.getByRole("button", { name: "Settings", exact: true });
-  const timeColor = await page
-    .locator("#stamp b")
-    .first()
-    .evaluate((time) => getComputedStyle(time).color);
+  const timeColor = await page.locator("#stamp").evaluate((stamp) => {
+    const time = document.createElement("b");
+    stamp.append(time);
+    const color = getComputedStyle(time).color;
+    time.remove();
+    return color;
+  });
 
   await expect(button).toHaveCSS("color", timeColor);
   await button.hover();
