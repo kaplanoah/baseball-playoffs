@@ -40,6 +40,9 @@
   <link rel="stylesheet" href="shared/sheet.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="shared/open-last-tab.js"></script>
+  <script type="importmap">
+    { "imports": { "#shared/": "./shared/" } }
+  </script>
 
   <header class="top">
     <div class="title-row">
@@ -311,8 +314,5 @@
     </filter>
   </svg>
 
-  <script type="importmap">
-    { "imports": { "#shared/": "./shared/" } }
-  </script>
   <script type="module" src="js/app.js"></script>
 </html>

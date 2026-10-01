@@ -6,15 +6,30 @@ const PAGE_HEADERS = {
 };
 
 const decodeBase64 = (text) => Uint8Array.from(atob(text), (character) => character.charCodeAt(0));
+const textEncoder = new TextEncoder();
 
 /** @param {Record<string, { contentType: string, text?: string, base64?: string }>} pageFiles */
 function decodePageFiles(pageFiles) {
   const files = new Map();
   for (const [path, { contentType, text, base64 }] of Object.entries(pageFiles)) {
-    files.set(path, { contentType, body: text ?? decodeBase64(base64) });
+    files.set(path, { contentType, body: text ?? decodeBase64(base64), etag: null });
   }
   return files;
 }
+
+/** @param {string | Uint8Array<ArrayBuffer>} body */
+async function hashBody(body) {
+  const bytes = typeof body === "string" ? textEncoder.encode(body) : body;
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const hex = [...digest.subarray(0, 16)].map((byte) => byte.toString(16).padStart(2, "0"));
+  return `"${hex.join("")}"`;
+}
+
+// Cloudflare weakens a file's tag when it compresses the file, so a weak copy still matches.
+const hasMatchingTag = (request, etag) =>
+  (request.headers.get("if-none-match") ?? "")
+    .split(",")
+    .some((tag) => tag.trim().replace(/^W\//, "") === etag);
 
 const respondText = (body, status, headers = {}) =>
   new Response(body, { status, headers: { "content-type": "text/plain", ...headers } });
@@ -28,13 +43,18 @@ const redirectToFolder = (url) =>
 /** @param {Parameters<typeof decodePageFiles>[0]} pageFiles */
 function createPageServer(pageFiles) {
   const files = decodePageFiles(pageFiles);
-  return function servePageFile(request, pagePath) {
+  // Every load asks again, and a browser that already has a file gets a 304 instead of the file.
+  return async function servePageFile(request, pagePath) {
     if (request.method !== "GET" && request.method !== "HEAD")
       return respondText("GET only.\n", 405, { allow: "GET, HEAD" });
     const file = files.get(pagePath === "/" ? "index.html" : pagePath.slice(1));
     if (!file) return serveNotFound();
+    file.etag ??= hashBody(file.body);
+    const etag = await file.etag;
+    const headers = { "content-type": file.contentType, etag, ...PAGE_HEADERS };
+    if (hasMatchingTag(request, etag)) return new Response(null, { status: 304, headers });
     const body = request.method === "HEAD" ? null : file.body;
-    return new Response(body, { headers: { "content-type": file.contentType, ...PAGE_HEADERS } });
+    return new Response(body, { headers });
   };
 }
 
