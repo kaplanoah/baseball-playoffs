@@ -56,11 +56,6 @@ async function expectTheme(page, theme) {
     "content",
     isDark ? "#1d1511" : "#e9d4b0",
   );
-  // The select's down arrow is drawn in the theme's dim ink.
-  const arrow = await page
-    .locator("#appearanceSel")
-    .evaluate((select) => getComputedStyle(select).backgroundImage);
-  expect(arrow).toContain(isDark ? "b19a86" : "6f563c");
 }
 
 /**
@@ -69,16 +64,19 @@ async function expectTheme(page, theme) {
  */
 async function chooseAppearance(page, choice) {
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("combobox", { name: "Appearance" }).selectOption({ label: choice });
+  await page
+    .getByRole("radiogroup", { name: "Appearance" })
+    .getByRole("radio", { name: choice })
+    .check();
   await page.keyboard.press("Escape");
 }
 
-test("on Automatic, the page and its icons follow the phone's dark or light setting", async ({
+test("on System, the page and its icons follow the phone's dark or light setting", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await openApp(page);
-  await expect(page.locator("#appearanceSel")).toHaveValue("auto");
+  await expect(page.locator('input[name="appearance"][value="auto"]')).toBeChecked();
   await expectTheme(page, "dark");
   await page.emulateMedia({ colorScheme: "light" });
   await expectTheme(page, "light");
@@ -98,8 +96,41 @@ test("choosing Walnut or Maple overrides the phone, and the choice stays after a
   await page.emulateMedia({ colorScheme: "dark" });
   await chooseAppearance(page, "Maple");
   await expectTheme(page, "light");
-  await chooseAppearance(page, "Automatic");
+  await chooseAppearance(page, "System");
   await expectTheme(page, "dark");
+});
+
+test("each appearance choice shows the home-screen icon it offers", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const choices = page.locator(".appearance-choice");
+  const icons = {
+    System: ["icon-light-180.png", "icon-180.png"],
+    Maple: ["icon-light-180.png"],
+    Walnut: ["icon-180.png"],
+  };
+  for (const [name, sources] of Object.entries(icons)) {
+    const images = choices.filter({ hasText: name }).locator("img");
+    await expect(images).toHaveCount(sources.length);
+    for (const [index, source] of sources.entries()) {
+      await expect(images.nth(index)).toHaveAttribute("src", source);
+      expect(
+        await images
+          .nth(index)
+          .evaluate((image) => /** @type {HTMLImageElement} */ (image).naturalWidth),
+      ).toBeGreaterThan(0);
+    }
+  }
+});
+
+test("changing the appearance says how to match the home-screen icon", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const note = page.locator("#appearanceNote");
+  await expect(note).toBeHidden();
+  await page.getByRole("radio", { name: "Walnut" }).check();
+  await expect(note).toBeVisible();
+  await expect(note).toHaveText(/Apple sets a home-screen icon only when the page is added/);
 });
 
 test("the page serves both themes' icons", async ({ page }) => {
