@@ -30,7 +30,7 @@ happens to a team in your ranking.
 A private web page that tracks the WNBA playoffs. It shows the bracket, every
 game with live scores and clocks, the league and conference standings with the
 playoff line, and how far each team got. It follows the phone's dark or light
-setting.
+setting, or the one you pick in its settings.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
 every 30 seconds during games. Saved to an iPhone's home screen, the page opens

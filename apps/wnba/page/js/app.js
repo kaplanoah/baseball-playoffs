@@ -8,9 +8,9 @@ import { startSettingsSheet } from "#shared/settings-sheet.js";
 import { moveTabSelection, startTabBar } from "#shared/tab-bar.js";
 import { readSelectedTab, selectTab, wireTabs } from "#shared/tabs.js";
 import { createWorkerStore } from "#shared/worker-store.js";
+import { startAppearance } from "./appearance.js";
 import { renderBracket } from "./bracket-view.js";
 import { renderGames } from "./games-view.js";
-import { matchHomeScreenIcon } from "./home-screen-icon.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStamp } from "./stamp.js";
@@ -79,7 +79,7 @@ function startTabs() {
 }
 
 async function boot() {
-  matchHomeScreenIcon();
+  startAppearance();
   watchReturns();
   trackKeyboardFocus();
   startTabs();
