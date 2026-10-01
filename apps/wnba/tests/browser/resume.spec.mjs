@@ -130,22 +130,49 @@ test("a page from the last release reloads when it comes back, though the Worker
   expect(await isSameLoad(page)).toBe(false);
 });
 
+/** @param {import("@playwright/test").Page} page */
+const readReleaseReloads = (page) => page.evaluate(() => sessionStorage.getItem("releaseReloads"));
+
 test("a page that has reloaded as often as it may for a missing file stays as it is", async ({
   page,
 }) => {
   const serveRelease = buildReleaseServer("wnba", RELEASE);
   const serveNextRelease = buildReleaseServer("wnba", NEXT_RELEASE);
-  let pageLoads = 0;
   await servePageFiles(page, (url) => {
-    if (url.pathname === "/") pageLoads++;
     const isSkewed = url.pathname === `/release/${NEXT_RELEASE.commit}/styles.css`;
     return (isSkewed ? serveRelease : serveNextRelease)(url);
   });
   await page.addInitScript(() => sessionStorage.setItem("releaseReloads", "15"));
   await openApp(page);
+  await markPage(page);
 
   await page.clock.runFor(10_000);
 
-  expect(pageLoads).toBe(1);
+  expect(await readReleaseReloads(page)).toBe("15");
+  expect(await isSameLoad(page)).toBe(true);
   await expect(findFinal(page)).toContainText("Liberty win 2-0");
+});
+
+test("a file outside the release's folder that fails to load leaves the page as it is", async ({
+  page,
+}) => {
+  await servePageFiles(page, buildReleaseServer("wnba", RELEASE));
+  await openApp(page);
+  await markPage(page);
+
+  await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const link = Object.assign(document.createElement("link"), {
+          rel: "stylesheet",
+          href: "missing.css",
+          onerror: resolve,
+        });
+        document.head.append(link);
+      }),
+  );
+  await page.clock.runFor(10_000);
+
+  expect(await readReleaseReloads(page)).toBe(null);
+  expect(await isSameLoad(page)).toBe(true);
 });

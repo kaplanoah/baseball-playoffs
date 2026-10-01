@@ -28,9 +28,18 @@ function saveReleaseReloads(count) {
   }
 }
 
+const RELEASE_FOLDER_PATH = /\/release\/[^/]+\//;
+
 /** @param {EventTarget | null} target */
-const isPageFile = (target) =>
-  target instanceof HTMLLinkElement || target instanceof HTMLScriptElement;
+function readFileAddress(target) {
+  if (target instanceof HTMLLinkElement) return target.href;
+  if (target instanceof HTMLScriptElement) return target.src;
+  return "";
+}
+
+// Only a file from a release's folder goes missing because another release answered.
+/** @param {EventTarget | null} target */
+const isReleaseFile = (target) => RELEASE_FOLDER_PATH.test(readFileAddress(target));
 
 function reloadForMissingFile() {
   if (hasMissingFile) return;
@@ -45,7 +54,7 @@ function reloadForMissingFile() {
 addEventListener(
   "error",
   (event) => {
-    if (isPageFile(event.target)) reloadForMissingFile();
+    if (isReleaseFile(event.target)) reloadForMissingFile();
   },
   true,
 );
