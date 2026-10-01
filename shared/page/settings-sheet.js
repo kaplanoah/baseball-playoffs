@@ -5,7 +5,7 @@
 
 import { joinWithSeparator, setHtml } from "./html.js";
 import { loadRelease } from "./release.js";
-import { closeOnSwipeDown, closeSheet } from "./sheet-swipe.js";
+import { openSheet, wireSheet } from "./sheet.js";
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 const findDialog = () =>
@@ -39,37 +39,15 @@ async function showRelease() {
   if (release) renderRelease(release);
 }
 
-// A click on the backdrop lands on the dialog itself; its content fills it edge to edge.
-function closeOnBackdropClick(event) {
-  if (event.target === event.currentTarget) closeSheet(findDialog());
-}
-
-// A line under the pinned header shows once the settings have scrolled under it.
-function markScrolled() {
-  const dialog = findDialog();
-  dialog.querySelector(".sheet-top").classList.toggle("scrolled", dialog.scrollTop > 0);
-}
-
-// Settings open at the top each time.
-function openSettings() {
-  const dialog = findDialog();
-  dialog.showModal();
-  dialog.scrollTop = 0;
-  markScrolled();
-}
-
 /**
  * Wires the settings button, the dialog's ways to close, and the sheet's swipe, and shows the
  * release. A touch that starts on a target `isOwnGesture` claims, like a drag handle or a picker,
  * never moves the sheet.
  * @param {{ isOwnGesture?: (target: EventTarget) => boolean }} [options]
  */
-export function startSettingsSheet({ isOwnGesture = () => false } = {}) {
+export function startSettingsSheet({ isOwnGesture } = {}) {
   const dialog = findDialog();
-  findElement("settingsBtn").addEventListener("click", openSettings);
-  findElement("settingsDoneBtn").addEventListener("click", () => closeSheet(dialog));
-  dialog.addEventListener("click", closeOnBackdropClick);
-  dialog.addEventListener("scroll", markScrolled);
-  closeOnSwipeDown(dialog, isOwnGesture);
+  findElement("settingsBtn").addEventListener("click", () => openSheet(dialog));
+  wireSheet(dialog, { doneButton: findElement("settingsDoneBtn"), isOwnGesture });
   showRelease();
 }
