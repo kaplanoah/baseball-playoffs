@@ -1,20 +1,22 @@
 // A phone keeps a home-screen page suspended for days and resumes it as it was, with no way to
-// reload it but quitting the app. So a page coming back reloads itself when a deploy has
-// replaced it, or when it has been away long enough that what it shows can't be trusted.
+// reload it but quitting the app. So a page coming back catches up on what changed while it was
+// away, and reloads itself only when a deploy has replaced it, since a reload blanks the screen.
 
 import { fetchRelease, loadRelease } from "./release.js";
 
-const LONG_AWAY_MS = 30 * 60 * 1000;
 // Timers stop while a phone suspends the page, so a tick this late means the page was asleep,
 // even when the phone never said it was hidden.
 const TICK_MS = 15 * 1000;
 const ASLEEP_MS = 60 * 1000;
 
 let activeAt = Date.now();
+let wasHidden = false;
 let isCheckingRelease = false;
 let isReloadPending = false;
 /** @type {() => boolean} */
 let isBusy = () => false;
+/** @type {() => void} */
+let catchUp = () => {};
 
 /**
  * @param {import("./release.js").Release | null} loaded
@@ -24,7 +26,7 @@ const isReplaced = (loaded, current) => !!loaded && !!current && loaded.commit !
 
 // A reload while the app is busy, as mid-drag, would drop what's under way, so it waits for the
 // first tick after.
-function reloadPage() {
+export function reloadPage() {
   if (isBusy()) isReloadPending = true;
   else location.reload();
 }
@@ -40,12 +42,15 @@ export async function reloadIfReplaced() {
   }
 }
 
+// Focus can come with no time away, and a phone can wake a page without hiding it first, so only
+// a page that was hidden or asleep catches up.
 function catchUpOnReturn() {
   if (document.hidden) return;
-  const awayMs = Date.now() - activeAt;
+  const hasBeenAway = wasHidden || Date.now() - activeAt >= ASLEEP_MS;
   activeAt = Date.now();
-  if (awayMs >= LONG_AWAY_MS) reloadPage();
-  else reloadIfReplaced();
+  wasHidden = false;
+  if (hasBeenAway) catchUp();
+  reloadIfReplaced();
 }
 
 function tick() {
@@ -56,13 +61,16 @@ function tick() {
 }
 
 // iOS doesn't always report a home-screen page coming back, so every sign of it counts.
-/** @param {{ isBusy?: () => boolean }} [options] */
+/** @param {{ isBusy?: () => boolean, catchUp?: () => void }} [options] */
 export function watchReturns(options = {}) {
   isBusy = options.isBusy ?? isBusy;
+  catchUp = options.catchUp ?? catchUp;
   loadRelease();
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) activeAt = Date.now();
-    else catchUpOnReturn();
+    if (document.hidden) {
+      activeAt = Date.now();
+      wasHidden = true;
+    } else catchUpOnReturn();
   });
   addEventListener("pageshow", (event) => {
     if (event.persisted) catchUpOnReturn();

@@ -183,7 +183,8 @@ look at it. The bundle records its version, the commit it was built from, and
 when, and the page's settings show them.
 
 Code every app uses lives in `shared/`: the page's tab bar and settings sheet
-(their styles in `chrome.css`), reload on return, and store client in
+(their styles in `chrome.css`), catching up on return, showing what the page
+last showed while it loads, and store client in
 `shared/page/`, and the Worker's routing and push
 notifications in `shared/worker/`. A change there reaches every app. The root
 `worker/` holds the tooling every app shares: building, versioning, deploying,
@@ -201,8 +202,10 @@ merge that adds its folder.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page reloads itself
-for a deploy the next time it comes back into view, and after half an hour
-away, so a home-screen app never needs quitting to catch up.
+for a deploy the next time it comes back into view, and otherwise reads what
+changed while it was away, so a home-screen app never needs quitting to catch
+up. A page that loads again first shows what it last showed, so it doesn't
+flash empty while it waits for its data.
 
 ### Deploying on merge
 

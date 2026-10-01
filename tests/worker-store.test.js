@@ -14,7 +14,6 @@ function startStore() {
         reads.push({ url: String(url), answer });
       })
   );
-  globalThis.document = /** @type {any} */ ({ hidden: false, addEventListener: () => {} });
   globalThis.WebSocket = /** @type {any} */ (
     class {
       constructor() {
@@ -60,4 +59,16 @@ test("a listing that arrives after a newer one is dropped", async () => {
   reads[0].answer({ docs: [{ id: "2026-09-24-01", data: {} }] });
   await settle();
   assert.deepEqual(seen, [["2026-09-25-01"]]);
+});
+
+test("catching up reads every watched document again", () => {
+  const { store, reads, openSocket } = startStore();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  openSocket();
+  const readCount = reads.length;
+
+  store.catchUp();
+
+  assert.equal(reads.length, readCount + 1);
+  assert.equal(reads.at(-1).url, "https://mlb-live.example/k3y/store/seasons/2026");
 });

@@ -91,12 +91,103 @@ test("a page whose first release check failed still reloads for a later deploy",
   await expectReload(page, () => comeBack(page));
 });
 
-test("a page asleep half an hour reloads when it wakes, even unannounced", async ({ page }) => {
+/** @param {import("@playwright/test").Page} page */
+const readFirstRanked = (page) => page.locator("#rankList .rank-item").first();
+
+/**
+ * Saves a reversed ranking the page's socket never hears of.
+ * @param {Awaited<ReturnType<typeof openApp>>} app
+ */
+async function reverseRankingWhileAway(app) {
+  await app.updateFromWorker();
+  await expect.poll(() => app.countOpenSockets()).toBeGreaterThan(0);
+  const season = await app.readDocument("seasons/2026");
+  const reversed = [...season.ranking].reverse();
+  await app.writeWhileAway("seasons/2026", { ...season, ranking: reversed });
+  return reversed;
+}
+
+/** @param {import("@playwright/test").Page} page */
+const hideAndShow = (page) =>
+  page.evaluate(() => {
+    for (const hidden of [true, false]) {
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+      document.dispatchEvent(new Event("visibilitychange"));
+    }
+  });
+
+test("a page asleep half an hour reads what it missed when it wakes, without reloading", async ({
+  page,
+}) => {
   await serveReleases(page);
-  await openApp(page);
+  const app = await openApp(page);
+  const reversed = await reverseRankingWhileAway(app);
   await markPage(page);
 
-  await expectReload(page, () => sleepUnannounced(page, 31));
+  await sleepUnannounced(page, 31);
+
+  await expect(readFirstRanked(page)).toHaveAttribute("data-id", reversed[0]);
+  expect(await isSameLoad(page)).toBe(true);
+});
+
+test("a page hidden for a moment reads what it missed when it's shown again", async ({ page }) => {
+  await serveReleases(page);
+  const app = await openApp(page);
+  const reversed = await reverseRankingWhileAway(app);
+  await markPage(page);
+
+  await hideAndShow(page);
+
+  await expect(readFirstRanked(page)).toHaveAttribute("data-id", reversed[0]);
+  expect(await isSameLoad(page)).toBe(true);
+});
+
+test("a page whose saved data couldn't load loads again when it comes back", async ({ page }) => {
+  await serveReleases(page);
+  await openApp(page, { portalReadsDocuments: true });
+  await expect(page.locator("#stamp")).toContainText("Couldn't load your saved data");
+  await markPage(page);
+
+  await expectReload(page, () => sleepUnannounced(page, 5));
+});
+
+test("a reload shows what the page last showed while the store is still answering", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.locator("#games-today .game-row")).toHaveCount(12);
+  await expect(page.locator("#bracketWrap .matchup-row")).toHaveCount(22);
+  const release = await app.holdStore();
+
+  await page.reload();
+
+  await expect(page.locator("#bracketWrap .matchup-row")).toHaveCount(22);
+  await expect(page.locator("#games-today .game-row")).toHaveCount(12);
+  release();
+});
+
+test("a reload leaves out live scores it last showed that it can no longer read", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.updateFromWorker();
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.locator("#games-today .game-row")).toHaveCount(12);
+  await page.addInitScript(() => {
+    const lastSeen = JSON.parse(localStorage.getItem("lastSeen") ?? "null");
+    if (!lastSeen?.live) return;
+    lastSeen.live.version = 2;
+    localStorage.setItem("lastSeen", JSON.stringify(lastSeen));
+  });
+  const release = await app.holdStore();
+
+  await page.reload();
+
+  await expect(page.locator("#bracketWrap .matchup-row")).toHaveCount(22);
+  await expect(page.locator("#games-today .game-row")).toHaveCount(0);
+  release();
+  await expect(page.locator("#games-today .game-row")).toHaveCount(12);
 });
 
 test("a page asleep a few minutes checks for a deploy instead of reloading", async ({ page }) => {
@@ -145,7 +236,7 @@ async function startDrag(page) {
   await page.mouse.move(box.x + box.width / 2, box.y + box.height * 3, { steps: 5 });
 }
 
-test("a page that wakes mid-drag after half an hour reloads once the drag ends", async ({
+test("a page that wakes mid-drag after half an hour keeps the drag and doesn't reload", async ({
   page,
 }) => {
   await serveReleases(page);
@@ -155,12 +246,11 @@ test("a page that wakes mid-drag after half an hour reloads once the drag ends",
   await markPage(page);
 
   await sleepUnannounced(page, 31);
-  expect(await isSameLoad(page)).toBe(true);
+  await expect(page.locator("#rankList .dragging")).toHaveCount(1);
+  await page.mouse.up();
+  await page.clock.runFor(15 * 1000);
 
-  await expectReload(page, async () => {
-    await page.mouse.up();
-    await page.clock.runFor(15 * 1000);
-  });
+  expect(await isSameLoad(page)).toBe(true);
 });
 
 test("a deploy found mid-drag reloads the page once the drag ends", async ({ page }) => {
