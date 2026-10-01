@@ -15,7 +15,7 @@ import { renderPendingPitchColumns, renderPitchColumns } from "./pitch-columns.j
 import { fetchPitcher, fetchRotation } from "./pitcher-fetch.js";
 import { session } from "./session.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
-import { closeOnSwipeDown, closeSheet } from "#shared/sheet-swipe.js";
+import { openSheet, wireSheet } from "#shared/sheet.js";
 import { PENDING_TAPE_SIDE, renderTapeRow } from "#shared/tape.js";
 
 const SIDES = ["away", "home"];
@@ -293,11 +293,8 @@ async function loadSide(side, game, season) {
 async function openMatchup(game) {
   const sequence = ++opening;
   const sides = listSides(game);
-  const dialog = findDialog();
   renderMatchup(game, sides);
-  if (!dialog.open) dialog.showModal();
-  dialog.scrollTop = 0;
-  markScrolled();
+  openSheet(findDialog());
   const season = session.activeYear;
   await Promise.all(
     sides.map((side) =>
@@ -306,12 +303,6 @@ async function openMatchup(game) {
       }),
     ),
   );
-}
-
-// A line under the pinned header shows once the sheet has scrolled under it.
-function markScrolled() {
-  const dialog = findDialog();
-  dialog.querySelector(".sheet-top").classList.toggle("scrolled", dialog.scrollTop > 0);
 }
 
 const readRowGame = (button) => JSON.parse(button.dataset.game);
@@ -324,12 +315,6 @@ function prepareFromRow(button) {
 }
 
 export function startMatchups() {
-  const dialog = findDialog();
   watchGameOpens(findElement("games-pages"), { open: openFromRow, prepare: prepareFromRow });
-  findElement("matchupDoneBtn").addEventListener("click", () => closeSheet(dialog));
-  dialog.addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) closeSheet(dialog);
-  });
-  dialog.addEventListener("scroll", markScrolled);
-  closeOnSwipeDown(dialog);
+  wireSheet(findDialog(), { doneButton: findElement("matchupDoneBtn") });
 }

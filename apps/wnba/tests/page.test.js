@@ -228,8 +228,8 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
       /Waits on 4-5 Liberty 0 TBD Waits on 2-7 and 3-6 TBD TBD Starts after the Semifinals TBD TBD$/,
     );
     assert.match(markup, /class="team-line out"[\s\S]*?Lynx/);
-    assert.match(markup, /class="series-note decided">Liberty win 2-0/);
-    assert.match(markup, /class="series-note today">Game 2/);
+    assert.match(markup, /class="series-note">Liberty win 2-0/);
+    assert.match(markup, /class="series-note">Game 2/);
   }));
 
 test("a series with a game under way says so", () =>

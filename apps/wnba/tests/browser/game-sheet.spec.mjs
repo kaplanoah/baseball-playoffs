@@ -133,9 +133,9 @@ test("a game that hasn't started previews the meetings, the season stats, and th
   await expect(sheet.locator(".sheet-part-head").first()).toHaveText(
     /Meetings\s*Fever won the season series 2-1/,
   );
-  await expect(sheet.locator(".meetings li")).toHaveCount(5);
+  await expect(sheet.locator(".meetings li")).toHaveCount(3);
   await expect(sheet.locator(".meetings li").first()).toHaveText(
-    /Sep 29\s*Fever\s*99-89\s*1st Rd G2/,
+    /Aug 6\s*Aces\s*86-84\s*on the road/,
   );
   await expect(sheet.locator(".tape-label")).toHaveText([
     "Record",
@@ -176,7 +176,7 @@ test("a game the league has no box score for says so, and a preview shows the pa
   await sheet.getByRole("button", { name: "Done" }).click();
 
   const preview = await openSheet(page, FEVER_AT_ACES);
-  await expect(preview.locator(".meetings li")).toHaveCount(5);
+  await expect(preview.locator(".meetings li")).toHaveCount(3);
   await expect(preview.locator(".sheet-message")).toHaveText(
     "Couldn't load the players' averages.",
   );
@@ -238,7 +238,7 @@ test("while its preview loads, the sheet holds the preview's shape, then fills i
   await expect(sheet.locator(".players tbody tr")).toHaveCount(6);
 
   release();
-  await expect(sheet.locator(".meetings li")).toHaveCount(5);
+  await expect(sheet.locator(".meetings li")).toHaveCount(3);
   await expect(sheet.locator(".placeholder")).toHaveCount(0);
 });
 

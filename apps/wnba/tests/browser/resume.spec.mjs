@@ -1,15 +1,33 @@
-import { buildReleaseServer, servePageFiles } from "../../../../tests/browser/serve-release.mjs";
+import { buildReleaseServer, servePageFiles } from "../../../../tests/browser/release-worker.mjs";
+import { NEXT_RELEASE, serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 import { test, expect, openApp } from "./harness.mjs";
 
 const MINUTE_MS = 60 * 1000;
-const RELEASE = { version: "1.4.0", commit: "abc1234", builtAt: "2026-10-01T22:00:00Z" };
-const NEXT_RELEASE = { version: "1.4.1", commit: "def5678", builtAt: "2026-10-01T23:00:00Z" };
+const LAST_RELEASE = { version: "1.4.0", commit: "abc1234", builtAt: "2026-10-01T22:00:00Z" };
+const NEW_RELEASE = { version: "1.4.1", commit: "def5678", builtAt: "2026-10-01T23:00:00Z" };
 
 // A reload clears whatever the test left on the window.
 /** @param {import("@playwright/test").Page} page */
 const markPage = (page) => page.evaluate(() => Object.assign(window, { isSameLoad: true }));
 /** @param {import("@playwright/test").Page} page */
 const isSameLoad = (page) => page.evaluate(() => "isSameLoad" in window);
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {() => Promise<unknown>} action
+ */
+async function expectReload(page, action) {
+  const reloaded = page.waitForEvent("load");
+  await action();
+  await reloaded;
+  expect(await isSameLoad(page)).toBe(false);
+}
+
+/** @param {import("@playwright/test").Page} page */
+const comeBack = (page) => page.evaluate(() => dispatchEvent(new Event("focus")));
+
+/** @param {import("@playwright/test").Page} page */
+const waitForTick = (page) => page.clock.runFor(15 * 1000);
 
 /**
  * The phone suspends the page without saying so, and it wakes up this much later.
@@ -89,12 +107,12 @@ test("a page whose first load failed loads the last season once the store answer
 test("a page that asks a server still on the last release for one of its files reloads until they match", async ({
   page,
 }) => {
-  const serveRelease = buildReleaseServer("wnba", RELEASE);
-  const serveNextRelease = buildReleaseServer("wnba", NEXT_RELEASE);
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
   const loads = { page: 0, skewed: 0 };
   await servePageFiles(page, (url) => {
     if (url.pathname === "/") loads.page++;
-    const isSkewed = url.pathname === `/release/${NEXT_RELEASE.commit}/styles.css` && !loads.skewed;
+    const isSkewed = url.pathname === `/release/${NEW_RELEASE.commit}/styles.css` && !loads.skewed;
     if (isSkewed) loads.skewed++;
     return (isSkewed ? serveRelease : serveNextRelease)(url);
   });
@@ -114,8 +132,8 @@ test("a page that asks a server still on the last release for one of its files r
 test("a page from the last release reloads when it comes back, though the Worker already served the next one's version", async ({
   page,
 }) => {
-  const serveRelease = buildReleaseServer("wnba", RELEASE);
-  const serveNextRelease = buildReleaseServer("wnba", NEXT_RELEASE);
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
   await servePageFiles(page, (url) =>
     (url.pathname === "/version.json" ? serveNextRelease : serveRelease)(url),
   );
@@ -136,10 +154,10 @@ const readReleaseReloads = (page) => page.evaluate(() => sessionStorage.getItem(
 test("a page that has reloaded as often as it may for a missing file stays as it is", async ({
   page,
 }) => {
-  const serveRelease = buildReleaseServer("wnba", RELEASE);
-  const serveNextRelease = buildReleaseServer("wnba", NEXT_RELEASE);
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
   await servePageFiles(page, (url) => {
-    const isSkewed = url.pathname === `/release/${NEXT_RELEASE.commit}/styles.css`;
+    const isSkewed = url.pathname === `/release/${NEW_RELEASE.commit}/styles.css`;
     return (isSkewed ? serveRelease : serveNextRelease)(url);
   });
   await page.addInitScript(() => sessionStorage.setItem("releaseReloads", "15"));
@@ -156,7 +174,7 @@ test("a page that has reloaded as often as it may for a missing file stays as it
 test("a file outside the release's folder that fails to load leaves the page as it is", async ({
   page,
 }) => {
-  await servePageFiles(page, buildReleaseServer("wnba", RELEASE));
+  await servePageFiles(page, buildReleaseServer("wnba", LAST_RELEASE));
   await openApp(page);
   await markPage(page);
 
@@ -175,4 +193,65 @@ test("a file outside the release's folder that fails to load leaves the page as 
 
   expect(await readReleaseReloads(page)).toBe(null);
   expect(await isSameLoad(page)).toBe(true);
+});
+
+test("a page coming back reloads itself once a deploy has replaced it", async ({ page }) => {
+  const served = await serveReleases(page);
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  await expectReload(page, () => comeBack(page));
+});
+
+test("a page coming back whose release check fails tries again until it finds the deploy", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  served.failures = 2;
+  await comeBack(page);
+  await expect.poll(() => served.requests).toBe(2);
+  await waitForTick(page);
+  await expect.poll(() => served.requests).toBe(3);
+  expect(await isSameLoad(page)).toBe(true);
+
+  await expectReload(page, () => waitForTick(page));
+});
+
+test("a release check that never answers gives up, and the next tick tries again", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  served.isHanging = true;
+  await comeBack(page);
+  await expect.poll(() => served.requests).toBe(2);
+  served.isHanging = false;
+
+  await expectReload(page, () => page.clock.runFor(30 * 1000));
+});
+
+test("a page whose first release check failed still reloads for a later deploy", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  served.failures = 1;
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await waitForTick(page);
+  await expect.poll(() => served.requests).toBe(3);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  await expectReload(page, () => comeBack(page));
 });
