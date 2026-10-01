@@ -977,6 +977,22 @@ test("on a phone, a league's name stays at the left while its line scrolls sidew
   await expect.poll(async () => (await name.boundingBox()).x).toBe(restingLeft);
 });
 
+test("on a wide screen, the Games pill and lists sit in the middle of the page", async ({
+  page,
+}) => {
+  await page.setViewportSize(WIDE_SCREEN);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const pageMiddle = page.viewportSize().width / 2;
+  for (const locator of [
+    page.getByRole("tablist", { name: "Games" }),
+    page.locator("#games-today .game-row").first(),
+  ]) {
+    const box = await locator.boundingBox();
+    expect(Math.abs(box.x + box.width / 2 - pageMiddle)).toBeLessThanOrEqual(1);
+  }
+});
+
 test("on a wide screen, the AL and NL face each other across the World Series", async ({
   page,
 }) => {
