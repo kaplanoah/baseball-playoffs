@@ -1,18 +1,16 @@
 // The matchup sheet a game with named starters opens: the two starters face to face, where each
-// ranks among the season's starters, how each gets outs, what each throws, and their last starts.
+// ranks among the season's starters, what each throws, and their last starts.
 // Phones show it as a sheet from the bottom that a swipe down closes, wider screens as a modal,
 // like Settings.
 
 import { nameTeam, renderTeamTag } from "./clubs.js";
-import { describeStart, formatGameDay } from "./games-view.js";
+import { describeStart, formatGameDay, renderArm } from "./games-view.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { renderPitchColumns } from "./pitch-columns.js";
 import { fetchPitcher } from "./pitcher-fetch.js";
-import { describeStyle } from "./scouting.js";
 import { session } from "./session.js";
 import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
 
-const ARMS = { L: "Lefty", R: "Righty" };
 const SIDES = ["away", "home"];
 const TAPE = [
   { key: "era", label: "ERA", format: (line) => line.era },
@@ -39,15 +37,21 @@ function renderWhen(game) {
 }
 
 function renderBio(pitcher) {
-  const facts = [ARMS[pitcher.hand], pitcher.age && String(pitcher.age)].filter(Boolean);
-  return html`<span class="pitcher-bio">${joinWithSeparator(facts)}</span>`;
+  const age = pitcher.age && html`<span>Age ${pitcher.age}</span>`;
+  return html`<span class="pitcher-bio">${renderArm(pitcher.hand)}${age}</span>`;
+}
+
+// Until his numbers load, a starter has only the last name the game row shows.
+function renderName({ starter, pitcher }) {
+  const first = pitcher?.firstName && html`<span class="pitcher-first">${pitcher.firstName}</span>`;
+  const last = pitcher?.lastName || starter?.name || "Not named yet";
+  return html`<span class="pitcher-name">${first}<span class="pitcher-last">${last}</span></span>`;
 }
 
 function renderPitcherId(side) {
-  const { club, starter, pitcher } = side;
-  const name = pitcher?.name || starter?.name || "Not named yet";
+  const { club, pitcher } = side;
   return html`<div class="pitcher-id ${side.key}">
-    <span class="pitcher-name">${name}</span>
+    ${renderName(side)}
     ${club ? renderTeamTag(club) : html``}
     ${pitcher ? renderBio(pitcher) : html``}
   </div>`;
@@ -124,8 +128,7 @@ function renderScouting(side) {
     pitcher.starts.length &&
     html`<h4>Last starts</h4><ul class="recent-starts">${pitcher.starts.map(renderStart)}</ul>`;
   return html`<section class="scout">
-    <h3>${name}<span>How he gets outs</span></h3>
-    <p class="scout-read">${describeStyle(pitcher)}</p>
+    <h3>${name}<span>What he throws</span></h3>
     ${renderPitchColumns(pitcher.pitches, name)}
     ${starts}
   </section>`;

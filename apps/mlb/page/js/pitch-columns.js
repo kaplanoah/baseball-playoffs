@@ -26,10 +26,11 @@ const SMALLEST_SHARE = 0.02;
 const MOST_COLUMNS = 7;
 const WIDTH = 320;
 const EDGE = 10;
-const LINE_Y = 22;
+const LINE_Y = 8;
 const DOT_RADIUS = 5.5;
-const STACK_STEP = 12;
-const BAR_TOP = 50;
+const DOT_STEP = 2 * DOT_RADIUS + 1;
+const LABEL_STEP_MPH = 10;
+const BAR_TOP = 40;
 const BAR_SPACE = 50; // a pitch thrown half the time fills it
 const BAR_BASE = BAR_TOP + BAR_SPACE;
 const NAME_LINE = 12;
@@ -47,24 +48,40 @@ export function listShownPitches(pitches) {
 // The line runs from 70 to 100 mph, wider only for a pitch outside that.
 function measureScale(pitches) {
   const speeds = pitches.map((pitch) => pitch.mph);
-  const low = Math.min(70, Math.floor(Math.min(...speeds) / 5) * 5);
-  const high = Math.max(100, Math.ceil(Math.max(...speeds) / 5) * 5);
+  const low = Math.min(70, Math.floor(Math.min(...speeds) / LABEL_STEP_MPH) * LABEL_STEP_MPH);
+  const high = Math.max(100, Math.ceil(Math.max(...speeds) / LABEL_STEP_MPH) * LABEL_STEP_MPH);
   const toX = (mph) => EDGE + ((mph - low) / (high - low)) * (WIDTH - 2 * EDGE);
   return { low, high, toX };
 }
 
-// The most-thrown pitch keeps its place on the line; a pitch at nearly the same speed sits above.
+const spreadDots = (group) => {
+  const center = group.reduce((sum, dot) => sum + dot.x, 0) / group.length;
+  return group.map((dot, index) => ({
+    ...dot,
+    x: center + (index - (group.length - 1) / 2) * DOT_STEP,
+  }));
+};
+
+const isCrowding = (group, next) => spreadDots(next)[0].x - spreadDots(group).at(-1).x < DOT_STEP;
+
+// Pitches at nearly the same speed sit side by side on the line, slowest first, centered on
+// their speeds, so no dot covers another.
 function placeDots(pitches, toX) {
-  const placed = new Map();
-  for (const pitch of [...pitches].sort((first, second) => second.share - first.share)) {
-    const x = toX(pitch.mph);
-    const crowded = (y) =>
-      [...placed.values()].some((dot) => dot.y === y && Math.abs(dot.x - x) < 2 * DOT_RADIUS);
-    let y = LINE_Y;
-    while (crowded(y)) y -= STACK_STEP;
-    placed.set(pitch, { x, y });
+  const groups = pitches.map((pitch) => [{ pitch, x: toX(pitch.mph) }]);
+  for (let index = 0; index + 1 < groups.length;) {
+    if (isCrowding(groups[index], groups[index + 1])) {
+      groups.splice(index, 2, [...groups[index], ...groups[index + 1]]);
+      index = Math.max(0, index - 1);
+    } else index++;
   }
-  return placed;
+  return groups.flatMap((group) => keepOnLine(spreadDots(group)));
+}
+
+function keepOnLine(dots) {
+  const first = EDGE + DOT_RADIUS - dots[0].x;
+  const last = WIDTH - EDGE - DOT_RADIUS - dots.at(-1).x;
+  const shift = Math.max(0, first) + Math.min(0, last);
+  return dots.map((dot) => ({ ...dot, x: dot.x + shift }));
 }
 
 const formatNumber = (value) => Number(value.toFixed(1));
@@ -87,11 +104,21 @@ function renderColumn(pitch, center, width) {
   </g>`;
 }
 
-function renderDot(pitch, { x, y }) {
-  const stem =
-    y !== LINE_Y &&
-    html`<line class="pitch-stem" x1="${formatNumber(x)}" y1="${LINE_Y}" x2="${formatNumber(x)}" y2="${y}"/>`;
-  return html`${stem}<circle class="pitch-dot pitch-${pitch.code}" cx="${formatNumber(x)}" cy="${y}" r="${DOT_RADIUS}"/>`;
+const renderDot = ({ pitch, x }) =>
+  html`<circle class="pitch-dot pitch-${pitch.code}" cx="${formatNumber(x)}" cy="${LINE_Y}" r="${DOT_RADIUS}"/>`;
+
+// A label every 10 mph, with the unit on the first, whose number still centers on its speed.
+function renderSpeedLabels(low, high, toX) {
+  const labels = [];
+  for (let mph = low; mph <= high; mph += LABEL_STEP_MPH) {
+    const x = formatNumber(toX(mph));
+    labels.push(
+      mph === low
+        ? html`<text class="speed-label first" x="${x}" dx="-${String(mph).length * 0.3}em" y="${LINE_Y + 16}">${mph} mph</text>`
+        : html`<text class="speed-label" x="${x}" y="${LINE_Y + 16}">${mph}</text>`,
+    );
+  }
+  return labels;
 }
 
 /** @param {{ code: string, name: string, share: number, mph: number }[]} allPitches */
@@ -109,10 +136,9 @@ export function renderPitchColumns(allPitches, pitcherName) {
   return html`<svg class="pitch-columns" viewBox="0 0 ${WIDTH} ${height}" role="img" aria-label="${label}">
     <line class="speed-axis" x1="${EDGE}" y1="${LINE_Y}" x2="${WIDTH - EDGE}" y2="${LINE_Y}"/>
     <line class="speed-range" x1="${formatNumber(first)}" y1="${LINE_Y}" x2="${formatNumber(last)}" y2="${LINE_Y}"/>
-    <text class="speed-label" x="${EDGE}" y="${LINE_Y + 16}">${low} mph</text>
-    <text class="speed-label end" x="${WIDTH - EDGE}" y="${LINE_Y + 16}">${high}</text>
+    ${renderSpeedLabels(low, high, toX)}
     <line class="pitch-base" x1="${EDGE}" y1="${BAR_BASE}" x2="${WIDTH - EDGE}" y2="${BAR_BASE}"/>
     ${pitches.map((pitch, index) => renderColumn(pitch, EDGE + width * (index + 0.5), width))}
-    ${[...dots.entries()].reverse().map(([pitch, dot]) => renderDot(pitch, dot))}
+    ${dots.map(renderDot)}
   </svg>`;
 }

@@ -33,19 +33,41 @@ test("pitches get short names, and one MLB adds later keeps MLB's", () => {
   assert.equal(namePitch(pitch("XX", 0.2, 82, "Gyroball")), "Gyroball");
 });
 
-test("a pitch at nearly the speed of a more-thrown one sits above the line", () => {
+test("pitches at nearly the same speed sit side by side on the line, slowest first", () => {
   const svg = String(
     renderPitchColumns(
       [pitch("FF", 0.44, 98.0), pitch("SI", 0.19, 97.8), pitch("CU", 0.1, 86.3)],
       "Schlittler",
     ),
   );
-  const readDotY = (code) =>
-    Number(new RegExp(`pitch-dot pitch-${code}" cx="[\\d.]+" cy="([\\d.-]+)"`).exec(svg)[1]);
-  assert.equal(readDotY("FF"), 22);
-  assert.equal(readDotY("CU"), 22);
-  assert.equal(readDotY("SI"), 10);
-  assert.match(svg, /class="pitch-stem"/);
+  const readDot = (code) => {
+    const [, x, y] = new RegExp(`pitch-dot pitch-${code}" cx="([\\d.]+)" cy="([\\d.]+)"`).exec(svg);
+    return { x: Number(x), y: Number(y) };
+  };
+  const [sinker, fourSeam, curve] = ["SI", "FF", "CU"].map(readDot);
+  assert.deepEqual([sinker.y, fourSeam.y, curve.y], [8, 8, 8]);
+  assert.equal(Number((fourSeam.x - sinker.x).toFixed(1)), 12);
+  assert.ok(curve.x < sinker.x - 12);
+  assert.doesNotMatch(svg, /pitch-stem/);
+});
+
+test("the speed line is labeled every 10 mph, with the unit on the slowest", () => {
+  const labels = (pitches) =>
+    [
+      ...String(renderPitchColumns(pitches, "Cole")).matchAll(
+        /class="speed-label[^"]*"[^>]*>([^<]+)</g,
+      ),
+    ].map((match) => match[1]);
+  assert.deepEqual(labels([pitch("FF", 0.5, 94.2)]), ["70 mph", "80", "90", "100"]);
+  assert.deepEqual(labels([pitch("EP", 0.1, 58.0), pitch("FF", 0.5, 101.2)]), [
+    "50 mph",
+    "60",
+    "70",
+    "80",
+    "90",
+    "100",
+    "110",
+  ]);
 });
 
 test("a two-word pitch name takes two lines, and each column shows its share and speed", () => {

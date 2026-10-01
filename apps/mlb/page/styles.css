@@ -632,7 +632,7 @@ table.st .seed-cell {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.starter-arm {
+.arm {
   font-size: 0.56rem;
   line-height: 1.3;
   padding: 0 3px;
@@ -1497,9 +1497,17 @@ body.kbd .rank-item .grip:focus {
   align-items: flex-end;
   text-align: right;
 }
-.pitcher-name {
+.pitcher-first {
+  display: block;
+  margin-bottom: 1px;
   font-size: 0.86rem;
+  color: var(--ink-dim);
+}
+.pitcher-last {
+  display: block;
+  font-size: 1.07rem;
   font-weight: 700;
+  line-height: 1.1;
 }
 .pitcher-id .club {
   font-size: 0.66rem;
@@ -1514,8 +1522,14 @@ body.kbd .rank-item .grip:focus {
   flex-direction: row-reverse;
 }
 .pitcher-bio {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.6rem;
   color: var(--ink-dim);
+}
+.pitcher-bio .arm {
+  line-height: 1.4;
 }
 /* Each measure faces off across its label, the away starter's bar reaching left and the home
    starter's right, gold for whoever ranks higher. */
@@ -1607,14 +1621,10 @@ body.kbd .rank-item .grip:focus {
   letter-spacing: 0.08em;
   color: var(--ink-dim);
 }
-.scout-read,
 .scout-note {
   margin: 0;
   font-size: 0.7rem;
   line-height: 1.5;
-  color: var(--ink-mid);
-}
-.scout-note {
   color: var(--ink-dim);
 }
 .recent-starts {
@@ -1648,10 +1658,9 @@ body.kbd .rank-item .grip:focus {
 }
 .pitch-columns .speed-label {
   font-size: 8px;
-  text-anchor: start;
 }
-.pitch-columns .speed-label.end {
-  text-anchor: end;
+.pitch-columns .speed-label.first {
+  text-anchor: start;
 }
 .pitch-columns .pitch-share {
   fill: var(--ink-mid);
@@ -1668,10 +1677,6 @@ body.kbd .rank-item .grip:focus {
   stroke: var(--card-border);
   stroke-width: 3;
   stroke-linecap: round;
-}
-.pitch-stem {
-  stroke: var(--card-border);
-  stroke-width: 1.5;
 }
 .pitch-bar,
 .pitch-dot {

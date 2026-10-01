@@ -1,9 +1,10 @@
 import { test, expect, openApp, buildSnapshotWithStarters, swipeSheetDown } from "./harness.mjs";
 
 // What the Worker answers for Astros at Athletics' starters, Blubaugh and Springs.
-const describePitcher = (id, name, hand, line, ranks, pitches) => ({
+const describePitcher = (id, [firstName, lastName], hand, line, ranks, pitches) => ({
   id,
-  name,
+  firstName,
+  lastName,
   hand,
   age: 27,
   line,
@@ -18,7 +19,7 @@ const describePitcher = (id, name, hand, line, ranks, pitches) => ({
 const PITCHERS = {
   1: describePitcher(
     1,
-    "AJ Blubaugh",
+    ["AJ", "Blubaugh"],
     "R",
     { era: "3.66", k9: 9.1, bb9: 3.4, speed: 95.4 },
     {
@@ -36,7 +37,7 @@ const PITCHERS = {
   ),
   2: describePitcher(
     2,
-    "Jeffrey Springs",
+    ["Jeffrey", "Springs"],
     "L",
     { era: "4.02", k9: 7.7, bb9: 2.9, speed: 90.8 },
     {
@@ -68,12 +69,15 @@ test("tapping a game with its starters named opens their matchup, and Done close
 }) => {
   const sheet = await openMatchup(page);
   await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("Blubaugh vs Springs");
-  await expect(sheet.locator(".pitcher-name")).toHaveText(["AJ Blubaugh", "Jeffrey Springs"]);
-  await expect(sheet.locator(".pitcher-bio")).toHaveText(["Righty•27", "Lefty•27"]);
-  await expect(sheet.locator(".scout-read").first()).toHaveText(
-    "Throws harder than most starters and strikes out more hitters than all but seven. " +
-      "His 3.66 ERA ranks 50th of 141.",
+  await expect(sheet.locator(".pitcher-first")).toHaveText(["AJ", "Jeffrey"]);
+  await expect(sheet.locator(".pitcher-last")).toHaveText(["Blubaugh", "Springs"]);
+  await expect(sheet.locator(".pitcher-bio .arm")).toHaveText(["R", "L"]);
+  await expect(sheet.locator(".pitcher-bio .arm").first()).toHaveAttribute(
+    "title",
+    "Throws right-handed",
   );
+  await expect(sheet.locator(".pitcher-bio")).toHaveText(["RAge 27", "LAge 27"]);
+  await expect(sheet.locator(".scout h3 span")).toHaveText(["What he throws", "What he throws"]);
   await expect(sheet.locator(".recent-starts").first()).toContainText(
     "Sep 19vs Mariners5 2/3 IP, 2 R, 6 K",
   );
@@ -85,7 +89,7 @@ test("tapping a game with its starters named opens their matchup, and Done close
 test("on a phone, the matchup rises as a sheet that a swipe down closes", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const sheet = await openMatchup(page);
-  await expect(sheet.locator(".scout-read")).toHaveCount(2);
+  await expect(sheet.locator(".pitch-columns")).toHaveCount(2);
   await page.waitForFunction(() => document.getAnimations().length === 0);
   const done = sheet.getByRole("button", { name: "Done" });
   expect((await done.boundingBox()).width).toBeLessThanOrEqual(1);
@@ -138,7 +142,7 @@ test("the pitches run slowest to fastest, leaving out the ones he barely throws"
 
 test("a starter the Worker can't describe says so, and the other still shows", async ({ page }) => {
   const sheet = await openMatchup(page, { 1: PITCHERS[1] });
-  await expect(sheet.locator(".scout-read")).toHaveCount(1);
+  await expect(sheet.locator(".pitch-columns")).toHaveCount(1);
   await expect(sheet.locator(".scout-note")).toHaveText(
     "Couldn't load his numbers. Close and try again in a minute.",
   );

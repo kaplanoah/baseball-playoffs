@@ -71,7 +71,8 @@ const describePerson = (id, pitches, line = LEAGUE.stats[0].splits[id - 1].stat)
   people: [
     {
       id,
-      fullName: `Pitcher ${id}`,
+      useName: "Pitcher",
+      useLastName: `Number ${id} Jr.`,
       currentAge: 25,
       pitchHand: { code: "R" },
       stats: [
@@ -220,7 +221,8 @@ test("the route asks MLB for the pitcher, his starts, and the league, caching ea
   const { mlb, requestPitcher } = createTestServer();
   const response = await requestPitcher("?id=1&season=2026");
   assert.equal(response.status, 200);
-  assert.equal((await response.json()).name, "Pitcher 1");
+  const pitcher = await response.json();
+  assert.deepEqual([pitcher.firstName, pitcher.lastName], ["Pitcher", "Number 1 Jr."]);
   const requests = listPitcherRequests(1, 2026);
   const cacheFor = (path) => mlb.calls.find((call) => call.url.endsWith(path))?.init.cf.cacheTtl;
   assert.equal(cacheFor(requests.person), 600);

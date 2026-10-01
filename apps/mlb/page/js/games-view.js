@@ -104,15 +104,15 @@ function renderFacts(id) {
 
 const isNamed = (starter) => Boolean(starter?.name);
 
+export const renderArm = (hand) =>
+  ARMS[hand] ? html`<span class="arm" title="${ARMS[hand]}">${hand}</span>` : html``;
+
 function renderStarter(starter, side) {
   if (!isNamed(starter)) return html``;
-  const arm =
-    ARMS[starter.hand] &&
-    html`<span class="starter-arm" title="${ARMS[starter.hand]}">${starter.hand}</span>`;
   const era =
     starter.era &&
     html`<span class="starter-era tabular"><b>${starter.era}</b> <span class="starter-era-label">ERA</span></span>`;
-  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${arm}${era}</span>`;
+  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${renderArm(starter.hand)}${era}</span>`;
 }
 
 function isOut(id) {

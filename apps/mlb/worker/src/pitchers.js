@@ -19,7 +19,8 @@ const LARGEST_PERSON_ID = 9_999_999;
 const PERSON_FIELDS = [
   "people",
   "id",
-  "fullName",
+  "useName",
+  "useLastName",
   "currentAge",
   "pitchHand",
   "code",
@@ -189,7 +190,8 @@ export function describePitcher({ person: personResponse, starts }, league) {
   const arsenal = readStats(person, "pitchArsenal").filter((pitch) => pitch.stat?.type?.code);
   return {
     id: person.id,
-    name: person.fullName,
+    firstName: person.useName,
+    lastName: person.useLastName,
     hand: person.pitchHand?.code ?? null,
     age: person.currentAge ?? null,
     line: describeLine(readStats(person, "season")[0]?.stat, arsenal),
