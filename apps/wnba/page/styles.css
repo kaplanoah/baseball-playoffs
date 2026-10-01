@@ -513,7 +513,7 @@ table.standings tr.below td {
 }
 
 /* Settings: the appearance choices show the home-screen icon each one offers. Automatic shows
-   both, split corner to corner. */
+   both, Maple on the left half and Walnut on the right. */
 .appearance-row {
   flex-direction: column;
   align-items: stretch;
@@ -557,7 +557,7 @@ table.standings tr.below td {
   height: 100%;
 }
 .appearance-icon-auto img + img {
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  clip-path: inset(0 0 0 50%);
 }
 .appearance-choice:has(input:checked) {
   color: var(--ink);
