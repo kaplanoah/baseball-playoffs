@@ -88,9 +88,19 @@ function drawLastSeen() {
 
 const readShown = () => session.season && { year: session.year, season: session.season };
 
+// A page whose first load failed may be watching a season the store doesn't have yet, so it
+// loads the season again.
+async function reloadSeason() {
+  const watchedYear = session.year;
+  await loadSeason();
+  if (session.year !== watchedYear) watchSeason(renderAll);
+  renderAll();
+}
+
 function catchUp() {
   session.db.catchUp();
-  renderAll();
+  if (session.problem) reloadSeason();
+  else renderAll();
 }
 
 async function boot() {

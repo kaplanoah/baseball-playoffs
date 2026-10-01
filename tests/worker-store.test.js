@@ -18,16 +18,21 @@ function startStore() {
     class {
       constructor() {
         this.listeners = {};
+        this.isClosed = false;
         sockets.push(this);
       }
       addEventListener(type, listener) {
         this.listeners[type] = listener;
       }
+      close() {
+        this.isClosed = true;
+        this.listeners.close?.();
+      }
     }
   );
   const store = createWorkerStore(new URL("https://mlb-live.example/k3y/"));
   const openSocket = () => sockets[0].listeners.open();
-  return { store, reads, openSocket };
+  return { store, reads, sockets, openSocket };
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve));
@@ -71,4 +76,16 @@ test("catching up reads every watched document again", () => {
 
   assert.equal(reads.length, readCount + 1);
   assert.equal(reads.at(-1).url, "https://mlb-live.example/k3y/store/seasons/2026");
+});
+
+test("catching up swaps a socket that may have gone quiet for a new one", () => {
+  const { store, sockets, openSocket } = startStore();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  openSocket();
+
+  store.catchUp();
+
+  assert.equal(sockets.length, 2);
+  assert.ok(sockets[0].isClosed);
+  assert.ok(!sockets[1].isClosed);
 });

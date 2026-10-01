@@ -423,13 +423,17 @@ async function fetchPitchers(getJson, season, ids) {
   }
 }
 
+const readUnlessFailed = (promise) => promise.catch(() => null);
+
 // The season's dates come first because they decide how far back the schedule reaches, and the
-// games come before their starters.
+// games come before their starters. The bracket and the games can't do without the postseason and
+// the schedule, but they can without the season's dates or the standings, which the snapshot then
+// lists as missing.
 export async function fetchResponses(getJson, season, now = Date.now()) {
-  const seasonDates = await getJson(listMlbRequests(season, now).season);
+  const seasonDates = await readUnlessFailed(getJson(listMlbRequests(season, now).season));
   const requests = listMlbRequests(season, now, readRegularSeasonEnd(seasonDates));
   const [standings, postseason, schedule] = await Promise.all([
-    getJson(requests.standings),
+    readUnlessFailed(getJson(requests.standings)),
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null,
   ]);
@@ -759,8 +763,9 @@ function hasEveryDivision(response) {
   return Object.values(MLB_DIVISION).every((division) => divisions.has(division));
 }
 
-// A projected field is known only from the standings it is projected from.
-export const hasKnownField = (snapshot) => !snapshot.projected || !!snapshot.standings;
+// A field is known only with the standings: a projected one comes from them, and a set one takes
+// its clubs' records, and which series each game belongs to, from them.
+export const hasKnownField = (snapshot) => !!snapshot.standings;
 
 // League rank breaks ties on record because it already carries MLB's tiebreakers.
 function projectField(response) {

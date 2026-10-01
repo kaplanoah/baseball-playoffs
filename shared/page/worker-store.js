@@ -184,15 +184,17 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     });
   }
 
-  // A phone suspends a page in the background, and its socket can still look open after
-  // missing pushes, so a page coming back reads again, and reconnects at once if needed.
+  // A phone suspends a page in the background, and its socket can still look open after the
+  // connection is gone, never to push again, so a page coming back reads again on a new socket.
   function catchUp() {
     if (!hasWatchers()) return;
     refreshWatchedPaths();
-    if (socket) return;
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
     reconnectDelay = RECONNECT_FIRST_MS;
+    const stale = socket;
+    socket = null;
+    stale?.close();
     openSocket();
   }
 

@@ -142,5 +142,13 @@ export async function openApp(page, { league = {} } = {}) {
       await context.ctx.storage.put("seasons/2026", change(await readSeason()));
     },
     holdStore: () => holdStore(page),
+    /**
+     * The saved season as the store would hold it in the next year's off-season.
+     * @param {number} year
+     */
+    moveSeasonTo: async (year) => {
+      await context.ctx.storage.put(`seasons/${year}`, await readSeason());
+      await context.ctx.storage.delete("seasons/2026");
+    },
   };
 }

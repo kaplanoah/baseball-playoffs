@@ -5,7 +5,9 @@ import {
   applyDeferredSeason,
   loadSeason,
   saveRanking,
+  watchReadings,
   watchSeason,
+  watchStandings,
 } from "../page/js/season-store.js";
 
 function createStore(documents, { failUpdates = false } = {}) {
@@ -33,7 +35,18 @@ function createStore(documents, { failUpdates = false } = {}) {
       },
     }),
   };
-  return { database, writes, deliver };
+  const deliverListing = (name, docs) => {
+    listeners[name]({ docs: docs.map((data) => ({ id: data.id, data: () => data })) });
+  };
+  database.collection = (name) => ({
+    limit: () => ({
+      onSnapshot: (onNext) => {
+        listeners[name] = onNext;
+        return () => delete listeners[name];
+      },
+    }),
+  });
+  return { database, writes, deliver, deliverListing };
 }
 
 const STORED = {
@@ -117,6 +130,39 @@ test("a season that loads after the viewer picked another year is dropped", asyn
   slowReads[0]();
   await earlier;
   assert.equal(session.seasonDoc.year, 2026);
+});
+
+test("an update to a season the viewer just switched away from is dropped", async () => {
+  const documents = { "seasons/2026": structuredClone(STORED) };
+  const { database, deliver } = createStore(documents);
+  session.db = database;
+  await loadSeason(2026);
+  let redraws = 0;
+  watchSeason(2026, () => redraws++);
+
+  session.activeYear = 2025;
+  const newEntry = { kind: "elim", team: "SEA", at: "2026-10-01T00:00:00Z" };
+  deliver("seasons/2026", { ...structuredClone(STORED), log: [...STORED.log, newEntry] });
+
+  assert.equal(session.seasonDoc.log.length, 1);
+  assert.equal(redraws, 0);
+});
+
+test("standings and readings for a season the viewer just switched away from are dropped", async () => {
+  const documents = { "seasons/2026": structuredClone(STORED) };
+  const { database, deliver, deliverListing } = createStore(documents);
+  session.db = database;
+  await loadSeason(2026);
+  Object.assign(session, { storedStandings: null, readings: null });
+  let redraws = 0;
+  watchStandings(2026, () => redraws++);
+  watchReadings(2026, () => redraws++);
+
+  session.activeYear = 2025;
+  deliver("standings/2026", { divisions: [], updatedAt: "2026-10-01T00:00:00Z" });
+  deliverListing("readings-2026", [{ id: "2026-10-01-01", start: {}, changes: [] }]);
+
+  assert.deepEqual([session.storedStandings, session.readings, redraws], [null, null, 0]);
 });
 
 test("stored clubs the page doesn't know are dropped on load", async () => {

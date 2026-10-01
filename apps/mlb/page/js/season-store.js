@@ -62,7 +62,7 @@ export async function loadSeasonList() {
   return stored.includes(active) ? stored : [active, ...stored];
 }
 
-// A load for a year the viewer has since moved on from is dropped.
+// A load or an update for a year the viewer has since moved on from is dropped.
 const isStillActive = (year) => year === session.activeYear;
 
 export async function loadSeason(year) {
@@ -120,7 +120,7 @@ export function watchStandings(year, onChange) {
   if (!session.db) return;
   unwatchStandings = session.db.doc(`standings/${year}`).onSnapshot(
     (snapshot) => {
-      if (!snapshot.exists) return;
+      if (!snapshot.exists || !isStillActive(year)) return;
       const incoming = readDoc(snapshot);
       if (isSameJson(incoming, session.storedStandings)) return;
       session.storedStandings = incoming;
@@ -143,6 +143,7 @@ export function watchReadings(year, onChange) {
     .limit(READING_PARTS_LIMIT)
     .onSnapshot(
       (result) => {
+        if (!isStillActive(year)) return;
         const incoming = readParts(result.docs);
         if (isSameJson(incoming, session.readings)) return;
         session.readings = incoming;
@@ -182,7 +183,7 @@ export function watchSeason(year, onChange) {
   if (!session.db) return;
   unwatchSeason = session.db.doc(`seasons/${year}`).onSnapshot(
     (snapshot) => {
-      if (!snapshot.exists) return;
+      if (!snapshot.exists || !isStillActive(year)) return;
       const incoming = keepNewerRanking(normalizeSeason(readDoc(snapshot), year));
       if (session.isReordering) {
         deferredSeason = incoming;
