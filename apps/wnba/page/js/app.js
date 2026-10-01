@@ -33,7 +33,7 @@ function renderAll() {
   const now = Date.now();
   const keptLeft = readBracketScroll();
   setHtml(findElement("bracketWrap"), renderBracket(session.season, now));
-  placeBracket(session.season?.series ?? [], keptLeft);
+  placeBracket(keptLeft);
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
   drawStandings(session.season);

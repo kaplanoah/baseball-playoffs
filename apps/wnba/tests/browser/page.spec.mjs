@@ -323,6 +323,42 @@ test("the Games lists' days and series labels stand apart from the team names in
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
 });
 
+test("the title, the round names, and each card's header are in Barlow Condensed", async ({
+  page,
+}) => {
+  await openApp(page);
+  const readFirstFont = (selector) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((element) =>
+        getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
+      );
+  await expect(page.locator(".series-note").first()).toBeVisible();
+  for (const selector of ["header.top h1", ".round-name", ".series-note"])
+    expect(await readFirstFont(selector)).toBe("Barlow Condensed");
+  await page.getByRole("tab", { name: "Games" }).click();
+  expect(await readFirstFont("#gamePager .day-month")).toBe("Barlow Condensed");
+});
+
+test("the sliders icon keeps the same room from the stamp as MLB's", async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator("#stamp")).toBeVisible();
+  const stamp = await page.locator("#stamp").boundingBox();
+  const icon = await page.locator("#settingsBtn svg").boundingBox();
+  const gap = icon.x - (stamp.x + stamp.width);
+  expect(gap).toBeGreaterThanOrEqual(12);
+  expect(gap).toBeLessThanOrEqual(18);
+});
+
+test("hovering the settings button shades a rounded square around its icon", async ({ page }) => {
+  await openApp(page);
+  const button = page.locator("#settingsBtn");
+  await button.hover();
+  await expect(button).toHaveCSS("border-radius", "9px");
+  await expect(button).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+});
+
 test("a team opens to its season, and stays open as the season changes", async ({ page }) => {
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Teams" }).click();
@@ -446,6 +482,41 @@ test("on a wide screen, the tabs that aren't open are darker than the dim text a
     sumChannels(await readTokenColor(page, "--card-border")),
   );
 });
+
+/**
+ * The sum of a CSS color's red, green, and blue, whatever space the browser gives it in.
+ * @param {import("@playwright/test").Page} page
+ * @param {string} color
+ */
+const readBrightness = (page, color) =>
+  page.evaluate((css) => {
+    const context = document.createElement("canvas").getContext("2d");
+    context.fillStyle = css;
+    context.fillRect(0, 0, 1, 1);
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+    return red + green + blue;
+  }, color);
+
+for (const theme of ["Maple", "Walnut"])
+  test(`in ${theme}, the bracket's and the games' cards sit between the floor and a sheet`, async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.evaluate((name) => {
+      document.documentElement.dataset.theme = name === "Walnut" ? "dark" : "light";
+    }, theme);
+    const series = page.locator('.series[data-series="1-0"]');
+    await expect(series).toBeVisible();
+    const face = await series.evaluate((card) => getComputedStyle(card).backgroundColor);
+    const floor = await readBrightness(page, await readTokenColor(page, "--bg"));
+    const sheet = await readBrightness(page, await readTokenColor(page, "--card"));
+    const card = await readBrightness(page, face);
+    expect(Math.abs(card - floor)).toBeGreaterThan(4);
+    expect(Math.abs(card - floor)).toBeLessThan(Math.abs(sheet - floor) * 0.7);
+    await page.getByRole("tab", { name: "Games" }).click();
+    const day = page.locator("#games-today .game-day");
+    expect(await day.evaluate((card) => getComputedStyle(card).backgroundColor)).toBe(face);
+  });
 
 test("a day of games and a series in the bracket share one thin outline, lighter than the bracket's lines", async ({
   page,

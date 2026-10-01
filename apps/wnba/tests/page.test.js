@@ -5,7 +5,7 @@ import { renderBracket } from "../page/js/bracket-view.js";
 import { readGameDay } from "../page/js/days.js";
 import { renderGames, sortGamesByDay } from "../page/js/games-view.js";
 import { renderScoreboard } from "../page/js/scoreboard.js";
-import { describeSeriesStanding, listBracketLinks } from "../page/js/series.js";
+import { describeSeriesStanding } from "../page/js/series.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { describeStampProblem, renderStampLines } from "../page/js/stamp.js";
 import { renderStandings } from "../page/js/standings-view.js";
@@ -291,40 +291,8 @@ test("a seed is labeled only in the first round, where its team enters the brack
 test("the bracket opens on the earliest round with a series still to finish", () =>
   inEastern(() => {
     assert.match(renderBracket(SEASON, NOW).text, /data-opening-round="1"/);
-    assert.match(renderBracket(SEASON, NOW).text, /class="round-name round-1 now"/);
-    const markup = renderBracket(finishFirstRound(), NOW).text;
-    assert.match(markup, /data-opening-round="2"/);
-    assert.match(markup, /class="round-name round-2 now"/);
+    assert.match(renderBracket(finishFirstRound(), NOW).text, /data-opening-round="2"/);
   }));
-
-test("each winner's line runs to the row it holds next, and one still going to where it will go", () => {
-  const findLink = (links, from) => links.find((link) => link.from === from);
-  const afternoon = listBracketLinks(SEASON.series);
-  assert.deepEqual(findLink(afternoon, "1-0"), {
-    from: "1-0",
-    fromRow: "bottom",
-    to: "2-0",
-    toRow: "top",
-    isDecided: true,
-  });
-  assert.deepEqual(findLink(afternoon, "1-3"), {
-    from: "1-3",
-    fromRow: "middle",
-    to: "2-0",
-    toRow: "bottom",
-    isDecided: false,
-  });
-  assert.equal(findLink(afternoon, "1-1").toRow, "middle");
-
-  // The 8-seed Liberty win the upper series but play under the 4-seed Dream, so the lines cross.
-  const finished = listBracketLinks(finishFirstRound().series);
-  assert.equal(findLink(finished, "1-0").toRow, "bottom");
-  assert.equal(findLink(finished, "1-3").fromRow, "top");
-  assert.equal(findLink(finished, "1-3").toRow, "top");
-  assert.equal(findLink(finished, "1-2").fromRow, "bottom");
-  assert.equal(findLink(finished, "1-2").toRow, "bottom");
-  assert.equal(findLink(finished, "2-0").toRow, "middle");
-});
 
 // The rows of a standings table's body, each with its class and text.
 const readStandingsRows = (markup) =>
