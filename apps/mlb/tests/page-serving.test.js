@@ -27,6 +27,13 @@ test("the page is a whole document with what an iPhone needs to save it as an ap
   assert.ok(page.includes('<script type="module" src="js/app.js"></script>'));
 });
 
+test("the page asks nothing of other sites before it draws, and serves its own font", async () => {
+  const page = await (await requestPage("/k3y/")).text();
+  assert.doesNotMatch(page, /https:\/\//);
+  const font = await requestPage("/k3y/fonts/chivo-mono-latin.woff2");
+  assert.equal(font.headers.get("content-type"), "font/woff2");
+});
+
 test("the page links the shared chrome before its own styles, so its own rules win ties", async () => {
   const page = await (await requestPage("/k3y/")).text();
   const chromeAt = page.indexOf('<link rel="stylesheet" href="shared/chrome.css" />');

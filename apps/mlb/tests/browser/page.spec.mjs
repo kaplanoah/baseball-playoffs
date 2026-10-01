@@ -25,6 +25,27 @@ const PLAYOFF_FIELD_2026 = [
   "Phillies",
 ];
 
+test("the page's font comes from its own server, in every weight from one file", async ({
+  page,
+}) => {
+  const fontRequests = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "font") fontRequests.push(new URL(request.url()).pathname);
+  });
+  await openApp(page);
+
+  const loadedWeights = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts]
+      .filter(
+        (font) => font.family.replaceAll('"', "") === "Chivo Mono" && font.status === "loaded",
+      )
+      .map((font) => font.weight);
+  });
+  expect(loadedWeights).toContain("100 900");
+  expect(fontRequests).toEqual(["/fonts/chivo-mono-latin.woff2"]);
+});
+
 test("the Games tab lists today's games and every game on each club's previous and next date", async ({
   page,
 }) => {
