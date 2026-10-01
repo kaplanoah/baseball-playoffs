@@ -26,7 +26,7 @@ function isShownFromStart(scroller, target) {
 }
 
 // Only a phone opens partway along: a wider screen shows the bracket from its start.
-const isPhone = () => matchMedia("(max-width: 699px)").matches;
+const isPhone = () => matchMedia("(max-width: 779px)").matches;
 
 /**
  * Starts at the bracket's beginning when it isn't on a phone or that already shows the target's

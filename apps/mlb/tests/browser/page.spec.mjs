@@ -1050,6 +1050,21 @@ test("on a phone, a bracket opening on the Division Series keeps its byes' seed 
   });
 });
 
+test("on a small tablet, which the app treats as a phone, the bracket opens on the round still playing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 760, height: 900 });
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+
+  await expect(page.locator('.box[data-round="WS"]')).toBeInViewport({ ratio: 1 });
+  expect(
+    await page.locator(".tree-scroll").evaluate((scroller) => scroller.scrollLeft),
+  ).toBeGreaterThan(0);
+});
+
 test("wider than a phone, the stacked bracket starts at the Wild Card with every seed in view, whatever round is still playing", async ({
   page,
 }) => {
