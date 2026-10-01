@@ -112,8 +112,50 @@ test("each winner's line runs to the row it holds next, crossing when the seeds 
   for (const end of finished.open) expect(end.y).toBeCloseTo(finished.rows.finalsMiddle, 0);
 });
 
-test("a team's dot splits its colors top and bottom", async ({ page }) => {
+test("a team's dot splits its colors top and bottom, with nothing between them", async ({
+  page,
+}) => {
   await openApp(page);
   const dot = page.locator('[data-series="1-0"] .dot').first();
-  await expect(dot).toHaveCSS("background-image", /^linear-gradient\(rgb/);
+  await expect(dot).toHaveCSS(
+    "background-image",
+    /^linear-gradient\(rgb\([^)]*\) 50%, rgb\([^)]*\) 50%\)$/,
+  );
+});
+
+test("the Finals card has the same outline as every other series", async ({ page }) => {
+  await openApp(page);
+  const readOutline = (id) =>
+    page.locator(`[data-series="${id}"]`).evaluate((card) => {
+      const { borderTopColor, borderTopWidth, boxShadow } = getComputedStyle(card);
+      return [borderTopColor, borderTopWidth, boxShadow];
+    });
+  await expect.poll(async () => (await readOutline("1-0"))[1]).toBe("1px");
+  expect(await readOutline("3-0")).toEqual(await readOutline("1-0"));
+});
+
+test("a round's name and its Best of, in the text face, center on each other", async ({ page }) => {
+  await openApp(page);
+  const readParts = () =>
+    readRoundName(page, 2)
+      .locator(":scope > span")
+      .evaluateAll((parts) =>
+        parts.map((part) => {
+          const box = part.getBoundingClientRect();
+          const font = getComputedStyle(part).fontFamily.split(",")[0].replaceAll('"', "");
+          return { middle: (box.top + box.bottom) / 2, font };
+        }),
+      );
+  await expect.poll(async () => (await readParts())[1].font).toBe("Barlow");
+  const [name, bestOf] = await readParts();
+  expect(Math.abs(name.middle - bestOf.middle)).toBeLessThanOrEqual(0.5);
+});
+
+test("each team's wins sit on a block that casts a shadow on the card", async ({ page }) => {
+  await openApp(page);
+  const wins = page.locator('[data-series="1-0"] .wins').first();
+  await expect(wins).toHaveText("0");
+  await expect(wins).toHaveCSS("filter", /drop-shadow/);
+  const box = await wins.boundingBox();
+  expect([box.width, box.height]).toEqual([27, 28]);
 });

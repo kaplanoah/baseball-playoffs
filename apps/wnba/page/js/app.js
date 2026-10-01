@@ -57,7 +57,6 @@ function chooseStandingsView(/** @type {MouseEvent} */ event) {
 
 function renderAll() {
   const now = Date.now();
-  findElement("yearTag").textContent = String(session.year);
   const keptLeft = readBracketScroll();
   setHtml(findElement("bracketWrap"), renderBracket(session.season, now));
   placeBracket(session.season?.series ?? [], keptLeft);

@@ -20,7 +20,7 @@ function renderTeamLine(side, series) {
   const isWinner = series.winner === side.team;
   const state = isOut ? " out" : isWinner ? " won" : "";
   return html`<div class="team-line${state}">
-    ${renderClub(side.team, { seed: side.seed })}<span class="wins tabular">${side.wins}</span>
+    ${renderClub(side.team, { seed: side.seed })}<span class="wins tabular"><span>${side.wins}</span></span>
   </div>`;
 }
 
@@ -70,7 +70,7 @@ function renderSeriesNote(series, games, now, seriesById) {
  */
 function renderSeries(series, games, now, seriesById) {
   return html`<div class="bracket-cell cell-${series.id}">
-    <div class="series${series.round === 3 ? " finals" : ""}" data-series="${series.id}">
+    <div class="series" data-series="${series.id}">
       <div class="series-head">${renderSeriesNote(series, games, now, seriesById)}</div>
       ${renderTeamLine(series.top, series)}${renderTeamLine(series.bottom, series)}
     </div>

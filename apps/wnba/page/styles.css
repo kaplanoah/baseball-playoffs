@@ -43,8 +43,7 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's, the year, the Finals, and the round
- * the bracket opens on. Teal marks structure: section labels, the playoff line, Bonus, and how a
+ * Orange marks what's happening now: live games and today's, and the round the bracket opens on. Teal marks structure: section labels, the playoff line, Bonus, and how a
  * finished series ended.
  */
 :root {
@@ -60,10 +59,12 @@
   --teal-ink: #ffffff;
   --ink-mid: color-mix(in srgb, var(--ink-dim) 55%, var(--ink));
   --line: color-mix(in srgb, var(--card-border) 80%, var(--ink) 20%);
-  --seam: #1a120c;
   --scoreboard: #24180e;
   --led: #ff5a4b;
   --led-dim: #ff3b2f;
+  --shadow-ink: #321c08;
+  --engrave-light: rgba(255, 255, 255, 0.4);
+  --block-side: #d6bfa0;
   --accent: var(--orange);
   --accent-ink: var(--orange-ink);
   --focus-ring: var(--teal);
@@ -101,6 +102,9 @@
   --teal-ink: #06201c;
   --line: #5e4836;
   --scoreboard: #110b08;
+  --shadow-ink: #000000;
+  --engrave-light: rgba(255, 255, 255, 0.1);
+  --block-side: #261610;
   --glass-light: 255, 255, 255;
   --glass-solid: rgba(42, 31, 24, 0.94);
   --glass-contrast: #000000;
@@ -160,15 +164,13 @@ header.top h1 {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.year-tag {
-  font-family: var(--display);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 3px 8px;
-  border-radius: calc(var(--radius) + 2px);
-  background: var(--orange);
-  color: var(--orange-ink);
+/* On a wide screen, the tabs that aren't open read as buttons, with a firmer outline and darker
+   text than the shared chrome gives them. Phones keep their glass tab bar. */
+@media (min-width: 780px) {
+  nav.tabs button:not(.active) {
+    border-color: color-mix(in srgb, var(--card-border), var(--ink) 35%);
+    color: color-mix(in srgb, var(--ink-dim), var(--ink) 60%);
+  }
 }
 .head-right {
   display: flex;
@@ -205,12 +207,7 @@ header.top h1 {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  /* The two colors meet across the middle at a dark seam, like a basketball's. */
-  background: linear-gradient(
-    var(--color) calc(50% - 0.7px),
-    var(--seam) calc(50% - 0.7px) calc(50% + 0.7px),
-    var(--color2) calc(50% + 0.7px)
-  );
+  background: linear-gradient(var(--color) 50%, var(--color2) 50%);
   box-shadow: 0 0 0 1px var(--divider);
 }
 .dot.unknown {
@@ -250,7 +247,7 @@ header.top h1 {
 .series,
 .game-day {
   background: var(--card);
-  border: 1.5px solid var(--line);
+  border: 1px solid color-mix(in srgb, var(--line), var(--card) 45%);
   border-radius: var(--radius);
 }
 .series-head,
@@ -787,25 +784,30 @@ table.players td.minutes {
   stroke: color-mix(in srgb, var(--ink) 14%, var(--bg));
   stroke-width: 1.5;
 }
+/* A round's name, with Best of in the text face beside it, the two centered on each other. */
 .round-name {
   grid-row: 1;
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   padding-inline: 2px;
   font-family: var(--display);
-  font-size: 0.72rem;
+  font-size: 1rem;
   font-weight: 700;
+  line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   white-space: nowrap;
-  color: var(--ink-dim);
+  color: var(--ink);
   scroll-snap-align: start;
 }
 .round-name .best-of {
-  color: var(--ink-mid);
+  font-family: var(--text);
+  font-size: 0.68rem;
   font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-mid);
 }
 .round-name.now > :first-child {
   color: var(--orange);
@@ -850,10 +852,6 @@ table.players td.minutes {
   width: 100%;
   min-width: 0;
 }
-.series.finals {
-  border-color: var(--orange);
-  box-shadow: 0 0 0 1px var(--orange);
-}
 .series-head {
   min-height: 25px;
   padding: 4px 10px;
@@ -890,13 +888,56 @@ table.players td.minutes {
 .team-line + .team-line {
   border-top: 1px solid var(--divider);
 }
+/* A team's wins sit on a square block resting on the card, seen from a little above and to the
+   left: its bottom and right sides show, mitred where they meet the face, and it casts a soft
+   shadow down and to the right. The number is cut into the face. */
 .team-line .wins {
-  min-width: 18px;
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 28px;
+  margin: 0 2px 2px 0;
+  translate: 0 0.5px;
+  filter: drop-shadow(0.27px 0.27px 1.38px color-mix(in srgb, var(--shadow-ink) 10%, transparent))
+    drop-shadow(1.06px 1.06px 8.5px color-mix(in srgb, var(--shadow-ink) 8%, transparent));
+  color: var(--ink-mid);
   font-family: var(--numbers);
-  font-size: 1.55rem;
-  font-weight: 700;
+  font-size: 1.45rem;
+  font-weight: 600;
   line-height: 1;
-  text-align: right;
+  text-shadow: 0.57px 0.57px 0 var(--engrave-light);
+}
+.team-line .wins > span {
+  translate: 0 -0.5px;
+}
+/* The bottom and right sides, as one shape that turns at each far corner. */
+.team-line .wins::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  left: 0;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  background: var(--block-side);
+  clip-path: polygon(0 0, calc(100% - 2px) 0, 100% 2px, 100% 100%, 2px 100%, 0 calc(100% - 2px));
+}
+/* The face, with a faint grain running across it. */
+.team-line .wins::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.25 1.6' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.2  0 0 0 0 0.12  0 0 0 0 0.05  0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23g)'/%3E%3C/svg%3E"),
+    var(--card);
+  box-shadow: 0 0 0 0.5px color-mix(in srgb, var(--shadow-ink) 6%, transparent);
+}
+.team-line.out .wins {
+  color: var(--ink-dim);
 }
 .team-line.won .club {
   font-weight: 700;

@@ -5,7 +5,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
 }) => {
   await openApp(page);
   await expect(page.locator('[data-series="1-0"]')).toContainText("Liberty win 2-0");
-  await expect(page.locator("#yearTag")).toHaveText("2026");
+  await expect(page.locator("header.top .title-row")).toHaveText("WNBA Playoffs");
   await expect(page.locator("#stamp")).toHaveText(/^Updated 5:55\sPM$/);
 
   await page.getByRole("tab", { name: "Games" }).click();
@@ -299,6 +299,66 @@ for (const width of [375, 360]) {
     });
   });
 }
+
+/**
+ * How light a computed color is, as the sum of its red, green, and blue.
+ * @param {string} color
+ */
+const sumChannels = (color) =>
+  color
+    .match(/[\d.]+/g)
+    .slice(0, 3)
+    .map(Number)
+    .reduce((sum, channel) => sum + channel);
+
+/**
+ * The color a page token resolves to.
+ * @param {import("@playwright/test").Page} page
+ * @param {string} token
+ */
+const readTokenColor = (page, token) =>
+  page.evaluate((name) => {
+    const probe = document.body.appendChild(document.createElement("div"));
+    probe.style.color = `var(${name})`;
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, token);
+
+test("on a wide screen, the tabs that aren't open are darker than the dim text and outlines", async ({
+  page,
+}) => {
+  await openApp(page);
+  const [text, outline] = await page
+    .getByRole("tab", { name: "Games" })
+    .evaluate((button) => [
+      getComputedStyle(button).color,
+      getComputedStyle(button).borderTopColor,
+    ]);
+  expect(sumChannels(text)).toBeLessThan(sumChannels(await readTokenColor(page, "--ink-dim")));
+  expect(sumChannels(outline)).toBeLessThan(
+    sumChannels(await readTokenColor(page, "--card-border")),
+  );
+});
+
+test("a day of games and a series in the bracket share one thin outline, lighter than the bracket's lines", async ({
+  page,
+}) => {
+  await openApp(page);
+  const readOutline = (locator) =>
+    locator
+      .first()
+      .evaluate((card) => [
+        getComputedStyle(card).borderTopWidth,
+        getComputedStyle(card).borderTopColor,
+      ]);
+  const seriesCard = page.locator('[data-series="1-0"]');
+  await expect.poll(async () => (await readOutline(seriesCard))[0]).toBe("1px");
+  const series = await readOutline(seriesCard);
+  expect(sumChannels(series[1])).toBeGreaterThan(sumChannels(await readTokenColor(page, "--line")));
+  await page.getByRole("tab", { name: "Games" }).click();
+  expect(await readOutline(page.locator("#games-today .game-day"))).toEqual(series);
+});
 
 test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
   await openApp(page);
