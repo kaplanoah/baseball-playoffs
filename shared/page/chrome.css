@@ -1,6 +1,7 @@
 /*
  * The chrome every app's page shares: the settings button, the tabs (a floating glass bar on
- * phones), and the settings dialog (a sheet on phones). Apps link it before their own styles.css,
+ * phones), the settings dialog (a sheet on phones), and a sideways bracket's round dots (pinned
+ * above the tab bar on phones). Apps link it before their own styles.css,
  * which lays out the rest of the page and may refine these rules.
  *
  * An app's :root defines these tokens:
@@ -19,6 +20,7 @@
  *   --glass-contrast                           the glass's fill when the viewer asks for more contrast
  * and on phones this sets:
  *   --tab-bar-bottom                           how far the tab bar floats above the screen's bottom
+ *   --tab-bar-height                           the tab bar's height
  *   --tab-bar-clearance                        the space an app's body leaves at its bottom for the bar
  *
  * Phones are up to 779px wide, as tab-bar.js and settings-sheet.js also match. Focus rings show
@@ -99,6 +101,23 @@ nav.tabs button.active {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: var(--accent);
+}
+
+/* A sideways bracket's round dots, as round-dots.js draws them, sit under it. */
+.round-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.round-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--divider);
+}
+.round-dots span.on {
+  background: var(--ink-dim);
 }
 
 /* :focus-visible counts a bare Shift press, so focus rings key off body.kbd instead. A scroll area
@@ -351,6 +370,7 @@ section.view.active {
   }
   :root {
     --tab-bar-bottom: max(calc(env(safe-area-inset-bottom) - 12px), 16px);
+    --tab-bar-height: 62px;
     --tab-bar-clearance: calc(var(--tab-bar-bottom) + 86px);
   }
   /* The tab bar floats over the page, so the tabs' row leaves no space under the header. */
@@ -420,7 +440,6 @@ section.view.active {
    * pill 5px inside it, icons over small system-font labels. tab-bar.js drives its motion.
    */
   .tab-bar {
-    --tab-bar-height: 62px;
     --tab-height: calc(var(--tab-bar-height) - 10px);
     position: fixed;
     z-index: 20;
@@ -558,6 +577,17 @@ section.view.active {
     width: var(--row-width, 100%);
     height: 100%;
   }
+  /* The round dots stay just above the tab bar, wherever the bracket ends, over the scroll edge. */
+  .round-dots {
+    position: fixed;
+    z-index: 20;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--tab-bar-bottom) + var(--tab-bar-height) + 12px);
+    margin: 0;
+    pointer-events: none;
+  }
+
   /* The bottom scroll edge: content dims and softens under the bar but stays readable. */
   .edge-fade {
     display: block;
