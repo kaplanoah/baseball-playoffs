@@ -6,7 +6,8 @@ import {
   nameTeam,
   renderTeamTag,
 } from "./clubs.js";
-import { countDaysBetween, readGameDay } from "./dates.js";
+import { readGameDay } from "./dates.js";
+import { countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 import { describeInning, renderOutLights } from "./games-view.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { session } from "./session.js";
@@ -99,14 +100,13 @@ function describeGameDay(day, now) {
   if (daysAway === 0) return "today";
   if (daysAway === 1) return "tomorrow";
   const weekday = day.toLocaleDateString(undefined, { weekday: "short" });
-  const date = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return `${weekday} ${date}`;
+  return `${weekday} ${formatShortDate(day)}`;
 }
 
 function describeStartTime(game) {
   const start = new Date(game.at);
   if (game.tbd || Number.isNaN(start.getTime())) return "time TBD";
-  return start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return formatClockTime(start);
 }
 
 function describeNextGame(series) {

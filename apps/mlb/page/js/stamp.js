@@ -1,11 +1,8 @@
-import { DAYS, countDaysBetween } from "./dates.js";
+import { DAYS, countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 import { html } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
 import { TEAMS } from "./teams.js";
 
-function formatClock(iso) {
-  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
 export function formatStampName(id) {
   return TEAMS[id] ? TEAMS[id].name : String(id ?? "");
 }
@@ -15,7 +12,7 @@ function describeFinal(game, day) {
     awayScore > homeScore
       ? [game.away, awayScore, game.home, homeScore]
       : [game.home, homeScore, game.away, awayScore];
-  const when = `final at ${formatClock(game.end)}${day ? " " + day : ""}`;
+  const when = `final at ${formatClockTime(new Date(game.end))}${day ? " " + day : ""}`;
   return `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore} ${when}`;
 }
 function describeLive(game) {
@@ -23,7 +20,7 @@ function describeLive(game) {
   return `${formatStampName(game.away)} @ ${formatStampName(game.home)} ${awayScore}-${homeScore} in the ${formatOrdinal(game.inning || 1)}`;
 }
 function describeFirstPitch(game) {
-  return `${formatStampName(game.away)} @ ${formatStampName(game.home)} first pitch at ${formatClock(game.start)}`;
+  return `${formatStampName(game.away)} @ ${formatStampName(game.home)} first pitch at ${formatClockTime(new Date(game.start))}`;
 }
 function describeGame(game) {
   if (game.state === "final") return describeFinal(game);
@@ -89,7 +86,7 @@ function describeFinalDay(final, now) {
   if (days === 1) return "yesterday";
   const played = new Date(final.start || final.end);
   if (days < 7) return DAYS[played.getDay()];
-  return played.toLocaleDateString([], { month: "short", day: "numeric" });
+  return formatShortDate(played);
 }
 
 function describeLastFinal(lastFinal, now) {
@@ -145,7 +142,7 @@ export function describeUpNextGame(slate, context) {
 }
 
 export function formatStampWhen(date, now = new Date()) {
-  const time = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const time = formatClockTime(date);
   const day = formatStampDay(date, now);
   return day === "today" ? time : `${day} ${time}`;
 }
@@ -161,5 +158,5 @@ export function formatStampDay(date, now = new Date()) {
   if (days === 1) return "yesterday";
   if (days === -1) return "tomorrow";
   if (Math.abs(days) < 7) return DAYS[date.getDay()];
-  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  return formatShortDate(date);
 }

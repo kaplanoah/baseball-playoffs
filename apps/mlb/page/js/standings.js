@@ -1,5 +1,6 @@
 import { listRankedOrder, renderRankTag, renderTeamTag } from "./clubs.js";
-import { DAYS, countDaysBetween, readGameDay } from "./dates.js";
+import { readGameDay } from "./dates.js";
+import { DAYS, countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
 import { session } from "./session.js";
@@ -92,12 +93,7 @@ export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
   if (!gameDay) return EMPTY_NEXT_CELL;
   const day =
     countDaysBetween(gameDay, new Date(now)) === 0 ? "Today" : DAYS[gameDay.getDay()].slice(0, 3);
-  const time = next.tbd
-    ? ""
-    : " " +
-      start
-        .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-        .replace(/\s?[AP]M$/i, "");
+  const time = next.tbd ? "" : " " + formatClockTime(start).replace(/\s?[AP]M$/i, "");
   return html`<td class="next-cell">${day}${time} ${next.home ? "vs" : "@"} ${next.opp || "TBD"}</td>`;
 }
 

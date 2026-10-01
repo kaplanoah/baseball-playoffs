@@ -1,6 +1,6 @@
 import { renderRankTag, renderTeamTag } from "./clubs.js";
-import { DAYS, countDaysBetween } from "./dates.js";
 import { describeEntry, describeUpdate } from "./entry-text.js";
+import { DAYS, countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, readSeasonYear } from "./session.js";
@@ -29,10 +29,10 @@ function formatWhen(iso, now = new Date()) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
   const days = countDaysBetween(date, now);
-  if (days <= 0) return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (days <= 0) return formatClockTime(date);
   if (days === 1) return "Yesterday";
   if (days < 7) return DAYS[date.getDay()];
-  return date.toLocaleDateString([], { month: "short", day: "numeric" });
+  return formatShortDate(date);
 }
 function formatSince(iso, now = new Date()) {
   const date = new Date(iso);
@@ -41,7 +41,7 @@ function formatSince(iso, now = new Date()) {
   if (days <= 0) return "since earlier today";
   if (days === 1) return "since yesterday";
   if (days < 7) return `since ${DAYS[date.getDay()]}`;
-  return `since ${date.toLocaleDateString([], { month: "short", day: "numeric" })}`;
+  return `since ${formatShortDate(date)}`;
 }
 
 // Freshness goes by when a change was noticed; the list shows when it happened, which for a
