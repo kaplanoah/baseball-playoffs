@@ -1,6 +1,3 @@
-// The init script runs in the page, whose globals Node's lint doesn't know, so it reaches them
-// through globalThis.
-
 /**
  * Notes each motion the page gives a sheet, for the returned function to read and forget: each
  * script animation by its element's id, the part it moves (the sheet or its ::backdrop), and where
@@ -12,8 +9,8 @@
 export async function recordSheetMotions(page) {
   await page.addInitScript(() => {
     const motions = [];
-    /** @type {any} */ (globalThis).sheetMotions = motions;
-    const { prototype } = globalThis.Element;
+    Object.assign(window, { sheetMotions: motions });
+    const { prototype } = Element;
     const animate = prototype.animate;
     prototype.animate = function (keyframes, options) {
       if (Array.isArray(keyframes))
@@ -24,7 +21,7 @@ export async function recordSheetMotions(page) {
         });
       return animate.call(this, keyframes, options);
     };
-    globalThis.document.addEventListener("animationstart", (event) =>
+    document.addEventListener("animationstart", (event) =>
       motions.push({
         id: /** @type {Element} */ (event.target).id,
         part: event.pseudoElement || "sheet",
@@ -32,5 +29,5 @@ export async function recordSheetMotions(page) {
       }),
     );
   });
-  return () => page.evaluate(() => /** @type {any} */ (globalThis).sheetMotions.splice(0));
+  return () => page.evaluate(() => /** @type {any} */ (window).sheetMotions.splice(0));
 }

@@ -1,10 +1,15 @@
 import { readFileSync } from "node:fs";
-import { test as base, expect } from "@playwright/test";
 import { buildSnapshot } from "../../page/js/snapshot.js";
 import { createBoxScoreServer, nameBoxScoreRequest } from "../../worker/src/box-score.js";
 import { createPreviewServer, listPreviewRequests } from "../../worker/src/preview.js";
 import { SeasonStore } from "../../worker/src/store.js";
-import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
+import {
+  test,
+  expect,
+  createTestStore,
+  connectToStore,
+  loadPageAt,
+} from "../../../../tests/browser/harness.mjs";
 import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
 const AFTERNOON = JSON.parse(
@@ -15,37 +20,7 @@ const GAMES = JSON.parse(
   readFileSync(new URL("../fixtures/2026-10-01-games.json", import.meta.url), "utf8"),
 );
 
-/** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
-const pageErrorsFixture = {
-  pageErrors: [
-    async ({ page }, use) => {
-      const errors = [];
-      page.on("pageerror", (error) => errors.push(error.message));
-      await use(errors);
-      expect(errors).toEqual([]);
-    },
-    { auto: true },
-  ],
-};
-
-export const test = base.extend(pageErrorsFixture);
-export { expect, GAMES };
-
-async function answerFromStore(route, store) {
-  const request = route.request();
-  const answer = await store.fetch(
-    new Request(request.url(), {
-      method: request.method(),
-      headers: request.headers(),
-      body: request.postData() ?? undefined,
-    }),
-  );
-  await route.fulfill({
-    status: answer.status,
-    headers: Object.fromEntries(answer.headers),
-    body: Buffer.from(await answer.arrayBuffer()),
-  });
-}
+export { test, expect, GAMES };
 
 /**
  * The league's answers to the game sheet's routes, from the recorded box scores and preview feeds,
@@ -84,31 +59,16 @@ async function answerFromWorker(route, serve) {
  * @param {{ league?: Parameters<typeof createLeagueFetch>[0] }} [options]
  */
 export async function openApp(page, { league = {} } = {}) {
-  const context = createDurableObjectContext();
   const loadSnapshot = async (season) =>
     buildSnapshot(
       { ...AFTERNOON.responses, players: GAMES.preview.players },
       { season, now: Date.parse(NOW) },
     );
-  const store = new SeasonStore(
-    context.ctx,
-    {},
-    {
-      loadSnapshot,
-      now: () => Date.parse(NOW),
-      fetchImpl: async () => new Response(null, { status: 201 }),
-    },
-  );
+  const testStore = createTestStore(SeasonStore, { loadSnapshot, now: NOW });
+  const { context, store } = testStore;
   await store.alarm();
 
-  await page.route(
-    (url) => url.hostname !== "127.0.0.1",
-    (route) => route.abort(),
-  );
-  await page.route(
-    (url) => url.pathname.startsWith("/store/") || url.pathname.startsWith("/push/"),
-    (route) => answerFromStore(route, store),
-  );
+  await connectToStore(page, testStore);
   const fetchImpl = createLeagueFetch(league);
   const boxScores = createBoxScoreServer({ fetchImpl });
   const previews = createPreviewServer({ fetchImpl, now: () => Date.parse(NOW) });
@@ -120,12 +80,7 @@ export async function openApp(page, { league = {} } = {}) {
     (url) => url.pathname === "/preview",
     (route) => answerFromWorker(route, previews.servePreview),
   );
-  await page.routeWebSocket(
-    (url) => url.pathname === "/watch",
-    (socket) => context.ctx.acceptWebSocket({ send: (message) => socket.send(message) }),
-  );
-  await page.clock.install({ time: new Date(NOW) });
-  await page.goto("/");
+  await loadPageAt(page, NOW);
 
   const readSeason = async () => structuredClone(await context.ctx.storage.get("seasons/2026"));
 
