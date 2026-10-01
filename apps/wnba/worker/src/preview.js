@@ -1,4 +1,9 @@
-import { readPlayoffGameId, REQUESTS } from "../../page/js/snapshot.js";
+import {
+  listTeamLeaders,
+  readPlayoffGameId,
+  readStatsTable,
+  REQUESTS,
+} from "../../page/js/snapshot.js";
 import { findTeamCode, TEAMS } from "../../page/js/teams.js";
 import { respondJson } from "../../../../shared/worker/responses.js";
 import { fetchWnbaJson, readSeasonParam, SEASON_RULE } from "./wnba.js";
@@ -13,46 +18,6 @@ const LEADERS_PER_TEAM = 3;
 // preseason, the All-Star Game, and the Cup's final, which aren't meetings that count.
 const MEETING_ID = /^10[24]/;
 
-/** @param {number} season */
-const namePlayersRequest = (season) =>
-  `https://stats.wnba.com/stats/leaguedashplayerstats?${new URLSearchParams({
-    College: "",
-    Conference: "",
-    Country: "",
-    DateFrom: "",
-    DateTo: "",
-    Division: "",
-    DraftPick: "",
-    DraftYear: "",
-    GameScope: "",
-    GameSegment: "",
-    Height: "",
-    LastNGames: "0",
-    LeagueID: "10",
-    Location: "",
-    MeasureType: "Base",
-    Month: "0",
-    OpponentTeamID: "0",
-    Outcome: "",
-    PORound: "0",
-    PaceAdjust: "N",
-    PerMode: "PerGame",
-    Period: "0",
-    PlayerExperience: "",
-    PlayerPosition: "",
-    PlusMinus: "N",
-    Rank: "N",
-    Season: String(season),
-    SeasonSegment: "",
-    SeasonType: "Regular Season",
-    ShotClockRange: "",
-    StarterBench: "",
-    TeamID: "0",
-    VsConference: "",
-    VsDivision: "",
-    Weight: "",
-  })}`;
-
 // Where each feed's answer keeps its data.
 const FEED_DATA = {
   schedule: (answer) => answer?.leagueSchedule?.gameDates,
@@ -64,17 +29,8 @@ const FEED_DATA = {
 export const listPreviewRequests = (season) => ({
   schedule: REQUESTS.schedule,
   standings: REQUESTS.standings(season),
-  players: namePlayersRequest(season),
+  players: REQUESTS.players(season),
 });
-
-// The stats site answers with a table: its column names, then a row of values for each line.
-function readTable(response) {
-  const table = response?.resultSets?.[0];
-  if (!table) return [];
-  return table.rowSet.map((row) =>
-    Object.fromEntries(table.headers.map((header, index) => [header, row[index]])),
-  );
-}
 
 const describeSeason = (row) => ({
   wins: row.WINS,
@@ -88,32 +44,8 @@ const describeSeason = (row) => ({
 });
 
 function findSeason(standings, team) {
-  const row = readTable(standings).find((each) => findTeamCode(each.TeamID) === team);
+  const row = readStatsTable(standings).find((each) => findTeamCode(each.TeamID) === team);
   return row ? describeSeason(row) : null;
-}
-
-// The feed gives a player's name whole; everything after the first space is her last name.
-function splitName(name) {
-  const [firstName, ...rest] = String(name).split(" ");
-  return { firstName, lastName: rest.join(" ") };
-}
-
-// A player who has missed most of the team's games doesn't lead it, however well she scores.
-function listLeaders(players, team) {
-  const rows = readTable(players).filter((row) => findTeamCode(row.TEAM_ID) === team);
-  const most = Math.max(0, ...rows.map((row) => row.GP));
-  return rows
-    .filter((row) => row.GP >= most / 2)
-    .sort((first, second) => second.PTS - first.PTS)
-    .slice(0, LEADERS_PER_TEAM)
-    .map((row) => ({
-      id: row.PLAYER_ID,
-      ...splitName(row.PLAYER_NAME),
-      games: row.GP,
-      points: row.PTS,
-      rebounds: row.REB,
-      assists: row.AST,
-    }));
 }
 
 const describeMeetingSide = (side) => ({ team: side.teamTricode, score: side.score });
@@ -153,7 +85,7 @@ export function describePreview({ schedule, standings, players }, { season, away
   const describeSide = (team) => ({
     team,
     season: standings ? findSeason(standings, team) : null,
-    leaders: players ? listLeaders(players, team) : null,
+    leaders: players ? listTeamLeaders(players, team, LEADERS_PER_TEAM) : null,
   });
   return {
     season,

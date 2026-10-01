@@ -7,6 +7,7 @@ const FEED_NAMES = {
   schedule: "the schedule",
   bracket: "the bracket",
   standings: "the standings",
+  players: "the players' stats",
 };
 
 /**

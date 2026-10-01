@@ -11,12 +11,13 @@ import {
 
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
-// The schedule and standings change a few times a day, and the stats site is slow and quick to
-// turn away a busy caller, so they're read at most this often. The bracket changes only when a
-// game ends, so it's read again then, or after a while regardless.
+// The schedule, standings, and players' averages change a few times a day, and the stats site is
+// slow and quick to turn away a busy caller, so they're read at most this often. The bracket
+// changes only when a game ends, so it's read again then, or after a while regardless.
 const SLOW_FEED_MS = {
   schedule: 60 * 60 * 1000,
   standings: 60 * 60 * 1000,
+  players: 60 * 60 * 1000,
   bracket: 10 * 60 * 1000,
 };
 
@@ -26,6 +27,7 @@ const FEED_DATA = {
   schedule: (answer) => answer?.leagueSchedule?.gameDates,
   bracket: (answer) => answer?.bracket?.playoffBracketSeries,
   standings: (answer) => answer?.resultSets?.[0]?.rowSet,
+  players: (answer) => answer?.resultSets?.[0]?.rowSet,
 };
 
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
@@ -115,15 +117,16 @@ export function createSnapshotServer({
     const finals = scoreboard ? countFinals(scoreboard) : lastFinals;
     const hasNewFinal = lastFinals !== null && finals > lastFinals;
     lastFinals = finals;
-    const [schedule, bracket, standings] = await Promise.all([
+    const [schedule, bracket, standings, players] = await Promise.all([
       readSlowFeed("schedule", WNBASnapshot.REQUESTS.schedule, hasNewFinal).catch(() => null),
       readSlowFeed("bracket", WNBASnapshot.REQUESTS.bracket(season), hasNewFinal).catch(() => null),
       readSlowFeed("standings", WNBASnapshot.REQUESTS.standings(season), false).catch(() => null),
+      readSlowFeed("players", WNBASnapshot.REQUESTS.players(season), false).catch(() => null),
     ]);
     if (!scoreboard && !schedule && !bracket)
       throw new Error("None of the WNBA's feeds answered with data");
     const backup = scoreboard ? null : await fetchBackup().catch(() => null);
-    return { scoreboard, schedule, bracket, standings, backup };
+    return { scoreboard, schedule, bracket, standings, players, backup };
   }
 
   function loadSnapshot(season) {

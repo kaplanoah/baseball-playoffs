@@ -86,7 +86,10 @@ async function answerFromWorker(route, serve) {
 export async function openApp(page, { league = {} } = {}) {
   const context = createDurableObjectContext();
   const loadSnapshot = async (season) =>
-    buildSnapshot(AFTERNOON.responses, { season, now: Date.parse(NOW) });
+    buildSnapshot(
+      { ...AFTERNOON.responses, players: GAMES.preview.players },
+      { season, now: Date.parse(NOW) },
+    );
   const store = new SeasonStore(
     context.ctx,
     {},

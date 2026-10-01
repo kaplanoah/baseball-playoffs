@@ -8,6 +8,11 @@ const AFTERNOON = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-afternoon.json`, "utf8"),
 );
 const NOW = Date.parse(AFTERNOON.now);
+// The afternoon's recording has no players' averages, so the next day's stand in for them.
+const GAMES = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
+);
+const RESPONSES = { ...AFTERNOON.responses, players: GAMES.preview.players };
 // ESPN's answers the next afternoon, with both games of Sep 30 finished.
 const ESPN = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-espn-core.json`, "utf8"),
@@ -18,6 +23,7 @@ const FEEDS = {
   [REQUESTS.schedule]: "schedule",
   [REQUESTS.bracket(2026)]: "bracket",
   [REQUESTS.standings(2026)]: "standings",
+  [REQUESTS.players(2026)]: "players",
 };
 
 /**
@@ -38,7 +44,7 @@ function createLeague({ refuse = {}, answers = {}, espn = {} } = {}) {
     reads.push({ feed, headers: init.headers, cacheSeconds: init.cf?.cacheTtl });
     if (refuse[feed] === "page") return new Response("<!DOCTYPE html><html></html>");
     if (refuse[feed] === "error") return new Response("", { status: 503 });
-    return new Response(JSON.stringify(answers[feed] ?? AFTERNOON.responses[feed]));
+    return new Response(JSON.stringify(answers[feed] ?? RESPONSES[feed]));
   };
   return {
     reads,
@@ -55,6 +61,7 @@ test("the Worker reads every feed as the league's own site would", async () => {
 
   assert.deepEqual(league.reads.map((read) => read.feed).sort(), [
     "bracket",
+    "players",
     "schedule",
     "scoreboard",
     "standings",
@@ -158,7 +165,7 @@ test("a feed that answers JSON without its data counts as missing", async () => 
   assert.deepEqual(snapshot.missing, ["scoreboard"]);
 });
 
-test("the schedule, bracket, and standings are read again only after a while", async () => {
+test("the schedule, bracket, standings, and players' averages are read again only after a while", async () => {
   const league = createLeague();
   let now = NOW;
   const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
@@ -167,15 +174,15 @@ test("the schedule, bracket, and standings are read again only after a while", a
   now += 11 * 1000;
   await server.loadSnapshot(2026);
   assert.deepEqual(
-    ["scoreboard", "schedule", "bracket", "standings"].map(league.countReads),
-    [2, 1, 1, 1],
+    ["scoreboard", "schedule", "bracket", "standings", "players"].map(league.countReads),
+    [2, 1, 1, 1, 1],
   );
 
   now += 11 * 60 * 1000;
   await server.loadSnapshot(2026);
   assert.deepEqual(
-    ["scoreboard", "schedule", "bracket", "standings"].map(league.countReads),
-    [3, 1, 2, 1],
+    ["scoreboard", "schedule", "bracket", "standings", "players"].map(league.countReads),
+    [3, 1, 2, 1, 1],
   );
 });
 

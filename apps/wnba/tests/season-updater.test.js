@@ -8,7 +8,12 @@ const AFTERNOON = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-afternoon.json`, "utf8"),
 );
 const NOW = Date.parse(AFTERNOON.now);
-const SNAPSHOT = buildSnapshot(AFTERNOON.responses, { season: 2026, now: NOW });
+// The afternoon's recording has no players' averages, so the next day's stand in for them.
+const GAMES = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
+);
+const RESPONSES = { ...AFTERNOON.responses, players: GAMES.preview.players };
+const SNAPSHOT = buildSnapshot(RESPONSES, { season: 2026, now: NOW });
 
 function createDocs() {
   const stored = new Map();
@@ -46,7 +51,7 @@ function finishTonight(snapshot, [awayScore, homeScore]) {
   return { ...snapshot, games, series };
 }
 
-test("the season saves its games, series, and standings, and only when they change", async () => {
+test("the season saves its games, series, standings, and top scorers, and only when they change", async () => {
   const docs = createDocs();
   await saveSnapshot(docs, SNAPSHOT);
   await saveSnapshot(docs, { ...SNAPSHOT, asOf: "2026-09-30T22:00:00Z" });
@@ -56,6 +61,7 @@ test("the season saves its games, series, and standings, and only when they chan
   assert.equal(saved.games.length, 28);
   assert.equal(saved.series.length, 7);
   assert.equal(saved.standings.length, 15);
+  assert.equal(saved.leaders.length, 15);
 });
 
 test("a feed that didn't answer leaves its saved field as it was", async () => {
@@ -66,10 +72,18 @@ test("a feed that didn't answer leaves its saved field as it was", async () => {
   assert.equal((await readUpdates(docs, 2026)).standings.length, 15);
 });
 
+test("the top scorers stay as they were when the players' averages didn't answer", async () => {
+  const docs = createDocs();
+  await saveSnapshot(docs, SNAPSHOT);
+  await saveSnapshot(docs, buildWithout(["players"]));
+
+  assert.equal((await readUpdates(docs, 2026)).leaders.length, 15);
+});
+
 // The afternoon's feeds, with some that didn't answer.
 const buildWithout = (feeds) =>
   buildSnapshot(
-    { ...AFTERNOON.responses, ...Object.fromEntries(feeds.map((feed) => [feed, null])) },
+    { ...RESPONSES, ...Object.fromEntries(feeds.map((feed) => [feed, null])) },
     { season: 2026, now: NOW },
   );
 

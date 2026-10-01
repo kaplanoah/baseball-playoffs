@@ -933,40 +933,272 @@ table.standings tr.below td {
   }
 }
 
-/* Teams: every team in the league's order, with how far it got. */
+/* Teams: every team in the league's order, each row opening to its season. Conference and seed
+   stand in a column of their own. On a phone the dividers run edge to edge, and the rows keep the
+   page's gutter inside them. */
+/* The view pads its left side by a pixel, which the list reaches past too. */
 .team-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  --team-gutter: var(--page-gutter);
+  margin: 0 calc(-1 * var(--team-gutter)) 0 calc(-1 * var(--team-gutter) - 1px);
   border-top: 1px solid var(--divider);
 }
-.team-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
+@media (min-width: 780px) {
+  .team-list {
+    --team-gutter: 0px;
+    margin: 0;
+  }
+}
+.team {
   border-bottom: 1px solid var(--divider);
 }
-.team-text {
+.team summary {
   display: grid;
-  gap: 2px;
+  grid-template-columns: 54px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 12px var(--team-gutter);
+  list-style: none;
+  cursor: pointer;
+}
+.team summary::-webkit-details-marker {
+  display: none;
+}
+body.kbd .team summary:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.team-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.conference-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-family: var(--display);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.conference-chip.east {
+  color: var(--teal);
+}
+.conference-chip.west {
+  color: var(--orange);
+}
+.team-seed {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--ink-mid);
+  white-space: nowrap;
+}
+.team-lines {
+  display: grid;
+  gap: 4px;
   min-width: 0;
 }
+.team-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.team-heading .dot {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+}
 .team-full-name {
+  min-width: 0;
   font-family: var(--display);
-  font-size: 1.05rem;
+  font-size: 1.06rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+.team.done .team-full-name {
+  color: var(--ink-mid);
+}
+.team-record {
+  padding-left: 2px;
+  font-family: var(--numbers);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.team-last-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  margin-top: -2px;
+  padding-left: 2px;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+}
+.team-label {
+  font-family: var(--display);
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+.team-title-year {
+  font-weight: 500;
+  color: var(--ink-mid);
+}
+.team-former {
+  font-weight: 400;
+}
+/* Shaped like baseball's chips. */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 3px;
+  font-family: var(--display);
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+.status-chip.alive {
+  background: color-mix(in srgb, var(--ink) 15%, transparent);
+}
+.status-chip.now,
+.status-chip.champion {
+  background: var(--orange);
+  color: var(--orange-ink);
+}
+.status-chip.out {
+  background: color-mix(in srgb, var(--ink-dim) 16%, transparent);
+  color: var(--ink-dim);
+}
+.status-chip.missed {
+  box-shadow: inset 0 0 0 1px var(--divider);
+  color: var(--ink-dim);
+}
+.team-caret {
+  width: 15px;
+  height: 15px;
+  color: var(--ink-dim);
+}
+.team[open] .team-caret {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .team-caret {
+    transition: transform 0.15s ease;
+  }
+}
+
+/* A team's season, under its row. */
+.team-season {
+  display: grid;
+  gap: 12px;
+  padding: 0 var(--team-gutter) 14px calc(var(--team-gutter) + 64px);
+}
+.team-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--divider);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.team-stat {
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+}
+.team-stat:nth-child(n + 4) {
+  border-top: 1px solid var(--divider);
+}
+.team-stat:not(:nth-child(3n + 1)) {
+  border-left: 1px solid var(--divider);
+}
+.team-stat .team-label {
+  font-size: 0.6rem;
+}
+.team-stat b {
+  font-family: var(--numbers);
+  font-size: 1.15rem;
   font-weight: 600;
 }
-.facts {
-  font-size: 0.75rem;
+.team-detail {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--ink-mid);
+}
+.team-detail .team-label {
+  margin-right: 6px;
+}
+.team-detail b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.team-detail .tabular {
+  white-space: nowrap;
+}
+.team-playoffs {
+  display: grid;
+  gap: 4px;
+}
+.team-game {
+  display: grid;
+  grid-template-columns: 26px 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+.team-game-number {
+  font-family: var(--display);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-dim);
 }
-.team-row.out .team-full-name,
-.team-row.missed .team-full-name {
+.team-result {
+  font-family: var(--display);
+  font-weight: 700;
+  text-align: center;
+}
+.team-result.won {
+  color: var(--teal);
+}
+.team-result.lost {
   color: var(--ink-dim);
 }
-.team-row.champion .team-full-name {
+.team-round {
+  font-size: 0.76rem;
+  color: var(--ink-dim);
+}
+.team-score {
+  font-family: var(--numbers);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.team-game.next .team-result,
+.team-when {
+  color: var(--ink-dim);
+}
+.team-when {
+  font-size: 0.8rem;
+}
+.team-game.soon .team-result,
+.team-game.soon .team-when {
   color: var(--orange);
+  font-weight: 600;
 }
 
 /* Settings: the appearance choices show the home-screen icon each one offers. System shows
