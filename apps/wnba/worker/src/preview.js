@@ -11,8 +11,10 @@ import { fetchWnbaJson, readSeasonParam, SEASON_RULE } from "./wnba.js";
 // Reads the league for a game that hasn't started, for the game sheet: the two teams' meetings
 // this season, how their seasons compare, and each team's leading scorers.
 
-// The schedule, standings, and season averages change at most a few times a day.
-const PREVIEW_CACHE_SECONDS = 60 * 60;
+// The schedule, standings, and season averages change at most a few times a day, so each answer
+// is kept an hour once it's checked. Cloudflare's edge would keep a refusal for the hour too, and
+// the page's snapshot reads the same addresses.
+const PREVIEW_REUSE_MS = 60 * 60 * 1000;
 const LEADERS_PER_TEAM = 3;
 // Regular-season games, Commissioner's Cup games among them, and playoff games. The rest are the
 // preseason, the All-Star Game, and the Cup's final, which aren't meetings that count.
@@ -106,16 +108,24 @@ export function createPreviewServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
 } = {}) {
+  const keptAnswers = new Map();
+
+  async function readFeed(name, url) {
+    const kept = keptAnswers.get(url);
+    if (kept && now() - kept.at < PREVIEW_REUSE_MS) return kept.answer;
+    const answer = await fetchWnbaJson(fetchImpl, url, null, (read) =>
+      Array.isArray(FEED_DATA[name](read)),
+    );
+    keptAnswers.set(url, { at: now(), answer });
+    return answer;
+  }
+
   // Each feed is on its own: the sheet shows whatever parts answered.
   async function loadResponses(season) {
     const requests = listPreviewRequests(season);
     const names = Object.keys(requests);
     const answers = await Promise.all(
-      names.map((name) =>
-        fetchWnbaJson(fetchImpl, requests[name], PREVIEW_CACHE_SECONDS, (answer) =>
-          Array.isArray(FEED_DATA[name](answer)),
-        ).catch(() => null),
-      ),
+      names.map((name) => readFeed(name, requests[name]).catch(() => null)),
     );
     return Object.fromEntries(names.map((name, index) => [name, answers[index]]));
   }

@@ -1,5 +1,6 @@
 import { html, setHtml } from "#shared/html.js";
 import { watchOpeningRound } from "#shared/opening-round.js";
+import { markScrolledRound } from "#shared/round-dots.js";
 import { listBracketLinks } from "./series.js";
 
 /** @typedef {import("./series.js").Series} Series */
@@ -95,18 +96,12 @@ function redrawLines() {
   if (tree && isShown(tree)) drawLines(tree);
 }
 
-/** On a phone, the dots under the bracket mark the round scrolled to. */
 function markVisibleRound() {
   const tree = findTree();
   if (!tree) return;
-  const padding = parseFloat(getComputedStyle(tree).scrollPaddingLeft) || 0;
-  const edge = tree.getBoundingClientRect().left + padding;
-  const names = [...tree.querySelectorAll(".round-name")];
-  const distances = names.map((name) => Math.abs(name.getBoundingClientRect().left - edge));
-  const nearest = names[distances.indexOf(Math.min(...distances))]?.getAttribute("data-round");
-  for (const dot of findWrap().querySelectorAll(".round-dots [data-round]")) {
-    dot.classList.toggle("on", dot.getAttribute("data-round") === nearest);
-  }
+  const names = /** @type {HTMLElement[]} */ ([...tree.querySelectorAll(".round-name")]);
+  const dots = /** @type {HTMLElement} */ (findWrap().querySelector(".round-dots"));
+  markScrolledRound(tree, names, dots);
 }
 
 // The cards move when the screen resizes, the tab shows, or a font arrives and changes their rows.

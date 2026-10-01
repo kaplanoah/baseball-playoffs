@@ -5,7 +5,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
 }) => {
   await openApp(page);
   await expect(page.locator('[data-series="1-0"]')).toContainText("Liberty win 2-0");
-  await expect(page.locator("header.top .title-row")).toHaveText("WNBA Playoffs");
+  await expect(page.locator("header.top .title-row")).toHaveText("WNBA");
   const stampLines = page.locator("#stamp > span");
   await expect(stampLines.nth(0)).toHaveText(
     "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty win 2-0",
@@ -15,7 +15,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
   await page.getByRole("tab", { name: "Standings" }).click();
-  await expect(page.locator("#standingsWrap tr.playoff-line + tr")).toContainText("Fire");
+  await expect(page.locator("#standings-league tr.playoff-line + tr")).toContainText("Fire");
   await page.getByRole("tab", { name: "Teams" }).click();
   await expect(page.locator("#teamsWrap .team").first()).toContainText("Minnesota Lynx");
 });
@@ -61,13 +61,34 @@ test("the Games tab opens on today's games, and its pill moves to the results an
   await expect(page.locator("#games-today")).toHaveJSProperty("inert", true);
 });
 
+test.describe("on a phone, the standings", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("swipe sideways from the league to a conference, and the pill follows", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    const pages = page.locator("#standings-pages");
+    await expect(page.locator("#standings-league")).toContainText("Lynx");
+
+    await pages.evaluate((element) =>
+      element.scrollTo({ left: element.clientWidth, behavior: "instant" }),
+    );
+
+    await expect(page.getByRole("tab", { name: "East" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#standings-east")).toBeInViewport();
+    const box = await pages.boundingBox();
+    expect(box.x).toBe(0);
+    expect(box.width).toBe(390);
+  });
+});
+
 test.describe("on a phone, the Games lists", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
   test("swipe sideways from today's to the results, and the pill follows", async ({ page }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Games" }).click();
-    const pages = page.locator("#gamePages");
+    const pages = page.locator("#games-pages");
     await expect(page.locator("#games-today")).toContainText("Dream");
 
     await pages.evaluate((element) => element.scrollTo({ left: 0, behavior: "instant" }));
@@ -82,7 +103,7 @@ test.describe("on a phone, the Games lists", () => {
   test("reach the screen's edges, so a swiped list slides off the screen", async ({ page }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Games" }).click();
-    const box = await page.locator("#gamePages").boundingBox();
+    const box = await page.locator("#games-pages").boundingBox();
     expect(box.x).toBe(0);
     expect(box.width).toBe(390);
   });
@@ -319,6 +340,18 @@ test("redrawing the teams each minute keeps keyboard focus on the team it was on
   await expect(aces).toBeFocused();
 });
 
+test("redrawing the games each minute keeps keyboard focus on the game it was on", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const game = page.locator('[data-game="1042600132"] .game-open');
+  await game.focus();
+
+  await page.clock.runFor(60 * 1000);
+  await expect(game).toBeFocused();
+});
+
 test("on a phone, the team rows' dividers run edge to edge", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await openApp(page);
@@ -427,8 +460,12 @@ test("on a wide screen, the Games, Standings, and Teams lists keep to one phone'
   await openApp(page);
   const pageMiddle = page.viewportSize().width / 2;
   for (const { tab, pill, list } of [
-    { tab: "Games", pill: "#gamePager .game-tabs", list: "#games-today .game-day" },
-    { tab: "Standings", pill: ".standings-views", list: "#standingsWrap table.standings" },
+    { tab: "Games", pill: "#gamePager .pager-tabs", list: "#games-today .game-day" },
+    {
+      tab: "Standings",
+      pill: "#standingsPager .pager-tabs",
+      list: "#standings-league table.standings",
+    },
     { tab: "Teams", list: "#teamsWrap .team" },
   ]) {
     await page.getByRole("tab", { name: tab }).click();
@@ -441,37 +478,40 @@ test("on a wide screen, the Games, Standings, and Teams lists keep to one phone'
   }
 });
 
-test("the Standings pill switches between the league and each conference, through the season's updates", async ({
+test("the Standings pill switches between the league and each conference, through the season's updates and back from another tab", async ({
   page,
 }) => {
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Standings" }).click();
-  const pill = page.getByRole("group", { name: "Standings" });
-  const firstTeam = page.locator("#standingsWrap tbody tr").first();
-  await expect(page.getByRole("table", { name: "League standings" })).toBeVisible();
-  await expect(firstTeam).toContainText("Lynx");
+  const pill = page.getByRole("tablist", { name: "Standings" });
+  const shownFirstTeam = page.locator(".pager-page:not([inert]) tbody tr").first();
+  await expect(page.getByRole("table", { name: "League standings" })).toBeInViewport();
+  await expect(shownFirstTeam).toContainText("Lynx");
 
-  await pill.getByRole("button", { name: "East" }).click();
+  await pill.getByRole("tab", { name: "East" }).click();
 
-  await expect(page.getByRole("table", { name: "East standings" })).toBeVisible();
-  await expect(firstTeam).toContainText("Dream");
-  await expect(pill.getByRole("button", { name: "East" })).toHaveAttribute("aria-pressed", "true");
-  await expect(pill.getByRole("button", { name: "East" })).toBeFocused();
+  await expect(page.getByRole("table", { name: "East standings" })).toBeInViewport();
+  await expect(shownFirstTeam).toContainText("Dream");
+  await expect(pill.getByRole("tab", { name: "East" })).toHaveAttribute("aria-selected", "true");
 
   await app.changeSeason((season) => {
     season.standings.find((row) => row.team === "ATL").wins += 1;
     return season;
   });
+  await expect(shownFirstTeam).toContainText("31-14");
+  await expect(page.getByRole("table", { name: "East standings" })).toBeInViewport();
 
-  await expect(firstTeam).toContainText("31-14");
-  await expect(page.getByRole("table", { name: "East standings" })).toBeVisible();
+  await page.getByRole("tab", { name: "Teams" }).click();
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await expect(page.getByRole("table", { name: "East standings" })).toBeInViewport();
+  await expect(pill.getByRole("tab", { name: "East" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("the playoff line is one dashed strip across the whole table", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Standings" }).click();
-  const table = await page.locator("#standingsWrap table.standings").boundingBox();
-  const line = await page.locator("#standingsWrap tr.playoff-line td").boundingBox();
+  const table = await page.locator("#standings-league table.standings").boundingBox();
+  const line = await page.locator("#standings-league tr.playoff-line td").boundingBox();
   expect(line.x).toBeCloseTo(table.x, 0);
   expect(line.width).toBeCloseTo(table.width, 0);
 });
@@ -482,7 +522,7 @@ test("the standings draw lines only between rows, none under the playoff line or
   await openApp(page);
   await page.getByRole("tab", { name: "Standings" }).click();
   const bottomBorders = await page
-    .locator("#standingsWrap table.standings td")
+    .locator("#standings-league table.standings td")
     .evaluateAll((cells) =>
       cells
         .filter((cell) => getComputedStyle(cell).borderBottomStyle !== "none")
@@ -579,12 +619,13 @@ test.describe("on a phone", () => {
   }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Standings" }).click();
+    const table = page.getByRole("table", { name: "League standings" });
     for (const heading of ["W-L", "GB", "L10", "Strk"]) {
-      await expect(page.getByRole("columnheader", { name: heading, exact: true })).toBeVisible();
+      await expect(table.getByRole("columnheader", { name: heading, exact: true })).toBeVisible();
     }
     const readStreakColor = (team) =>
       page
-        .locator("#standingsWrap tbody tr", { hasText: team })
+        .locator("#standings-league tbody tr", { hasText: team })
         .locator(".streak-won")
         .evaluate((streak) => getComputedStyle(streak).color);
     expect(await readStreakColor("Fire")).not.toBe(await readStreakColor("Lynx"));

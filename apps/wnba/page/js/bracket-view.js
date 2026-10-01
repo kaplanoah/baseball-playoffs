@@ -1,6 +1,7 @@
 import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { findOpeningRound } from "#shared/opening-round.js";
+import { renderRoundDots } from "#shared/round-dots.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { BRACKET_FEEDERS, BRACKET_ORDER, describeSeriesStanding } from "./series.js";
@@ -126,11 +127,8 @@ export function renderBracket(season, now) {
       </h2>`,
   );
   const cells = rounds.flat().map((series) => renderSeries(series, games, now, seriesById));
-  const roundDots = Object.keys(BRACKET_ORDER).map(
-    (round) => html`<span data-round="${round}"></span>`,
-  );
   return html`<div class="bracket" data-opening-round="${openingRound}">
       <svg class="bracket-lines" aria-hidden="true"></svg>${names}${cells}
     </div>
-    <div class="round-dots" aria-hidden="true">${roundDots}</div>`;
+    ${renderRoundDots(Object.keys(BRACKET_ORDER))}`;
 }

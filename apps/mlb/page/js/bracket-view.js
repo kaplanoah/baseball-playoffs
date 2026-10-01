@@ -5,6 +5,7 @@ import { countDaysBetween, formatClockTime, formatShortDate } from "#shared/days
 import { describeInning, renderOutLights } from "./games-view.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { findOpeningRound, watchOpeningRound } from "#shared/opening-round.js";
+import { markScrolledRound, renderRoundDots } from "#shared/round-dots.js";
 import { session } from "./session.js";
 
 const findRank = (id) => {
@@ -73,7 +74,8 @@ const STACKED = {
   worldSeriesWidth: 240,
   noteHeight: 20,
   lineHeight: 19,
-  tabBarClearance: 14,
+  // Room above the tab bar for the round dots, which chrome.css pins there, and a gap above them.
+  tabBarClearance: 32,
   maxGrowth: 3,
 };
 /* The tightest spaces, which all grow by one factor to fill the screen's height. The page's margin
@@ -435,6 +437,18 @@ function findOpeningRoundCode(bracket) {
 /** @type {ReturnType<typeof watchOpeningRound> | null} */
 let placeBracket = null;
 
+// Only the stacked bracket scrolls sideways, so only it has round dots.
+function markRoundScrolledTo() {
+  const wrap = /** @type {HTMLElement} */ (document.getElementById("bracketWrap"));
+  const dots = /** @type {HTMLElement | null} */ (wrap.querySelector(".round-dots"));
+  if (!dots) return;
+  const scroller = /** @type {HTMLElement} */ (wrap.querySelector(".tree-scroll"));
+  const anchors = ROUND_ORDER.map(
+    (round) => /** @type {HTMLElement} */ (scroller.querySelector(`.box[data-round="${round}"]`)),
+  );
+  markScrolledRound(scroller, anchors, dots);
+}
+
 export function renderBracket() {
   const wrap = document.getElementById("bracketWrap");
   const noFieldNote = document.getElementById("noFieldNote");
@@ -454,7 +468,8 @@ export function renderBracket() {
   const hadFocus = wrap.contains(document.activeElement);
   setHtml(
     wrap,
-    html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>`,
+    html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>
+      ${NARROW.matches && renderRoundDots(ROUND_ORDER)}`,
   );
   const scroller = /** @type {HTMLElement} */ (wrap.querySelector(".tree-scroll"));
   const openingRound = findOpeningRoundCode(bracket);
@@ -469,6 +484,7 @@ export function renderBracket() {
     keptLeft: scrollLeft,
   });
   if (hadFocus) scroller.focus({ preventScroll: true });
+  markRoundScrolledTo();
   renderedGrowth = growth;
   renderBanner(bracket);
 }
@@ -484,6 +500,8 @@ export function watchBracketSpace() {
   };
   NARROW.addEventListener("change", renderBracket);
   addEventListener("resize", redrawIfResized);
+  wrap.addEventListener("scroll", markRoundScrolledTo, { capture: true, passive: true });
+  new ResizeObserver(markRoundScrolledTo).observe(wrap);
   new ResizeObserver(redrawIfResized).observe(document.body);
 }
 

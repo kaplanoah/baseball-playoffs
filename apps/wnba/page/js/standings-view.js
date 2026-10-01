@@ -1,4 +1,5 @@
 import { html } from "#shared/html.js";
+import { createPager } from "#shared/pager.js";
 import { renderClub } from "./clubs.js";
 
 /** @typedef {{ team: string, conference: string, wins: number, losses: number, place: number, conferencePlace: number, gamesBack: number | null, conferenceGamesBack: number | null, clinch: string | null, streak: string | null, lastTen: string | null, pointsFor?: number | null, pointsAgainst?: number | null, margin?: number | null, home?: string | null, road?: string | null }} StandingsRow */
@@ -6,6 +7,12 @@ import { renderClub } from "./clubs.js";
 
 /** @type {StandingsView[]} */
 const STANDINGS_VIEWS = ["League", "East", "West"];
+
+/** @param {StandingsView} view */
+const nameViewKey = (view) => view.toLowerCase();
+
+/** @type {ReturnType<typeof createPager> | null} */
+let standingsPager = null;
 
 // The top eight across the league make the playoffs, whatever their conference.
 const PLAYOFF_SPOTS = 8;
@@ -73,15 +80,6 @@ function listViewRows(league, view) {
     .sort((first, second) => first.conferencePlace - second.conferencePlace);
 }
 
-/** @param {StandingsView} chosen */
-const renderViewPill = (chosen) =>
-  html`<div class="standings-views" role="group" aria-label="Standings">
-    ${STANDINGS_VIEWS.map(
-      (view) =>
-        html`<button type="button" data-standings-view="${view}" aria-pressed="${String(view === chosen)}">${view}</button>`,
-    )}
-  </div>`;
-
 /**
  * One table, of the league or a conference, with the playoff line after the league's eighth.
  * @param {{ standings?: StandingsRow[] } | null} season
@@ -91,9 +89,7 @@ export function renderStandings(season, view = "League") {
   const rows = season?.standings ?? [];
   if (!rows.length) return html`<p class="empty-note">No standings yet.</p>`;
   const league = [...rows].sort((first, second) => first.place - second.place);
-  return html`<div class="standings-block">
-    ${renderViewPill(view)}
-    <table class="standings" aria-label="${view} standings">
+  return html`<table class="standings" aria-label="${view} standings">
       <thead>
         <tr class="groups">
           <th colspan="2"></th>
@@ -112,6 +108,28 @@ export function renderStandings(season, view = "League") {
       <tbody>
         ${renderBody(listViewRows(league, view), view)}
       </tbody>
-    </table>
-  </div>`;
+    </table>`;
+}
+
+/** Builds the pill over the league's and each conference's table, which a swipe moves between. */
+export function startStandings() {
+  standingsPager = createPager(
+    /** @type {HTMLElement} */ (document.getElementById("standingsPager")),
+    {
+      label: "Standings",
+      idPrefix: "standings",
+      lists: STANDINGS_VIEWS.map((view) => ({ key: nameViewKey(view), name: view })),
+      openOn: nameViewKey("League"),
+    },
+  );
+}
+
+/** @param {{ standings?: StandingsRow[] } | null} season */
+export function drawStandings(season) {
+  standingsPager.fill((key) =>
+    renderStandings(
+      season,
+      STANDINGS_VIEWS.find((view) => nameViewKey(view) === key),
+    ),
+  );
 }

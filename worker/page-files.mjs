@@ -1,8 +1,9 @@
 // An app's page files as its Worker serves them, with the shared page files under shared/,
 // where the page's import map points #shared/. Node reads them from disk through the app's
 // #page-files/<app> import; the Worker bundle gets the same data embedded by worker/build.mjs.
+// The page's index.html also names every module its entry loads, to fetch them all at once.
 import { readdirSync, readFileSync } from "node:fs";
-import { extname, join, relative } from "node:path";
+import { extname, join, posix, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SHARED_PAGE_ROOT = fileURLToPath(new URL("../shared/page/", import.meta.url));
@@ -45,11 +46,60 @@ function readFolder(pageRoot) {
   );
 }
 
+const IMPORT_MAP = /<script type="importmap">([\s\S]*?)<\/script>\n/;
+const ENTRY_MODULE = /<script type="module" src="([^"]+)"><\/script>/;
+const MODULE_IMPORT =
+  /^(?:import\s[^;]*?\sfrom|export\s*(?:\*|\{)[^;]*?\sfrom|import)\s*"([^"]+)"/gm;
+
+/**
+ * The page path a module's import names, through the page's import map.
+ * @param {string} specifier
+ * @param {string} importer the importing module's page path
+ * @param {Record<string, string>} imports
+ */
+function resolveImport(specifier, importer, imports) {
+  const prefix = Object.keys(imports).find((key) => specifier.startsWith(key));
+  if (prefix) return posix.normalize(imports[prefix] + specifier.slice(prefix.length));
+  return specifier.startsWith(".") ? posix.join(posix.dirname(importer), specifier) : null;
+}
+
+/**
+ * Every module the entry loads, the entry first.
+ * @param {Record<string, { text?: string }>} files
+ * @param {string} entry
+ * @param {Record<string, string>} imports
+ */
+export function listModules(files, entry, imports) {
+  const modules = [entry];
+  for (const module of modules) {
+    for (const [, specifier] of (files[module]?.text ?? "").matchAll(MODULE_IMPORT)) {
+      const path = resolveImport(specifier, module, imports);
+      if (path && files[path] && !modules.includes(path)) modules.push(path);
+    }
+  }
+  return modules;
+}
+
+// A browser finds each module only once the one importing it has loaded, so the page names them
+// all after its import map, and the browser asks for every one at once.
+function addModulePreloads(files) {
+  const page = files["index.html"]?.text;
+  const importMap = page?.match(IMPORT_MAP);
+  const entry = page?.match(ENTRY_MODULE)?.[1];
+  if (!importMap || !entry) return files;
+  const { imports } = JSON.parse(importMap[1]);
+  const links = listModules(files, entry, imports)
+    .map((path) => `  <link rel="modulepreload" href="${path}" />\n`)
+    .join("");
+  const text = page.replace(importMap[0], importMap[0] + links);
+  return { ...files, "index.html": { ...files["index.html"], text } };
+}
+
 /** @param {string} pageRoot the app's page/ folder */
 export function readPageFiles(pageRoot) {
   const shared = Object.entries(readFolder(SHARED_PAGE_ROOT)).map(([path, file]) => [
     `shared/${path}`,
     file,
   ]);
-  return { ...readFolder(pageRoot), ...Object.fromEntries(shared) };
+  return addModulePreloads({ ...readFolder(pageRoot), ...Object.fromEntries(shared) });
 }

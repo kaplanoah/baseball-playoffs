@@ -291,6 +291,28 @@ test("with less motion asked for, a sheet takes its new height at once", async (
   expect(await readResizes()).toEqual([]);
 });
 
+test("no text in a game's sheet is smaller than 10.5px, in its box score or its preview", async ({
+  page,
+}) => {
+  await openApp(page);
+  for (const name of [ACES_AT_FEVER, FEVER_AT_ACES]) {
+    const sheet = await openSheet(page, name);
+    await expect(sheet.locator("#gameBody")).toHaveAttribute("aria-busy", "false");
+    const smallest = await sheet.evaluate((dialog) =>
+      Math.min(
+        ...[...dialog.querySelectorAll("*")]
+          .filter((element) =>
+            [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim()),
+          )
+          .map((element) => parseFloat(getComputedStyle(element).fontSize)),
+      ),
+    );
+    expect(smallest, name).toBeGreaterThanOrEqual(10.5);
+    await sheet.getByRole("button", { name: "Done" }).click();
+    await expect(sheet).toBeHidden();
+  }
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

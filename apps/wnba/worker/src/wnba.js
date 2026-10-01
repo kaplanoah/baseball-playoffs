@@ -28,19 +28,19 @@ function parseJson(text) {
 }
 
 /**
- * Reads one of the league's feeds, letting Cloudflare's edge keep the answer for `cacheSeconds`.
- * A refusal comes back as a web page with a 200, so only JSON that `hasData` finds its data in
- * counts as an answer.
+ * Reads one of the league's feeds, letting Cloudflare's edge keep the answer for `cacheSeconds`, or
+ * not at all when it's null. A refusal comes back as a web page with a 200, which the edge keeps
+ * like any answer, so only JSON that `hasData` finds its data in counts as an answer.
  * @param {(input: string, init: object) => Promise<Response>} fetchImpl
  * @param {string} url
- * @param {number} cacheSeconds
+ * @param {number | null} cacheSeconds
  * @param {(answer: any) => boolean} hasData
  */
 export async function fetchWnbaJson(fetchImpl, url, cacheSeconds, hasData) {
   const response = await fetchImpl(url, {
     headers: FEED_HEADERS,
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    cf: { cacheTtl: cacheSeconds, cacheEverything: true },
+    ...(cacheSeconds !== null && { cf: { cacheTtl: cacheSeconds, cacheEverything: true } }),
   });
   const path = new URL(url).pathname;
   if (!response.ok)

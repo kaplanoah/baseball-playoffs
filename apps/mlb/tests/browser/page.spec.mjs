@@ -30,7 +30,7 @@ test("the Games tab lists today's games and every game on each club's previous a
 }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
-  const shownGames = page.locator(".game-page:not([inert])");
+  const shownGames = page.locator(".pager-page:not([inert])");
   await expect(shownGames).toHaveId("games-today");
   await expect(shownGames.locator(".game-row")).toHaveCount(12);
   await expect(shownGames.locator(".game-row.live").first()).toContainText("Top 9th");
@@ -61,11 +61,11 @@ test("a game under way shows its outs as two lights beside the inning", async ({
 
 const readPagesPosition = (page) =>
   page
-    .locator("#gamePages")
+    .locator("#games-pages")
     .evaluate((pages) => Math.round((pages.scrollLeft / pages.clientWidth) * 100) / 100);
 
 async function readThumbOffset(page, tabName) {
-  const thumb = await page.locator(".game-tabs-thumb").boundingBox();
+  const thumb = await page.locator(".pager-thumb").boundingBox();
   const tab = await page.getByRole("tab", { name: tabName }).boundingBox();
   return Math.abs(thumb.x + thumb.width / 2 - (tab.x + tab.width / 2));
 }
@@ -78,7 +78,9 @@ test("on a phone, swiping the games sideways moves between the lists and slides 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
 
-  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth / 4));
+  await page
+    .locator("#games-pages")
+    .evaluate((pages) => (pages.scrollLeft = pages.clientWidth / 4));
   await expect.poll(() => readPagesPosition(page)).toBe(0);
   await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
     "aria-selected",
@@ -100,7 +102,7 @@ test("the Games lists are as tall as the shown one when it runs past the screen"
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
-  const pages = page.locator("#gamePages");
+  const pages = page.locator("#games-pages");
   const readHeight = async (locator) => (await locator.boundingBox()).height;
 
   await page.getByRole("tab", { name: "Previous" }).click();
@@ -120,8 +122,8 @@ const openShortToday = async (page) => {
 
 const readListsTop = (page) =>
   page.evaluate(() => {
-    const bar = document.getElementById("gameTabsBar");
-    return document.getElementById("gamePages").getBoundingClientRect().top - bar.offsetHeight;
+    const bar = document.getElementById("games-bar");
+    return document.getElementById("games-pages").getBoundingClientRect().top - bar.offsetHeight;
   });
 
 test("on a phone, the space below a short list of games swipes too, and scrolls only as far as the pill", async ({
@@ -133,7 +135,7 @@ test("on a phone, the space below a short list of games swipes too, and scrolls 
 
   const lastRow = await page.locator("#games-today .game-row").last().boundingBox();
   const isSwipedBelowGames = await page.evaluate(
-    (y) => Boolean(document.elementFromPoint(195, y)?.closest("#gamePages")),
+    (y) => Boolean(document.elementFromPoint(195, y)?.closest("#games-pages")),
     lastRow.y + lastRow.height + 200,
   );
   expect(isSwipedBelowGames).toBe(true);
@@ -155,12 +157,12 @@ test("on a phone, the Games pill stays at the top while the games scroll under i
   await page.evaluate(() => scrollTo({ top: 600, behavior: "instant" }));
 
   await expect.poll(async () => (await pill.boundingBox()).y).toBe(10);
-  await expect(page.locator("#gameTabsBar")).toHaveClass(/stuck/);
+  await expect(page.locator("#games-bar")).toHaveClass(/stuck/);
   const coveringPillCenter = await page.evaluate(() => {
-    const box = document.querySelector(".game-tabs").getBoundingClientRect();
+    const box = document.querySelector(".pager-tabs").getBoundingClientRect();
     return document
       .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
-      ?.closest(".game-tabs");
+      ?.closest(".pager-tabs");
   });
   expect(coveringPillCenter).not.toBeNull();
 });
@@ -177,15 +179,15 @@ test("on a phone, a list swiped in from far down another starts just under the p
   const readFirstDateY = async () =>
     (await page.locator("#games-today .game-day").first().boundingBox()).y;
   const pillBottom = await page.evaluate(
-    () => document.getElementById("gameTabsBar").getBoundingClientRect().bottom,
+    () => document.getElementById("games-bar").getBoundingClientRect().bottom,
   );
 
   await expect.poll(readFirstDateY).toBeCloseTo(pillBottom, 0);
   await page
-    .locator("#gamePages")
+    .locator("#games-pages")
     .evaluate((pages) => (pages.scrollLeft = pages.clientWidth * 0.5));
   expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
-  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth));
+  await page.locator("#games-pages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth));
 
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
   expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
@@ -200,7 +202,7 @@ test("on a phone, a swipe that comes to rest between two lists goes on to the ne
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
-  const pages = page.locator("#gamePages");
+  const pages = page.locator("#games-pages");
   await pages.evaluate((element) => (element.style.scrollSnapType = "none"));
 
   await pages.dispatchEvent("touchstart", {
@@ -235,7 +237,7 @@ test("a tapped Games tab keeps its list while the lists are still on their way",
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
 
-  await page.locator("#gamePages").evaluate((pages) => {
+  await page.locator("#games-pages").evaluate((pages) => {
     pages.scrollTo = () => {};
     pages.dispatchEvent(new Event("scroll"));
   });
@@ -702,6 +704,33 @@ test("a series saved without being marked started still shows 0 beside a club's 
     .filter({ has: page.locator(".nscore", { hasText: "1" }) });
 
   await expect(started.locator(".nscore")).toHaveText(["0", "1"]);
+});
+
+test("on a phone, the bracket's round dots sit just above the tab bar and follow its scroll", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const dots = page.locator("#bracketWrap .round-dots");
+  await expect(dots.locator("[data-round]")).toHaveCount(4);
+  await expect(dots.locator(".on")).toHaveCount(1);
+  const dotsBox = await dots.boundingBox();
+  const bar = await page.locator("#tabBar").boundingBox();
+  expect(bar.y - (dotsBox.y + dotsBox.height)).toBeGreaterThan(0);
+  expect(bar.y - (dotsBox.y + dotsBox.height)).toBeLessThanOrEqual(16);
+
+  const scroller = page.locator("#bracketWrap .tree-scroll");
+  await scroller.evaluate((tree) => tree.scrollTo({ left: 0, behavior: "instant" }));
+  await expect(dots.locator('[data-round="WC"]')).toHaveClass("on");
+  await scroller.evaluate((tree) => tree.scrollTo({ left: tree.scrollWidth, behavior: "instant" }));
+  await expect(dots.locator('[data-round="WS"]')).toHaveClass("on");
+});
+
+test("on a wide screen, the whole bracket shows without round dots", async ({ page }) => {
+  await page.setViewportSize({ width: 1700, height: 900 });
+  await openApp(page);
+  await expect(page.locator("#bracketWrap .tree-scroll")).not.toHaveClass(/stacked/);
+  await expect(page.locator("#bracketWrap .round-dots")).toHaveCount(0);
 });
 
 test("on a phone, the bracket stacks the AL above the NL, each running left to right into the World Series", async ({
@@ -1771,7 +1800,7 @@ const readBracketFit = (page) =>
           (note) => note.getBoundingClientRect().bottom + scrollY,
         ),
       ),
-      tabBarTop: document.getElementById("tabBar").getBoundingClientRect().top,
+      dotsTop: document.querySelector(".round-dots").getBoundingClientRect().top + scrollY,
       scrollLeft: scroller.scrollLeft,
       bracketOverflow: scroller.scrollWidth - scroller.clientWidth,
       pageOverflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
@@ -1781,12 +1810,12 @@ const readBracketFit = (page) =>
 const expectBracketToFillHeight = async (page) => {
   await expect
     .poll(async () => {
-      const { stageBottom, tabBarTop } = await readBracketFit(page);
-      return tabBarTop - stageBottom;
+      const { stageBottom, dotsTop } = await readBracketFit(page);
+      return dotsTop - stageBottom;
     })
-    .toBeGreaterThanOrEqual(14);
-  const { stageBottom, lowestNoteBottom, tabBarTop } = await readBracketFit(page);
-  expect(tabBarTop - stageBottom).toBeLessThan(22);
+    .toBeGreaterThanOrEqual(8);
+  const { stageBottom, lowestNoteBottom, dotsTop } = await readBracketFit(page);
+  expect(dotsTop - stageBottom).toBeLessThan(18);
   expect(stageBottom - lowestNoteBottom).toBeLessThan(4);
 };
 

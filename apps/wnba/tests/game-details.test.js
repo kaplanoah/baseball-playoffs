@@ -212,7 +212,7 @@ test("a preview names each team's three leading scorers among its regulars", () 
   assert.ok(!fewGames.away.leaders.some((leader) => leader.lastName === "Mitchell"));
 });
 
-test("the preview route reads its feeds for an hour at a time, each part on its own", async () => {
+test("the preview route reads each feed on its own, outside Cloudflare's edge", async () => {
   const league = createLeague({
     refuse: { [PREVIEW_REQUESTS.players]: 503, [PREVIEW_REQUESTS.standings]: "empty" },
   });
@@ -229,7 +229,24 @@ test("the preview route reads its feeds for an hour at a time, each part on its 
     league.reads.map((read) => read.url).sort(),
     Object.values(PREVIEW_REQUESTS).sort(),
   );
-  assert.ok(league.reads.every((read) => read.init.cf.cacheTtl === 60 * 60));
+  assert.ok(league.reads.every((read) => read.init.cf === undefined));
+});
+
+test("the preview route keeps each answer it checked for an hour, and never a refusal", async () => {
+  let time = NOW;
+  const league = createLeague({ refuse: { [PREVIEW_REQUESTS.players]: "empty" } });
+  const server = createPreviewServer({ fetchImpl: league.fetchImpl, now: () => time });
+  const countReads = (url) => league.reads.filter((read) => read.url === url).length;
+
+  await askPreview(server, "season=2026&away=IND&home=LVA");
+  time += 59 * 60 * 1000;
+  await askPreview(server, "season=2026&away=ATL&home=NYL");
+
+  assert.equal(countReads(PREVIEW_REQUESTS.schedule), 1);
+  assert.equal(countReads(PREVIEW_REQUESTS.players), 2);
+  time += 2 * 60 * 1000;
+  await askPreview(server, "season=2026&away=IND&home=LVA");
+  assert.equal(countReads(PREVIEW_REQUESTS.schedule), 2);
 });
 
 test("a preview with no feed answering is a 502", async () => {

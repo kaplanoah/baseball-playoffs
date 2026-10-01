@@ -341,7 +341,7 @@ test("the league's standings show the season, then recent form, with the playoff
   const text = readText(renderStandings(SEASON));
   assert.match(
     text,
-    /^League East West Season Recent Team W-L GB L10 Strk 1 Lynx W 33-11 - 6-4 W 1 2 Valkyries W 32-12 1\.0 7-3 W 1 /,
+    /^Season Recent Team W-L GB L10 Strk 1 Lynx W 33-11 - 6-4 W 1 2 Valkyries W 32-12 1\.0 7-3 W 1 /,
   );
   const rows = readStandingsRows(renderStandings(SEASON));
   const line = rows.findIndex((row) => row.className === "playoff-line");
@@ -369,18 +369,8 @@ test("a conference's standings rank its own teams, note each playoff team's leag
   assert.match(readText(renderStandings(SEASON, "West")), /Strk 1 Lynx Seed 1 33-11 - /);
 });
 
-test("the standings pill marks the view it shows", () => {
-  const markup = renderStandings(SEASON, "West").text;
-  const pressed = [...markup.matchAll(/data-standings-view="(\w+)" aria-pressed="(\w+)"/g)];
-  assert.deepEqual(
-    pressed.map(([, view, isPressed]) => [view, isPressed]),
-    [
-      ["League", "false"],
-      ["East", "false"],
-      ["West", "true"],
-    ],
-  );
-  assert.match(markup, /aria-label="West standings"/);
+test("each standings table names the view it shows", () => {
+  assert.match(renderStandings(SEASON, "West").text, /aria-label="West standings"/);
 });
 
 test("a winning streak is marked, so one below the line can show paler than one above it", () => {

@@ -85,6 +85,9 @@ export function readAccount(env) {
 
 export const findWorkersApi = (account) => `${API}/accounts/${account}/workers`;
 
+// A call Cloudflare never answers would otherwise hold the deploy, and every deploy after it.
+const CLOUDFLARE_TIMEOUT_MS = 60 * 1000;
+
 export function createCloudflareCaller({ fetchImpl, env, log }) {
   const auth = env.CLOUDFLARE_API_TOKEN
     ? { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` }
@@ -94,6 +97,7 @@ export function createCloudflareCaller({ fetchImpl, env, log }) {
     const response = await fetchImpl(url, {
       ...init,
       headers: { ...auth, ...(init.headers || {}) },
+      signal: AbortSignal.timeout(CLOUDFLARE_TIMEOUT_MS),
     });
     if (isMissingAllowed && response.status === 404) {
       log(`${what}: none`);

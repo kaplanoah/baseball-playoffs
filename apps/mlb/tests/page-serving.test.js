@@ -81,6 +81,30 @@ test("the page's files are served with their types, and the icon as PNG bytes", 
     assert.equal((await requestPage(`/k3y/${src}`)).status, 200, src);
 });
 
+test("a browser that already has a file gets a 304 instead of the file again", async () => {
+  const first = await requestPage("/k3y/js/app.js");
+  const etag = first.headers.get("etag");
+  assert.match(etag ?? "", /^"[0-9a-f]{32}"$/);
+  assert.equal(first.headers.get("cache-control"), "no-cache");
+
+  for (const sent of [etag, `W/${etag}`, `"other", ${etag}`]) {
+    const again = await worker.fetch(
+      new Request(`${ORIGIN}/k3y/js/app.js`, { headers: { "if-none-match": sent } }),
+      ENV,
+    );
+    assert.equal(again.status, 304, sent);
+    assert.equal(await again.text(), "", sent);
+  }
+
+  const changed = await worker.fetch(
+    new Request(`${ORIGIN}/k3y/js/app.js`, { headers: { "if-none-match": '"other"' } }),
+    ENV,
+  );
+  assert.equal(changed.status, 200);
+  const icon = await requestPage("/k3y/icon-180.png");
+  assert.notEqual(icon.headers.get("etag"), etag);
+});
+
 test("the key without a slash redirects, so the page's relative links work", async () => {
   const response = await requestPage("/k3y?from=home");
   assert.equal(response.status, 301);

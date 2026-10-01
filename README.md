@@ -2,20 +2,22 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/kaplanoah/sports-apps/ci.yml?branch=main&label=CI&logo=github&logoColor=white)](https://github.com/kaplanoah/sports-apps/actions/workflows/ci.yml)
 
-Private web pages that track a league's postseason, one app per league. Each
+Private web pages that follow a league all year, one app per league. Each
 app is its own page and Cloudflare Worker, in its own folder under `apps/`, and
 they share code in `shared/` and the tooling that builds, tests, and deploys
 them.
 
-| App            | Folder       | Worker     |
-| -------------- | ------------ | ---------- |
-| MLB Postseason | `apps/mlb/`  | `mlb-live` |
-| WNBA Playoffs  | `apps/wnba/` | `wnba-app` |
+| App  | Folder       | Worker     |
+| ---- | ------------ | ---------- |
+| MLB  | `apps/mlb/`  | `mlb-live` |
+| WNBA | `apps/wnba/` | `wnba-app` |
 
-### MLB Postseason
+### MLB
 
-A private web page that tracks the MLB postseason. It shows the bracket, your
-ranking of who you want to win the World Series, the standings, each team's
+A private web page that follows the MLB season, from spring training through the
+World Series. It shows the standings, the postseason bracket (projected from the
+standings until the field is set), your ranking of who you want to win the World
+Series, each team's
 previous, current and next game with its starting pitchers, and scores that update
 automatically. Tap a game to compare its starters: how they rank among the season's starters,
 what they throw, and how their last starts went. A game later today whose club hasn't named
@@ -28,10 +30,10 @@ current even with the page closed. Saved to an iPhone's home screen, the page
 opens full screen like an app, and can send a notification when something
 happens to a team in your ranking.
 
-### WNBA Playoffs
+### WNBA
 
-A private web page that tracks the WNBA playoffs. It shows the bracket, every
-game with live scores and clocks, the league and conference standings with the
+A private web page that follows the WNBA season. It shows the playoff bracket,
+every playoff game with live scores and clocks, the league and conference standings with the
 playoff line, and every team with its conference, seed, record, last title, and
 how far it got. Tap a team for its season: its scoring, home and road records,
 top scorer, titles, and playoff games. Tap a game for its details: once it
@@ -52,7 +54,7 @@ Open [Claude Code on the web](https://claude.ai/code), paste this prompt, and
 follow Claude's instructions.
 
 ```
-Set up the MLB postseason tracker from https://github.com/kaplanoah/sports-apps
+Set up the MLB tracker from https://github.com/kaplanoah/sports-apps
 for me. Clone it (branch main), read the "Setup (for Claude Code)"
 section of its README, and guide me through it one step at a time.
 ```
@@ -75,7 +77,7 @@ until they say it's done, then go on. Don't ask them to make choices you can
 make for them. Never ask for the Cloudflare token in the chat.
 
 Set up the app they asked for, by its folder under `apps/`: `mlb` for the MLB
-postseason tracker, `wnba` for the WNBA playoffs tracker. Below, `<app>` is that folder, and `<worker>` is the `name`
+tracker, `wnba` for the WNBA tracker. Below, `<app>` is that folder, and `<worker>` is the `name`
 in its `apps/<app>/worker/wrangler.toml`.
 
 **1. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
@@ -112,7 +114,7 @@ themselves, see "If they deploy it themselves" below.
 5. Environment settings only apply to new sessions. Start one in the same
    environment on this repo's `main` with this prompt. Use the
    `create_session` tool if you have it. Otherwise have the user start it.
-   `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 2.`
+   `Continue setting up the MLB tracker: README "Setup (for Claude Code)", step 2.`
 
 **2. Deploy the Worker.** Run `npm ci`, then `npm run deploy:api -- <app>`. It
 runs the tests, deploys the app from `main` exactly as it is on GitHub, and
@@ -120,8 +122,8 @@ checks that the Worker answers. It keeps the Worker's address out of its output,
 deploy logs are public; step 3 prints it. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
 The session's own branch works once it matches `main`. It sets
 `NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
-proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
-asking and blocks the other ways to deploy.
+proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` has
+the user approve that command, and `set-app-key` below, and blocks the other ways to deploy.
 
 **3. Give the page its address.** Run `npm run set-app-key -- <app>`. It gives
 the Worker a long random `APP_KEY` secret and prints the page's address,
