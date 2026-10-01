@@ -177,6 +177,23 @@
         </div>
       </div>
       <div class="settings-controls">
+        <div class="control-row" id="notifyRow" hidden>
+          <span class="control-label">
+            <span id="notifyTitle">Notifications</span>
+            <span class="control-note" id="notifyNote" role="status"></span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            class="switch"
+            id="notifySwitch"
+            aria-checked="false"
+            aria-labelledby="notifyTitle"
+            hidden
+          >
+            <span class="switch-knob" aria-hidden="true"></span>
+          </button>
+        </div>
         <div class="control-row appearance-row">
           <span class="control-label">
             <span id="appearanceTitle">Appearance</span>
@@ -206,23 +223,6 @@
               <span>Walnut</span>
             </label>
           </div>
-        </div>
-        <div class="control-row" id="notifyRow" hidden>
-          <span class="control-label">
-            <span id="notifyTitle">Notifications</span>
-            <span class="control-note" id="notifyNote" role="status"></span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            class="switch"
-            id="notifySwitch"
-            aria-checked="false"
-            aria-labelledby="notifyTitle"
-            hidden
-          >
-            <span class="switch-knob" aria-hidden="true"></span>
-          </button>
         </div>
       </div>
     </div>

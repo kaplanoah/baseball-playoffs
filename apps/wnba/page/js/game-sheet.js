@@ -5,7 +5,7 @@
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { watchGameOpens } from "#shared/game-row.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
-import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
+import { closeOnSwipeDown, closeSheet } from "#shared/sheet-swipe.js";
 import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
@@ -198,9 +198,9 @@ function forgetGame() {
 export function startGameSheet() {
   const dialog = findDialog();
   watchGameOpens(findElement("gamePager"), { open: openFromRow, prepare: prepareFromRow });
-  findElement("gameDoneBtn").addEventListener("click", () => dialog.close());
+  findElement("gameDoneBtn").addEventListener("click", () => closeSheet(dialog));
   dialog.addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) dialog.close();
+    if (event.target === event.currentTarget) closeSheet(dialog);
   });
   dialog.addEventListener("close", forgetGame);
   dialog.addEventListener("scroll", markScrolled);

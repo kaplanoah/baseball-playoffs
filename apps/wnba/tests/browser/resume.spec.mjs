@@ -64,3 +64,21 @@ test("a page asleep half an hour reads what it missed when it wakes, without rel
   await expect(row.locator(".game-status .clock")).toHaveText("Q2 5:10");
   expect(await isSameLoad(page)).toBe(true);
 });
+
+test("a page whose first load failed loads the last season once the store answers", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.moveSeasonTo(2025);
+  await page.addInitScript(() => localStorage.removeItem("lastSeen"));
+  const isStoreRead = (/** @type {URL} */ url) => url.pathname.startsWith("/store/");
+  await page.route(isStoreRead, (route) => route.fulfill({ status: 503, body: "" }));
+  await page.reload();
+  await expect(page.locator("#stamp")).toContainText("Can't reach the page's server");
+  await page.unroute(isStoreRead);
+
+  await sleepUnannounced(page, 5);
+
+  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(page.locator("#stamp")).not.toContainText("Can't reach the page's server");
+});

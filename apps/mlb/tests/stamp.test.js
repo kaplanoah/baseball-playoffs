@@ -1,13 +1,7 @@
 // `since` is ten minutes before the snapshot: only a final newer than that leads the line.
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
-  describeLastStamp,
-  describeUpNextGame,
-  formatStampWhen,
-  renderStampWhen,
-  formatStampDay,
-} from "../page/js/stamp.js";
+import { describeLastStamp, describeUpNextGame } from "../page/js/stamp.js";
 import { normalizeSpaces } from "../../../tests/text.js";
 import { EASTERN, useTimeZone } from "../../../tests/time-zone.js";
 
@@ -363,17 +357,6 @@ test("in October a final says what it did to the series", () => {
   );
 });
 
-test("the day words beside a time", () => {
-  const now = new Date(toEasternIso(TODAY, "12:00"));
-  const describeWhen = (iso) => normalizeSpaces(formatStampWhen(new Date(iso), now));
-  const describeDay = (iso) => formatStampDay(new Date(iso), now);
-  assert.equal(describeWhen(toEasternIso(TODAY, "13:15")), "1:15 PM");
-  assert.equal(describeWhen(toEasternIso(YESTERDAY, "13:15")), "yesterday 1:15 PM");
-  assert.equal(describeWhen(toEasternIso("2026-09-25", "13:15")), "tomorrow 1:15 PM");
-  assert.equal(describeWhen(toEasternIso("2026-09-27", "13:15")), "Sunday 1:15 PM");
-  assert.equal(describeDay(toEasternIso("2026-09-29", "13:15")), "Tuesday");
-});
-
 test("no sentence is ever a bare matchup or 'under way with'", () => {
   const days = [
     [
@@ -399,14 +382,4 @@ test("no sentence is ever a bare matchup or 'under way with'", () => {
       assert.match(after, /^( \d+-\d+ in the| first pitch at)/, line);
     }
   }
-});
-
-test("the time as markup sets its AM/PM apart and leaves the rest alone", () => {
-  const now = new Date(toEasternIso(TODAY, "12:00"));
-  const renderHtml = (iso) => normalizeSpaces(renderStampWhen(new Date(iso), now));
-  assert.equal(renderHtml(toEasternIso(TODAY, "22:19")), '10:19<span class="ap">PM</span>');
-  assert.equal(
-    renderHtml(toEasternIso("2026-09-25", "13:08")),
-    'tomorrow 1:08<span class="ap">PM</span>',
-  );
 });

@@ -20,9 +20,11 @@ const SNAPSHOT = MLBSnapshot.buildSnapshot(EVENING.responses, { season: 2026, no
 
 function createPushStore({ pushStatus = 201 } = {}) {
   const context = createDurableObjectContext();
-  const harness = { snapshot: SNAPSHOT, pushStatus, pushes: [] };
+  const harness = { snapshot: SNAPSHOT, pushStatus, isPushServiceAnswering: true, pushes: [] };
   const fetchImpl = async (url, init) => {
     harness.pushes.push({ url, init });
+    if (!harness.isPushServiceAnswering)
+      throw new DOMException("The push service didn't answer", "TimeoutError");
     return new Response(null, { status: harness.pushStatus });
   };
   const store = new SeasonStore(
@@ -128,6 +130,18 @@ test("a test goes to that device, and a gone device is forgotten", async () => {
     body: { endpoint: ENDPOINT },
   });
   assert.equal(unknown.status, 404);
+});
+
+test("a test message to a push service that doesn't answer fails, and keeps the device", async () => {
+  const { env, context, harness } = createPushStore();
+  await subscribe(env);
+  harness.isPushServiceAnswering = false;
+  const sent = await requestApp(env, "/push/test", {
+    method: "POST",
+    body: { endpoint: ENDPOINT },
+  });
+  assert.equal(sent.status, 502);
+  assert.equal(listSubscriptions(context).length, 1);
 });
 
 test("unsubscribing removes the device", async () => {

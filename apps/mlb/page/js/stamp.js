@@ -1,6 +1,6 @@
-import { DAYS, countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
-import { html } from "#shared/html.js";
+import { formatClockTime } from "#shared/days.js";
 import { formatOrdinal } from "#shared/ordinal.js";
+import { describeFinishedDay } from "#shared/stamp.js";
 import { TEAMS } from "./teams.js";
 
 export function formatStampName(id) {
@@ -65,29 +65,8 @@ const PICK_ENDED = ["latestEnd", "rank", "alive"];
 const PICK_UNDER_WAY = ["rank", "alive", "latestStart"];
 const PICK_STARTS = ["earliest", "rank", "alive"];
 
-const NIGHT_BEGINS_HOUR = 18;
-const NIGHT_ENDS_HOUR = 6;
-
-const isAfterDark = (date) =>
-  date.getHours() >= NIGHT_BEGINS_HOUR || date.getHours() < NIGHT_ENDS_HOUR;
-
-// A final in the small hours belongs to the evening before it, as the viewer's clock tells it.
-function findEveningOf(date) {
-  const evening = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (date.getHours() < NIGHT_ENDS_HOUR) evening.setDate(evening.getDate() - 1);
-  return evening;
-}
-
-function describeFinalDay(final, now) {
-  const end = new Date(final.end);
-  if (isAfterDark(end) && countDaysBetween(findEveningOf(end), now) === 1) return "last night";
-  const days = countDaysBetween(end, now);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  const played = new Date(final.start || final.end);
-  if (days < 7) return DAYS[played.getDay()];
-  return formatShortDate(played);
-}
+const describeFinalDay = (final, now) =>
+  describeFinishedDay(new Date(final.end), new Date(final.start || final.end), now);
 
 function describeLastFinal(lastFinal, now) {
   if (!lastFinal || !lastFinal.end) return "";
@@ -139,24 +118,4 @@ export function describeUpNextGame(slate, context) {
     };
   }
   return null;
-}
-
-export function formatStampWhen(date, now = new Date()) {
-  const time = formatClockTime(date);
-  const day = formatStampDay(date, now);
-  return day === "today" ? time : `${day} ${time}`;
-}
-// Sets AM/PM apart so it can be styled smaller.
-export function renderStampWhen(date, now = new Date()) {
-  const when = formatStampWhen(date, now);
-  const parts = /^(.*\d)\s*(\D+)$/.exec(when);
-  return parts ? html`${parts[1]}<span class="ap">${parts[2]}</span>` : html`${when}`;
-}
-export function formatStampDay(date, now = new Date()) {
-  const days = countDaysBetween(date, now);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days === -1) return "tomorrow";
-  if (Math.abs(days) < 7) return DAYS[date.getDay()];
-  return formatShortDate(date);
 }

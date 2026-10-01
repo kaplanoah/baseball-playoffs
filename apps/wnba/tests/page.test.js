@@ -7,7 +7,7 @@ import { renderGames, sortGamesByDay } from "../page/js/games-view.js";
 import { renderScoreboard } from "../page/js/scoreboard.js";
 import { describeSeriesStanding, listBracketLinks } from "../page/js/series.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
-import { describeStamp } from "../page/js/stamp.js";
+import { describeStampProblem, renderStampLines } from "../page/js/stamp.js";
 import { renderStandings } from "../page/js/standings-view.js";
 import { renderTeams } from "../page/js/teams-view.js";
 import { normalizeSpaces } from "../../../tests/text.js";
@@ -493,24 +493,114 @@ test("before the playoffs, a team has no seed or playoff chip, and a season show
   assert.equal(minnesota.details, "Last 10 6-4 Titles 4 | 2011, 2013, 2015, 2017");
 });
 
-test("the header says when the page was updated, or which feeds stopped", () =>
+/**
+ * @param {any} season
+ * @param {number} now
+ */
+const readStampLines = (season, now) =>
+  renderStampLines(season, now).map((line) => readText(line).replace(/&mdash;|\u2014/g, "-"));
+
+/**
+ * @param {any} season
+ * @param {string} id
+ * @param {(game: any) => void} change
+ */
+function changeGame(season, id, change) {
+  const games = structuredClone(season.games);
+  change(games.find((game) => game.id === id));
+  return { ...season, games };
+}
+
+test("the header says how the latest game ended and when the next one tips off, not when the page last saved", () =>
   inEastern(() => {
-    const season = { updatedAt: "2026-09-30T21:40:00Z" };
-    assert.equal(
-      normalizeSpaces(describeStamp({ season, status: null, problem: "", now: NOW }).text),
-      "Updated 5:40 PM",
-    );
-    const status = { error: "wnba_feeds_missing", detail: "bracket, standings" };
-    assert.deepEqual(describeStamp({ season, status, problem: "", now: NOW }), {
-      text: "The WNBA stopped sending the bracket and the standings.",
-      isProblem: true,
+    assert.deepEqual(readStampLines(SEASON, NOW), [
+      "No games since Liberty 87 Lynx 71 final last night - Liberty win 2-0",
+      "Next tip-off 7:00 PM - Dream @ Mystics",
+    ]);
+    const nextMorning = Date.parse("2026-10-01T14:00:00Z");
+    assert.deepEqual(readStampLines(SEASON, nextMorning), [
+      "No games since Liberty 87 Lynx 71 final Tuesday - Liberty win 2-0",
+      "Next tip-off yesterday 7:00 PM - Dream @ Mystics",
+    ]);
+  }));
+
+test("a game that ended today leads the header without its day", () =>
+  inEastern(() => {
+    const atAfternoon = changeGame(SEASON, "1042600132", (game) => {
+      Object.assign(game, { start: "2026-09-30T17:00:00Z", state: "final", status: "Final" });
+      Object.assign(game.away, { score: 80 });
+      Object.assign(game.home, { score: 70 });
     });
-    const standingIn = { error: "wnba_feeds_missing", detail: "scoreboard", standIn: "espn" };
+    assert.equal(readStampLines(atAfternoon, NOW)[0], "Dream 80 Mystics 70 final - Dream lead 1-0");
+  }));
+
+test("while a game is on, the header gives its score and clock, and still the next tip-off", () =>
+  inEastern(() => {
+    const live = changeGame(SEASON, "1042600132", (game) => {
+      Object.assign(game, { state: "live", status: "Q2 5:10", period: 2, clock: "5:10" });
+      Object.assign(game.away, { score: 30 });
+      Object.assign(game.home, { score: 27 });
+    });
+    assert.deepEqual(readStampLines(live, NOW), [
+      "Dream @ Mystics 30-27, Q2 5:10",
+      "Next tip-off 9:00 PM - Valkyries @ Wings",
+    ]);
+    const atHalf = changeGame(live, "1042600132", (game) => {
+      Object.assign(game, { status: "Half", period: 2, clock: "0.0" });
+    });
+    assert.equal(readStampLines(atHalf, NOW)[0], "Dream @ Mystics 30-27, Half");
+    const bothLive = changeGame(live, "1042600112", (game) => {
+      Object.assign(game, { state: "live", status: "Q1 2:00", period: 1, clock: "2:00" });
+      Object.assign(game.away, { score: 10 });
+      Object.assign(game.home, { score: 8 });
+    });
+    assert.deepEqual(readStampLines(bothLive, NOW), [
+      "Dream @ Mystics 30-27, Q2 5:10 | Valkyries @ Wings 10-8, Q1 2:00",
+      "Next tip-off tomorrow 9:00 PM - Fever @ Aces",
+    ]);
+  }));
+
+test("a game whose time isn't set tips off on its day, and one its series no longer needs never does", () =>
+  inEastern(() => {
+    const finals = ["1042600132", "1042600112", "1042600123"].reduce(
+      (season, id) =>
+        changeGame(season, id, (game) => {
+          Object.assign(game, { state: "final", status: "Final" });
+          Object.assign(game.away, { score: 90 });
+          Object.assign(game.home, { score: 80 });
+        }),
+      SEASON,
+    );
+    const decided = {
+      ...finals,
+      series: finals.series.map((series) =>
+        series.id === "1-1" ? { ...series, winner: "GSV" } : series,
+      ),
+    };
+    const lateThursday = Date.parse("2026-10-02T03:30:00Z");
     assert.equal(
-      describeStamp({ season, status: standingIn, problem: "", now: NOW }).text,
-      "The WNBA stopped sending today's scores. Scores are from ESPN for now.",
+      readStampLines(decided, lateThursday)[1],
+      "Next tip-off tomorrow - Mystics @ Dream",
     );
   }));
+
+test("the header names a problem with the page's server or the league's feeds", () => {
+  assert.equal(
+    describeStampProblem({ status: null, problem: "Can't reach the page's server right now." }),
+    "Can't reach the page's server right now.",
+  );
+  assert.equal(describeStampProblem({ status: null, problem: "" }), "");
+  const status = { error: "wnba_feeds_missing", detail: "bracket, standings" };
+  assert.equal(
+    describeStampProblem({ status, problem: "" }),
+    "The WNBA stopped sending the bracket and the standings.",
+  );
+  const standingIn = { error: "wnba_feeds_missing", detail: "scoreboard", standIn: "espn" };
+  assert.equal(
+    describeStampProblem({ status: standingIn, problem: "" }),
+    "The WNBA stopped sending today's scores. Scores are from ESPN for now.",
+  );
+});
 
 test("a score shows in scoreboard digits, and still reads as its number", () => {
   const markup = renderScoreboard(89).text;

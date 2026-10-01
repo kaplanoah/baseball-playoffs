@@ -6,6 +6,7 @@ import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
 import { startSettingsSheet } from "#shared/settings-sheet.js";
+import { fillStamp } from "#shared/stamp.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { startAppearance } from "./appearance.js";
 import { placeBracket, readBracketScroll, startBracket } from "./bracket-tree.js";
@@ -14,7 +15,7 @@ import { refreshGameSheet, startGameSheet } from "./game-sheet.js";
 import { renderGames } from "./games-view.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
-import { describeStamp } from "./stamp.js";
+import { describeStampProblem, renderStampLines } from "./stamp.js";
 import { renderStandings } from "./standings-view.js";
 import { drawTeams } from "./teams-view.js";
 
@@ -23,11 +24,9 @@ const CLOCK_REFRESH_MS = 60 * 1000;
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
 function renderStamp() {
-  const { text, isProblem } = describeStamp({ ...session, now: Date.now() });
-  const stamp = findElement("stamp");
-  stamp.textContent = text;
-  stamp.classList.toggle("problem", isProblem);
-  stamp.hidden = !text;
+  const problem = describeStampProblem(session);
+  const lines = renderStampLines(session.season, Date.now());
+  fillStamp(findElement("stamp"), lines, problem ? [problem] : []);
 }
 
 function drawStandings() {
@@ -89,9 +88,19 @@ function drawLastSeen() {
 
 const readShown = () => session.season && { year: session.year, season: session.season };
 
+// A page whose first load failed may be watching a season the store doesn't have yet, so it
+// loads the season again.
+async function reloadSeason() {
+  const watchedYear = session.year;
+  await loadSeason();
+  if (session.year !== watchedYear) watchSeason(renderAll);
+  renderAll();
+}
+
 function catchUp() {
   session.db.catchUp();
-  renderAll();
+  if (session.problem) reloadSeason();
+  else renderAll();
 }
 
 async function boot() {

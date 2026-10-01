@@ -6,7 +6,11 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await openApp(page);
   await expect(page.locator('[data-series="1-0"]')).toContainText("Liberty win 2-0");
   await expect(page.locator("header.top .title-row")).toHaveText("WNBA Playoffs");
-  await expect(page.locator("#stamp")).toHaveText(/^Updated 5:55\sPM$/);
+  const stampLines = page.locator("#stamp > span");
+  await expect(stampLines.nth(0)).toHaveText(
+    "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty win 2-0",
+  );
+  await expect(stampLines.nth(1)).toHaveText(/^Next tip-off 7:00\s?PM \u2014 Dream @ Mystics$/);
 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
@@ -31,6 +35,7 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
   await expect(row.locator(".game-headline .score")).toHaveText(/30\s*27/);
   await expect(row.locator(".game-extra.home .bonus")).toHaveText("Bonus");
   await expect(row.locator(".game-extra.away")).toBeEmpty();
+  await expect(page.locator("#stamp > span").first()).toHaveText("Dream @ Mystics 30-27, Q2 5:10");
 });
 
 test("the Games tab opens on today's games, and its pill moves to the results and the games ahead", async ({
@@ -152,6 +157,25 @@ async function chooseAppearance(page, choice) {
     .check();
   await page.keyboard.press("Escape");
 }
+
+test("settings list Notifications above Appearance, with one line between them", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const rows = page.locator("#settingsDialog .control-row");
+  await expect(rows.locator(".control-label > span:first-child")).toHaveText([
+    "Notifications",
+    "Appearance",
+  ]);
+  await expect(rows.first()).toBeVisible();
+  const readTopBorders = () =>
+    rows.evaluateAll((each) => each.map((row) => getComputedStyle(row).borderTopStyle));
+  expect(await readTopBorders()).toEqual(["none", "solid"]);
+
+  await rows.first().evaluate((row) => row.setAttribute("hidden", ""));
+  expect((await readTopBorders())[1]).toBe("none");
+});
 
 test("on System, the page and its icons follow the phone's dark or light setting", async ({
   page,
@@ -397,31 +421,23 @@ test("a day of games and a series in the bracket share one thin outline, lighter
   expect(await readOutline(page.locator("#games-today .game-day"))).toEqual(series);
 });
 
-test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
-  await openApp(page);
-  for (const [tab, row] of [
-    ["Games", "#games-today .game-row"],
-    ["Standings", "#standingsWrap table.standings"],
-    ["Teams", "#teamsWrap .team"],
-  ]) {
-    await page.getByRole("tab", { name: tab }).click();
-    const box = await page.locator(row).first().boundingBox();
-    expect(box.width, tab).toBeLessThanOrEqual(560);
-  }
-});
-
-test("on a wide screen, the Games pill and lists sit in the middle of the page", async ({
+test("on a wide screen, the Games, Standings, and Teams lists keep to one phone's width, in the middle of the page", async ({
   page,
 }) => {
   await openApp(page);
-  await page.getByRole("tab", { name: "Games" }).click();
   const pageMiddle = page.viewportSize().width / 2;
-  for (const locator of [
-    page.getByRole("tablist", { name: "Games" }),
-    page.locator("#games-today .game-row").first(),
+  for (const { tab, pill, list } of [
+    { tab: "Games", pill: "#gamePager .game-tabs", list: "#games-today .game-day" },
+    { tab: "Standings", pill: ".standings-views", list: "#standingsWrap table.standings" },
+    { tab: "Teams", list: "#teamsWrap .team" },
   ]) {
-    const box = await locator.boundingBox();
-    expect(Math.abs(box.x + box.width / 2 - pageMiddle)).toBeLessThanOrEqual(1);
+    await page.getByRole("tab", { name: tab }).click();
+    for (const selector of [pill, list].filter(Boolean)) {
+      const box = await page.locator(selector).first().boundingBox();
+      expect(Math.abs(box.x + box.width / 2 - pageMiddle), selector).toBeLessThanOrEqual(1);
+    }
+    const listBox = await page.locator(list).first().boundingBox();
+    expect(listBox.width, tab).toBe(560);
   }
 });
 
@@ -458,6 +474,21 @@ test("the playoff line is one dashed strip across the whole table", async ({ pag
   const line = await page.locator("#standingsWrap tr.playoff-line td").boundingBox();
   expect(line.x).toBeCloseTo(table.x, 0);
   expect(line.width).toBeCloseTo(table.width, 0);
+});
+
+test("the standings draw lines only between rows, none under the playoff line or the last team", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const bottomBorders = await page
+    .locator("#standingsWrap table.standings td")
+    .evaluateAll((cells) =>
+      cells
+        .filter((cell) => getComputedStyle(cell).borderBottomStyle !== "none")
+        .map((cell) => cell.textContent),
+    );
+  expect(bottomBorders).toEqual([]);
 });
 
 test("clicking the tab that's showing scrolls back to the top", async ({ page }) => {
@@ -509,6 +540,38 @@ test.describe("on a phone", () => {
       const width = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(width, tab).toBeLessThanOrEqual(390);
     }
+  });
+
+  test("each view starts just under the header, and nothing on the page shows a scrollbar", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const headerBottom = await page
+      .locator("header.top")
+      .evaluate((header) => header.getBoundingClientRect().bottom);
+    for (const tab of ["Bracket", "Games", "Standings", "Teams"]) {
+      await page.getByRole("tab", { name: tab }).click();
+      const view = await page.locator(".view.active").boundingBox();
+      expect(view.y - headerBottom, tab).toBeLessThanOrEqual(14);
+    }
+    const scrollbars = await page.evaluate(() =>
+      [document.documentElement, ...document.querySelectorAll("body *")]
+        .filter((element) => getComputedStyle(element).scrollbarWidth !== "none")
+        .map((element) => element.id || element.className),
+    );
+    expect(scrollbars).toEqual([]);
+  });
+
+  test("the tab bar's glass keeps Maple's colors, and boosts Walnut's", async ({ page }) => {
+    await openApp(page);
+    const readGlass = (selector) =>
+      page.locator(selector).evaluate((glass) => getComputedStyle(glass).backdropFilter);
+    await chooseAppearance(page, "Maple");
+    expect(await readGlass(".tab-glass")).toContain("saturate(1)");
+    expect(await readGlass(".tab-pill")).toContain("saturate(1)");
+    await chooseAppearance(page, "Walnut");
+    expect(await readGlass(".tab-glass")).toContain("saturate(1.6)");
+    expect(await readGlass(".tab-pill")).toContain("saturate(1.6)");
   });
 
   test("the standings show every column, with a winning streak below the line paler than one above it", async ({
