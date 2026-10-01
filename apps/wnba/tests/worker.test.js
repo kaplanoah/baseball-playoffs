@@ -288,5 +288,5 @@ test("the Worker bundles with its page, and exports its store", async () => {
     APP_KEY: "k3y",
   });
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /<title>WNBA Playoffs<\/title>/);
+  assert.match(await page.text(), /<title>WNBA<\/title>/);
 });

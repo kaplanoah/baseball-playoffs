@@ -5,7 +5,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
 }) => {
   await openApp(page);
   await expect(page.locator('[data-series="1-0"]')).toContainText("Liberty win 2-0");
-  await expect(page.locator("header.top .title-row")).toHaveText("WNBA Playoffs");
+  await expect(page.locator("header.top .title-row")).toHaveText("WNBA");
   const stampLines = page.locator("#stamp > span");
   await expect(stampLines.nth(0)).toHaveText(
     "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty win 2-0",
