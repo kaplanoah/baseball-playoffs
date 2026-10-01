@@ -1050,6 +1050,44 @@ test("on a phone, a bracket opening on the Division Series keeps its byes' seed 
   });
 });
 
+test("on a small tablet, which the app treats as a phone, the bracket opens on the round still playing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 760, height: 900 });
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+
+  await expect(page.locator('.box[data-round="WS"]')).toBeInViewport({ ratio: 1 });
+  expect(
+    await page.locator(".tree-scroll").evaluate((scroller) => scroller.scrollLeft),
+  ).toBeGreaterThan(0);
+});
+
+test("wider than a phone, the stacked bracket starts at the Wild Card with every seed in view, whatever round is still playing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  const scroller = page.locator(".tree-scroll");
+  const readScroll = () => scroller.evaluate((element) => element.scrollLeft);
+  const expectSeedsInView = async () => {
+    await expect(page.locator(".seed-label")).toHaveCount(12);
+    for (const label of await page.locator(".seed-label").all())
+      await expect(label).toBeInViewport();
+  };
+  await expectSeedsInView();
+  expect(await readScroll()).toBe(0);
+
+  await chooseSeason(page, "2025");
+  await expect(page.locator('.box[data-round="WS"]').filter({ hasText: "Dodgers" })).toHaveCount(1);
+  await expectSeedsInView();
+  expect(await readScroll()).toBe(0);
+});
+
 const readStackedSpaces = (page) =>
   page.evaluate(() => {
     const readBox = (element) => element.getBoundingClientRect();
