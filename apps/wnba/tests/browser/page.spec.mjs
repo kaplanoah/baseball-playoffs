@@ -319,6 +319,18 @@ test("redrawing the teams each minute keeps keyboard focus on the team it was on
   await expect(aces).toBeFocused();
 });
 
+test("redrawing the games each minute keeps keyboard focus on the game it was on", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const game = page.locator('[data-game="1042600132"] .game-open');
+  await game.focus();
+
+  await page.clock.runFor(60 * 1000);
+  await expect(game).toBeFocused();
+});
+
 test("on a phone, the team rows' dividers run edge to edge", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await openApp(page);
