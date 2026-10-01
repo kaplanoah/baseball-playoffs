@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { REQUESTS } from "../page/js/snapshot.js";
+import { NETWORKS_REQUEST, REQUESTS } from "../page/js/snapshot.js";
 import { createSnapshotServer } from "../worker/src/snapshot.js";
 
 const AFTERNOON = JSON.parse(
@@ -18,6 +18,11 @@ const ESPN = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-espn-core.json`, "utf8"),
 );
 
+// Where ESPN says the afternoon's games, and the day before's, were on.
+const ESPN_SCOREBOARD = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-espn-scoreboard.json`, "utf8"),
+);
+
 const FEEDS = {
   [REQUESTS.scoreboard]: "scoreboard",
   [REQUESTS.schedule]: "schedule",
@@ -26,14 +31,23 @@ const FEEDS = {
   [REQUESTS.players(2026)]: "players",
 };
 
+const isNetworksRequest = (url) => url.startsWith(NETWORKS_REQUEST(""));
+
 /**
  * Answers the league's feeds from the fixture, or from `answers` in its place, counting reads,
- * unless a feed is told to refuse. ESPN answers from `espn`, by URL, or not at all.
+ * unless a feed is told to refuse. ESPN's scoreboard answers from the afternoon's recording
+ * unless told to refuse as `networks`, and the rest of ESPN from `espn`, by URL, or not at all.
  * @param {{ refuse?: Record<string, "page" | "error">, answers?: Record<string, any>, espn?: Record<string, any> }} [options]
  */
 function createLeague({ refuse = {}, answers = {}, espn = {} } = {}) {
   const reads = [];
   const fetchImpl = async (url, init) => {
+    if (isNetworksRequest(url)) {
+      reads.push({ feed: "networks", url, headers: init.headers });
+      return url in ESPN_SCOREBOARD.answers && !refuse.networks
+        ? new Response(JSON.stringify(ESPN_SCOREBOARD.answers[url]))
+        : new Response("", { status: 503 });
+    }
     if (!FEEDS[url]) {
       reads.push({ feed: "espn", headers: init.headers });
       return url in espn
@@ -59,14 +73,15 @@ test("the Worker reads every feed as the league's own site would", async () => {
 
   const snapshot = await server.loadSnapshot(2026);
 
-  assert.deepEqual(league.reads.map((read) => read.feed).sort(), [
+  const leagueReads = league.reads.filter((read) => read.feed !== "networks");
+  assert.deepEqual(leagueReads.map((read) => read.feed).sort(), [
     "bracket",
     "players",
     "schedule",
     "scoreboard",
     "standings",
   ]);
-  for (const { headers } of league.reads) {
+  for (const { headers } of leagueReads) {
     assert.match(headers["user-agent"], /Chrome/);
     assert.equal(headers.referer, "https://www.wnba.com/");
     assert.equal(headers["sec-fetch-mode"], "cors");
@@ -146,7 +161,7 @@ test("ESPN doesn't stand in until one of its games has started", async () => {
   assert.deepEqual([snapshot.missing, snapshot.standIn], [["scoreboard"], null]);
 });
 
-test("while the scoreboard answers, ESPN isn't read", async () => {
+test("while the scoreboard answers, ESPN's game-by-game feeds aren't read", async () => {
   const league = createLeague({ espn: ESPN.answers });
   const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
 
@@ -184,6 +199,50 @@ test("the schedule, bracket, standings, and players' averages are read again onl
     ["scoreboard", "schedule", "bracket", "standings", "players"].map(league.countReads),
     [3, 1, 2, 1, 1],
   );
+});
+
+test("where each game is on comes from ESPN's scoreboard for yesterday and today", async () => {
+  const league = createLeague();
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.deepEqual(
+    league.reads.filter((read) => read.feed === "networks").map((read) => read.url),
+    [NETWORKS_REQUEST("20260929"), NETWORKS_REQUEST("20260930")],
+  );
+  const tonight = snapshot.games.find((game) => game.id === "1042600132");
+  assert.deepEqual(tonight.networks, ["ESPN"]);
+});
+
+test("ESPN's scoreboard is read again only after 10 minutes, and kept when it stops answering", async () => {
+  /** @type {Record<string, "page" | "error">} */
+  const refuse = {};
+  const league = createLeague({ refuse });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  now += 11 * 1000;
+  await server.loadSnapshot(2026);
+  assert.equal(league.countReads("networks"), 2);
+
+  refuse.networks = "error";
+  now += 10 * 60 * 1000;
+  const snapshot = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("networks"), 4);
+  assert.deepEqual(snapshot.games.find((game) => game.id === "1042600132").networks, ["ESPN"]);
+});
+
+test("without ESPN's scoreboard, the games still show, with nowhere to watch them", async () => {
+  const league = createLeague({ refuse: { networks: "error" } });
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  const snapshot = await server.loadSnapshot(2026);
+
+  assert.equal(snapshot.games.length, 28);
+  assert.deepEqual(snapshot.missing, []);
+  assert.ok(snapshot.games.every((game) => !game.networks.length));
 });
 
 // Today's scoreboard with its first game finished.

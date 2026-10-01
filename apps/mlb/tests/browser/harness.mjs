@@ -4,6 +4,7 @@ import * as MLBSnapshot from "../../page/js/snapshot.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
 import { holdStore } from "../../../../tests/browser/hold-store.mjs";
+import { addBroadcasts } from "../broadcasts.js";
 
 const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
@@ -35,6 +36,9 @@ export function buildSnapshotWithStarters() {
   };
   return buildFixtureSnapshot(fixture);
 }
+
+export const buildSnapshotWithBroadcasts = () =>
+  buildFixtureSnapshot(addBroadcasts(EVENING_FIXTURE));
 
 /** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
 const pageErrorsFixture = {

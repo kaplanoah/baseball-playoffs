@@ -1,13 +1,15 @@
 // Runs in both the browser page and the Worker, so it uses no DOM and no globals.
 // The league's own feeds: today's scoreboard and the season's schedule from its CDN, and the
 // playoff bracket, the standings, and the players' season averages from its stats site. When the
-// scoreboard doesn't answer, ESPN's stands in for today's scores and clocks.
+// scoreboard doesn't answer, ESPN's stands in for today's scores and clocks. The league's feeds
+// don't say where a game is on, so ESPN's scoreboard does.
 
 import { findTeamCode, findTeamCodeByEspnId, TEAMS } from "./teams.js";
 
 const WNBA_CDN = "https://cdn.wnba.com";
 const WNBA_STATS = "https://stats.wnba.com";
 const ESPN_CORE = "https://sports.core.api.espn.com/v2/sports/basketball/leagues/wnba";
+const ESPN_SITE = "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba";
 
 const LEAGUE_FEEDS = ["bracket", "players", "schedule", "scoreboard", "standings"];
 
@@ -70,6 +72,9 @@ export const BACKUP_REQUESTS = {
   /** @param {string} eventId */
   competition: (eventId) => `${ESPN_CORE}/events/${eventId}/competitions/${eventId}`,
 };
+
+/** @param {string} day as YYYYMMDD */
+export const NETWORKS_REQUEST = (day) => `${ESPN_SITE}/scoreboard?dates=${day}`;
 
 export const ROUNDS = {
   1: { name: "First Round", shortName: "1st Rd", bestOf: 3 },
@@ -340,12 +345,12 @@ const isSameMatchup = (game, backup) =>
 const measureStartGap = (game, backup) =>
   Math.abs(Date.parse(game.start) - Date.parse(backup.start));
 
-// ESPN numbers its games its own way, so a backup game stands for the league's game between the
+// ESPN numbers its games its own way, so an ESPN game stands for the league's game between the
 // same home and away teams that starts nearest it.
-function findBackupGame(game, backupGames) {
-  const [nearest] = backupGames
-    .filter((backup) => isSameMatchup(game, backup))
-    .filter((backup) => measureStartGap(game, backup) < MATCH_WINDOW_MS)
+function findEspnGame(game, espnGames) {
+  const [nearest] = espnGames
+    .filter((espnGame) => isSameMatchup(game, espnGame))
+    .filter((espnGame) => measureStartGap(game, espnGame) < MATCH_WINDOW_MS)
     .sort((first, second) => measureStartGap(game, first) - measureStartGap(game, second));
   return nearest ?? null;
 }
@@ -355,9 +360,7 @@ function findBackupGame(game, backupGames) {
 function matchBackupGames(games, backupGames) {
   const startedGames = backupGames.filter((backup) => backup.state !== "pre");
   return new Map(
-    games
-      .map((game) => [game.id, findBackupGame(game, startedGames)])
-      .filter(([, backup]) => backup),
+    games.map((game) => [game.id, findEspnGame(game, startedGames)]).filter(([, backup]) => backup),
   );
 }
 
@@ -374,8 +377,43 @@ function applyBackupGame(game, backup) {
   };
 }
 
+const isNational = (broadcast) => broadcast.market === "national";
+const isLocal = (broadcast) => !isNational(broadcast);
+
+// What an ESPN scoreboard game is on, its national channels first.
+function readNetworkGame(event) {
+  const competition = event.competitions?.[0] ?? {};
+  const sides = Object.fromEntries(
+    (competition.competitors ?? []).map((competitor) => [
+      competitor.homeAway,
+      { team: findTeamCodeByEspnId(competitor.id) },
+    ]),
+  );
+  const broadcasts = competition.broadcasts ?? [];
+  const ordered = [...broadcasts.filter(isNational), ...broadcasts.filter(isLocal)];
+  return {
+    start: competition.date ?? event.date,
+    home: sides.home,
+    away: sides.away,
+    networks: [...new Set(ordered.flatMap((broadcast) => broadcast.names ?? []))],
+  };
+}
+
+const isWatchable = (game) => game.state === "pre" || game.state === "live";
+
 /**
- * @param {{ scoreboard?: any, schedule?: any, bracket?: any, standings?: any, players?: any, backup?: { games: any[] } | null }} responses
+ * Where each game still to come or under way is on, as far as ESPN knows.
+ * @param {any[]} games
+ * @param {any[]} networkGames
+ */
+const addNetworks = (games, networkGames) =>
+  games.map((game) => ({
+    ...game,
+    networks: isWatchable(game) ? (findEspnGame(game, networkGames)?.networks ?? []) : [],
+  }));
+
+/**
+ * @param {{ scoreboard?: any, schedule?: any, bracket?: any, standings?: any, players?: any, backup?: { games: any[] } | null, networks?: any[] | null }} responses
  * @param {{ season: number, now?: number }} options
  */
 export function buildSnapshot(responses, { season, now = Date.now() }) {
@@ -383,8 +421,11 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     !responses.scoreboard && responses.backup ? responses.backup.games.map(readBackupGame) : [];
   const leagueGames = mergeGames(responses.schedule, responses.scoreboard);
   const standIns = matchBackupGames(leagueGames, backupGames);
-  const games = leagueGames.map((game) =>
-    standIns.has(game.id) ? applyBackupGame(game, standIns.get(game.id)) : game,
+  const games = addNetworks(
+    leagueGames.map((game) =>
+      standIns.has(game.id) ? applyBackupGame(game, standIns.get(game.id)) : game,
+    ),
+    (responses.networks ?? []).flatMap((answer) => answer.events ?? []).map(readNetworkGame),
   );
   const bracket = responses.bracket?.bracket?.playoffBracketSeries;
   const countedSeries = countSeriesFromGames(games);

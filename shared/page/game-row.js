@@ -1,4 +1,4 @@
-import { html } from "./html.js";
+import { html, joinWithSeparator } from "./html.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
 
@@ -17,8 +17,9 @@ const joinClasses = (...names) => names.filter(Boolean).join(" ");
 /**
  * A game in a list, as game-row.css lays it out: the away and home sides face each other across
  * the middle, which holds the time or score, with an optional label over it and status under it.
- * An action, like a button that opens the game, may cover the whole row.
- * @param {{ id?: string, classes?: (string | false)[], away: GameRowSide, home: GameRowSide, label?: Markup | false, headline: Markup, status?: Markup | false, action?: Markup | false }} row
+ * Where to watch it, when given, takes a line of its own under the rest. An action, like a button
+ * that opens the game, may cover the whole row.
+ * @param {{ id?: string, classes?: (string | false)[], away: GameRowSide, home: GameRowSide, label?: Markup | false, headline: Markup, status?: Markup | false, networks?: string[], action?: Markup | false }} row
  */
 export const renderGameRow = ({
   id,
@@ -28,6 +29,7 @@ export const renderGameRow = ({
   label = false,
   headline,
   status = false,
+  networks = [],
   action = false,
 }) =>
   html`<li class="${joinClasses("game-row", ...classes)}"${id && html` data-game="${id}"`}>
@@ -36,7 +38,8 @@ export const renderGameRow = ({
       >${label && html`<span class="game-label">${label}</span>`}<span class="game-headline">${headline}</span
       >${status && html`<span class="game-status">${status}</span>`}</span
     >
-    ${renderSide(home, "home")} ${renderExtra(away, "away")} ${renderExtra(home, "home")} ${action}
+    ${renderSide(home, "home")} ${renderExtra(away, "away")} ${renderExtra(home, "home")}
+    ${renderNetworks(networks)} ${action}
   </li>`;
 
 /**
@@ -52,6 +55,14 @@ const renderSide = (side, place) =>
  */
 const renderExtra = (side, place) =>
   side.extra ? html`<span class="game-extra ${place}">${side.extra}</span>` : html``;
+
+/** @param {string[]} networks */
+const renderNetworks = (networks) =>
+  networks.length
+    ? html`<span class="game-networks"
+        ><span class="networks-label">Watch</span> ${joinWithSeparator(networks)}</span
+      >`
+    : html``;
 
 /** @param {Event} event */
 const findOpenButton = (event) =>

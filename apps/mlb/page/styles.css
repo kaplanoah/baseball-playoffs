@@ -31,6 +31,7 @@
   --game-label-offset: -21px;
   --game-headline-offset: -1px;
   --game-status-offset: 19.5px;
+  --game-networks-height: 22px;
   /* Pitch colors run by family: fastballs warm, breaking balls blue, changeups pink. */
   --pitch-four-seam: var(--gold);
   --pitch-sinker: var(--copper);
@@ -584,6 +585,16 @@ table.st .seed-cell {
 }
 .game-status {
   font-size: 0.6rem;
+  color: var(--ink-dim);
+}
+.game-networks {
+  font-size: 0.62rem;
+  color: var(--ink-mid);
+}
+.networks-label {
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
   color: var(--ink-dim);
 }
 .series-label {

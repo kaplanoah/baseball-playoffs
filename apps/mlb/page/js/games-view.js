@@ -183,6 +183,7 @@ function renderGame(game, series, isToday) {
     label: Boolean(series) && renderSeriesLabel(game, series),
     headline: renderHeadline(game, awayLost, homeLost),
     status: renderStatus(game),
+    networks: game.networks ?? [],
     action: canOpen && renderMatchupButton(game, [awayStarter, homeStarter]),
   });
 }

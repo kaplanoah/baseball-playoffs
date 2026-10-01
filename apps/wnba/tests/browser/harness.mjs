@@ -11,6 +11,10 @@ const AFTERNOON = JSON.parse(
   readFileSync(new URL("../fixtures/2026-09-30-afternoon.json", import.meta.url), "utf8"),
 );
 const NOW = AFTERNOON.now;
+// Where ESPN says each of the afternoon's games was on.
+const ESPN_SCOREBOARD = JSON.parse(
+  readFileSync(new URL("../fixtures/2026-09-30-espn-scoreboard.json", import.meta.url), "utf8"),
+);
 const GAMES = JSON.parse(
   readFileSync(new URL("../fixtures/2026-10-01-games.json", import.meta.url), "utf8"),
 );
@@ -87,7 +91,11 @@ export async function openApp(page, { league = {} } = {}) {
   const context = createDurableObjectContext();
   const loadSnapshot = async (season) =>
     buildSnapshot(
-      { ...AFTERNOON.responses, players: GAMES.preview.players },
+      {
+        ...AFTERNOON.responses,
+        players: GAMES.preview.players,
+        networks: Object.values(ESPN_SCOREBOARD.answers),
+      },
       { season, now: Date.parse(NOW) },
     );
   const store = new SeasonStore(

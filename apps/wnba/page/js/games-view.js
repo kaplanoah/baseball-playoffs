@@ -9,7 +9,7 @@ import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
 /** @typedef {{ team: string | null, seed: number | null, score: number | null, isInBonus: boolean }} GameSide */
-/** @typedef {{ id: string, round: number | null, series: string | null, number: number | null, start: string | null, state: string, status: string, isTimeSet: boolean, period: number | null, clock: string | null, isIfNeeded: boolean, away: GameSide, home: GameSide }} Game */
+/** @typedef {{ id: string, round: number | null, series: string | null, number: number | null, start: string | null, state: string, status: string, isTimeSet: boolean, period: number | null, clock: string | null, isIfNeeded: boolean, away: GameSide, home: GameSide, networks?: string[] }} Game */
 
 /** @param {Game} game */
 const hasATeam = (game) => !!(game.away.team || game.home.team);
@@ -129,11 +129,13 @@ function renderOpenButton(game) {
   return html`<button type="button" class="game-open" aria-label="${label}"></button>`;
 }
 
+// Only today's games say where to watch them.
 /**
  * @param {Game} game
  * @param {Game[]} games
+ * @param {boolean} isToday
  */
-const renderGame = (game, games) =>
+const renderGame = (game, games, isToday) =>
   renderGameRow({
     id: game.id,
     classes: [game.state],
@@ -142,16 +144,18 @@ const renderGame = (game, games) =>
     label: renderSeriesLabel(game, games),
     headline: renderHeadline(game),
     status: renderStatus(game),
+    networks: (isToday && game.networks) || [],
     action: renderOpenButton(game),
   });
 
 /**
  * @param {Game[]} games
  * @param {Game[]} allGames every game of the season, which the series labels count from
+ * @param {boolean} isToday
  */
-const renderGameList = (games, allGames) =>
+const renderGameList = (games, allGames, isToday) =>
   html`<ul class="game-list">
-    ${games.map((game) => renderGame(game, allGames))}
+    ${games.map((game) => renderGame(game, allGames, isToday))}
   </ul>`;
 
 // Each round the day's games belong to, with its game number when every game of it shares one.
@@ -174,8 +178,9 @@ function describeRounds(games) {
  * @param {{ day: Date, games: Game[] }} gameDay
  * @param {Game[]} allGames
  * @param {number} now
+ * @param {boolean} [isToday]
  */
-const renderDay = ({ day, games }, allGames, now) =>
+const renderDay = ({ day, games }, allGames, now, isToday = false) =>
   html`<section class="game-day">
     <h3 class="day-label">
       <span class="day-date"
@@ -187,7 +192,7 @@ const renderDay = ({ day, games }, allGames, now) =>
         ><span class="day-rounds">${joinWithSeparator(describeRounds(games))}</span></span
       >
     </h3>
-    ${renderGameList(games, allGames)}
+    ${renderGameList(games, allGames, isToday)}
   </section>`;
 
 /**
@@ -245,7 +250,7 @@ const renderEmptyNote = (text) => html`<p class="empty-note">${text}</p>`;
  */
 const renderToday = (today, allGames, now) =>
   today.length
-    ? renderDay({ day: new Date(now), games: today }, allGames, now)
+    ? renderDay({ day: new Date(now), games: today }, allGames, now, true)
     : renderEmptyNote("No games today.");
 
 /**

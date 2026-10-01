@@ -83,6 +83,11 @@ const GAME_FIELDS = [
   "firstPitch",
   "gameDurationMinutes",
   "probablePitcher",
+  "broadcasts",
+  "type",
+  "language",
+  "isNational",
+  "homeAway",
 ].join(",");
 const SEASON_FIELDS = ["seasons", "springStartDate", "regularSeasonEndDate"].join(",");
 const PITCHER_FIELDS = [
@@ -226,6 +231,12 @@ export const CHECKED_FIELDS = [
   "reason",
   // A club names its starter a day or two ahead, so a game without one is never flagged.
   "probablePitcher",
+  // A game can be off the air, so a game without broadcasts is never flagged.
+  "broadcasts",
+  "type",
+  "language",
+  "isNational",
+  "homeAway",
 ];
 
 const readPath = (object, path) =>
@@ -390,7 +401,7 @@ export function listMlbRequests(season, now, regularSeasonEnd = null) {
     // Four days ahead reaches every club's next regular season game.
     requests.schedule =
       `/api/v1/schedule?sportId=1&startDate=${firstDay}` +
-      `&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo,probablePitcher` +
+      `&endDate=${addDays(today.date, 4)}&hydrate=linescore,gameInfo,probablePitcher,broadcasts` +
       `&fields=${GAME_FIELDS}`;
   }
   return requests;
@@ -478,6 +489,29 @@ function readHalfInning(linescore) {
 
 const isBatting = (game) => game.half === "top" || game.half === "bottom";
 
+// MLB lists a broadcast once for each club that carries it, can join a channel and its streaming
+// service in one name, as in "NBC/Peacock", and names a sponsor after a club's own channel.
+const readNetworkNames = (broadcast) =>
+  String(broadcast.name || "")
+    .replace(/,?\s+presented by\b.*$/i, "")
+    .split("/")
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+const BROADCAST_ORDER = ["national", "away", "home"];
+function placeBroadcast(broadcast) {
+  const place = BROADCAST_ORDER.indexOf(broadcast.isNational ? "national" : broadcast.homeAway);
+  return place === -1 ? BROADCAST_ORDER.length : place;
+}
+
+// The English TV a game is on: its national channels, then the away club's, then the home club's.
+function listNetworks(broadcasts = []) {
+  const watched = broadcasts
+    .filter((broadcast) => broadcast.type === "TV" && broadcast.language === "en")
+    .sort((first, second) => placeBroadcast(first) - placeBroadcast(second));
+  return [...new Set(watched.flatMap(readNetworkNames))];
+}
+
 function normalizeGame(game) {
   const readSide = (key) => {
     const side = (game.teams && game.teams[key]) || {};
@@ -509,6 +543,7 @@ function normalizeGame(game) {
     number: game.seriesGameNumber,
     league: league ? league[1] : null,
     end: state === "final" ? estimateEnd(game) : null,
+    networks: listNetworks(game.broadcasts),
   };
 }
 
@@ -572,6 +607,16 @@ function summarizeGame(game, pitchers) {
   return summary;
 }
 
+const isWatchable = (game) => game.state === "pre" || game.state === "live";
+
+// Today's games still to come or under way say where to watch them.
+function summarizeTodaysGame(game, pitchers) {
+  const summary = summarizeGame(game, pitchers);
+  return isWatchable(game) && game.networks.length
+    ? { ...summary, networks: game.networks }
+    : summary;
+}
+
 // Every game on the dates of each club's last game before `day` and first after it, so a date
 // that shows at all shows all its games.
 // Postseason games list a club before its opponent is known, so one known club is enough.
@@ -627,7 +672,7 @@ function buildSlate(games, clubGames, now, pitchers) {
   return {
     today: {
       date: day,
-      games: listGamesOn(day).map(summarize),
+      games: listGamesOn(day).map((game) => summarizeTodaysGame(game, pitchers)),
       postponed: postponed.map(summarize),
     },
     nextDay: nextDay ? { date: nextDay, games: listGamesOn(nextDay).map(summarize) } : null,

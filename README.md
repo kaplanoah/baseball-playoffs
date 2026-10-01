@@ -17,7 +17,7 @@ them.
 A private web page that tracks the MLB postseason. It shows the bracket, your
 ranking of who you want to win the World Series, the standings, each team's
 previous, current and next game with its starting pitchers, and scores that update
-automatically. Tap a game to compare its starters: how they rank among the season's starters,
+automatically. Today's games say which channels they're on. Tap a game to compare its starters: how they rank among the season's starters,
 what they throw, and how their last starts went. A game later today whose club hasn't named
 its starter says "Still TBD" and opens to who started for that club lately and how rested each
 would be.
@@ -42,7 +42,8 @@ light setting, or the one you pick in its settings. Added to the home screen, it
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
-every 15 seconds during games. If the WNBA stops sending scores, ESPN's stand in.
+every 15 seconds during games, and ESPN's for where each game is on. If the WNBA
+stops sending scores, ESPN's stand in.
 Saved to an iPhone's home screen, the page opens full screen like an app, and
 can send a notification with the score when any playoff game ends.
 

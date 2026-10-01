@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as MLBSnapshot from "../page/js/snapshot.js";
+import { addBroadcasts } from "./broadcasts.js";
 
 const readFixture = (name) =>
   JSON.parse(readFileSync(`${import.meta.dirname}/fixtures/${name}.json`, "utf8"));
@@ -851,4 +852,36 @@ test("a division is won only once every other club in it is out of the race, wha
   assert.deepEqual([leader.id, leader.clinched], ["TB", true]);
   assert.deepEqual([wildCard.id, wildCard.clinched], ["NYY", false]);
   assert.equal(buildSnapshot(EVENING).standings.divisions["AL Central"][0].clinched, false);
+});
+
+test("today's games still to come or under way say where they're on, and finished ones don't", () => {
+  const { slate } = buildSnapshot(addBroadcasts(EVENING));
+  const describeGame = (game) => [`${game.away}@${game.home}`, game.networks];
+  assert.deepEqual(slate.today.games.map(describeGame), [
+    ["STL@PIT", undefined],
+    ["CWS@KC", undefined],
+    ["MIA@CHC", undefined],
+    ["NYM@TEX", undefined],
+    ["ARI@COL", undefined],
+    ["MIL@PHI", ["Brewers.TV", "NBCSP"]],
+    ["CLE@BOS", ["Guardians.TV", "NESN"]],
+    ["TB@NYY", ["Rays.TV", "YES"]],
+    ["CIN@ATL", ["FS1", "FOX ONE", "Reds.TV", "BravesVision"]],
+    ["HOU@ATH", ["Space City Home Network", "NBCSCA"]],
+    ["LAA@SEA", ["ABTV", "Mariners.TV"]],
+    ["SD@LAD", ["MLB Network", "Padres.TV", "SportsNet LA"]],
+  ]);
+  assert.ok([...slate.next, slate.nextDay.games].flat().every((game) => !("networks" in game)));
+});
+
+test("a game with no English TV says nothing about where it's on", () => {
+  const fixture = addBroadcasts(EVENING);
+  const dodgers = fixture.responses.schedule.dates
+    .flatMap((day) => day.games)
+    .find((game) => game.gamePk === 823895);
+  dodgers.broadcasts = dodgers.broadcasts.filter((broadcast) => broadcast.type !== "TV");
+  const { slate } = buildSnapshot(fixture);
+  assert.equal(slate.today.games.at(-1).home, "LAD");
+  assert.ok(!("networks" in slate.today.games.at(-1)));
+  assert.ok(!("networks" in buildSnapshot(EVENING).slate.today.games.at(-1)));
 });

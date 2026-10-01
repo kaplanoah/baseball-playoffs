@@ -4,6 +4,7 @@ import {
   openApp,
   openSettings,
   buildFixtureSnapshot,
+  buildSnapshotWithBroadcasts,
   buildSnapshotWithStarters,
   chooseSeason,
   EVENING_FIXTURE,
@@ -329,6 +330,30 @@ test("a game still to come shows its start time centered in its row, under the T
   expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
   expect(Math.abs(findCenterX(timeBox) - findCenterX(rowBox))).toBeLessThan(1);
   expect(Math.abs(findCenterX(timeBox) - findCenterX(todayBox))).toBeLessThan(1);
+});
+
+test("today's games still to come or under way say where they're on, on a line under the rest", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: buildSnapshotWithBroadcasts() } });
+  await page.getByRole("tab", { name: "Games" }).click();
+  const rows = page.locator("#games-today .game-row");
+  const reds = rows.filter({ hasText: "Reds" });
+  const pirates = rows.filter({ hasText: "Pirates" });
+
+  await expect(reds.locator(".game-networks")).toHaveText(
+    /^Watch FS1\s*•\s*FOX ONE\s*•\s*Reds.TV\s*•\s*BravesVision$/,
+  );
+  await expect(page.locator("#games-today .game-networks")).toHaveCount(7);
+  await expect(pirates.locator(".game-networks")).toHaveCount(0);
+  await expect(page.locator("#games-next .game-networks")).toHaveCount(0);
+  const redsBox = await reds.boundingBox();
+  const piratesBox = await pirates.boundingBox();
+  const networksBox = await reds.locator(".game-networks").boundingBox();
+  expect(redsBox.height).toBeGreaterThan(piratesBox.height);
+  expect(networksBox.y).toBeGreaterThanOrEqual(redsBox.y + piratesBox.height - 1);
+  expect(networksBox.y + networksBox.height).toBeLessThanOrEqual(redsBox.y + redsBox.height);
 });
 
 // A series' teamA is its higher seed or its first feeder's winner, not the game's away club.

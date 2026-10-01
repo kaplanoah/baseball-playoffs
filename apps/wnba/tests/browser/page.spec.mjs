@@ -16,6 +16,24 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await expect(page.locator("#teamsWrap .team").first()).toContainText("Minnesota Lynx");
 });
 
+test("today's games still to come or under way say where they're on, and a finished one doesn't", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const washington = page.locator('#games-today [data-game="1042600132"]');
+  await expect(washington.locator(".game-networks")).toHaveText(/^Watch\s+ESPN$/);
+  await expect(page.locator("#games-today .game-networks")).toHaveCount(2);
+  await expect(page.locator("#games-previous .game-networks")).toHaveCount(0);
+
+  await app.changeSeason((season) => {
+    const game = season.games.find((each) => each.id === "1042600132");
+    Object.assign(game, { state: "final", status: "Final", networks: [] });
+    return season;
+  });
+  await expect(washington.locator(".game-networks")).toHaveCount(0);
+});
+
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();

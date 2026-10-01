@@ -85,6 +85,7 @@
   --game-label-offset: -21.5px;
   --game-headline-offset: 0px;
   --game-status-offset: 23px;
+  --game-networks-height: 22px;
   color-scheme: light;
 }
 /* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
@@ -420,7 +421,13 @@ header.top h1 {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+.game-networks {
+  font-family: var(--text);
+  font-size: 0.68rem;
+  color: var(--ink-mid);
+}
 .game-status,
+.networks-label,
 .series-label {
   font-weight: 600;
   text-transform: uppercase;
@@ -432,6 +439,7 @@ header.top h1 {
   letter-spacing: 0.08em;
 }
 /* Labels in the text face stand apart from the condensed team names around them. */
+.networks-label,
 .series-label {
   font-family: var(--text);
   font-size: 0.6rem;
