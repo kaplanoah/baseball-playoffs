@@ -21,7 +21,7 @@
 const CHANNELS = [
   { name: "ABC", file: "abc.png", names: [], hasDarkVersion: true },
   { name: "Apple TV", file: "apple-tv.svg", names: [], hasDarkVersion: true },
-  { name: "CBS", file: "cbs.svg", names: ["CBS Miam"], hasDarkVersion: true },
+  { name: "CBS", file: "cbs.png", names: ["CBS Miam"], hasDarkVersion: true },
   { name: "CBS 8", file: "kfmb.svg", names: ["KFMB 8.1 (CBS)"], hasDarkVersion: true },
   { name: "CNBC", file: "cnbc.svg", names: [], hasDarkVersion: true },
   { name: "Disney+", file: "disney-plus.svg", names: [], hasDarkVersion: true },
