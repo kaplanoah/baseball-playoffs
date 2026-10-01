@@ -1,6 +1,6 @@
-// The channels a game can be on that have a logo in networks/, each from Wikimedia Commons,
-// where it's in the public domain. A channel goes by more than one name across the leagues'
-// feeds, and any of them finds its logo; a channel without one shows its name instead.
+// The channels a game can be on that have a logo in networks/, each a public-domain file from
+// Wikimedia Commons or one the repo's owner supplied. A channel goes by more than one name across
+// the leagues' feeds, and any of them finds its logo; a channel without one shows its name instead.
 
 /**
  * A channel's logo. One drawn for a light background has a version for a dark one beside it,
@@ -81,6 +81,7 @@ const CHANNELS = [
   { name: "Marquee Sports Network", file: "marquee.png", names: [] },
   { name: "MASN", file: "masn.png", names: [], hasDarkVersion: true },
   { name: "MeTV", file: "metv.png", names: ["MeTV Indianapolis"] },
+  { name: "NESN", file: "nesn.png", names: ["NESN+"], hasDarkVersion: true },
   {
     name: "NBC Sports Bay Area",
     file: "nbcs-bay-area.png",
