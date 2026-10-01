@@ -3,6 +3,7 @@ import { renderGameRow } from "#shared/game-row.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
+import { nameTeam } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
@@ -21,7 +22,7 @@ const isCalledOff = (game, seriesById) =>
   game.state === "pre" && game.isIfNeeded && !!seriesById.get(game.series ?? "")?.winner;
 
 /** @param {Game} game */
-function findLoser(game) {
+export function findLoser(game) {
   if (game.state !== "final") return null;
   return game.away.score < game.home.score ? "away" : "home";
 }
@@ -44,7 +45,7 @@ function describeLiveClock(game) {
 }
 
 /** @param {Game} game */
-function renderHeadline(game) {
+export function renderHeadline(game) {
   if (game.state === "pre") {
     const time = game.isTimeSet && game.start ? formatClockTime(new Date(game.start)) : "TBD";
     return html`<span class="time tabular">${time}</span>`;
@@ -57,7 +58,7 @@ function renderHeadline(game) {
 }
 
 /** @param {Game} game */
-function renderStatus(game) {
+export function renderStatus(game) {
   if (game.state === "live")
     return html`<span class="clock tabular">${describeLiveClock(game)}</span>`;
   if (game.state === "final") return html`${game.status || "Final"}`;
@@ -112,6 +113,19 @@ function describeSide(game, place) {
   };
 }
 
+/** @param {Game} game */
+export const nameGame = (game) =>
+  game.round ? `${ROUNDS[game.round].name} Game ${game.number}` : "Game";
+
+// The whole row opens the game's sheet, once both its teams are known.
+/** @param {Game} game */
+function renderOpenButton(game) {
+  if (!game.away.team || !game.home.team) return false;
+  const teams = `${nameTeam(game.away.team)} at ${nameTeam(game.home.team)}`;
+  const label = `Game details: ${teams}, ${nameGame(game)}`;
+  return html`<button type="button" class="game-open" aria-label="${label}"></button>`;
+}
+
 /**
  * @param {Game} game
  * @param {Game[]} games
@@ -125,6 +139,7 @@ const renderGame = (game, games) =>
     label: renderSeriesLabel(game, games),
     headline: renderHeadline(game),
     status: renderStatus(game),
+    action: renderOpenButton(game),
   });
 
 /**
