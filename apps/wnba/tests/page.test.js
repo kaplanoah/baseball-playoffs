@@ -131,6 +131,12 @@ test("a game a finished series no longer needs is left off, and an empty list sa
     assert.equal(readGameList(onlyResults, "next"), "No more games scheduled.");
     assert.match(readGameList(onlyResults, "previous"), /^Yesterday .* Final 2 Valkyries$/);
     assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet.");
+    const nothingPlayed = {
+      ...SEASON,
+      games: SEASON.games.filter((game) => game.state !== "final"),
+    };
+    assert.equal(readGameList(nothingPlayed, "previous"), "No results yet.");
+    assert.match(readGameList(nothingPlayed, "today"), /^Wed, Sep 30 4 Dream /);
   }));
 
 test("each game's label counts its series as it stood at tip-off, or after the game once it's final", () =>
