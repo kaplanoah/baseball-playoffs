@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { afterEach, beforeEach, mock, test } from "node:test";
 import assert from "node:assert/strict";
 import { createWorkerStore } from "../shared/page/worker-store.js";
 
@@ -35,7 +35,11 @@ function startStore() {
   return { store, reads, sockets, openSocket };
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve));
+beforeEach(() => mock.timers.enable({ apis: ["setTimeout"] }));
+afterEach(() => mock.timers.reset());
+
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+const HANDSHAKE_WAIT_MS = 3 * 1000;
 const SEASON_URL = "https://mlb-live.example/k3y/store/seasons/2026";
 const READINGS_URL = "https://mlb-live.example/k3y/store/readings-2026?limit=10";
 
@@ -53,6 +57,55 @@ test("watches started before the socket opens read once each, as it opens", () =
   assert.deepEqual(
     reads.map((read) => read.url),
     [SEASON_URL, READINGS_URL],
+  );
+});
+
+test("watches whose socket never opens read once each after the handshake wait", () => {
+  const { store, reads } = startStore();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  store
+    .collection("readings-2026")
+    .limit(10)
+    .onSnapshot(() => {});
+
+  mock.timers.tick(HANDSHAKE_WAIT_MS - 1);
+  assert.equal(reads.length, 0);
+  mock.timers.tick(1);
+  assert.deepEqual(
+    reads.map((read) => read.url),
+    [SEASON_URL, READINGS_URL],
+  );
+
+  mock.timers.tick(HANDSHAKE_WAIT_MS);
+  assert.equal(reads.length, 2);
+});
+
+test("a watch started after the handshake wait ran out reads right away", () => {
+  const { store, reads } = startStore();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  mock.timers.tick(HANDSHAKE_WAIT_MS);
+
+  store
+    .collection("readings-2026")
+    .limit(10)
+    .onSnapshot(() => {});
+
+  assert.deepEqual(
+    reads.map((read) => read.url),
+    [SEASON_URL, READINGS_URL],
+  );
+});
+
+test("a socket that opens in time leaves the handshake wait with nothing to read", () => {
+  const { store, reads, openSocket } = startStore();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  openSocket();
+
+  mock.timers.tick(HANDSHAKE_WAIT_MS);
+
+  assert.deepEqual(
+    reads.map((read) => read.url),
+    [SEASON_URL],
   );
 });
 

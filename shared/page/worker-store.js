@@ -2,6 +2,8 @@
 
 const RECONNECT_FIRST_MS = 1000;
 const RECONNECT_MAX_MS = 30 * 1000;
+// A proxy or captive portal can hold a socket's handshake open without ever answering it.
+const HANDSHAKE_WAIT_MS = 3 * 1000;
 
 class StoreError extends Error {
   constructor(code, message) {
@@ -72,7 +74,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // Each watched collection keeps its documents by id, so a push changes one without a new listing.
   const collectionWatches = new Map();
   let socket = null;
-  let isSocketOpen = false;
+  let handshakeTimer = null;
   let reconnectTimer = null;
   let reconnectDelay = RECONNECT_FIRST_MS;
   // Reads overlap, so one that started before a pushed change, or before a read that already
@@ -161,7 +163,8 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // While the socket is down, each reconnect attempt also reads the watched documents again.
   function scheduleReconnect() {
     socket = null;
-    isSocketOpen = false;
+    clearTimeout(handshakeTimer);
+    handshakeTimer = null;
     if (reconnectTimer || !hasWatchers()) return;
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
@@ -176,10 +179,15 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const opened = new WebSocket(url);
     socket = opened;
-    isSocketOpen = false;
+    clearTimeout(handshakeTimer);
+    handshakeTimer = setTimeout(() => {
+      handshakeTimer = null;
+      refreshWatchedPaths();
+    }, HANDSHAKE_WAIT_MS);
     opened.addEventListener("open", () => {
       if (socket !== opened) return;
-      isSocketOpen = true;
+      clearTimeout(handshakeTimer);
+      handshakeTimer = null;
       reconnectDelay = RECONNECT_FIRST_MS;
       refreshWatchedPaths();
     });
@@ -204,10 +212,11 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   }
 
   // A read sent before the socket opens can miss a change saved before the socket could hear of
-  // it, so while a socket is on its way, the read waits for the one the socket makes as it opens.
+  // it, so while a socket's handshake is under way, the read waits for the one the socket makes
+  // as it opens, or for the one made once the handshake has taken too long.
   function readWhenWatching(refresh) {
-    if (isSocketOpen || reconnectTimer) refresh();
-    else if (!socket) openSocket();
+    if (!socket && !reconnectTimer) openSocket();
+    else if (!handshakeTimer) refresh();
   }
 
   function watchPath(path, onNext, onError) {
