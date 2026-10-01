@@ -19,7 +19,7 @@ function formatUpdatedAt(iso, now) {
 }
 
 /**
- * @param {{ error?: string, detail?: string } | null} status
+ * @param {{ error?: string, detail?: string, standIn?: string } | null} status
  * @returns {string}
  */
 function describeFeedProblem(status) {
@@ -28,11 +28,12 @@ function describeFeedProblem(status) {
   const feeds = String(status.detail ?? "")
     .split(", ")
     .map((feed) => FEED_NAMES[feed] ?? feed);
-  return `The WNBA stopped sending ${feeds.join(" and ")}.`;
+  const standIn = status.standIn === "espn" ? " Scores are from ESPN for now." : "";
+  return `The WNBA stopped sending ${feeds.join(" and ")}.${standIn}`;
 }
 
 /**
- * @param {{ season: { updatedAt?: string } | null, status: { error?: string, detail?: string } | null, problem: string, now: number }} state
+ * @param {{ season: { updatedAt?: string } | null, status: { error?: string, detail?: string, standIn?: string } | null, problem: string, now: number }} state
  * @returns {{ text: string, isProblem: boolean }}
  */
 export function describeStamp({ season, status, problem, now }) {

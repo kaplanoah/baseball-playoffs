@@ -1,6 +1,6 @@
 // Reading the league's own feeds, which every route the Worker serves shares.
 
-const UPSTREAM_TIMEOUT_MS = 8000;
+export const UPSTREAM_TIMEOUT_MS = 8000;
 const FIRST_SEASON = 1997;
 const LAST_SEASON = 2100;
 export const SEASON_RULE = `season must be a whole year between ${FIRST_SEASON} and ${LAST_SEASON}`;

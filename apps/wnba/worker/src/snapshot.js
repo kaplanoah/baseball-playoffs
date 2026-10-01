@@ -1,6 +1,13 @@
 import * as WNBASnapshot from "../../page/js/snapshot.js";
+import { readEasternDate } from "../../page/js/days.js";
 import { describeError, respondJson } from "../../../../shared/worker/responses.js";
-import { fetchWnbaJson, readSeasonParam, SEASON_RULE } from "./wnba.js";
+import {
+  FEED_HEADERS,
+  fetchWnbaJson,
+  readSeasonParam,
+  SEASON_RULE,
+  UPSTREAM_TIMEOUT_MS,
+} from "./wnba.js";
 
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
@@ -22,6 +29,16 @@ const FEED_DATA = {
 };
 
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
+
+const BACKUP_HEADERS = { accept: "application/json", "user-agent": FEED_HEADERS["user-agent"] };
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const formatEspnDay = (ms) => readEasternDate(ms).replaceAll("-", "");
+
+// ESPN's own links are plain http, so they're read over https instead.
+const upgradeLink = (link) => String(link).replace(/^http:/, "https:");
+
+const readEventId = (link) => String(link).match(/\/events\/(\d+)/)?.[1] ?? null;
 
 const countFinals = (scoreboard) =>
   (scoreboard?.scoreboard?.games ?? []).filter((game) => game.gameStatus === 3).length;
@@ -56,6 +73,40 @@ export function createSnapshotServer({
     }
   }
 
+  async function fetchBackupJson(url) {
+    const response = await fetchImpl(url, {
+      headers: BACKUP_HEADERS,
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      cf: { cacheTtl: EDGE_CACHE_SECONDS, cacheEverything: true },
+    });
+    if (!response.ok) throw new Error(`ESPN answered ${response.status}`);
+    return response.json();
+  }
+
+  async function fetchBackupGame(eventId) {
+    const competition = await fetchBackupJson(WNBASnapshot.BACKUP_REQUESTS.competition(eventId));
+    const [status, ...scores] = await Promise.all([
+      fetchBackupJson(upgradeLink(competition.status.$ref)),
+      ...competition.competitors.map((competitor) =>
+        fetchBackupJson(upgradeLink(competitor.score.$ref)),
+      ),
+    ]);
+    return { competition, status, scores };
+  }
+
+  // Yesterday's games too, since a late game is still being played after midnight Eastern. A game
+  // ESPN didn't answer for is left out, so it doesn't keep the others from standing in.
+  async function fetchBackup() {
+    const request = WNBASnapshot.BACKUP_REQUESTS.events(
+      formatEspnDay(now() - DAY_MS),
+      formatEspnDay(now()),
+    );
+    const listing = await fetchBackupJson(request);
+    const eventIds = (listing.items ?? []).map((item) => readEventId(item.$ref)).filter(Boolean);
+    const games = await Promise.all(eventIds.map((id) => fetchBackupGame(id).catch(() => null)));
+    return { games: games.filter(Boolean) };
+  }
+
   async function fetchResponses(season) {
     const scoreboard = await fetchFeed("scoreboard", WNBASnapshot.REQUESTS.scoreboard).catch(
       () => null,
@@ -71,7 +122,8 @@ export function createSnapshotServer({
     ]);
     if (!scoreboard && !schedule && !bracket)
       throw new Error("None of the WNBA's feeds answered with data");
-    return { scoreboard, schedule, bracket, standings };
+    const backup = scoreboard ? null : await fetchBackup().catch(() => null);
+    return { scoreboard, schedule, bracket, standings, backup };
   }
 
   function loadSnapshot(season) {

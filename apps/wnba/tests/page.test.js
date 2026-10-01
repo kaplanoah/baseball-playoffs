@@ -223,4 +223,9 @@ test("the header says when the page was updated, or which feeds stopped", () =>
       text: "The WNBA stopped sending the bracket and the standings.",
       isProblem: true,
     });
+    const standingIn = { error: "wnba_feeds_missing", detail: "scoreboard", standIn: "espn" };
+    assert.equal(
+      describeStamp({ season, status: standingIn, problem: "", now: NOW }).text,
+      "The WNBA stopped sending today's scores. Scores are from ESPN for now.",
+    );
   }));
