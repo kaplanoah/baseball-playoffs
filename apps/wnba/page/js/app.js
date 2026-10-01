@@ -15,7 +15,7 @@ import { renderGames } from "./games-view.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStamp } from "./stamp.js";
-import { renderStandings } from "./standings-view.js";
+import { drawStandings, startStandings } from "./standings-view.js";
 import { drawTeams } from "./teams-view.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
@@ -30,31 +30,6 @@ function renderStamp() {
   stamp.hidden = !text;
 }
 
-function drawStandings() {
-  setHtml(findElement("standingsWrap"), renderStandings(session.season, session.standingsView));
-}
-
-// The pill's buttons are drawn again with the table, so the chosen one takes the focus back.
-function focusChosenStandingsView() {
-  const selector = `[data-standings-view="${session.standingsView}"]`;
-  const chosen = /** @type {HTMLElement | null} */ (
-    findElement("standingsWrap").querySelector(selector)
-  );
-  chosen?.focus();
-}
-
-function chooseStandingsView(/** @type {MouseEvent} */ event) {
-  const button = /** @type {HTMLElement | null} */ (
-    /** @type {Element} */ (event.target).closest("[data-standings-view]")
-  );
-  if (!button) return;
-  session.standingsView = /** @type {typeof session.standingsView} */ (
-    button.dataset.standingsView
-  );
-  drawStandings();
-  focusChosenStandingsView();
-}
-
 function renderAll() {
   const now = Date.now();
   const keptLeft = readBracketScroll();
@@ -62,7 +37,7 @@ function renderAll() {
   placeBracket(session.season?.series ?? [], keptLeft);
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
-  drawStandings();
+  drawStandings(session.season);
   drawTeams(findElement("teamsWrap"), session.season, { year: session.year, now });
   renderStamp();
   refreshGameSheet();
@@ -113,7 +88,7 @@ async function boot() {
   startGameSheet();
   startSettingsSheet();
   startBracket();
-  findElement("standingsWrap").addEventListener("click", chooseStandingsView);
+  startStandings();
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);
