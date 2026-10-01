@@ -94,6 +94,26 @@ test("the games are saved while ESPN stands in for the scoreboard", async () => 
   assert.deepEqual((await readUpdates(docs, 2026)).games, finished.games);
 });
 
+test("while ESPN stands in, a game it lacks keeps what was saved", async () => {
+  const docs = createDocs();
+  const finished = finishTonight(SNAPSHOT, [93, 75]);
+  await saveSnapshot(docs, finished);
+
+  await saveSnapshot(docs, { ...SNAPSHOT, missing: ["scoreboard"], standIn: "espn" });
+
+  assert.deepEqual((await readUpdates(docs, 2026)).games, finished.games);
+});
+
+test("while ESPN stands in, the series wait for the bracket", async () => {
+  const docs = createDocs();
+  const finished = finishTonight(SNAPSHOT, [93, 75]);
+  await saveSnapshot(docs, finished);
+
+  await saveSnapshot(docs, { ...SNAPSHOT, missing: ["bracket", "scoreboard"], standIn: "espn" });
+
+  assert.deepEqual((await readUpdates(docs, 2026)).series, finished.series);
+});
+
 test("without the bracket, the series stay as they were unless the games answered", async () => {
   const docs = createDocs();
   const finished = finishTonight(SNAPSHOT, [84, 79]);
