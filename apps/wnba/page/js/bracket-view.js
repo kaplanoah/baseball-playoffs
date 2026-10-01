@@ -1,6 +1,7 @@
+import { formatClockTime } from "#shared/days.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
-import { describeDay, formatStartTime, readGameDay } from "./days.js";
+import { describeDay, readGameDay } from "./days.js";
 import { BRACKET_ORDER, describeSeriesStanding } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
@@ -36,7 +37,7 @@ function renderSeriesNote(series, games, now) {
   const next = games.find((game) => game.id === series.nextGame?.id);
   if (!next || !series.top || !series.bottom) return "";
   const day = readGameDay(next);
-  const time = next.isTimeSet && next.start ? formatStartTime(next.start) : "";
+  const time = next.isTimeSet && next.start ? formatClockTime(new Date(next.start)) : "";
   const when = [day && describeDay(day, now), time].filter(Boolean).join(" ");
   return html`<span class="series-note">Game ${next.number} ${when}</span>`;
 }

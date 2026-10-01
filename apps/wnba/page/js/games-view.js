@@ -1,7 +1,8 @@
+import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { renderGameRow } from "#shared/game-row.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
-import { countDaysBetween, describeDay, formatStartTime, readGameDay } from "./days.js";
+import { describeDay, readGameDay } from "./days.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
@@ -45,7 +46,7 @@ function describeLiveClock(game) {
 /** @param {Game} game */
 function renderHeadline(game) {
   if (game.state === "pre") {
-    const time = game.isTimeSet && game.start ? formatStartTime(game.start) : "TBD";
+    const time = game.isTimeSet && game.start ? formatClockTime(new Date(game.start)) : "TBD";
     return html`<span class="time tabular">${time}</span>`;
   }
   const loser = findLoser(game);

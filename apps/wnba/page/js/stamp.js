@@ -1,4 +1,4 @@
-import { countDaysBetween } from "./days.js";
+import { countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 
 // The header's one line about how fresh the page is, or why it isn't.
 
@@ -15,9 +15,7 @@ const FEED_NAMES = {
  */
 function formatUpdatedAt(iso, now) {
   const at = new Date(iso);
-  if (countDaysBetween(at, new Date(now)) === 0)
-    return at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  return at.toLocaleDateString([], { month: "short", day: "numeric" });
+  return countDaysBetween(at, new Date(now)) === 0 ? formatClockTime(at) : formatShortDate(at);
 }
 
 /**

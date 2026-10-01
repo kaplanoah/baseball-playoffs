@@ -5,6 +5,7 @@
 
 import { nameTeam, renderTeamTag } from "./clubs.js";
 import { describeStart, formatGameDay, renderArm } from "./games-view.js";
+import { formatShortDate, readCalendarDate } from "#shared/days.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { renderPitchColumns } from "./pitch-columns.js";
 import { fetchPitcher } from "./pitcher-fetch.js";
@@ -105,10 +106,7 @@ function formatInnings(innings) {
   return thirds && thirds !== "0" ? `${whole} ${thirds}/3` : whole;
 }
 
-function formatStartDay(date) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString([], { month: "short", day: "numeric" });
-}
+const formatStartDay = (date) => formatShortDate(readCalendarDate(date));
 
 function renderStart(start) {
   const opponent = start.opp ? `${start.home ? "vs" : "@"} ${nameTeam(start.opp)}` : "";
