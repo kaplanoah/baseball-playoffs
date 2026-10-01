@@ -44,8 +44,17 @@ test("every logo the table names is in its folder, and every file there is one i
   assert.deepEqual(named, readdirSync(LOGO_FOLDER).sort());
 });
 
-test("every logo is a plain drawing: no scripts, links, or anything it would load", () => {
+test("every logo is a PNG or a plain drawing: no scripts, links, or anything it would load", () => {
+  const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   for (const file of readdirSync(LOGO_FOLDER)) {
+    if (file.endsWith(".png")) {
+      assert.deepEqual(
+        readFileSync(new URL(file, LOGO_FOLDER)).subarray(0, 8),
+        PNG_SIGNATURE,
+        file,
+      );
+      continue;
+    }
     const svg = readFileSync(new URL(file, LOGO_FOLDER), "utf8");
     assert.match(svg, /^<svg[^>]*viewBox=/, file);
     assert.doesNotMatch(svg, /<script|\son\w+=|href="(?!#)|url\((?!#)|@import/i, file);
