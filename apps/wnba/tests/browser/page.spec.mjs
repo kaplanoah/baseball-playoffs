@@ -116,7 +116,7 @@ test("a team stays put as Bonus comes and goes, level with the score", async ({ 
 
 const readBackground = (page) =>
   page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-const MAPLE = "rgb(233, 212, 176)";
+const MAPLE = "rgb(234, 213, 178)";
 const WALNUT = "rgb(29, 21, 17)";
 
 /**
@@ -136,7 +136,7 @@ async function expectTheme(page, theme) {
   );
   await expect(page.locator("#themeColor")).toHaveAttribute(
     "content",
-    isDark ? "#1d1511" : "#e9d4b0",
+    isDark ? "#1d1511" : "#ead5b2",
   );
 }
 

@@ -5,7 +5,7 @@
 const STORAGE_KEY = "appearance";
 const CHOICES = ["auto", "light", "dark"];
 const THEMES = {
-  light: { barColor: "#e9d4b0", tabIcon: "icon-light.svg", homeScreenIcon: "icon-light-180.png" },
+  light: { barColor: "#ead5b2", tabIcon: "icon-light.svg", homeScreenIcon: "icon-light-180.png" },
   dark: { barColor: "#1d1511", tabIcon: "icon.svg", homeScreenIcon: "icon-180.png" },
 };
 
