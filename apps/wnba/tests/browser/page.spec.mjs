@@ -22,7 +22,10 @@ test("today's games still to come or under way say where they're on, and a finis
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const washington = page.locator('#games-today [data-game="1042600132"]');
-  await expect(washington.locator(".game-networks")).toHaveText("ESPN");
+  await expect(washington.locator(".game-networks").getByRole("img")).toHaveAttribute(
+    "alt",
+    "ESPN",
+  );
   await expect(page.locator("#games-today .game-networks")).toHaveCount(2);
   await expect(page.locator("#games-previous .game-networks")).toHaveCount(0);
 
@@ -33,6 +36,30 @@ test("today's games still to come or under way say where they're on, and a finis
   });
   await expect(washington.locator(".game-networks")).toHaveCount(0);
 });
+
+/** @type {["light" | "dark", string, string][]} */
+const LOGO_LOOKS = [
+  ["light", "for-light", "for-dark"],
+  ["dark", "for-dark", "for-light"],
+];
+for (const [scheme, shown, hidden] of LOGO_LOOKS) {
+  test(`in the ${scheme} look, a channel's logo shows its version for that background`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    const app = await openApp(page);
+    await page.getByRole("tab", { name: "Games" }).click();
+    await app.changeSeason((season) => {
+      season.games.find((each) => each.id === "1042600132").networks = ["NBC"];
+      return season;
+    });
+    const networks = page.locator('#games-today [data-game="1042600132"] .game-networks');
+    await expect(networks.locator(`img.${shown}`)).toBeVisible();
+    await expect(networks.locator(`img.${hidden}`)).toBeHidden();
+    await expect(networks.locator(`img.${shown}`)).toHaveJSProperty("complete", true);
+    await expect(networks.locator(`img.${shown}`)).not.toHaveJSProperty("naturalWidth", 0);
+  });
+}
 
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
   const app = await openApp(page);

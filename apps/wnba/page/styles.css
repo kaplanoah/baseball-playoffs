@@ -85,7 +85,12 @@
   --game-label-offset: -21.5px;
   --game-headline-offset: 0px;
   --game-status-offset: 23px;
-  --game-networks-height: 22px;
+  --game-networks-height: 24px;
+  --network-logo-height: 14px;
+  --logos-for-light: inline;
+  --logos-for-dark: none;
+  --chip-for-light: transparent;
+  --chip-for-dark: #2a1f18;
   color-scheme: light;
 }
 /* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
@@ -109,6 +114,10 @@
   --pager-track-edge: rgba(255, 255, 255, 0.06);
   --pager-thumb: rgba(255, 255, 255, 0.11);
   --pager-thumb-edge: rgba(255, 255, 255, 0.14);
+  --logos-for-light: none;
+  --logos-for-dark: inline;
+  --chip-for-light: #f3e5ca;
+  --chip-for-dark: transparent;
   color-scheme: dark;
 }
 

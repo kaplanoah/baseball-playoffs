@@ -342,9 +342,13 @@ test("today's games still to come or under way say where they're on, on a line u
   const reds = rows.filter({ hasText: "Reds" });
   const pirates = rows.filter({ hasText: "Pirates" });
 
-  await expect(reds.locator(".game-networks")).toHaveText(
-    /^FS1\s*•\s*FOX ONE\s*•\s*Reds.TV\s*•\s*BravesVision$/,
-  );
+  const redsNetworks = reds.locator(".game-networks");
+  await expect(redsNetworks).toHaveText(/^\s*•\s*•\s*Reds.TV\s*•\s*BravesVision$/);
+  await expect(redsNetworks.getByRole("img", { name: "FS1" })).toBeVisible();
+  await expect(redsNetworks.locator('img.for-dark[alt="FOX ONE"]')).toBeVisible();
+  await expect(redsNetworks.locator('img.for-light[alt="FOX ONE"]')).toBeHidden();
+  const logo = await redsNetworks.getByRole("img", { name: "FS1" }).boundingBox();
+  expect(logo.height).toBeGreaterThan(10);
   await expect(page.locator("#games-today .game-networks")).toHaveCount(7);
   await expect(pirates.locator(".game-networks")).toHaveCount(0);
   await expect(page.locator("#games-next .game-networks")).toHaveCount(0);

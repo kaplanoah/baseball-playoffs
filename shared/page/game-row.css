@@ -11,6 +11,13 @@
  *   --game-headline-offset   the time or score
  *   --game-status-offset     the status under the time or score
  *   --game-networks-height   the line under a game that says where to watch it
+ *   --network-logo-height    a channel's logo on that line
+ * and these, set for whether the page's background is light or dark, since each channel's logo
+ * is drawn for one or the other:
+ *   --logos-for-light        inline when a logo with a version for each shows its version for a
+ *   --logos-for-dark         light (or dark) background, and none when it doesn't
+ *   --chip-for-light         the chip under a logo drawn only for a light (or dark) background:
+ *   --chip-for-dark          transparent on a page of that background, and a color otherwise
  * Without a label, the time or score and its status center as a pair, as far apart as under one.
  * Its lines and the hover on a row that opens take chrome.css's --divider and --ink.
  */
@@ -103,11 +110,36 @@
 }
 .game-networks {
   grid-area: 5 / 1 / 6 / -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   min-width: 0;
   overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
   white-space: nowrap;
+}
+.network-logo {
+  display: inline;
+  height: var(--network-logo-height);
+  width: auto;
+  max-width: 96px;
+  object-fit: contain;
+}
+.network-logo.for-light {
+  display: var(--logos-for-light);
+}
+.network-logo.for-dark {
+  display: var(--logos-for-dark);
+}
+.network-chip {
+  display: inline-flex;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.network-chip.for-light {
+  background: var(--chip-for-light);
+}
+.network-chip.for-dark {
+  background: var(--chip-for-dark);
 }
 /* An action that covers the whole row, so a tap anywhere on the game opens it. */
 .game-open {

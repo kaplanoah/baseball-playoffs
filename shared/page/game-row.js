@@ -1,4 +1,5 @@
 import { html, joinWithSeparator } from "./html.js";
+import { listNetworkLogos } from "./network-logos.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
 
@@ -56,10 +57,40 @@ const renderSide = (side, place) =>
 const renderExtra = (side, place) =>
   side.extra ? html`<span class="game-extra ${place}">${side.extra}</span>` : html``;
 
+/**
+ * @param {string} file
+ * @param {string} alt
+ * @param {string} classes
+ */
+const renderLogoImage = (file, alt, classes) =>
+  html`<img class="${classes}" src="shared/networks/${file}" alt="${alt}" />`;
+
+// A logo with a version for each background shows the page's. One drawn for only one background
+// sits on a chip of it, which shows only on a page of the other.
+/** @param {import("./network-logos.js").NetworkLogo} logo */
+function renderLogo(logo) {
+  if (logo.darkFile)
+    return html`${renderLogoImage(logo.file, logo.name, "network-logo for-light")}${renderLogoImage(
+      logo.darkFile,
+      logo.name,
+      "network-logo for-dark",
+    )}`;
+  const image = renderLogoImage(logo.file, logo.name, "network-logo");
+  return logo.drawnFor
+    ? html`<span class="network-chip for-${logo.drawnFor}">${image}</span>`
+    : image;
+}
+
 /** @param {string[]} networks */
 const renderNetworks = (networks) =>
   networks.length
-    ? html`<span class="game-networks">${joinWithSeparator(networks)}</span>`
+    ? html`<span class="game-networks"
+        >${joinWithSeparator(
+          listNetworkLogos(networks).map((network) =>
+            typeof network === "string" ? html`${network}` : renderLogo(network),
+          ),
+        )}</span
+      >`
     : html``;
 
 /** @param {Event} event */
