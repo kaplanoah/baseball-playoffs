@@ -3,6 +3,7 @@ import { renderGameRow } from "#shared/game-row.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
+import { renderScoreboard } from "./scoreboard.js";
 import { nameTeam } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
@@ -51,9 +52,11 @@ export function renderHeadline(game) {
     return html`<span class="time tabular">${time}</span>`;
   }
   const loser = findLoser(game);
-  return html`<span class="score tabular"
-    ><span class="${loser === "away" ? "lost" : ""}">${game.away.score}</span
-    ><span class="${loser === "home" ? "lost" : ""}">${game.home.score}</span></span
+  return html`<span class="score"
+    >${renderScoreboard(game.away.score, { isLoser: loser === "away" })}${renderScoreboard(
+      game.home.score,
+      { isLoser: loser === "home" },
+    )}</span
   >`;
 }
 

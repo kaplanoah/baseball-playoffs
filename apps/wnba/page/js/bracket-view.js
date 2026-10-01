@@ -1,8 +1,9 @@
-import { formatClockTime } from "#shared/days.js";
-import { html } from "#shared/html.js";
+import { countDaysBetween, formatClockTime } from "#shared/days.js";
+import { html, joinWithSeparator } from "#shared/html.js";
+import { findOpeningRound } from "#shared/opening-round.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
-import { BRACKET_ORDER, describeSeriesStanding } from "./series.js";
+import { BRACKET_FEEDERS, BRACKET_ORDER, describeSeriesStanding } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
@@ -24,38 +25,76 @@ function renderTeamLine(side, series) {
 }
 
 /**
- * When the series next plays, or that it's playing now.
+ * What a series still without both teams waits on: the series that feed it, by their seeds.
  * @param {Series} series
- * @param {Game[]} games
- * @param {number} now
+ * @param {Map<string, Series>} seriesById
  */
-function renderSeriesNote(series, games, now) {
-  const live = games.find((game) => game.series === series.id && game.state === "live");
-  if (live) return html`<span class="series-note live">Live, Game ${live.number}</span>`;
-  if (series.winner)
-    return html`<span class="series-note">${describeSeriesStanding(series)}</span>`;
-  const next = games.find((game) => game.id === series.nextGame?.id);
-  if (!next || !series.top || !series.bottom) return "";
-  const day = readGameDay(next);
-  const time = next.isTimeSet && next.start ? formatClockTime(new Date(next.start)) : "";
-  const when = [day && describeDay(day, now), time].filter(Boolean).join(" ");
-  return html`<span class="series-note">Game ${next.number} ${when}</span>`;
+function describeWait(series, seriesById) {
+  if (series.round === 3) return "Starts after the Semifinals";
+  const feeders = (BRACKET_FEEDERS[series.id] ?? [])
+    .map((id) => seriesById.get(id))
+    .filter((feeder) => feeder && !feeder.winner && feeder.top?.seed && feeder.bottom?.seed)
+    .map((feeder) => `${feeder?.top?.seed}-${feeder?.bottom?.seed}`);
+  return feeders.length ? `Waits on ${feeders.join(" and ")}` : "";
 }
 
 /**
- * @param {Series | undefined} series
+ * When the series next plays, that it's playing now, how it ended, or what it waits on.
+ * @param {Series} series
  * @param {Game[]} games
  * @param {number} now
+ * @param {Map<string, Series>} seriesById
  */
-function renderSeries(series, games, now) {
-  if (!series) return html`<div class="series empty"></div>`;
-  return html`<div class="series" data-series="${series.id}">
-    ${renderTeamLine(series.top, series)}${renderTeamLine(series.bottom, series)}
-    ${renderSeriesNote(series, games, now)}
+function renderSeriesNote(series, games, now, seriesById) {
+  const live = games.find((game) => game.series === series.id && game.state === "live");
+  if (live) return html`<span class="series-note live">Live, Game ${live.number}</span>`;
+  if (series.winner)
+    return html`<span class="series-note decided">${describeSeriesStanding(series)}</span>`;
+  const next = games.find((game) => game.id === series.nextGame?.id);
+  if (!next || !series.top || !series.bottom)
+    return html`<span class="series-note">${describeWait(series, seriesById)}</span>`;
+  const day = readGameDay(next);
+  const time = next.isTimeSet && next.start ? formatClockTime(new Date(next.start)) : "";
+  const when = [day && describeDay(day, now), time].filter(Boolean).join(" ");
+  const isToday = !!day && countDaysBetween(new Date(now), day) === 0;
+  return html`<span class="series-note${isToday ? " today" : ""}">${joinWithSeparator(
+    [`Game ${next.number}`, when].filter(Boolean),
+  )}</span>`;
+}
+
+/**
+ * @param {Series} series
+ * @param {Game[]} games
+ * @param {number} now
+ * @param {Map<string, Series>} seriesById
+ */
+function renderSeries(series, games, now, seriesById) {
+  return html`<div class="bracket-cell cell-${series.id}">
+    <div class="series${series.round === 3 ? " finals" : ""}" data-series="${series.id}">
+      <div class="series-head">${renderSeriesNote(series, games, now, seriesById)}</div>
+      ${renderTeamLine(series.top, series)}${renderTeamLine(series.bottom, series)}
+    </div>
   </div>`;
 }
 
 /**
+ * A series the feeds don't list yet, drawn with its teams to be decided.
+ * @param {string} id
+ * @returns {Series}
+ */
+const describeUnlisted = (id) => ({
+  id,
+  round: Number(id.split("-")[0]),
+  top: null,
+  bottom: null,
+  winner: null,
+  status: "",
+  nextGame: null,
+});
+
+/**
+ * The rounds left to right, each series beside the two it follows, under round names that mark
+ * the round the bracket opens on. Its lines are drawn once it's on the page (bracket-tree.js).
  * @param {{ games?: Game[], series?: Series[] } | null} season
  * @param {number} now
  */
@@ -65,12 +104,22 @@ export function renderBracket(season, now) {
     return html`<p class="empty-note">The bracket fills in once the playoff field is set.</p>`;
   const seriesById = new Map(allSeries.map((series) => [series.id, series]));
   const games = season?.games ?? [];
-  const rounds = Object.entries(BRACKET_ORDER).map(
-    ([round, ids]) =>
-      html`<div class="round round-${round}">
-        <h2 class="round-name">${ROUNDS[round].name}</h2>
-        ${ids.map((id) => renderSeries(seriesById.get(id), games, now))}
-      </div>`,
+  const rounds = Object.values(BRACKET_ORDER).map((ids) =>
+    ids.map((id) => seriesById.get(id) ?? describeUnlisted(id)),
   );
-  return html`<div class="bracket">${rounds}</div>`;
+  const openingRound = findOpeningRound(rounds, (series) => !!series.winner) + 1;
+  const names = Object.keys(BRACKET_ORDER).map(
+    (round) =>
+      html`<h2 class="round-name round-${round}${Number(round) === openingRound ? " now" : ""}" data-round="${round}">
+        <span>${ROUNDS[round].name}</span><span class="best-of">Best of ${ROUNDS[round].bestOf}</span>
+      </h2>`,
+  );
+  const cells = rounds.flat().map((series) => renderSeries(series, games, now, seriesById));
+  const roundDots = Object.keys(BRACKET_ORDER).map(
+    (round) => html`<span data-round="${round}"></span>`,
+  );
+  return html`<div class="bracket" data-opening-round="${openingRound}">
+      <svg class="bracket-lines" aria-hidden="true"></svg>${names}${cells}
+    </div>
+    <div class="round-dots" aria-hidden="true">${roundDots}</div>`;
 }
