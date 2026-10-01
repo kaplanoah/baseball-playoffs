@@ -11,7 +11,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
   await page.getByRole("tab", { name: "Standings" }).click();
-  await expect(page.locator("#standingsWrap tr.cut")).toContainText("Fire");
+  await expect(page.locator("#standingsWrap tr.playoff-line + tr")).toContainText("Fire");
   await page.getByRole("tab", { name: "Teams" }).click();
   await expect(page.locator("#teamsWrap .team-row").first()).toContainText("Minnesota Lynx");
 });
@@ -270,6 +270,7 @@ test("on a wide screen, the game and team rows keep to a phone's width", async (
   await openApp(page);
   for (const [tab, row] of [
     ["Games", "#games-today .game-row"],
+    ["Standings", "#standingsWrap table.standings"],
     ["Teams", "#teamsWrap .team-row"],
   ]) {
     await page.getByRole("tab", { name: tab }).click();
@@ -291,6 +292,41 @@ test("on a wide screen, the Games pill and lists sit in the middle of the page",
     const box = await locator.boundingBox();
     expect(Math.abs(box.x + box.width / 2 - pageMiddle)).toBeLessThanOrEqual(1);
   }
+});
+
+test("the Standings pill switches between the league and each conference, through the season's updates", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const pill = page.getByRole("group", { name: "Standings" });
+  const firstTeam = page.locator("#standingsWrap tbody tr").first();
+  await expect(page.getByRole("table", { name: "League standings" })).toBeVisible();
+  await expect(firstTeam).toContainText("Lynx");
+
+  await pill.getByRole("button", { name: "East" }).click();
+
+  await expect(page.getByRole("table", { name: "East standings" })).toBeVisible();
+  await expect(firstTeam).toContainText("Dream");
+  await expect(pill.getByRole("button", { name: "East" })).toHaveAttribute("aria-pressed", "true");
+  await expect(pill.getByRole("button", { name: "East" })).toBeFocused();
+
+  await app.changeSeason((season) => {
+    season.standings.find((row) => row.team === "ATL").wins += 1;
+    return season;
+  });
+
+  await expect(firstTeam).toContainText("31-14");
+  await expect(page.getByRole("table", { name: "East standings" })).toBeVisible();
+});
+
+test("the playoff line is one dashed strip across the whole table", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const table = await page.locator("#standingsWrap table.standings").boundingBox();
+  const line = await page.locator("#standingsWrap tr.playoff-line td").boundingBox();
+  expect(line.x).toBeCloseTo(table.x, 0);
+  expect(line.width).toBeCloseTo(table.width, 0);
 });
 
 test("clicking the tab that's showing scrolls back to the top", async ({ page }) => {
@@ -342,6 +378,22 @@ test.describe("on a phone", () => {
       const width = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(width, tab).toBeLessThanOrEqual(390);
     }
+  });
+
+  test("the standings show every column, with a winning streak below the line paler than one above it", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    for (const heading of ["W-L", "GB", "L10", "Strk"]) {
+      await expect(page.getByRole("columnheader", { name: heading, exact: true })).toBeVisible();
+    }
+    const readStreakColor = (team) =>
+      page
+        .locator("#standingsWrap tbody tr", { hasText: team })
+        .locator(".streak-won")
+        .evaluate((streak) => getComputedStyle(streak).color);
+    expect(await readStreakColor("Fire")).not.toBe(await readStreakColor("Lynx"));
   });
 });
 

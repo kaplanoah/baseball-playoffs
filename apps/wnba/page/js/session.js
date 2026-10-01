@@ -8,4 +8,6 @@ export const session = {
   /** @type {{ error?: string, detail?: string } | null} */
   status: null,
   problem: "",
+  /** @type {import("./standings-view.js").StandingsView} */
+  standingsView: "League",
 };
