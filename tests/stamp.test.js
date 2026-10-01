@@ -2,7 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   describeFinishedDay,
-  formatStampDay,
   formatStampWhen,
   renderStampLine,
   renderStampWhen,
@@ -18,12 +17,12 @@ const inEastern = (check) => checkInTimeZone(EASTERN, check);
 test("the day words beside a time", () =>
   inEastern(() => {
     const describeWhen = (iso) => normalizeSpaces(formatStampWhen(new Date(iso), NOON));
-    const describeDay = (iso) => formatStampDay(new Date(iso), NOON);
     assert.equal(describeWhen("2026-09-24T17:15:00Z"), "1:15 PM");
     assert.equal(describeWhen("2026-09-23T17:15:00Z"), "yesterday 1:15 PM");
     assert.equal(describeWhen("2026-09-25T17:15:00Z"), "tomorrow 1:15 PM");
     assert.equal(describeWhen("2026-09-27T17:15:00Z"), "Sunday 1:15 PM");
-    assert.equal(describeDay("2026-09-29T17:15:00Z"), "Tuesday");
+    assert.equal(describeWhen("2026-09-29T17:15:00Z"), "Tuesday 1:15 PM");
+    assert.equal(describeWhen("2026-10-05T17:15:00Z"), "Oct 5 1:15 PM");
   }));
 
 test("the time as markup sets its AM/PM apart and leaves the rest alone", () =>

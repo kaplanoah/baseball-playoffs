@@ -1,12 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DAYS,
+  addDays,
   countDaysBetween,
   formatClockTime,
+  formatClockTimeWithoutMeridiem,
   formatShortDate,
+  formatShortWeekday,
+  formatWeekday,
   formatWeekdayAndDate,
+  formatWeekdayOrDate,
+  nameDay,
   readCalendarDate,
+  readEasternDay,
   readPlayingDay,
 } from "../shared/page/days.js";
 import { normalizeSpaces } from "./text.js";
@@ -80,5 +86,93 @@ test("times and dates read the viewer's clock and calendar", () =>
     assert.equal(normalizeSpaces(formatClockTime(start)), "6:00 PM");
     assert.equal(formatShortDate(start), "Oct 1");
     assert.equal(formatWeekdayAndDate(start), "Thu, Oct 1");
-    assert.equal(DAYS[start.getDay()], "Thursday");
+    assert.equal(formatWeekday(start), "Thursday");
+    assert.equal(formatShortWeekday(start), "Thu");
+  }));
+
+test("a clock time without AM or PM keeps just the hour and minutes", () =>
+  checkInTimeZone("America/Los_Angeles", () => {
+    assert.equal(formatClockTimeWithoutMeridiem(new Date(THURSDAY_NIGHT)), "6:00");
+    assert.equal(formatClockTimeWithoutMeridiem(new Date("2026-10-01T17:05:00Z")), "10:05");
+  }));
+
+test("the Eastern day is the league's, whatever the viewer's zone", () => {
+  for (const zone of ["America/Los_Angeles", EASTERN, "Asia/Tokyo"])
+    checkInTimeZone(zone, () => {
+      assert.deepEqual(readEasternDay(Date.parse(THURSDAY_NIGHT)), {
+        date: "2026-10-01",
+        hour: 21,
+        year: 2026,
+      });
+      assert.deepEqual(readEasternDay(Date.parse("2027-01-01T04:30:00Z")), {
+        date: "2026-12-31",
+        hour: 23,
+        year: 2026,
+      });
+      assert.equal(readEasternDay(Date.parse("2026-10-02T04:00:00Z")).hour, 0);
+    });
+});
+
+test("adding days to a date crosses months, years, and daylight saving changes", () => {
+  for (const zone of ["Pacific/Honolulu", EASTERN, "Asia/Tokyo"])
+    checkInTimeZone(zone, () => {
+      assert.equal(addDays("2026-09-29", 4), "2026-10-03");
+      assert.equal(addDays("2026-10-01", -14), "2026-09-17");
+      assert.equal(addDays("2026-12-30", 3), "2027-01-02");
+      assert.equal(addDays("2026-11-01", 1), "2026-11-02");
+      assert.equal(addDays("2026-03-08", -1), "2026-03-07");
+      assert.equal(addDays("2026-10-01", 0), "2026-10-01");
+    });
+});
+
+test("a day near now is yesterday, today, or tomorrow, then its weekday, then its date", () =>
+  checkInTimeZone(EASTERN, () => {
+    const now = new Date(2026, 9, 1, 12);
+    const wednesday = new Date(2026, 8, 30, 23, 59);
+    const thursday = new Date(2026, 9, 1, 0, 1);
+    const friday = new Date(2026, 9, 2, 23, 59);
+    assert.equal(nameDay(wednesday, now), "yesterday");
+    assert.equal(nameDay(thursday, now), "today");
+    assert.equal(nameDay(friday, now), "tomorrow");
+    assert.equal(nameDay(new Date(2026, 8, 25, 20), now), "Friday");
+    assert.equal(nameDay(new Date(2026, 9, 7, 20), now), "Wednesday");
+    assert.equal(nameDay(new Date(2026, 8, 24, 20), now), "Sep 24");
+    assert.equal(nameDay(new Date(2026, 9, 8, 20), now), "Oct 8");
+  }));
+
+test("a day's name says only the near days asked for, in the form asked for", () =>
+  checkInTimeZone(EASTERN, () => {
+    const now = new Date(2026, 9, 1, 12);
+    const wednesday = new Date(2026, 8, 30, 20);
+    const thursday = new Date(2026, 9, 1, 20);
+    const friday = new Date(2026, 9, 2, 20);
+    assert.equal(nameDay(thursday, now, { isCapitalized: true }), "Today");
+    assert.equal(nameDay(wednesday, now, { isCapitalized: true }), "Yesterday");
+    assert.equal(
+      nameDay(thursday, now, { nearDays: [-1, 1], nameOtherDay: formatWeekday }),
+      "Thursday",
+    );
+    assert.equal(nameDay(friday, now, { nearDays: [0], nameOtherDay: formatShortWeekday }), "Fri");
+    assert.equal(
+      nameDay(wednesday, now, { nearDays: [], nameOtherDay: formatWeekdayAndDate }),
+      "Wed, Sep 30",
+    );
+  }));
+
+test("a day's name is the same on the viewer's calendar in any zone", () => {
+  for (const zone of ["Pacific/Honolulu", EASTERN, "Asia/Tokyo"])
+    checkInTimeZone(zone, () => {
+      const now = new Date(2026, 9, 1, 0, 30);
+      assert.equal(nameDay(new Date(2026, 8, 30, 23, 30), now), "yesterday", zone);
+      assert.equal(nameDay(new Date(2026, 9, 1, 23, 30), now), "today", zone);
+    });
+});
+
+test("a weekday names a day within a week either way, and a date one further off", () =>
+  checkInTimeZone(EASTERN, () => {
+    const thursday = new Date(2026, 9, 1, 12);
+    assert.equal(formatWeekdayOrDate(thursday, 6), "Thursday");
+    assert.equal(formatWeekdayOrDate(thursday, -6), "Thursday");
+    assert.equal(formatWeekdayOrDate(thursday, 7), "Oct 1");
+    assert.equal(formatWeekdayOrDate(thursday, -7), "Oct 1");
   }));

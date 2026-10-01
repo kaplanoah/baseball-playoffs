@@ -1,4 +1,4 @@
-import { DAYS, countDaysBetween, formatClockTime, formatShortDate } from "./days.js";
+import { countDaysBetween, formatClockTime, formatWeekdayOrDate, nameDay } from "./days.js";
 import { html, setHtml } from "./html.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
@@ -30,24 +30,10 @@ function findEveningOf(date) {
  */
 export function describeFinishedDay(end, played, now) {
   if (isAfterDark(end) && countDaysBetween(findEveningOf(end), now) === 1) return "last night";
-  const days = countDaysBetween(end, now);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 7) return DAYS[played.getDay()];
-  return formatShortDate(played);
-}
-
-/**
- * @param {Date} date
- * @param {Date} [now]
- */
-export function formatStampDay(date, now = new Date()) {
-  const days = countDaysBetween(date, now);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days === -1) return "tomorrow";
-  if (Math.abs(days) < 7) return DAYS[date.getDay()];
-  return formatShortDate(date);
+  return nameDay(end, now, {
+    nearDays: [-1, 0],
+    nameOtherDay: (_end, daysAway) => formatWeekdayOrDate(played, daysAway),
+  });
 }
 
 /**
@@ -56,8 +42,7 @@ export function formatStampDay(date, now = new Date()) {
  */
 export function formatStampWhen(date, now = new Date()) {
   const time = formatClockTime(date);
-  const day = formatStampDay(date, now);
-  return day === "today" ? time : `${day} ${time}`;
+  return countDaysBetween(date, now) === 0 ? time : `${nameDay(date, now)} ${time}`;
 }
 
 // Sets AM/PM apart so it can be styled smaller.
