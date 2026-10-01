@@ -16,7 +16,7 @@ import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStamp } from "./stamp.js";
 import { renderStandings } from "./standings-view.js";
-import { renderTeams } from "./teams-view.js";
+import { drawTeams } from "./teams-view.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
 
@@ -63,7 +63,7 @@ function renderAll() {
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
   drawStandings();
-  setHtml(findElement("teamsWrap"), renderTeams(session.season));
+  drawTeams(findElement("teamsWrap"), session.season, { year: session.year, now });
   renderStamp();
   refreshGameSheet();
 }

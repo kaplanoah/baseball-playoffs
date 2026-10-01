@@ -6,7 +6,12 @@ import * as WNBASnapshot from "../page/js/snapshot.js";
 const AFTERNOON = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-afternoon.json`, "utf8"),
 );
-const buildAfternoon = (responses = AFTERNOON.responses) =>
+// The afternoon's recording has no players' averages, so the next day's stand in for them.
+const GAMES = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
+);
+const RESPONSES = { ...AFTERNOON.responses, players: GAMES.preview.players };
+const buildAfternoon = (responses = RESPONSES) =>
   WNBASnapshot.buildSnapshot(responses, {
     season: AFTERNOON.season,
     now: Date.parse(AFTERNOON.now),
@@ -73,7 +78,7 @@ test("each series names its seeds, its wins, its winner, and its next game", () 
 });
 
 test("without the bracket, a series counts its wins from its finished games", () => {
-  const { series, missing } = buildAfternoon({ ...AFTERNOON.responses, bracket: null });
+  const { series, missing } = buildAfternoon({ ...RESPONSES, bracket: null });
   assert.deepEqual(missing, ["bracket"]);
   const decided = series.find((record) => record.id === "1-0");
   assert.deepEqual(
@@ -87,7 +92,7 @@ test("without the bracket, a series counts its wins from its finished games", ()
 // Moments just after a final, when the bracket still had the series as it was before the game.
 const readFinal = (name) => {
   const moment = JSON.parse(readFileSync(`${import.meta.dirname}/fixtures/${name}`, "utf8"));
-  const responses = { ...AFTERNOON.responses, ...moment.responses };
+  const responses = { ...RESPONSES, ...moment.responses };
   return WNBASnapshot.buildSnapshot(responses, {
     season: moment.season,
     now: Date.parse(moment.now),
@@ -142,6 +147,37 @@ test("the standings run 1 to 15 across the league, each with its conference plac
   );
   assert.equal(standings[0].clinch, "x");
   assert.equal(standings[8].clinch, "o");
+});
+
+test("each team's standing has its points a game, for and against, and its home and road records", () => {
+  const { standings } = buildAfternoon();
+  const { pointsFor, pointsAgainst, margin, home, road, lastTen } = standings[0];
+  assert.deepEqual(
+    { pointsFor, pointsAgainst, margin, home, road, lastTen },
+    {
+      pointsFor: 90.8,
+      pointsAgainst: 83.7,
+      margin: 7.2,
+      home: "15-7",
+      road: "18-4",
+      lastTen: "6-4",
+    },
+  );
+});
+
+test("each team's top scorer is the one with the most points a game who played most of its games", () => {
+  const { leaders } = buildAfternoon();
+  assert.equal(leaders.length, 15);
+  const lasVegas = leaders.find((leader) => leader.team === "LVA");
+  assert.deepEqual(
+    [lasVegas.firstName, lasVegas.lastName, lasVegas.points, lasVegas.rebounds],
+    ["A'ja", "Wilson", 26.2, 9.4],
+  );
+});
+
+test("without the players' averages, there are no top scorers, and the feed is missing", () => {
+  const { leaders, missing } = buildAfternoon({ ...RESPONSES, players: null });
+  assert.deepEqual([leaders, missing], [[], ["players"]]);
 });
 
 test("polling waits until 15 minutes before the next set start, and runs every 15 seconds in a game", () => {

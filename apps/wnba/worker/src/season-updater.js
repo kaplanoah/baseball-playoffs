@@ -8,7 +8,7 @@ import { TEAMS } from "../../page/js/teams.js";
 
 export const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 const STATUS_KEY = "live/status";
-const SAVED_FIELDS = ["games", "series", "standings"];
+const SAVED_FIELDS = ["games", "series", "standings", "leaders"];
 // A game or series found finished long after it ended, as after a gap in updates, isn't news.
 const RECENT_MS = 12 * 60 * 60 * 1000;
 const MAX_NOTIFIED = 4;
@@ -47,6 +47,7 @@ export async function saveSnapshot(docs, snapshot) {
     games: hasGames,
     series: !missing.has("bracket") || (hasGames && !isStandIn),
     standings: !missing.has("standings"),
+    leaders: !missing.has("players"),
   };
   const changed = SAVED_FIELDS.filter(
     (field) => answered[field] && !isSameJson(doc[field], saving[field]),
