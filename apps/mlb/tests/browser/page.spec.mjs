@@ -602,7 +602,7 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
   await expect(eliminated).toHaveCSS("text-decoration-line", "none");
 });
 
-test("the bracket leaves a score empty until the club wins a game, and gives each TBD row one too", async ({
+test("the bracket leaves a score empty until its series' first game starts, and gives each TBD row one too", async ({
   page,
 }) => {
   await openApp(page);
@@ -613,7 +613,38 @@ test("the bracket leaves a score empty until the club wins a game, and gives eac
   await expect(bracket.locator(".nscore")).toHaveText(Array(22).fill(""));
 });
 
-test("a club's score shows its wins once it has one, at the height of an empty score", async ({
+test("once a series' first game starts, both clubs' scores show 0, at the height of an empty score", async ({
+  page,
+}) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  snapshot.series.AL_WC1.started = true;
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  const scores = page.locator("#bracketWrap .nscore");
+  const started = page
+    .locator("#bracketWrap .series")
+    .filter({ has: page.locator(".nscore", { hasText: "0" }) });
+
+  await expect(started.locator(".nscore")).toHaveText(["0", "0"]);
+  await expect(scores.filter({ hasText: "0" })).toHaveCount(2);
+  const filled = await scores.filter({ hasText: "0" }).first().boundingBox();
+  const empty = await scores.filter({ hasText: /^$/ }).first().boundingBox();
+  expect(empty.height).toBe(filled.height);
+});
+
+test("a club's score shows its wins, and a swept club's shows 0", async ({ page }) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+  const wildCard = page.locator("#bracketWrap .series").filter({ hasText: "Reds" });
+  const readScore = (club) =>
+    wildCard.locator(".matchup-row").filter({ hasText: club }).locator(".nscore");
+
+  await expect(readScore("Dodgers")).toHaveText("2");
+  await expect(readScore("Reds")).toHaveText("0");
+});
+
+test("a series winner's digit sits higher in its gold box than a dark box's, in a box of the same height", async ({
   page,
 }) => {
   await openApp(page, {
@@ -624,11 +655,24 @@ test("a club's score shows its wins once it has one, at the height of an empty s
   const readScore = (club) =>
     wildCard.locator(".matchup-row").filter({ hasText: club }).locator(".nscore");
 
-  await expect(readScore("Dodgers")).toHaveText("2");
-  await expect(readScore("Reds")).toHaveText("");
-  const filled = await readScore("Dodgers").boundingBox();
-  const empty = await readScore("Reds").boundingBox();
-  expect(empty.height).toBe(filled.height);
+  await expect(readScore("Dodgers")).toHaveCSS("padding-top", "2.75px");
+  await expect(readScore("Reds")).toHaveCSS("padding-top", "3.5px");
+  const gold = await readScore("Dodgers").boundingBox();
+  const dark = await readScore("Reds").boundingBox();
+  expect(gold.height).toBe(dark.height);
+});
+
+test("a series saved without being marked started still shows 0 beside a club's wins", async ({
+  page,
+}) => {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  snapshot.series.AL_WC1 = { winsA: 1, winsB: 0 };
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+  const started = page
+    .locator("#bracketWrap .series")
+    .filter({ has: page.locator(".nscore", { hasText: "1" }) });
+
+  await expect(started.locator(".nscore")).toHaveText(["0", "1"]);
 });
 
 test("on a phone, the bracket stacks the AL above the NL, each running left to right into the World Series", async ({

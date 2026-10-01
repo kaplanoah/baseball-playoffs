@@ -172,6 +172,27 @@ test("a bracket just set: twelve real clubs, division series opponents still pla
   assert.ok(snapshot.series.WS.next);
 });
 
+test("a series counts as started once its first game is under way, with no wins yet", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-09-30T00:00:00Z", {
+    unsetRounds: ["CS", "WS"],
+    unsetWildCardWinners: true,
+  });
+  const gameOne = fixture.responses.postseason.dates
+    .flatMap((day) => day.games)
+    .find((game) => game.gameDate === "2025-09-30T17:08:00Z");
+  gameOne.status = { abstractGameState: "Live", codedGameState: "I", detailedState: "In Progress" };
+  const { series } = buildSnapshot(fixture, Date.parse("2025-09-30T17:30:00Z"));
+  assert.equal(series.AL_WC1.started, true);
+  assert.deepEqual([series.AL_WC1.winsA, series.AL_WC1.winsB], [0, 0]);
+  assert.equal(series.AL_WC2.started, undefined);
+  assert.equal(series.AL_DS1.started, undefined);
+});
+
+test("every series of a finished postseason counts as started", () => {
+  const { series } = buildSnapshot(SEASON_2025);
+  assert.ok(Object.values(series).every((seriesRecord) => seriesRecord.started));
+});
+
 test("a game still live past midnight Eastern is its series' next game", () => {
   const fixture = rewindFixture(SEASON_2025, "2025-10-28T00:00:00Z");
   const game3 = fixture.responses.postseason.dates
