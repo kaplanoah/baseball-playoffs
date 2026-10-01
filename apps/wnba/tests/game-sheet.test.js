@@ -54,7 +54,7 @@ const listRows = (markup, table) =>
 function readTapeBars(markup, label) {
   const row = markup.text
     .split('<div class="tape-row">')
-    .find((chunk) => chunk.includes(`<span class="tape-label">${label}</span>`));
+    .find((chunk) => readText({ text: chunk }).includes(` ${label} `));
   return [...row.matchAll(/<i class="(lead)?" style="width: (\d+)%">/g)].map(([, lead, width]) =>
     lead ? `lead ${width}` : width,
   );
@@ -151,17 +151,18 @@ test("a preview lists the meetings, each by its winner, with the regular season'
     assert.match(text, /Jul 12 Fever 109-75 on the road/);
   }));
 
-test("a preview compares the seasons, the visitors on the road and the hosts at home", () => {
+test("a preview compares the season stats, the visitors on the road and the hosts at home, with no footnote", () => {
   const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
   const markup = renderPreview(preview);
   const text = readText(markup);
-  assert.match(text, /28-16 Record 31-13/);
-  assert.match(text, /96\.0 Points 91\.5/);
-  assert.match(text, /90\.4 Allowed 85\.8/);
-  assert.match(text, /\+5\.5 Margin \+5\.7/);
-  assert.match(text, /13-9 Road \/ Home 15-7/);
-  assert.deepEqual(readTapeBars(markup, "Allowed"), ["100", "lead 95"]);
-  assert.deepEqual(readTapeBars(markup, "Road / Home"), ["59", "lead 68"]);
+  assert.match(text, /Season stats Fever Aces 28-16 Record 31-13/);
+  assert.match(text, /96\.0 PPG 91\.5/);
+  assert.match(text, /90\.4 Opp PPG 85\.8/);
+  assert.match(text, /\+5\.5 Differential \+5\.7/);
+  assert.match(text, /13-9 Road Home 15-7/);
+  assert.match(text, /8-2 Leading scorers/);
+  assert.deepEqual(readTapeBars(markup, "Opp PPG"), ["100", "lead 95"]);
+  assert.deepEqual(readTapeBars(markup, "Road Home"), ["59", "lead 68"]);
   const [fever] = listRows(markup, "players");
   assert.deepEqual(fever.slice(0, 2), ["Fever Pts Reb Ast", "Kelsey Mitchell 24.7 1.7 2.8"]);
 });

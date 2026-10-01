@@ -83,6 +83,20 @@ test.describe("on a phone, the bracket", () => {
   });
 });
 
+test("a first-round seed's label sits outside its card, beside its row", async ({ page }) => {
+  await openApp(page);
+  const card = page.locator('[data-series="1-0"]');
+  const row = card.locator(".team-line").filter({ hasText: "Liberty" });
+  await expect(row.locator(".seed-label")).toHaveText("Seed 8");
+  const label = await row.locator(".seed-label").boundingBox();
+  const cardBox = await card.boundingBox();
+  const rowBox = await row.boundingBox();
+  expect(label.x).toBeGreaterThanOrEqual(0);
+  expect(label.x + label.width).toBeLessThan(cardBox.x);
+  expect(Math.abs(label.y + label.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
+  await expect(page.locator('[data-series="2-0"] .seed-label')).toHaveCount(0);
+});
+
 /** Each line's end, and the middle of each team row, in the page's coordinates. */
 const readLines = (page) =>
   page.evaluate(() => {
