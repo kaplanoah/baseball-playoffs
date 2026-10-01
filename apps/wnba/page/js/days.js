@@ -1,5 +1,4 @@
-// Games show on the viewer's own calendar. A game whose time isn't set yet has a placeholder start
-// at midnight Eastern, so its day is the league's day, not the viewer's.
+import { countDaysBetween, formatWeekdayAndDate, readPlayingDay } from "#shared/days.js";
 
 const EASTERN = new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
@@ -8,35 +7,24 @@ const EASTERN = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
 });
 
-const MS_PER_DAY = 86400000;
-
 /** @param {number} ms */
 function readEasternDate(ms) {
   const parts = Object.fromEntries(
-    EASTERN.formatToParts(new Date(ms)).map(({ type, value }) => [type, Number(value)]),
+    EASTERN.formatToParts(new Date(ms)).map(({ type, value }) => [type, value]),
   );
-  return new Date(parts.year, parts.month - 1, parts.day);
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-/** @param {Date} date */
-const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-
 /**
- * Midnight on the viewer's calendar of the day a game is played, or null without a start.
+ * Midnight on the viewer's calendar of the day a game is played, or null without a start. A game
+ * whose time isn't set yet has a placeholder start at midnight Eastern, so its day is the league's.
  * @param {{ start: string | null, isTimeSet: boolean }} game
  */
-export function readGameDay(game) {
-  const start = Date.parse(game.start ?? "");
-  if (!Number.isFinite(start)) return null;
-  return game.isTimeSet ? startOfDay(new Date(start)) : readEasternDate(start);
+export function readGameDay({ start, isTimeSet }) {
+  const startMs = Date.parse(start ?? "");
+  const leagueDate = Number.isFinite(startMs) ? readEasternDate(startMs) : null;
+  return readPlayingDay({ start, isTimeSet, leagueDate });
 }
-
-/**
- * @param {Date} earlier
- * @param {Date} later
- */
-export const countDaysBetween = (earlier, later) =>
-  Math.round((startOfDay(later).getTime() - startOfDay(earlier).getTime()) / MS_PER_DAY);
 
 const NEAR_DAYS = { "-1": "Yesterday", 0: "Today", 1: "Tomorrow" };
 
@@ -45,11 +33,5 @@ const NEAR_DAYS = { "-1": "Yesterday", 0: "Today", 1: "Tomorrow" };
  * @param {number} now
  */
 export function describeDay(day, now) {
-  const near = NEAR_DAYS[countDaysBetween(new Date(now), day)];
-  if (near) return near;
-  return day.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  return NEAR_DAYS[countDaysBetween(new Date(now), day)] ?? formatWeekdayAndDate(day);
 }
-
-/** @param {string} start */
-export const formatStartTime = (start) =>
-  new Date(start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });

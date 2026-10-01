@@ -1,5 +1,6 @@
 import { findSeriesBetween, isEliminated } from "./bracket.js";
 import { renderTeamTag } from "./clubs.js";
+import { formatClockTime, formatWeekdayAndDate, readCalendarDate } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
 import { renderGameRow } from "#shared/game-row.js";
 import { formatOrdinal } from "#shared/ordinal.js";
@@ -41,19 +42,11 @@ const findGameTabsBar = () => document.getElementById("gameTabsBar");
 const findGamePages = () => document.getElementById("gamePages");
 const findGamePage = (list) => document.getElementById(`games-${list}`);
 
-// Game days are Eastern calendar dates, so they're read as dates, never as instants.
-export function formatGameDay(date) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
+export const formatGameDay = (date) => formatWeekdayAndDate(readCalendarDate(date));
 
 export function describeStart(game) {
   if (game.tbd) return game.doubleheader === 2 ? "After 1st game" : "Time TBD";
-  return new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return formatClockTime(new Date(game.start));
 }
 
 export function describeInning(game) {
