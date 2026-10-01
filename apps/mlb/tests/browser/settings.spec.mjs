@@ -1,4 +1,4 @@
-import { test, expect, openApp, openSettings, chooseSeason } from "./harness.mjs";
+import { test, expect, openApp, openSettings, chooseSeason, swipeSheetDown } from "./harness.mjs";
 
 const PHONE = { width: 390, height: 844 };
 const RELEASE = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41Z" };
@@ -154,7 +154,7 @@ test("on a phone, settings rise from the bottom as a sheet with a wide grabber a
   await expect(done).toHaveCount(1);
   expect((await done.boundingBox()).width).toBeLessThanOrEqual(1);
   const grabber = await settings.locator(".sheet-grabber").boundingBox();
-  const head = await settings.locator(".settings-head").boundingBox();
+  const head = await settings.locator(".sheet-head").boundingBox();
   expect(grabber.width).toBe(48);
   expect(head.y - (grabber.y + grabber.height)).toBe(6);
   await expect
@@ -165,46 +165,22 @@ test("on a phone, settings rise from the bottom as a sheet with a wide grabber a
     .toEqual({ left: 0, width: PHONE.width, bottom: PHONE.height });
 });
 
-/**
- * Swipes a finger down the settings sheet from `target`, one step per move. It runs inside the page
- * so the time between moves is exact, which the sheet reads as the swipe's speed.
- * @param {import("@playwright/test").Page} page
- * @param {{ target: string, distance: number, steps: number, stepMs: number, isCancelled?: boolean }} swipe
- */
-const swipeSheetDown = (page, { target, distance, steps, stepMs, isCancelled = false }) =>
-  page
-    .locator(target)
-    .first()
-    .evaluate(
-      (element, { distance, steps, stepMs, isCancelled }) => {
-        const box = element.getBoundingClientRect();
-        const x = box.x + box.width / 2;
-        const startY = box.y + box.height / 2;
-        const send = (type, y) => {
-          const touch = new Touch({ identifier: 1, target: element, clientX: x, clientY: y });
-          const isLifted = type === "touchend" || type === "touchcancel";
-          const init = { changedTouches: [touch], bubbles: true, cancelable: true };
-          element.dispatchEvent(
-            new TouchEvent(type, { ...init, touches: isLifted ? [] : [touch] }),
-          );
-        };
-        const wait = () => {
-          const until = performance.now() + stepMs;
-          while (performance.now() < until);
-        };
-        send("touchstart", startY);
-        for (let step = 1; step <= steps; step++) {
-          wait();
-          send("touchmove", startY + (distance * step) / steps);
-        }
-        wait();
-        send(isCancelled ? "touchcancel" : "touchend", startY + distance);
-      },
-      { distance, steps, stepMs, isCancelled },
-    );
-
 const readSheetTop = (page) =>
   page.locator("#settingsDialog").evaluate((dialog) => dialog.getBoundingClientRect().top);
+
+test("on a phone, settings rise only when the viewer allows motion", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openApp(page);
+  await openSettings(page);
+  const settings = page.getByRole("dialog", { name: "Settings" });
+  await expect(settings).toHaveCSS("animation-name", "none");
+
+  await settings.press("Escape");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openSettings(page);
+  await expect(settings).toHaveCSS("animation-name", "sheet-rise");
+});
 
 test("on a phone, a slow swipe down far enough closes settings, and a short one springs back", async ({
   page,
@@ -278,10 +254,10 @@ test("on a wide screen, settings open as a modal with a close button", async ({ 
   await openSettings(page);
 
   const settings = page.getByRole("dialog", { name: "Settings" });
-  await expect(settings.locator(".settings-done svg")).toBeVisible();
-  expect((await page.getByText("Done", { exact: true }).boundingBox()).width).toBeLessThanOrEqual(
-    1,
-  );
+  await expect(settings.locator(".sheet-done svg")).toBeVisible();
+  expect(
+    (await settings.getByText("Done", { exact: true }).boundingBox()).width,
+  ).toBeLessThanOrEqual(1);
   const box = await settings.boundingBox();
   const { width } = page.viewportSize();
   expect(Math.abs(box.x + box.width / 2 - width / 2)).toBeLessThan(2);
@@ -307,7 +283,7 @@ async function waitForSheetToRise(page) {
 /** @param {import("@playwright/test").Page} page */
 async function expectWholeRankingInView(page) {
   const sheet = await page.locator("#settingsDialog").boundingBox();
-  const header = await page.locator(".sheet-top").boundingBox();
+  const header = await page.locator("#settingsDialog .sheet-top").boundingBox();
   const first = await page.locator("#rankList .rank-item").first().boundingBox();
   const last = await page.locator("#rankList .rank-item").last().boundingBox();
   expect(first.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
@@ -434,7 +410,7 @@ test("on a wide screen, the settings start right under the header, level with th
   await openApp(page);
   await openSettings(page);
 
-  const header = await page.locator(".sheet-top").boundingBox();
+  const header = await page.locator("#settingsDialog .sheet-top").boundingBox();
   const controls = await page.locator(".settings-controls").boundingBox();
   const [season] = await readCenters(page.locator(".control-row > span").first());
   const [ranking] = await readCenters(page.locator("#rankingTitle"));

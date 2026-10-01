@@ -3,19 +3,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link
-    rel="icon"
-    href="icon-light.svg"
-    type="image/svg+xml"
-    media="(prefers-color-scheme: light)"
-  />
-  <link rel="icon" href="icon.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" id="tabIcon" />
   <link rel="apple-touch-icon" href="icon-180.png" id="homeScreenIcon" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="WNBA" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#e9d4b0" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#1d1511" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#1d1511" id="themeColor" />
+  <script>
+    // Picks the theme before the first paint, so Walnut never flashes Maple. js/appearance.js
+    // keeps it, and the icons and bar color that go with it, current.
+    try {
+      const choice = localStorage.getItem("appearance");
+      const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
+      const isDark = choice === "dark" || (choice !== "light" && prefersDark);
+      document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    } catch {
+      document.documentElement.dataset.theme = "light";
+    }
+  </script>
   <title>WNBA Playoffs</title>
   <meta
     name="description"
@@ -88,7 +93,7 @@
           <span class="tab-icon" aria-hidden="true"
             ><svg viewBox="0 0 256 256" fill="currentColor">
               <path
-                d="M88,130a26,26,0,1,0,26,26A26,26,0,0,0,88,130Zm0,40a14,14,0,1,1,14-14A14,14,0,0,1,88,170Zm160-48H221.83A102,102,0,0,0,18,128v24a70.08,70.08,0,0,0,70,70h40a70.08,70.08,0,0,0,70-70V134h50a6,6,0,0,0,0-12Zm-62,30a58.07,58.07,0,0,1-58,58h-.85A70,70,0,0,0,158,152V134h28Zm-34-30a6,6,0,0,0-6,6v24a58,58,0,0,1-116,0V128a90,90,0,0,1,179.8-6Z"
+                d="M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26ZM60,69.09A89.23,89.23,0,0,1,81.78,122H38.2A89.65,89.65,0,0,1,60,69.09ZM38.2,134H81.78A89.23,89.23,0,0,1,60,186.91,89.65,89.65,0,0,1,38.2,134ZM122,217.8a89.66,89.66,0,0,1-53.5-22.34A101.18,101.18,0,0,0,93.82,134H122Zm0-95.8H93.82A101.18,101.18,0,0,0,68.5,60.54,89.66,89.66,0,0,1,122,38.2Zm95.8,0H174.22A89.23,89.23,0,0,1,196,69.09,89.65,89.65,0,0,1,217.8,122ZM134,38.2a89.66,89.66,0,0,1,53.5,22.34A101.18,101.18,0,0,0,162.18,122H134Zm0,179.6V134h28.18a101.18,101.18,0,0,0,25.32,61.46A89.66,89.66,0,0,1,134,217.8Zm62-30.89A89.23,89.23,0,0,1,174.22,134H217.8A89.65,89.65,0,0,1,196,186.91Z"
               /></svg></span
           ><span class="tab-label">Games</span>
         </button>
@@ -150,22 +155,52 @@
     <div class="settings-body">
       <div class="sheet-top">
         <span class="sheet-grabber" aria-hidden="true"></span>
-        <div class="settings-head">
-          <div class="settings-title">
+        <div class="sheet-head">
+          <div class="sheet-title">
             <h2 id="settingsTitle">Settings</h2>
             <p class="settings-version" id="versionNote" hidden></p>
           </div>
-          <button type="button" class="settings-done" id="settingsDoneBtn">
+          <button type="button" class="sheet-done" id="settingsDoneBtn">
             <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
               <path
                 d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
               />
             </svg>
-            <span class="settings-done-label">Done</span>
+            <span class="sheet-done-label">Done</span>
           </button>
         </div>
       </div>
       <div class="settings-controls">
+        <div class="control-row appearance-row">
+          <span class="control-label">
+            <span id="appearanceTitle">Appearance</span>
+            <span class="control-note" id="appearanceNote" role="status"></span>
+          </span>
+          <div class="appearance-choices" role="radiogroup" aria-labelledby="appearanceTitle">
+            <label class="appearance-choice">
+              <input type="radio" name="appearance" value="auto" />
+              <span class="appearance-icon appearance-icon-auto" aria-hidden="true">
+                <img src="icon-light-180.png" alt="" />
+                <img src="icon-180.png" alt="" />
+              </span>
+              <span>System</span>
+            </label>
+            <label class="appearance-choice">
+              <input type="radio" name="appearance" value="light" />
+              <span class="appearance-icon" aria-hidden="true">
+                <img src="icon-light-180.png" alt="" />
+              </span>
+              <span>Maple</span>
+            </label>
+            <label class="appearance-choice">
+              <input type="radio" name="appearance" value="dark" />
+              <span class="appearance-icon" aria-hidden="true">
+                <img src="icon-180.png" alt="" />
+              </span>
+              <span>Walnut</span>
+            </label>
+          </div>
+        </div>
         <div class="control-row" id="notifyRow" hidden>
           <span class="control-label">
             <span id="notifyTitle">Notifications</span>

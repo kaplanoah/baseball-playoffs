@@ -4,6 +4,7 @@ import {
   openApp,
   openSettings,
   buildFixtureSnapshot,
+  buildSnapshotWithStarters,
   chooseSeason,
   EVENING_FIXTURE,
 } from "./harness.mjs";
@@ -430,26 +431,6 @@ test("only today's postseason games carry a series label", async ({ page }) => {
   await expect(page.locator("#games-previous .series-label")).toHaveCount(0);
   await expect(page.locator("#games-next .series-label")).toHaveCount(0);
 });
-
-// The first game still to come, Astros at Athletics, with both clubs' starters named.
-function buildSnapshotWithStarters() {
-  const fixture = structuredClone(EVENING_FIXTURE);
-  const game = fixture.responses.schedule.dates
-    .flatMap((date) => date.games)
-    .find((candidate) => candidate.gamePk === 824950);
-  game.teams.away.probablePitcher = { id: 1 };
-  game.teams.home.probablePitcher = { id: 2 };
-  const describePerson = (id, useLastName, code, era) => ({
-    id,
-    useLastName,
-    pitchHand: { code },
-    stats: [{ splits: [{ stat: { era } }] }],
-  });
-  fixture.responses.pitchers = {
-    people: [describePerson(1, "Blubaugh", "R", "3.66"), describePerson(2, "Springs", "L", "4.02")],
-  };
-  return buildFixtureSnapshot(fixture);
-}
 
 test("with starters named, each sits under its club, its arm and ERA on its name's baseline", async ({
   page,

@@ -61,7 +61,6 @@
   --accent: var(--orange);
   --accent-ink: var(--orange-ink);
   --focus-ring: var(--teal);
-  --select-arrow: none;
   --tab-bar-ink: var(--ink);
   --glass-light: 255, 248, 236;
   --glass-solid: rgba(243, 228, 200, 0.96);
@@ -77,23 +76,22 @@
   --game-status-offset: 23px;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1d1511;
-    --card: #2a1f18;
-    --card-border: #4a3628;
-    --divider: #3a2b21;
-    --ink: #f1e9df;
-    --ink-dim: #b19a86;
-    --orange: #f07a3a;
-    --orange-ink: #1d0d03;
-    --teal: #3cb4a4;
-    --teal-ink: #06201c;
-    --glass-light: 255, 255, 255;
-    --glass-solid: rgba(42, 31, 24, 0.94);
-    --glass-contrast: #000000;
-    color-scheme: dark;
-  }
+/* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
+:root[data-theme="dark"] {
+  --bg: #1d1511;
+  --card: #2a1f18;
+  --card-border: #4a3628;
+  --divider: #3a2b21;
+  --ink: #f1e9df;
+  --ink-dim: #b19a86;
+  --orange: #f07a3a;
+  --orange-ink: #1d0d03;
+  --teal: #3cb4a4;
+  --teal-ink: #06201c;
+  --glass-light: 255, 255, 255;
+  --glass-solid: rgba(42, 31, 24, 0.94);
+  --glass-contrast: #000000;
+  color-scheme: dark;
 }
 
 * {
@@ -506,6 +504,66 @@ table.standings tr.below td {
 }
 .team-row.champion .team-full-name {
   color: var(--orange);
+}
+
+/* Settings: the appearance choices show the home-screen icon each one offers. System shows
+   both, Maple on the left half and Walnut on the right. */
+.appearance-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+.appearance-choices {
+  display: flex;
+  gap: 18px;
+}
+.appearance-choice {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.appearance-choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.appearance-icon {
+  position: relative;
+  display: block;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--card-border);
+}
+.appearance-icon img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.appearance-icon-auto img + img {
+  clip-path: inset(0 0 0 50%);
+}
+.appearance-choice:has(input:checked) {
+  color: var(--ink);
+}
+.appearance-choice:has(input:checked) .appearance-icon {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--accent);
+}
+body.kbd .appearance-choice:has(input:focus) .appearance-icon {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 6px;
 }
 
 @media (max-width: 779px) {

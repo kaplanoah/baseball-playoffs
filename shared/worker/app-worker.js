@@ -52,13 +52,15 @@ const isStorePath = (appPath) =>
   appPath === "/watch" || appPath.startsWith("/store/") || appPath.startsWith("/push/");
 
 /**
- * An app's Worker: its page, its store, and its live snapshot, all under the APP_KEY secret.
+ * An app's Worker: its page, its store, its live snapshot, and any reads of its own, all under the
+ * APP_KEY secret.
  * @param {object} app
  * @param {Parameters<typeof decodePageFiles>[0]} app.pageFiles
  * @param {(url: URL) => Response | Promise<Response>} app.serveSnapshot
  * @param {(request: Request, env: any, storePath: string) => Response | Promise<Response>} app.forwardToStore
+ * @param {Record<string, (url: URL) => Response | Promise<Response>>} [app.reads] more GET paths
  */
-export function createAppWorker({ pageFiles, serveSnapshot, forwardToStore }) {
+export function createAppWorker({ pageFiles, serveSnapshot, forwardToStore, reads = {} }) {
   const servePageFile = createPageServer(pageFiles);
   return {
     fetch(request, env = {}) {
@@ -68,7 +70,8 @@ export function createAppWorker({ pageFiles, serveSnapshot, forwardToStore }) {
       if (appPath === null) return serveNotFound();
       if (appPath === "") return redirectToFolder(url);
       if (isStorePath(appPath)) return forwardToStore(request, env, appPath);
-      if (appPath === "/snapshot" && request.method === "GET") return serveSnapshot(url);
+      if (request.method === "GET" && appPath === "/snapshot") return serveSnapshot(url);
+      if (request.method === "GET" && Object.hasOwn(reads, appPath)) return reads[appPath](url);
       return servePageFile(request, appPath);
     },
   };

@@ -42,7 +42,7 @@ const findGamePages = () => document.getElementById("gamePages");
 const findGamePage = (list) => document.getElementById(`games-${list}`);
 
 // Game days are Eastern calendar dates, so they're read as dates, never as instants.
-function formatGameDay(date) {
+export function formatGameDay(date) {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(year, month - 1, day).toLocaleDateString([], {
     weekday: "short",
@@ -51,7 +51,7 @@ function formatGameDay(date) {
   });
 }
 
-function describeStart(game) {
+export function describeStart(game) {
   if (game.tbd) return game.doubleheader === 2 ? "After 1st game" : "Time TBD";
   return new Date(game.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
@@ -105,14 +105,14 @@ function renderFacts(id) {
 
 const isNamed = (starter) => Boolean(starter?.name);
 
+export const renderArm = (hand) =>
+  ARMS[hand] ? html`<span class="arm" title="${ARMS[hand]}">${hand}</span>` : html``;
+
 function renderStarter(starter, side) {
-  const arm =
-    ARMS[starter.hand] &&
-    html`<span class="starter-arm" title="${ARMS[starter.hand]}">${starter.hand}</span>`;
   const era =
     starter.era &&
     html`<span class="starter-era tabular"><b>${starter.era}</b> <span class="starter-era-label">ERA</span></span>`;
-  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${arm}${era}</span>`;
+  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${renderArm(starter.hand)}${era}</span>`;
 }
 
 function isOut(id) {
@@ -167,6 +167,14 @@ function renderStatus(game) {
   return Boolean(status) && html`${status}${renderOutLights(game)}`;
 }
 
+// The whole row opens the matchup sheet, which needs only what the row shows.
+function renderMatchupButton(game, [awayStarter, homeStarter]) {
+  const { date, start, tbd, doubleheader, away, home, starters } = game;
+  const names = [awayStarter, homeStarter].map((starter) => starter?.name || "TBD");
+  const details = JSON.stringify({ date, start, tbd, doubleheader, away, home, starters });
+  return html`<button type="button" class="game-open" aria-label="Pitching matchup: ${names.join(" vs ")}" data-game="${details}"></button>`;
+}
+
 /** @param {object | null} series the postseason series the game belongs to, when it's labeled */
 function renderGame(game, series) {
   const [awayScore, homeScore] = game.score || [];
@@ -174,6 +182,7 @@ function renderGame(game, series) {
   const awayLost = isFinal && awayScore < homeScore;
   const homeLost = isFinal && homeScore < awayScore;
   const [awayStarter, homeStarter] = game.starters || [];
+  const hasStarters = isNamed(awayStarter) || isNamed(homeStarter);
   return renderGameRow({
     classes: [game.state, game.delay && "delayed"],
     away: describeSide(game.away, "away", awayStarter, homeLost),
@@ -181,6 +190,7 @@ function renderGame(game, series) {
     label: Boolean(series) && renderSeriesLabel(game, series),
     headline: renderHeadline(game, awayLost, homeLost),
     status: renderStatus(game),
+    action: hasStarters && renderMatchupButton(game, [awayStarter, homeStarter]),
   });
 }
 

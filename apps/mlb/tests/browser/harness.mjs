@@ -15,6 +15,26 @@ export const buildFixtureSnapshot = (fixture) =>
     now: Date.parse(fixture.now),
   });
 
+// The first game still to come, Astros at Athletics, with both clubs' starters named.
+export function buildSnapshotWithStarters() {
+  const fixture = structuredClone(EVENING_FIXTURE);
+  const game = fixture.responses.schedule.dates
+    .flatMap((date) => date.games)
+    .find((candidate) => candidate.gamePk === 824950);
+  game.teams.away.probablePitcher = { id: 1 };
+  game.teams.home.probablePitcher = { id: 2 };
+  const describePerson = (id, useLastName, code, era) => ({
+    id,
+    useLastName,
+    pitchHand: { code },
+    stats: [{ splits: [{ stat: { era } }] }],
+  });
+  fixture.responses.pitchers = {
+    people: [describePerson(1, "Blubaugh", "R", "3.66"), describePerson(2, "Springs", "L", "4.02")],
+  };
+  return buildFixtureSnapshot(fixture);
+}
+
 /** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
 const pageErrorsFixture = {
   pageErrors: [
@@ -58,6 +78,7 @@ async function answerFromStore(route, store) {
  * @param {object} [options.snapshots]
  * @param {boolean} [options.liveAvailable]
  * @param {boolean} [options.portalReadsDocuments] a captive portal answers reading a document
+ * @param {Record<number, object>} [options.pitchers] what the Worker answers for each pitcher id
  */
 export async function openApp(
   page,
@@ -67,6 +88,7 @@ export async function openApp(
     snapshots = {},
     liveAvailable = true,
     portalReadsDocuments = false,
+    pitchers = {},
   } = {},
 ) {
   const context = createDurableObjectContext();
@@ -104,6 +126,15 @@ export async function openApp(
       if (!liveAvailable || !snapshot)
         return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
       return route.fulfill({ json: harness.transformSnapshot(structuredClone(snapshot)) });
+    },
+  );
+  await page.route(
+    (url) => url.pathname === "/pitcher",
+    (route) => {
+      const pitcher = pitchers[Number(new URL(route.request().url()).searchParams.get("id"))];
+      if (!pitcher)
+        return route.fulfill({ status: 502, json: { error: "Couldn't read MLB: test" } });
+      return route.fulfill({ json: pitcher });
     },
   );
   await page.route(
@@ -159,6 +190,44 @@ export async function openApp(
 }
 
 /** @param {import("@playwright/test").Page} page */
+/**
+ * Swipes a finger down a sheet from `target`, one step per move. It runs inside the page
+ * so the time between moves is exact, which the sheet reads as the swipe's speed.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ target: string, distance: number, steps: number, stepMs: number, isCancelled?: boolean }} swipe
+ */
+export const swipeSheetDown = (page, { target, distance, steps, stepMs, isCancelled = false }) =>
+  page
+    .locator(target)
+    .first()
+    .evaluate(
+      (element, { distance, steps, stepMs, isCancelled }) => {
+        const box = element.getBoundingClientRect();
+        const x = box.x + box.width / 2;
+        const startY = box.y + box.height / 2;
+        const send = (type, y) => {
+          const touch = new Touch({ identifier: 1, target: element, clientX: x, clientY: y });
+          const isLifted = type === "touchend" || type === "touchcancel";
+          const init = { changedTouches: [touch], bubbles: true, cancelable: true };
+          element.dispatchEvent(
+            new TouchEvent(type, { ...init, touches: isLifted ? [] : [touch] }),
+          );
+        };
+        const wait = () => {
+          const until = performance.now() + stepMs;
+          while (performance.now() < until);
+        };
+        send("touchstart", startY);
+        for (let step = 1; step <= steps; step++) {
+          wait();
+          send("touchmove", startY + (distance * step) / steps);
+        }
+        wait();
+        send(isCancelled ? "touchcancel" : "touchend", startY + distance);
+      },
+      { distance, steps, stepMs, isCancelled },
+    );
+
 export const openSettings = (page) =>
   page.getByRole("button", { name: "Settings", exact: true }).click();
 

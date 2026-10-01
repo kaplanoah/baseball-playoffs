@@ -17,7 +17,8 @@ const joinClasses = (...names) => names.filter(Boolean).join(" ");
 /**
  * A game in a list, as game-row.css lays it out: the away and home sides face each other across
  * the middle, which holds the time or score, with an optional label over it and status under it.
- * @param {{ id?: string, classes?: (string | false)[], away: GameRowSide, home: GameRowSide, label?: Markup | false, headline: Markup, status?: Markup | false }} row
+ * An action, like a button that opens the game, may cover the whole row.
+ * @param {{ id?: string, classes?: (string | false)[], away: GameRowSide, home: GameRowSide, label?: Markup | false, headline: Markup, status?: Markup | false, action?: Markup | false }} row
  */
 export const renderGameRow = ({
   id,
@@ -27,6 +28,7 @@ export const renderGameRow = ({
   label = false,
   headline,
   status = false,
+  action = false,
 }) =>
   html`<li class="${joinClasses("game-row", ...classes)}"${id && html` data-game="${id}"`}>
     ${renderSide(away, "away")}
@@ -34,7 +36,7 @@ export const renderGameRow = ({
       >${label && html`<span class="game-label">${label}</span>`}<span class="game-headline">${headline}</span
       >${status && html`<span class="game-status">${status}</span>`}</span
     >
-    ${renderSide(home, "home")} ${renderExtra(away, "away")} ${renderExtra(home, "home")}
+    ${renderSide(home, "home")} ${renderExtra(away, "away")} ${renderExtra(home, "home")} ${action}
   </li>`;
 
 /**

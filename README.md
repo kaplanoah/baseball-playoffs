@@ -17,7 +17,8 @@ them.
 A private web page that tracks the MLB postseason. It shows the bracket, your
 ranking of who you want to win the World Series, the standings, each team's
 previous, current and next game with its starting pitchers, and scores that update
-automatically.
+automatically. Tap a game to compare its starters: how they rank among the season's starters,
+what they throw, and how their last starts went.
 
 A Cloudflare Worker serves the page and saves your ranking. It also reads MLB
 on its own, every 30 seconds during games, so the standings and updates stay
@@ -30,7 +31,8 @@ happens to a team in your ranking.
 A private web page that tracks the WNBA playoffs. It shows the bracket, every
 game with live scores and clocks, the league and conference standings with the
 playoff line, and how far each team got. It follows the phone's dark or light
-setting.
+setting, or the one you pick in its settings. Added to the home screen, it keeps
+the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
 every 30 seconds during games. Saved to an iPhone's home screen, the page opens

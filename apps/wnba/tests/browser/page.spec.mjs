@@ -64,24 +64,109 @@ test("a team stays put as Bonus comes and goes, level with the score", async ({ 
   expect(Math.abs(before[0] - (await findCenter(row.locator(".score"))))).toBeLessThan(1);
 });
 
-test("the page follows the phone's dark or light setting", async ({ page }) => {
+const readBackground = (page) =>
+  page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+const MAPLE = "rgb(233, 212, 176)";
+const WALNUT = "rgb(29, 21, 17)";
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {"light" | "dark"} theme
+ */
+async function expectTheme(page, theme) {
+  const isDark = theme === "dark";
+  await expect.poll(() => readBackground(page)).toBe(isDark ? WALNUT : MAPLE);
+  await expect(page.locator("#homeScreenIcon")).toHaveAttribute(
+    "href",
+    isDark ? "icon-180.png" : "icon-light-180.png",
+  );
+  await expect(page.locator("#tabIcon")).toHaveAttribute(
+    "href",
+    isDark ? "icon.svg" : "icon-light.svg",
+  );
+  await expect(page.locator("#themeColor")).toHaveAttribute(
+    "content",
+    isDark ? "#1d1511" : "#e9d4b0",
+  );
+}
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {string} choice
+ */
+async function chooseAppearance(page, choice) {
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("radiogroup", { name: "Appearance" })
+    .getByRole("radio", { name: choice })
+    .check();
+  await page.keyboard.press("Escape");
+}
+
+test("on System, the page and its icons follow the phone's dark or light setting", async ({
+  page,
+}) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await openApp(page);
-  const readBackground = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-  expect(await readBackground()).toBe("rgb(29, 21, 17)");
+  await expect(page.locator('input[name="appearance"][value="auto"]')).toBeChecked();
+  await expectTheme(page, "dark");
   await page.emulateMedia({ colorScheme: "light" });
-  expect(await readBackground()).toBe("rgb(233, 212, 176)");
+  await expectTheme(page, "light");
 });
 
-test("the page offers a maple icon in light mode and a walnut one in dark mode", async ({
+test("choosing Walnut or Maple overrides the phone, and the choice stays after a reload", async ({
   page,
 }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await openApp(page);
-  const homeScreenIcon = page.locator("#homeScreenIcon");
-  await expect(homeScreenIcon).toHaveAttribute("href", "icon-light-180.png");
+  await chooseAppearance(page, "Walnut");
+  await expectTheme(page, "dark");
+  await page.reload();
+  expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe("dark");
+  await expectTheme(page, "dark");
+
   await page.emulateMedia({ colorScheme: "dark" });
-  await expect(homeScreenIcon).toHaveAttribute("href", "icon-180.png");
+  await chooseAppearance(page, "Maple");
+  await expectTheme(page, "light");
+  await chooseAppearance(page, "System");
+  await expectTheme(page, "dark");
+});
+
+test("each appearance choice shows the home-screen icon it offers", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const choices = page.locator(".appearance-choice");
+  const icons = {
+    System: ["icon-light-180.png", "icon-180.png"],
+    Maple: ["icon-light-180.png"],
+    Walnut: ["icon-180.png"],
+  };
+  for (const [name, sources] of Object.entries(icons)) {
+    const images = choices.filter({ hasText: name }).locator("img");
+    await expect(images).toHaveCount(sources.length);
+    for (const [index, source] of sources.entries()) {
+      await expect(images.nth(index)).toHaveAttribute("src", source);
+      expect(
+        await images
+          .nth(index)
+          .evaluate((image) => /** @type {HTMLImageElement} */ (image).naturalWidth),
+      ).toBeGreaterThan(0);
+    }
+  }
+});
+
+test("changing the appearance says how to match the home-screen icon", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  const note = page.locator("#appearanceNote");
+  await expect(note).toBeHidden();
+  await page.getByRole("radio", { name: "Walnut" }).check();
+  await expect(note).toBeVisible();
+  await expect(note).toHaveText(/Apple sets a home-screen icon only when the page is added/);
+});
+
+test("the page serves both themes' icons", async ({ page }) => {
+  await openApp(page);
   for (const href of ["icon-180.png", "icon-light-180.png", "icon.svg", "icon-light.svg"]) {
     const answer = await page.request.get(href);
     expect(answer.ok(), href).toBe(true);
