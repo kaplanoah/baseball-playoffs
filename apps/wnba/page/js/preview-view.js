@@ -13,14 +13,13 @@ import {
   renderSheetPart,
   renderTapeTeams,
 } from "./sheet-parts.js";
-import { ROUNDS } from "./snapshot.js";
 
-// The game sheet's preview for a game that hasn't started: the two teams' meetings this season,
+// The game sheet's preview for a game that hasn't started: the two teams' meetings this regular season,
 // their seasons side by side, and each team's leading scorers. Until it loads, each part holds its
 // shape with placeholders.
 
 /** @typedef {{ team: string, score: number }} MeetingSide */
-/** @typedef {{ id: string, start: string, round: number | null, number: number | null, away: MeetingSide, home: MeetingSide }} Meeting */
+/** @typedef {{ id: string, start: string, away: MeetingSide, home: MeetingSide }} Meeting */
 /** @typedef {{ wins: number, losses: number, pointsFor: number, pointsAgainst: number, margin: number, home: string, road: string, lastTen: string }} TeamSeason */
 /** @typedef {{ id: number, firstName: string, lastName: string, games: number, points: number, rebounds: number, assists: number }} Leader */
 /** @typedef {{ team: string, season: TeamSeason | null, leaders: Leader[] | null }} PreviewSide */
@@ -44,9 +43,6 @@ function renderMeeting(meeting) {
   const winnerPlace = findWinner(meeting);
   const winner = meeting[winnerPlace];
   const loser = meeting[winnerPlace === "home" ? "away" : "home"];
-  const where = meeting.round
-    ? html`<span class="meeting-round">${ROUNDS[meeting.round].shortName} G${meeting.number}</span>`
-    : html`<span>${winnerPlace === "home" ? "at home" : "on the road"}</span>`;
   return html`<li>
     <span class="meeting-day tabular">${formatShortDate(new Date(meeting.start))}</span>
     <span class="meeting-result"
@@ -54,20 +50,17 @@ function renderMeeting(meeting) {
         >${winner.score}-${loser.score}</span
       ></span
     >
-    ${where}
+    <span>${winnerPlace === "home" ? "at home" : "on the road"}</span>
   </li>`;
 }
 
-// The season series is the regular season's meetings; the playoffs keep their own count.
 /**
  * @param {Meeting[]} meetings
  * @param {Preview} preview
  */
 function describeSeasonSeries(meetings, preview) {
-  const regular = meetings.filter((meeting) => !meeting.round);
-  if (!regular.length) return false;
   const countWins = (team) =>
-    regular.filter((meeting) => meeting[findWinner(meeting)].team === team).length;
+    meetings.filter((meeting) => meeting[findWinner(meeting)].team === team).length;
   const [away, home] = SIDES.map((place) => countWins(preview[place].team));
   if (away === home) return `Season series split ${away}-${home}`;
   const leader = away > home ? preview.away.team : preview.home.team;

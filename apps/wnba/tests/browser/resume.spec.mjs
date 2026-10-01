@@ -1,3 +1,4 @@
+import { NEXT_RELEASE, serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 import { test, expect, openApp } from "./harness.mjs";
 
 const MINUTE_MS = 60 * 1000;
@@ -7,6 +8,23 @@ const MINUTE_MS = 60 * 1000;
 const markPage = (page) => page.evaluate(() => Object.assign(window, { isSameLoad: true }));
 /** @param {import("@playwright/test").Page} page */
 const isSameLoad = (page) => page.evaluate(() => "isSameLoad" in window);
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {() => Promise<unknown>} action
+ */
+async function expectReload(page, action) {
+  const reloaded = page.waitForEvent("load");
+  await action();
+  await reloaded;
+  expect(await isSameLoad(page)).toBe(false);
+}
+
+/** @param {import("@playwright/test").Page} page */
+const comeBack = (page) => page.evaluate(() => dispatchEvent(new Event("focus")));
+
+/** @param {import("@playwright/test").Page} page */
+const waitForTick = (page) => page.clock.runFor(15 * 1000);
 
 /**
  * The phone suspends the page without saying so, and it wakes up this much later.
@@ -81,4 +99,65 @@ test("a page whose first load failed loads the last season once the store answer
 
   await expect(findFinal(page)).toContainText("Liberty win 2-0");
   await expect(page.locator("#stamp")).not.toContainText("Can't reach the page's server");
+});
+
+test("a page coming back reloads itself once a deploy has replaced it", async ({ page }) => {
+  const served = await serveReleases(page);
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  await expectReload(page, () => comeBack(page));
+});
+
+test("a page coming back whose release check fails tries again until it finds the deploy", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  served.failures = 2;
+  await comeBack(page);
+  await expect.poll(() => served.requests).toBe(2);
+  await waitForTick(page);
+  await expect.poll(() => served.requests).toBe(3);
+  expect(await isSameLoad(page)).toBe(true);
+
+  await expectReload(page, () => waitForTick(page));
+});
+
+test("a release check that never answers gives up, and the next tick tries again", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  served.isHanging = true;
+  await comeBack(page);
+  await expect.poll(() => served.requests).toBe(2);
+  served.isHanging = false;
+
+  await expectReload(page, () => page.clock.runFor(30 * 1000));
+});
+
+test("a page whose first release check failed still reloads for a later deploy", async ({
+  page,
+}) => {
+  const served = await serveReleases(page);
+  served.failures = 1;
+  await openApp(page);
+  await expect.poll(() => served.requests).toBe(1);
+  await waitForTick(page);
+  await expect.poll(() => served.requests).toBe(3);
+  await markPage(page);
+
+  served.release = NEXT_RELEASE;
+  await expectReload(page, () => comeBack(page));
 });

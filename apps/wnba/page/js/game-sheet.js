@@ -5,7 +5,7 @@
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { watchGameOpens } from "#shared/game-row.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
-import { closeOnSwipeDown, closeSheet } from "#shared/sheet-swipe.js";
+import { openSheet, wireSheet } from "#shared/sheet.js";
 import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
@@ -150,20 +150,11 @@ function showGame(id) {
   refreshDetails();
 }
 
-// A line under the pinned header shows once the sheet has scrolled under it.
-function markScrolled() {
-  const dialog = findDialog();
-  dialog.querySelector(".sheet-top").classList.toggle("scrolled", dialog.scrollTop > 0);
-}
-
 /** @param {string} id */
 function openGameSheet(id) {
   if (!findGame(id)) return;
   showGame(id);
-  const dialog = findDialog();
-  if (!dialog.open) dialog.showModal();
-  dialog.scrollTop = 0;
-  markScrolled();
+  openSheet(findDialog());
 }
 
 /**
@@ -198,11 +189,6 @@ function forgetGame() {
 export function startGameSheet() {
   const dialog = findDialog();
   watchGameOpens(findElement("gamePager"), { open: openFromRow, prepare: prepareFromRow });
-  findElement("gameDoneBtn").addEventListener("click", () => closeSheet(dialog));
-  dialog.addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) closeSheet(dialog);
-  });
+  wireSheet(dialog, { doneButton: findElement("gameDoneBtn") });
   dialog.addEventListener("close", forgetGame);
-  dialog.addEventListener("scroll", markScrolled);
-  closeOnSwipeDown(dialog);
 }

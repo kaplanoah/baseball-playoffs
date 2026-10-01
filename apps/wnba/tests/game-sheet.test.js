@@ -140,15 +140,14 @@ test("each team's top three scorers show, and a live game flags a player in foul
   assert.ok(!finalWings.some((row) => /fouls/.test(row)));
 });
 
-test("a preview lists the meetings, each by its winner, with the regular season's series", () =>
+test("a preview lists the regular season's meetings, each by its winner, with the season series", () =>
   checkInTimeZone(EASTERN, () => {
     const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
     const text = readText(renderPreview(preview));
     assert.match(text, /Meetings Fever won the season series 2-1/);
-    assert.match(text, /Sep 29 Fever 99-89 1st Rd G2/);
-    assert.match(text, /Sep 27 Aces 102-85 1st Rd G1/);
     assert.match(text, /Aug 6 Aces 86-84 on the road/);
     assert.match(text, /Jul 12 Fever 109-75 on the road/);
+    assert.doesNotMatch(text, /Sep 2\d|1st Rd/);
   }));
 
 test("a preview compares the season stats, the visitors on the road and the hosts at home, with no footnote", () => {
