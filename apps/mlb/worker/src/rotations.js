@@ -1,4 +1,5 @@
-import { addDays, readMlbTeamId } from "../../page/js/snapshot.js";
+import { addDays } from "#shared/days.js";
+import { readMlbTeamId } from "../../page/js/snapshot.js";
 import { DATE_RULE, fetchMlbJson, readDateParam } from "./mlb.js";
 import { describeError, respondJson } from "../../../../shared/worker/responses.js";
 

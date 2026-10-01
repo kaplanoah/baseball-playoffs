@@ -1,5 +1,6 @@
 import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
+import { readEasternDay } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fetchLive, isReadableLive } from "./live-fetch.js";
@@ -25,7 +26,6 @@ import {
   watchStandings,
 } from "./season-store.js";
 import { composeState, hasSpringStarted, session, readSeasonYear } from "./session.js";
-import { readEasternDay } from "./snapshot.js";
 import { startSettings } from "./settings.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";

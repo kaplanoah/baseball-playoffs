@@ -1,5 +1,6 @@
 import * as LogChanges from "../../page/js/changes.js";
 import { isSameJson } from "#shared/compare.js";
+import { readEasternDay } from "#shared/days.js";
 import * as Readings from "../../page/js/readings.js";
 import { guessSeasonYear, hasSpringStarted } from "../../page/js/session.js";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
@@ -11,7 +12,7 @@ import * as MLBSnapshot from "../../page/js/snapshot.js";
 // Before April the new season starts on the day MLB says spring training does.
 export async function loadCurrentSnapshot(loadSnapshot, now) {
   const guess = guessSeasonYear(now);
-  const { year } = MLBSnapshot.readEasternDay(now);
+  const { year } = readEasternDay(now);
   if (year !== guess) {
     const upcoming = await loadSnapshot(year);
     if (hasSpringStarted(upcoming.springStart, now)) return upcoming;

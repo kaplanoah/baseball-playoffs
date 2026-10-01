@@ -1,4 +1,5 @@
-import { SEASON_GAMES, readEasternDay, hasWonDivision } from "./snapshot.js";
+import { readEasternDay } from "#shared/days.js";
+import { SEASON_GAMES, hasWonDivision } from "./snapshot.js";
 
 export const MAX_LOG = 50;
 
