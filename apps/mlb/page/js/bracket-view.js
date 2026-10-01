@@ -1,7 +1,7 @@
 import { ROUND_LABEL, buildBracket, isEliminated, listSlotCandidates } from "./bracket.js";
 import { listRankedOrder, renderRankTag, nameTeam, renderTeamTag } from "./clubs.js";
 import { readGameDay } from "./dates.js";
-import { countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
+import { formatClockTime, formatShortDate, formatShortWeekday, nameDay } from "#shared/days.js";
 import { describeInning, renderOutLights } from "./games-view.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { findOpeningRound, watchOpeningRound } from "#shared/opening-round.js";
@@ -101,13 +101,10 @@ function drawConnector(x1, y1, x2, y2) {
   return `M ${alignToPixel(x1)} ${alignToPixel(y1)} H ${alignToPixel(midX)} V ${alignToPixel(y2)} H ${alignToPixel(x2)}`;
 }
 
-function describeGameDay(day, now) {
-  const daysAway = countDaysBetween(now, day);
-  if (daysAway === 0) return "today";
-  if (daysAway === 1) return "tomorrow";
-  const weekday = day.toLocaleDateString(undefined, { weekday: "short" });
-  return `${weekday} ${formatShortDate(day)}`;
-}
+const formatWeekdayBeforeDate = (day) => `${formatShortWeekday(day)} ${formatShortDate(day)}`;
+
+const describeGameDay = (day, now) =>
+  nameDay(day, now, { nearDays: [0, 1], nameOtherDay: formatWeekdayBeforeDate });
 
 function describeStartTime(game) {
   const start = new Date(game.at);

@@ -1,7 +1,7 @@
+import { nameDay } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import {
   describeFinishedDay,
-  formatStampDay,
   renderStampLine,
   renderStampNow,
   renderStampTime,
@@ -135,7 +135,7 @@ const findNextGame = (games, seriesById) =>
 function renderNextTipOff(game, now) {
   const when = game.isTimeSet
     ? renderStampWhen(new Date(readStart(game)), now)
-    : formatStampDay(/** @type {Date} */ (readGameDay(game)), now);
+    : nameDay(/** @type {Date} */ (readGameDay(game)), now);
   return renderStampLine("Next tip-off", when, formatMatchup(game));
 }
 

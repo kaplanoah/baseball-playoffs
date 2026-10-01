@@ -1,6 +1,6 @@
 import { listRankedOrder, renderRankTag, renderTeamTag } from "./clubs.js";
 import { readGameDay } from "./dates.js";
-import { DAYS, countDaysBetween, formatClockTime } from "#shared/days.js";
+import { formatClockTimeWithoutMeridiem, formatShortWeekday, nameDay } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
 import { session } from "./session.js";
@@ -91,9 +91,12 @@ export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
   const start = new Date(next.at);
   const gameDay = readGameDay(next);
   if (!gameDay) return EMPTY_NEXT_CELL;
-  const day =
-    countDaysBetween(gameDay, new Date(now)) === 0 ? "Today" : DAYS[gameDay.getDay()].slice(0, 3);
-  const time = next.tbd ? "" : " " + formatClockTime(start).replace(/\s?[AP]M$/i, "");
+  const day = nameDay(gameDay, new Date(now), {
+    nearDays: [0],
+    nameOtherDay: formatShortWeekday,
+    isCapitalized: true,
+  });
+  const time = next.tbd ? "" : ` ${formatClockTimeWithoutMeridiem(start)}`;
   return html`<td class="next-cell">${day}${time} ${next.home ? "vs" : "@"} ${next.opp || "TBD"}</td>`;
 }
 

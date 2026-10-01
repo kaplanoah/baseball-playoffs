@@ -1,6 +1,7 @@
 import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
+import { nameDay } from "#shared/days.js";
 import { html } from "#shared/html.js";
-import { fillStamp, formatStampDay, renderStampLine, renderStampWhen } from "#shared/stamp.js";
+import { fillStamp, renderStampLine, renderStampWhen } from "#shared/stamp.js";
 import { findStandingsRow } from "./race.js";
 import { session } from "./session.js";
 import { formatStampName, describeLastStamp, describeUpNextGame } from "./stamp.js";
@@ -45,7 +46,7 @@ function renderLiveLines() {
     lines.push(
       renderStampLine(
         "Next first pitch",
-        next.tbd ? formatStampDay(at) : renderStampWhen(at),
+        next.tbd ? nameDay(at, context.now) : renderStampWhen(at, context.now),
         next.text,
       ),
     );

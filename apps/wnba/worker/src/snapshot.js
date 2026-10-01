@@ -1,5 +1,5 @@
 import * as WNBASnapshot from "../../page/js/snapshot.js";
-import { readEasternDate } from "../../page/js/days.js";
+import { readEasternDay } from "#shared/days.js";
 import { serveSeasonSnapshot } from "../../../../shared/worker/seasons.js";
 import { createReusedLoader, fetchUpstream } from "../../../../shared/worker/upstream.js";
 import { FEED_HEADERS, fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
@@ -30,7 +30,7 @@ const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
 const BACKUP_HEADERS = { accept: "application/json", "user-agent": FEED_HEADERS["user-agent"] };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const formatEspnDay = (ms) => readEasternDate(ms).replaceAll("-", "");
+const formatEspnDay = (ms) => readEasternDay(ms).date.replaceAll("-", "");
 
 // ESPN's own links are plain http, so they're read over https instead.
 const upgradeLink = (link) => String(link).replace(/^http:/, "https:");
