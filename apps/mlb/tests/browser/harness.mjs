@@ -3,6 +3,7 @@ import { test as base, expect } from "@playwright/test";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
+import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
 const loadFixture = (name) =>
   JSON.parse(readFileSync(new URL(`../fixtures/${name}.json`, import.meta.url), "utf8"));
@@ -168,6 +169,9 @@ export async function openApp(
   return {
     readDocument: async (path) => (await context.ctx.storage.get(path)) ?? null,
     writeFromAnotherDevice: (path, data) => seasonStore.docs.write(path, data),
+    // A change the page's socket never hears of, as when a phone sleeps through it.
+    writeWhileAway: (path, data) => context.ctx.storage.put(path, data),
+    holdStore: () => holdStore(page),
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,

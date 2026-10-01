@@ -185,9 +185,9 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   }
 
   // A phone suspends a page in the background, and its socket can still look open after
-  // missing pushes, so coming back always reads again, and reconnects at once if needed.
-  function catchUpWhenVisible() {
-    if (document.hidden || !hasWatchers()) return;
+  // missing pushes, so a page coming back reads again, and reconnects at once if needed.
+  function catchUp() {
+    if (!hasWatchers()) return;
     refreshWatchedPaths();
     if (socket) return;
     clearTimeout(reconnectTimer);
@@ -195,7 +195,6 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     reconnectDelay = RECONNECT_FIRST_MS;
     openSocket();
   }
-  document.addEventListener("visibilitychange", catchUpWhenVisible);
 
   function watchPath(path, onNext, onError) {
     const listener = { onNext, onError };
@@ -256,5 +255,5 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     };
   }
 
-  return { doc, collection };
+  return { doc, collection, catchUp };
 }

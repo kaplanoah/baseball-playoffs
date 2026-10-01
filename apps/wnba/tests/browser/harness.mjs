@@ -3,6 +3,7 @@ import { test as base, expect } from "@playwright/test";
 import { buildSnapshot } from "../../page/js/snapshot.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
+import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
 const AFTERNOON = JSON.parse(
   readFileSync(new URL("../fixtures/2026-09-30-afternoon.json", import.meta.url), "utf8"),
@@ -76,11 +77,20 @@ export async function openApp(page) {
   await page.clock.install({ time: new Date(NOW) });
   await page.goto("/");
 
+  const readSeason = async () => structuredClone(await context.ctx.storage.get("seasons/2026"));
+
   return {
     /** @param {(season: any) => any} change */
     changeSeason: async (change) => {
-      const season = await context.ctx.storage.get("seasons/2026");
-      await store.docs.write("seasons/2026", change(structuredClone(season)));
+      await store.docs.write("seasons/2026", change(await readSeason()));
     },
+    /**
+     * A change the page's socket never hears of, as when a phone sleeps through it.
+     * @param {(season: any) => any} change
+     */
+    changeSeasonWhileAway: async (change) => {
+      await context.ctx.storage.put("seasons/2026", change(await readSeason()));
+    },
+    holdStore: () => holdStore(page),
   };
 }
