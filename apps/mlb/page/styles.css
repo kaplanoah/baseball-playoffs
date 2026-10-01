@@ -21,11 +21,11 @@
   --glass-light: 255, 255, 255;
   --glass-solid: rgba(28, 44, 36, 0.94);
   --glass-contrast: #000;
-  --game-row-height: 76px;
-  --game-side-offset: 0.5px;
-  --game-label-offset: -23px;
-  --game-headline-offset: 1.5px;
-  --game-status-offset: 20px;
+  --game-row-height: 63.5px;
+  --game-side-offset: 1px;
+  --game-label-offset: -21px;
+  --game-headline-offset: -1px;
+  --game-status-offset: 19.5px;
   color-scheme: dark;
 }
 * {
