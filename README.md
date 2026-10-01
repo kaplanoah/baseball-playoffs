@@ -185,8 +185,9 @@ look at it. The bundle records its version, the commit it was built from, and
 when, and the page's settings show them.
 
 Code every app uses lives in `shared/`: the page's tab bar and settings sheet
-(their styles in `chrome.css`), catching up on return, showing what the page
-last showed while it loads, and store client in
+(their styles in `chrome.css`), the sheet a tap on a game opens (`sheet.css`),
+catching up on return, showing what the page last showed while it loads, and
+store client in
 `shared/page/`, and the Worker's routing and push
 notifications in `shared/worker/`. A change there reaches every app. The root
 `worker/` holds the tooling every app shares: building, versioning, deploying,

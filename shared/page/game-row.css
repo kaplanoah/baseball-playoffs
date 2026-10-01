@@ -11,6 +11,7 @@
  *   --game-headline-offset   the time or score
  *   --game-status-offset     the status under the time or score
  * Without a label, the time or score and its status center as a pair, as far apart as under one.
+ * Its lines and the hover on a row that opens take chrome.css's --divider and --ink.
  */
 
 .game-list {
@@ -93,4 +94,22 @@
 }
 .game-status {
   translate: 0 var(--status-offset);
+}
+/* An action that covers the whole row, so a tap anywhere on the game opens it. */
+.game-open {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.game-row:has(> .game-open) {
+  transition: background 0.15s;
+}
+@media (hover: hover) {
+  .game-row:has(> .game-open:hover) {
+    background: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
 }
