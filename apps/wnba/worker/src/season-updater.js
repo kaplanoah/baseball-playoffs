@@ -1,17 +1,15 @@
 import { isSameJson } from "#shared/compare.js";
 import { ROUNDS } from "../../page/js/snapshot.js";
 import { TEAMS } from "../../page/js/teams.js";
+import { capNotifications } from "../../../../shared/worker/notifications.js";
 
 // Keeps the current season's saved data up to date from the league, whether or not a page is
 // open, and says which finished games and series are news. `docs` reads and writes the store's
 // documents: read(key), list(collection), write(key, doc), and remove(key).
 
-export const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
-const STATUS_KEY = "live/status";
 const SAVED_FIELDS = ["games", "series", "standings", "leaders"];
 // A game or series found finished long after it ended, as after a gap in updates, isn't news.
 const RECENT_MS = 12 * 60 * 60 * 1000;
-const MAX_NOTIFIED = 4;
 
 const nameSeasonKey = (year) => `seasons/${year}`;
 
@@ -86,18 +84,7 @@ export function describeSnapshotStatus(snapshot) {
   };
 }
 
-// Stored so updates that stop can be diagnosed without the Worker's logs.
-export async function saveStatus(docs, status, now) {
-  const stored = await docs.read(STATUS_KEY);
-  const current = { error: "", detail: "", standIn: "", write: "", ...status };
-  const isSame =
-    stored &&
-    stored.error === current.error &&
-    stored.detail === current.detail &&
-    (stored.standIn ?? "") === current.standIn &&
-    stored.write === current.write;
-  if (!isSame) await docs.write(STATUS_KEY, { ...current, at: new Date(now).toISOString() });
-}
+export const STATUS_FIELDS = { standIn: "" };
 
 const nameTeam = (code) => TEAMS[code]?.name ?? code;
 
@@ -138,14 +125,5 @@ export function listNotifications({ before, after, now }) {
       body: describeSeriesStanding(seriesById.get(game.series)),
       tag: `final:${game.id}`,
     }));
-  if (messages.length <= MAX_NOTIFIED) return messages;
-  const shown = messages.slice(0, MAX_NOTIFIED - 1);
-  return [
-    ...shown,
-    {
-      title: `${messages.length - shown.length} more final scores`,
-      body: "Open the page to see them all.",
-      tag: `more:${messages[shown.length].tag}`,
-    },
-  ];
+  return capNotifications(messages, (count) => `${count} more final scores`);
 }

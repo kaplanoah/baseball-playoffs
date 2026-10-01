@@ -1,13 +1,8 @@
 import * as WNBASnapshot from "../../page/js/snapshot.js";
 import { readEasternDate } from "../../page/js/days.js";
-import { describeError, respondJson } from "../../../../shared/worker/responses.js";
-import {
-  FEED_HEADERS,
-  fetchWnbaJson,
-  readSeasonParam,
-  SEASON_RULE,
-  UPSTREAM_TIMEOUT_MS,
-} from "./wnba.js";
+import { serveSeasonSnapshot } from "../../../../shared/worker/seasons.js";
+import { createReusedLoader, fetchUpstream } from "../../../../shared/worker/upstream.js";
+import { FEED_HEADERS, fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
 
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
@@ -50,7 +45,6 @@ export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
 } = {}) {
-  const recentSnapshots = new Map();
   const slowFeeds = new Map();
   let lastFinals = null;
 
@@ -76,10 +70,9 @@ export function createSnapshotServer({
   }
 
   async function fetchBackupJson(url) {
-    const response = await fetchImpl(url, {
+    const response = await fetchUpstream(fetchImpl, url, {
       headers: BACKUP_HEADERS,
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      cf: { cacheTtl: EDGE_CACHE_SECONDS, cacheEverything: true },
+      cacheSeconds: EDGE_CACHE_SECONDS,
     });
     if (!response.ok) throw new Error(`ESPN answered ${response.status}`);
     return response.json();
@@ -129,30 +122,23 @@ export function createSnapshotServer({
     return { scoreboard, schedule, bracket, standings, players, backup };
   }
 
-  function loadSnapshot(season) {
-    const requestedAt = now();
-    const cached = recentSnapshots.get(season);
-    if (cached && requestedAt - cached.at < SNAPSHOT_REUSE_MS) return cached.promise;
-    const promise = fetchResponses(season).then((responses) =>
-      WNBASnapshot.buildSnapshot(responses, { season, now: requestedAt }),
-    );
-    recentSnapshots.set(season, { at: requestedAt, promise });
-    promise.catch(() => {
-      if (recentSnapshots.get(season)?.promise === promise) recentSnapshots.delete(season);
-    });
-    return promise;
-  }
+  const loadSnapshot = createReusedLoader(
+    (season, requestedAt) =>
+      fetchResponses(season).then((responses) =>
+        WNBASnapshot.buildSnapshot(responses, { season, now: requestedAt }),
+      ),
+    SNAPSHOT_REUSE_MS,
+    now,
+  );
 
   /** @param {URL} url */
-  async function serveSnapshot(url) {
-    const season = readSeasonParam(url.searchParams, now());
-    if (season == null) return respondJson({ error: SEASON_RULE }, 400);
-    try {
-      return respondJson(await loadSnapshot(season));
-    } catch (error) {
-      return respondJson({ error: `Couldn't read the WNBA: ${describeError(error)}` }, 502);
-    }
-  }
+  const serveSnapshot = (url) =>
+    serveSeasonSnapshot(url, {
+      seasonParam: SEASON_PARAM,
+      loadSnapshot,
+      leagueName: "the WNBA",
+      now,
+    });
 
   return { loadSnapshot, serveSnapshot };
 }
