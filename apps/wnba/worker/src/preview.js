@@ -1,24 +1,20 @@
-import {
-  listTeamLeaders,
-  readPlayoffGameId,
-  readStatsTable,
-  REQUESTS,
-} from "../../page/js/snapshot.js";
+import { listTeamLeaders, readStatsTable, REQUESTS } from "../../page/js/snapshot.js";
 import { findTeamCode, TEAMS } from "../../page/js/teams.js";
 import { respondJson } from "../../../../shared/worker/responses.js";
 import { fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
 
 // Reads the league for a game that hasn't started, for the game sheet: the two teams' meetings
-// this season, how their seasons compare, and each team's leading scorers.
+// this regular season, how their seasons compare, and each team's leading scorers.
 
 // The schedule, standings, and season averages change at most a few times a day, so each answer
 // is kept an hour once it's checked. Cloudflare's edge would keep a refusal for the hour too, and
 // the page's snapshot reads the same addresses.
 const PREVIEW_REUSE_MS = 60 * 60 * 1000;
 const LEADERS_PER_TEAM = 3;
-// Regular-season games, Commissioner's Cup games among them, and playoff games. The rest are the
-// preseason, the All-Star Game, and the Cup's final, which aren't meetings that count.
-const MEETING_ID = /^10[24]/;
+// Regular-season games, Commissioner's Cup games among them. The game sheet's header already counts
+// a playoff series, and the preseason, the All-Star Game, and the Cup's final aren't meetings that
+// count.
+const MEETING_ID = /^102/;
 
 // Where each feed's answer keeps its data.
 const FEED_DATA = {
@@ -52,17 +48,12 @@ function findSeason(standings, team) {
 
 const describeMeetingSide = (side) => ({ team: side.teamTricode, score: side.score });
 
-function describeMeeting(game) {
-  const place = readPlayoffGameId(game.gameId);
-  return {
-    id: String(game.gameId),
-    start: game.gameDateTimeUTC ?? game.gameTimeUTC ?? null,
-    round: place?.round ?? null,
-    number: place?.game ?? null,
-    away: describeMeetingSide(game.awayTeam),
-    home: describeMeetingSide(game.homeTeam),
-  };
-}
+const describeMeeting = (game) => ({
+  id: String(game.gameId),
+  start: game.gameDateTimeUTC ?? game.gameTimeUTC ?? null,
+  away: describeMeetingSide(game.awayTeam),
+  home: describeMeetingSide(game.homeTeam),
+});
 
 // The schedule only ever holds the current season, so another season's meetings aren't in it.
 function listMeetings(schedule, season, teams) {

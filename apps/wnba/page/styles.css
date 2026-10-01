@@ -784,14 +784,6 @@ table.players td.minutes {
   font-weight: 700;
   color: var(--ink);
 }
-.meeting-round {
-  font-family: var(--display);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--teal);
-}
 
 /* Bracket: the rounds left to right, each series beside the two it follows, every round as wide as
    the next. The first round's seed labels sit in room of their own to its left. On a phone each
