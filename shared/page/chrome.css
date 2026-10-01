@@ -170,20 +170,20 @@ section.view.active {
 .sheet-grabber {
   display: none;
 }
-.settings-head {
+.sheet-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   min-height: 44px;
 }
-.settings-title {
+.sheet-title {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
 }
-.settings-head h2 {
+.sheet-head h2 {
   font-size: 1.05rem;
   font-weight: 400;
   text-transform: uppercase;
@@ -200,7 +200,7 @@ section.view.active {
 .settings-version[hidden] {
   display: none;
 }
-.settings-done {
+.sheet-done {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -214,15 +214,15 @@ section.view.active {
   color: var(--ink-dim);
   cursor: pointer;
 }
-.settings-done:hover {
+.sheet-done:hover {
   background: var(--bg);
 }
-.settings-done svg {
+.sheet-done svg {
   width: 20px;
   height: 20px;
 }
 /* Wide screens show only the close icon; the label still names the button. */
-.settings-done-label {
+.sheet-done-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -326,9 +326,6 @@ section.view.active {
   .switch-knob {
     transition: none;
   }
-  .settings-panel[open] {
-    animation: none;
-  }
   .settings-btn,
   .sheet-top {
     transition: none;
@@ -362,8 +359,10 @@ section.view.active {
     border-radius: 22px 22px 0 0;
     box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
   }
-  .settings-panel[open] {
-    animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  @media (prefers-reduced-motion: no-preference) {
+    .settings-panel[open] {
+      animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
   }
   .settings-body {
     padding-inline: 18px;
@@ -381,18 +380,18 @@ section.view.active {
     border-radius: 3px;
     background: color-mix(in srgb, var(--ink) 25%, transparent);
   }
-  .settings-head {
+  .sheet-head {
     position: relative;
     justify-content: center;
   }
-  .settings-title {
+  .sheet-title {
     align-items: center;
   }
-  .settings-head h2 {
+  .sheet-head h2 {
     font-size: 0.9rem;
   }
   /* The swipe closes the sheet, so the button is left only for screen readers. */
-  .settings-done {
+  .sheet-done {
     position: absolute;
     width: 1px;
     height: 1px;

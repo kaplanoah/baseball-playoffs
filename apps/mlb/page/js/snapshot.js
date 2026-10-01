@@ -35,6 +35,9 @@ const MLB_TEAM = {
   147: "NYY",
   158: "MIL",
 };
+// Postseason placeholders have made-up ids, so this is null for them.
+export const readClubId = (mlbTeamId) => MLB_TEAM[mlbTeamId] || null;
+
 const MLB_DIVISION = {
   200: "AL West",
   201: "AL East",
@@ -474,7 +477,7 @@ function normalizeGame(game) {
     const side = (game.teams && game.teams[key]) || {};
     const team = side.team || {};
     return {
-      id: MLB_TEAM[team.id] || null,
+      id: readClubId(team.id),
       name: team.name || "",
       score: side.score,
       starter: side.probablePitcher?.id ?? null,
@@ -637,7 +640,7 @@ function listStandingsRows(response) {
     const division = MLB_DIVISION[divisionRecord.division && divisionRecord.division.id];
     if (!division) continue;
     for (const record of divisionRecord.teamRecords || []) {
-      const id = MLB_TEAM[record.team && record.team.id];
+      const id = readClubId(record.team?.id);
       if (id) rows.push({ id, division, record });
     }
   }

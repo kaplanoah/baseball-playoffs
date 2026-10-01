@@ -861,6 +861,19 @@ test("games list: a game still to play names its starters, with their arm and ER
   assert.match(rendered, /title="Throws left-handed">L</);
   assert.match(rendered, /<span class="starter home" title="Starting pitcher">/);
   assert.equal(rendered.match(/class="game-row pre with-starters"/g)?.length, 2);
+  const button =
+    /<button type="button" class="game-open" aria-label="([^"]*)" data-game="([^"]*)">/.exec(
+      rendered,
+    );
+  assert.equal(button[1], "Pitching matchup: Tolle vs Schlittler");
+  const details = JSON.parse(button[2].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
+  assert.deepEqual(details, {
+    date: "2026-09-29",
+    start: "2026-09-30T00:08:00Z",
+    away: "BOS",
+    home: "NYY",
+    starters: slate.today.games[0].starters,
+  });
 });
 
 test("games list: a game without a named starter keeps its row as it was", () => {
@@ -881,6 +894,7 @@ test("games list: a game without a named starter keeps its row as it was", () =>
   const rendered = String(renderGameList(slate, "today"));
   assert.match(rendered, /class="game-row pre"/);
   assert.doesNotMatch(rendered, /class="starter/);
+  assert.doesNotMatch(rendered, /game-open/);
 });
 
 test("games list: an empty list says so without a closing period", () => {

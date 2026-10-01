@@ -98,7 +98,13 @@ test("without the key, or without an APP_KEY, there is no page", async () => {
 });
 
 test("nothing but robots.txt answers outside the key", async () => {
-  for (const path of ["/", "/mcp", "/snapshot?season=2026", "/store/seasons/2026"]) {
+  for (const path of [
+    "/",
+    "/mcp",
+    "/snapshot?season=2026",
+    "/pitcher?id=1",
+    "/store/seasons/2026",
+  ]) {
     const response = await requestPage(path);
     assert.equal(response.status, 404, path);
     assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow", path);
@@ -110,4 +116,11 @@ test("the page's snapshot route checks the season before reading MLB", async () 
   assert.equal(response.status, 400);
   assert.match((await response.json()).error, /season must be a whole year/);
   assert.equal((await requestPage("/k3y/snapshot", { method: "POST" })).status, 405);
+});
+
+test("the pitcher route checks the pitcher before reading MLB, and answers only GET", async () => {
+  const response = await requestPage("/k3y/pitcher?id=nope&season=2026");
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /id must be an MLB person id/);
+  assert.equal((await requestPage("/k3y/pitcher?id=1", { method: "POST" })).status, 405);
 });

@@ -17,7 +17,8 @@ them.
 A private web page that tracks the MLB postseason. It shows the bracket, your
 ranking of who you want to win the World Series, the standings, each team's
 previous, current and next game with its starting pitchers, and scores that update
-automatically.
+automatically. Tap a game to compare its starters: how they rank among the season's starters,
+what they throw, and how their last starts went.
 
 A Cloudflare Worker serves the page and saves your ranking. It also reads MLB
 on its own, every 30 seconds during games, so the standings and updates stay
