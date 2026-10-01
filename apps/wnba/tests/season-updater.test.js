@@ -69,6 +69,37 @@ test("the season saves its games, series, standings, and top scorers, and only w
   assert.equal(saved.leaders.length, 15);
 });
 
+/**
+ * @param {any} snapshot
+ * @param {string} state
+ */
+const setTonightsState = (snapshot, state) => ({
+  ...snapshot,
+  games: snapshot.games.map((game) => (game.id === "1042600132" ? { ...game, state } : game)),
+});
+
+const findTonight = (season) => season.games.find((game) => game.id === "1042600132");
+
+test("a game ends when it's first found final after being seen live, and keeps that end", async () => {
+  const docs = createDocs();
+  await saveSnapshot(docs, setTonightsState(SNAPSHOT, "live"));
+  const ending = { ...finishTonight(SNAPSHOT, [80, 70]), asOf: "2026-10-01T01:12:00Z" };
+  await saveSnapshot(docs, ending);
+  await saveSnapshot(docs, { ...ending, asOf: "2026-10-01T01:40:00Z" });
+  const saved = await readUpdates(docs, 2026);
+  assert.equal(findTonight(saved).end, "2026-10-01T01:12:00Z");
+});
+
+test("a game found final without being seen live has no end", async () => {
+  const docs = createDocs();
+  await saveSnapshot(docs, SNAPSHOT);
+  await saveSnapshot(docs, { ...finishTonight(SNAPSHOT, [80, 70]), asOf: "2026-10-01T04:00:00Z" });
+  const saved = await readUpdates(docs, 2026);
+  assert.equal(findTonight(saved).end, undefined);
+  const earlier = saved.games.find((game) => game.id === "1042600102");
+  assert.equal(earlier.end, undefined);
+});
+
 test("a feed that didn't answer leaves its saved field as it was", async () => {
   const docs = createDocs();
   await saveSnapshot(docs, SNAPSHOT);

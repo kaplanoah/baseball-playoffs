@@ -11,6 +11,16 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
     "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty win 2-0",
   );
   await expect(stampLines.nth(1)).toHaveText(/^Next tip-off 7:00\s?PM \u2014 Dream @ Mystics$/);
+  const [last, next] = [
+    await stampLines.nth(0).boundingBox(),
+    await stampLines.nth(1).boundingBox(),
+  ];
+  expect(next.y - (last.y + last.height)).toBeGreaterThanOrEqual(3);
+  const stampColors = await page.locator("#stamp").evaluate((stamp) => {
+    const time = stamp.querySelector("b");
+    return { line: getComputedStyle(stamp).color, time: getComputedStyle(time).color };
+  });
+  expect(stampColors.time).not.toBe(stampColors.line);
 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");

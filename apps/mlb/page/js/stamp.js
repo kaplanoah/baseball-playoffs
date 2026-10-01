@@ -1,6 +1,6 @@
-import { formatClockTime } from "#shared/days.js";
+import { html } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
-import { describeFinishedDay } from "#shared/stamp.js";
+import { describeFinishedDay, renderStampTime } from "#shared/stamp.js";
 import { TEAMS } from "./teams.js";
 
 export function formatStampName(id) {
@@ -12,15 +12,16 @@ function describeFinal(game, day) {
     awayScore > homeScore
       ? [game.away, awayScore, game.home, homeScore]
       : [game.home, homeScore, game.away, awayScore];
-  const when = `final at ${formatClockTime(new Date(game.end))}${day ? " " + day : ""}`;
-  return `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore} ${when}`;
+  const score = `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore}`;
+  return html`${score} final at ${renderStampTime(new Date(game.end))}${day ? ` ${day}` : ""}`;
 }
 function describeLive(game) {
   const [awayScore, homeScore] = game.score || [0, 0];
   return `${formatStampName(game.away)} @ ${formatStampName(game.home)} ${awayScore}-${homeScore} in the ${formatOrdinal(game.inning || 1)}`;
 }
 function describeFirstPitch(game) {
-  return `${formatStampName(game.away)} @ ${formatStampName(game.home)} first pitch at ${formatClockTime(new Date(game.start))}`;
+  const matchup = `${formatStampName(game.away)} @ ${formatStampName(game.home)}`;
+  return html`${matchup} first pitch at ${renderStampTime(new Date(game.start))}`;
 }
 function describeGame(game) {
   if (game.state === "final") return describeFinal(game);
@@ -34,7 +35,7 @@ function describeSlate(games) {
     ? `slate of ${games.length} over`
     : `slate of ${games.length} under way`;
 }
-const joinClause = (phrase, clause) => (clause ? `${phrase}, ${clause}` : phrase);
+const joinClause = (phrase, clause) => (clause ? html`${phrase}, ${clause}` : phrase);
 
 function rankGame(game, context) {
   const ranks = [game.away, game.home]
@@ -70,7 +71,7 @@ const describeFinalDay = (final, now) =>
 
 function describeLastFinal(lastFinal, now) {
   if (!lastFinal || !lastFinal.end) return "";
-  return `No games since ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
+  return html`No games since ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
 }
 
 // With three or more games, one leads the line: a fresh final, else a live game, else the latest final.
@@ -89,13 +90,12 @@ export function describeLastStamp(slate, context) {
   const started = games.filter((game) => game.state !== "pre");
   if (!started.length) return describeLastFinal(slate.lastFinal, context.now);
   const describeWithNote = (game) =>
-    describeGame(game) + ((game.state === "final" && context.seriesNote?.(game)) || "");
+    html`${describeGame(game)}${(game.state === "final" && context.seriesNote?.(game)) || ""}`;
   if (games.length <= 2) {
-    return started
+    const inOrder = started
       .slice()
-      .sort((first, second) => parseTime(first.start) - parseTime(second.start))
-      .map(describeWithNote)
-      .join(", ");
+      .sort((first, second) => parseTime(first.start) - parseTime(second.start));
+    return html`${inOrder.map((game, index) => html`${index ? ", " : ""}${describeWithNote(game)}`)}`;
   }
   return joinClause(describeWithNote(pickLeadGame(slate, started, context)), describeSlate(games));
 }

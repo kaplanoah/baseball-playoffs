@@ -504,6 +504,31 @@ test("the header says how the latest game ended and when the next one tips off, 
     ]);
   }));
 
+test("a game the Worker saw end says when, its time set apart as the next tip-off's is", () =>
+  inEastern(() => {
+    const ended = changeGame(SEASON, "1042600102", (game) => {
+      game.end = "2026-09-30T02:41:00Z";
+    });
+    assert.equal(
+      readStampLines(ended, NOW)[0],
+      "No games since Liberty 87 Lynx 71 final at 10:41 PM last night - Liberty win 2-0",
+    );
+    assert.match(
+      normalizeSpaces(renderStampLines(ended, NOW)[0]),
+      /final at <b>10:41<span class="ap">PM<\/span><\/b> last night/,
+    );
+    const endedToday = changeGame(SEASON, "1042600132", (game) => {
+      Object.assign(game, { start: "2026-09-30T17:00:00Z", state: "final", status: "Final" });
+      Object.assign(game, { end: "2026-09-30T19:10:00Z" });
+      Object.assign(game.away, { score: 80 });
+      Object.assign(game.home, { score: 70 });
+    });
+    assert.equal(
+      readStampLines(endedToday, NOW)[0],
+      "Dream 80 Mystics 70 final at 3:10 PM - Dream lead 1-0",
+    );
+  }));
+
 test("a game that ended today leads the header without its day", () =>
   inEastern(() => {
     const atAfternoon = changeGame(SEASON, "1042600132", (game) => {

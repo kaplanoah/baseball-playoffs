@@ -38,11 +38,7 @@ function renderLiveLines() {
   if (!session.state.slate) return [];
   const context = buildStampContext();
   const latest = describeLastStamp(session.state.slate, context);
-  const lines = latest
-    ? [
-        html`<span><b class="lead">${renderStampWhen(new Date(session.live.asOf))}</b>${latest}</span>`,
-      ]
-    : [];
+  const lines = latest ? [html`<span>${latest}</span>`] : [];
   const next = describeUpNextGame(session.state.slate, context);
   if (next) {
     const at = new Date(next.at);

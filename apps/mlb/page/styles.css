@@ -142,9 +142,6 @@ header.top h1 {
   margin-left: 0.5ch;
   font-size: 0.95em;
 }
-.stamp b.lead {
-  margin-right: 1.3ch;
-}
 .stamp-wrap {
   display: flex;
   align-items: center;

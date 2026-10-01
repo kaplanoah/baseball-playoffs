@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { describeLastStamp, describeUpNextGame } from "../page/js/stamp.js";
-import { normalizeSpaces } from "../../../tests/text.js";
+import { normalizeSpaces, readStampText } from "../../../tests/text.js";
 import { EASTERN, useTimeZone } from "../../../tests/time-zone.js";
 
 // The expected times below are what a viewer in Eastern time sees.
@@ -83,7 +83,7 @@ function createContext(options = {}) {
   };
 }
 const describeLast = (slate, context = createContext()) =>
-  normalizeSpaces(describeLastStamp(slate, context));
+  readStampText(describeLastStamp(slate, context));
 const describeUpNext = (slate, context = createContext()) => describeUpNextGame(slate, context);
 
 test("the night's last final, with the day's clause", () => {
@@ -140,6 +140,20 @@ test("a morning with nothing on: last night's final", () => {
     tbd: false,
     text: "Padres @ Giants, starts slate of 6",
   });
+});
+
+test("a final's time is set apart as the stamp's times are", () => {
+  const slate = {
+    today: {
+      date: TODAY,
+      games: [
+        createFinal("STL", "PIT", "12:35", [4, 1], "15:30"),
+        createPregame("CWS", "KC", "19:10"),
+      ],
+    },
+  };
+  const markup = normalizeSpaces(describeLastStamp(slate, createContext()));
+  assert.match(markup, /final at <b>3:30<span class="ap">PM<\/span><\/b>/);
 });
 
 test("early afternoon: one game on, and no next line while it is", () => {

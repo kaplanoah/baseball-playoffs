@@ -1191,7 +1191,7 @@ test("renders the bracket, standings and stamp from the Worker's snapshot", asyn
   const bracket = page.locator("#bracketWrap");
   for (const club of PLAYOFF_FIELD_2026) await expect(bracket).toContainText(club);
   await expect(page.locator("#banner")).toContainText("Highest still in");
-  await expect(page.locator("#stamp")).toContainText("Reds @ Braves 5-5 in the 5th");
+  await expect(page.locator("#stamp > span").first()).toHaveText(/^Reds @ Braves 5-5 in the 5th/);
 
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standingsWrap .div-block")).toHaveCount(8);

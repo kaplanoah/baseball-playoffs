@@ -3,6 +3,7 @@ import {
   describeFinishedDay,
   formatStampDay,
   renderStampLine,
+  renderStampTime,
   renderStampWhen,
 } from "#shared/stamp.js";
 import { readGameDay } from "./days.js";
@@ -39,22 +40,36 @@ const describeLiveGame = (game) =>
 function describeScore(game) {
   const [winner, loser] =
     game.away.score > game.home.score ? [game.away, game.home] : [game.home, game.away];
-  return `${nameTeam(winner.team)} ${winner.score} ${nameTeam(loser.team)} ${loser.score} final`;
+  return `${nameTeam(winner.team)} ${winner.score} ${nameTeam(loser.team)} ${loser.score}`;
 }
 
-// The feeds give no time a game ended, so its start stands in for that.
+// A game saved final before the Worker saw it live has no end, so only its day is known.
+/**
+ * Whether a final game ended today, and when: "at 10:41 PM last night", "at 4:02 PM", or a day.
+ * @param {Game} game
+ * @param {Date} now
+ */
+function describeFinalWhen(game, now) {
+  const start = new Date(readStart(game));
+  const end = game.end ? new Date(game.end) : null;
+  const day = describeFinishedDay(end ?? start, start, now);
+  const isToday = day === "today";
+  const shownDay = isToday ? "" : day;
+  if (!end) return { isToday, when: shownDay };
+  return { isToday, when: html`at ${renderStampTime(end)}${shownDay && ` ${shownDay}`}` };
+}
+
 /**
  * @param {Game} game
  * @param {Map<string, Series>} seriesById
  * @param {Date} now
  */
 function describeLatestFinal(game, seriesById, now) {
-  const start = new Date(readStart(game));
-  const day = describeFinishedDay(start, start, now);
-  const score =
-    day === "today" ? describeScore(game) : `No games since ${describeScore(game)} ${day}`;
+  const { isToday, when } = describeFinalWhen(game, now);
+  const lead = isToday ? "" : "No games since ";
+  const sentence = html`${lead}${describeScore(game)} final${when && html` ${when}`}`;
   const standing = describeSeriesStanding(seriesById.get(game.series ?? ""));
-  return standing ? `${score} \u2014 ${standing}` : score;
+  return standing ? html`${sentence} &mdash; ${standing}` : sentence;
 }
 
 /**
