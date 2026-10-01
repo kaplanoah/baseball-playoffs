@@ -1,14 +1,9 @@
 import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
-import { html, setHtml } from "#shared/html.js";
+import { html } from "#shared/html.js";
+import { fillStamp, formatStampDay, renderStampLine, renderStampWhen } from "#shared/stamp.js";
 import { findStandingsRow } from "./race.js";
 import { session } from "./session.js";
-import {
-  formatStampName,
-  describeLastStamp,
-  describeUpNextGame,
-  renderStampWhen,
-  formatStampDay,
-} from "./stamp.js";
+import { formatStampName, describeLastStamp, describeUpNextGame } from "./stamp.js";
 
 function isAliveInStandings(id) {
   const row = findStandingsRow(id);
@@ -37,10 +32,6 @@ function buildStampContext() {
     seriesNote: projected ? () => "" : describeSeriesAfter,
     now: new Date(),
   };
-}
-
-function renderStampLine(label, when, why) {
-  return html`<span>${label} <b>${when}</b>${why && html` &mdash; ${why}`}</span>`;
 }
 
 function renderLiveLines() {
@@ -81,14 +72,8 @@ function renderStampLines() {
 }
 
 export function renderStamp() {
-  const stamp = document.getElementById("stamp");
   const problems = [session.liveProblem, session.saveProblem].filter(Boolean);
-  const lines = [
-    ...renderStampLines(),
-    ...problems.map((problem) => html`<span class="stamp-err">${problem}</span>`),
-  ];
-  stamp.hidden = !lines.length;
-  setHtml(stamp, html`${lines}`);
+  fillStamp(document.getElementById("stamp"), renderStampLines(), problems);
 }
 
 // The failure is already on the stamp, so a rejected save needs nothing more here.
