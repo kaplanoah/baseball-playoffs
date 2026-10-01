@@ -343,7 +343,8 @@ test("today's games still to come or under way say where they're on, on a line u
   const pirates = rows.filter({ hasText: "Pirates" });
 
   const redsNetworks = reds.locator(".game-networks");
-  await expect(redsNetworks).toHaveText(/^\s*•\s*•\s*Reds.TV\s*•\s*BravesVision$/);
+  await expect(redsNetworks).toHaveText(/^\s*•\s*•\s*Reds.TV\s*•\s*$/);
+  await expect(redsNetworks.getByRole("img", { name: "BravesVision" })).toBeVisible();
   await expect(redsNetworks.getByRole("img", { name: "FS1" })).toBeVisible();
   await expect(redsNetworks.locator('img.for-dark[alt="FOX ONE"]')).toBeVisible();
   await expect(redsNetworks.locator('img.for-light[alt="FOX ONE"]')).toBeHidden();

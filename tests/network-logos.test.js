@@ -24,9 +24,9 @@ test("a channel's logo is found by any name the feeds give it, whatever its case
 });
 
 test("two names for one channel show its logo once, and a channel with no logo keeps its name", () => {
-  const [espn, ...rest] = listNetworkLogos(["ESPN", "ESPN App", "Reds.TV", "BravesVision"]);
+  const [espn, ...rest] = listNetworkLogos(["ESPN", "ESPN App", "Reds.TV", "Rays.TV"]);
   assert.deepEqual(espn, { name: "ESPN", file: "espn.svg" });
-  assert.deepEqual(rest, ["Reds.TV", "BravesVision"]);
+  assert.deepEqual(rest, ["Reds.TV", "Rays.TV"]);
 });
 
 test("a logo has a version for each background, or says which one it's drawn for", () => {

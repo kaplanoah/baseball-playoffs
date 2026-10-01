@@ -3,8 +3,8 @@
 // the leagues' feeds, and any of them finds its logo; a channel without one shows its name instead.
 
 /**
- * A channel's logo. One drawn for a light background has a version for a dark one beside it,
- * its name ending in -dark, unless it works on only one: then drawnFor names that one.
+ * A channel's logo, for a light background, with a version for a dark one beside it, its name
+ * ending in -dark, unless it works on only one: then drawnFor names that one.
  * @typedef {{ name: string, file: string, darkFile?: string, drawnFor?: "light" | "dark" }} NetworkLogo
  */
 
@@ -81,6 +81,14 @@ const CHANNELS = [
   { name: "Marquee Sports Network", file: "marquee.png", names: [] },
   { name: "MASN", file: "masn.png", names: [], hasDarkVersion: true },
   { name: "MeTV", file: "metv.png", names: ["MeTV Indianapolis"] },
+  { name: "BravesVision", file: "bravesvision.png", names: [] },
+  { name: "Detroit SportsNet", file: "detroit-sportsnet.png", names: [], hasDarkVersion: true },
+  {
+    name: "Space City Home Network",
+    file: "space-city.png",
+    names: ["Space City Home Network 2"],
+    hasDarkVersion: true,
+  },
   { name: "NESN", file: "nesn.png", names: ["NESN+"], hasDarkVersion: true },
   {
     name: "NBC Sports Bay Area",
