@@ -58,7 +58,23 @@ function createPageServer(pageFiles) {
   };
 }
 
-const serveRobots = () => respondText("User-agent: *\nDisallow: /\n", 200);
+// robots.txt is the one path that answers without the key, so it names the commit the Worker
+// was built from, for the deploy to tell its new version from the one before.
+const RELEASE_COMMIT_HEADER = "x-release-commit";
+
+/** @param {Parameters<typeof decodePageFiles>[0]} pageFiles */
+function readReleaseCommit(pageFiles) {
+  const release = pageFiles["version.json"]?.text;
+  return release ? JSON.parse(release).commit : null;
+}
+
+/** @param {string | null} commit */
+const serveRobots = (commit) =>
+  respondText(
+    "User-agent: *\nDisallow: /\n",
+    200,
+    commit ? { [RELEASE_COMMIT_HEADER]: commit } : {},
+  );
 
 // The page and its store answer only under the APP_KEY secret; nothing else does.
 function findAppPath(pathname, appKey) {
@@ -82,10 +98,11 @@ const isStorePath = (appPath) =>
  */
 export function createAppWorker({ pageFiles, serveSnapshot, forwardToStore, reads = {} }) {
   const servePageFile = createPageServer(pageFiles);
+  const releaseCommit = readReleaseCommit(pageFiles);
   return {
     fetch(request, env = {}) {
       const url = new URL(request.url);
-      if (url.pathname === "/robots.txt") return serveRobots();
+      if (url.pathname === "/robots.txt") return serveRobots(releaseCommit);
       const appPath = findAppPath(url.pathname, env.APP_KEY);
       if (appPath === null) return serveNotFound();
       if (appPath === "") return redirectToFolder(url);

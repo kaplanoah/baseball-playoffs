@@ -261,11 +261,11 @@ export async function deploy({
 
   // Deploy logs are public, and the address names the account's workers.dev subdomain.
   async function confirmWorkerAnswers(url, previousVersions) {
-    if (await isWorkerAnswering(url, { fetchImpl, pause })) {
+    if (await isWorkerAnswering(url, { fetchImpl, pause, commit })) {
       log("worker check: ok");
       return;
     }
-    await restoreAfter("The Worker didn't answer", previousVersions);
+    await restoreAfter("The Worker didn't answer as the new version", previousVersions);
   }
 
   async function findNewVersionUrl(previousVersions) {
@@ -286,30 +286,42 @@ export async function deploy({
   return url;
 }
 
-const CHECK_ATTEMPTS = 6;
+const CHECK_ATTEMPTS = 12;
 const CHECK_INTERVAL_MS = 5000;
 const CHECK_TIMEOUT_MS = 10000;
 
 const waitFor = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+// The build names its commit in short form, and a version built from no known commit names none.
+/**
+ * @param {Response} response
+ * @param {string} [commit]
+ */
+function isFromCommit(response, commit) {
+  if (!commit) return true;
+  const served = response.headers.get("x-release-commit");
+  return !!served && commit.startsWith(served);
+}
+
 // robots.txt is the one path that answers without the page's key.
-async function isRobotsAnswered(url, fetchImpl) {
+async function isRobotsAnswered(url, fetchImpl, commit) {
   try {
     const response = await fetchImpl(new URL("robots.txt", url).href, {
       method: "GET",
       signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
     });
-    return response.ok;
+    return response.ok && isFromCommit(response, commit);
   } catch {
     return false;
   }
 }
 
-async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor } = {}) {
+// A new version takes a few seconds to reach every Cloudflare location, and until then the one
+// before it answers.
+async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor, commit = undefined }) {
   for (let attempt = 0; attempt < CHECK_ATTEMPTS; attempt += 1) {
-    // A new version takes a few seconds to reach every Cloudflare location.
     await pause(CHECK_INTERVAL_MS);
-    if (await isRobotsAnswered(url, fetchImpl)) return true;
+    if (await isRobotsAnswered(url, fetchImpl, commit)) return true;
   }
   return false;
 }
