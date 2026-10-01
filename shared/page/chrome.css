@@ -8,7 +8,8 @@
  *   --ink, --ink-mid, --ink-dim                text, from brightest to dimmest
  *   --accent, --accent-ink                     the selected tab and a switch that is on, and text on it
  *   --focus-ring                               the keyboard focus ring
- *   --select-arrow                             a url() of the select field's down arrow, in --ink-dim
+ *   --select-arrow                             a url() of a select field's down arrow, in --ink-dim, if
+ *                                              the app has one
  *   --tab-bar-ink                              the glass tab bar's icons and labels
  *   --glass-light                              an RGB triple, like 255, 255, 255, that tints the glass
  *   --glass-solid                              the glass's fill when the viewer turns transparency down

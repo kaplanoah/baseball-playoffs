@@ -170,17 +170,36 @@
         </div>
       </div>
       <div class="settings-controls">
-        <label class="control-row">
+        <div class="control-row appearance-row">
           <span class="control-label">
-            <span>Appearance</span>
+            <span id="appearanceTitle">Appearance</span>
             <span class="control-note" id="appearanceNote" role="status"></span>
           </span>
-          <select id="appearanceSel" class="select-field" aria-label="Appearance">
-            <option value="auto">Automatic</option>
-            <option value="light">Maple</option>
-            <option value="dark">Walnut</option>
-          </select>
-        </label>
+          <div class="appearance-choices" role="radiogroup" aria-labelledby="appearanceTitle">
+            <label class="appearance-choice">
+              <input type="radio" name="appearance" value="auto" />
+              <span class="appearance-icon appearance-icon-auto" aria-hidden="true">
+                <img src="icon-light-180.png" alt="" />
+                <img src="icon-180.png" alt="" />
+              </span>
+              <span>Automatic</span>
+            </label>
+            <label class="appearance-choice">
+              <input type="radio" name="appearance" value="light" />
+              <span class="appearance-icon" aria-hidden="true">
+                <img src="icon-light-180.png" alt="" />
+              </span>
+              <span>Maple</span>
+            </label>
+            <label class="appearance-choice">
+              <input type="radio" name="appearance" value="dark" />
+              <span class="appearance-icon" aria-hidden="true">
+                <img src="icon-180.png" alt="" />
+              </span>
+              <span>Walnut</span>
+            </label>
+          </div>
+        </div>
         <div class="control-row" id="notifyRow" hidden>
           <span class="control-label">
             <span id="notifyTitle">Notifications</span>

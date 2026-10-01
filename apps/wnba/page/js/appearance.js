@@ -55,15 +55,21 @@ function showTheme(theme) {
 }
 
 export function startAppearance() {
-  const picker = /** @type {HTMLSelectElement} */ (findElement("appearanceSel"));
-  picker.value = readChoice();
+  const choices = /** @type {NodeListOf<HTMLInputElement>} */ (
+    document.querySelectorAll('input[name="appearance"]')
+  );
+  const readPicked = () => [...choices].find((choice) => choice.checked)?.value ?? "auto";
+  const saved = readChoice();
+  for (const choice of choices) choice.checked = choice.value === saved;
   const showChosenTheme = () =>
-    showTheme(/** @type {"light" | "dark"} */ (resolveTheme(picker.value)));
+    showTheme(/** @type {"light" | "dark"} */ (resolveTheme(readPicked())));
   showChosenTheme();
-  picker.addEventListener("change", () => {
-    saveChoice(picker.value);
-    showChosenTheme();
-    findElement("appearanceNote").textContent = HOME_SCREEN_NOTE;
-  });
+  for (const choice of choices) {
+    choice.addEventListener("change", () => {
+      saveChoice(readPicked());
+      showChosenTheme();
+      findElement("appearanceNote").textContent = HOME_SCREEN_NOTE;
+    });
+  }
   darkScheme.addEventListener("change", showChosenTheme);
 }
