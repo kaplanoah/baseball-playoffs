@@ -236,7 +236,7 @@ header.top h1 {
 /* Games: the away and home teams face each other across the score. */
 .day-label {
   margin: 14px 0 4px;
-  font-family: var(--display);
+  font-family: var(--text);
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--ink-dim);
@@ -277,16 +277,18 @@ header.top h1 {
 }
 .game-status,
 .series-label {
-  font-family: var(--display);
   font-weight: 600;
   text-transform: uppercase;
   color: var(--ink-dim);
 }
 .game-status {
+  font-family: var(--display);
   font-size: 0.65rem;
   letter-spacing: 0.08em;
 }
+/* Labels in the text face stand apart from the condensed team names around them. */
 .series-label {
+  font-family: var(--text);
   font-size: 0.6rem;
   letter-spacing: 0.06em;
 }

@@ -250,6 +250,22 @@ test("the page uses its own fonts, served with it", async ({ page }) => {
   expect(loaded).toEqual(expect.arrayContaining(["Saira Condensed", "Barlow Condensed", "Barlow"]));
 });
 
+test("the Games lists' days and series labels stand apart from the team names in Barlow", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const readFirstFont = (locator) =>
+    locator
+      .first()
+      .evaluate((element) =>
+        getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
+      );
+  expect(await readFirstFont(page.locator("#gamePager .day-label"))).toBe("Barlow");
+  expect(await readFirstFont(page.locator("#gamePager .series-label"))).toBe("Barlow");
+  expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
+});
+
 test("on a wide screen, the game and team rows keep to a phone's width", async ({ page }) => {
   await openApp(page);
   for (const [tab, row] of [
