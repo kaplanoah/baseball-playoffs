@@ -113,6 +113,25 @@ test("a game that just finished is news, and says where its series stands", asyn
   ]);
 });
 
+test("a final's news counts the game itself, even while the bracket hasn't caught up", () => {
+  const moment = JSON.parse(
+    readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-atlanta-final.json`, "utf8"),
+  );
+  const now = Date.parse(moment.now);
+  const after = buildSnapshot(
+    { ...AFTERNOON.responses, ...moment.responses },
+    { season: 2026, now },
+  );
+
+  const [news] = listNotifications({ before: SNAPSHOT, after, now });
+
+  assert.deepEqual(news, {
+    title: "The Dream beat the Mystics 93-75",
+    body: "The Dream win the First Round 2-0.",
+    tag: "final:1042600132",
+  });
+});
+
 test("games already finished, or found finished long after, aren't news", () => {
   const after = finishTonight(SNAPSHOT, [84, 79]);
   assert.deepEqual(listNotifications({ before: after, after, now: NOW }), []);
