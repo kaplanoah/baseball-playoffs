@@ -12,8 +12,32 @@ export function findOpeningRound(rounds, isDecided) {
   return index === -1 ? rounds.length - 1 : index;
 }
 
-/** @param {HTMLElement} scroller @param {HTMLElement} target */
+/**
+ * Whether the bracket from its start through the target's round shows without scrolling.
+ * @param {HTMLElement} scroller @param {HTMLElement} target
+ */
+function isShownFromStart(scroller, target) {
+  const padding = parseFloat(getComputedStyle(scroller).scrollPaddingRight) || 0;
+  const targetRight =
+    target.getBoundingClientRect().right -
+    scroller.getBoundingClientRect().left +
+    scroller.scrollLeft;
+  return targetRight <= scroller.clientWidth - padding;
+}
+
+// Only a phone opens partway along: a wider screen shows the bracket from its start.
+const isPhone = () => matchMedia("(max-width: 699px)").matches;
+
+/**
+ * Starts at the bracket's beginning when it isn't on a phone or that already shows the target's
+ * round, so the rounds before it stay in view; otherwise brings the target to the left edge.
+ * @param {HTMLElement} scroller @param {HTMLElement} target
+ */
 function scrollToTarget(scroller, target) {
+  if (!isPhone() || isShownFromStart(scroller, target)) {
+    scroller.scrollTo({ left: 0, behavior: "instant" });
+    return;
+  }
   const padding = parseFloat(getComputedStyle(scroller).scrollPaddingLeft) || 0;
   const offset = target.getBoundingClientRect().left - scroller.getBoundingClientRect().left;
   scroller.scrollTo({ left: scroller.scrollLeft + offset - padding, behavior: "instant" });
