@@ -17,48 +17,6 @@ export const BRACKET_FEEDERS = {
   "3-0": ["2-0", "2-1"],
 };
 
-/** @typedef {"top" | "bottom" | "middle"} BracketRow */
-/** @typedef {{ from: string, fromRow: BracketRow, to: string, toRow: BracketRow, isDecided: boolean }} BracketLink */
-
-/**
- * @param {Series | undefined} series
- * @param {string | null | undefined} team
- * @returns {BracketRow | null}
- */
-function findTeamRow(series, team) {
-  if (!team) return null;
-  if (series?.top?.team === team) return "top";
-  if (series?.bottom?.team === team) return "bottom";
-  return null;
-}
-
-/**
- * Where each series' winner goes next. The higher seed always takes the top row, so a winner's
- * line runs to the row it holds, which crosses the other's when the seeds flip. Until a series
- * ends, its line runs to the row the other winner left open, or to the middle while neither is in.
- * @param {Series[]} allSeries
- * @returns {BracketLink[]}
- */
-export function listBracketLinks(allSeries) {
-  const seriesById = new Map(allSeries.map((series) => [series.id, series]));
-  return Object.entries(BRACKET_FEEDERS).flatMap(([to, feeders]) => {
-    const target = seriesById.get(to);
-    return feeders.map((from, index) => {
-      const feeder = seriesById.get(from);
-      const winner = feeder?.winner ?? null;
-      const otherRow = findTeamRow(target, seriesById.get(feeders[1 - index])?.winner);
-      const openRow = otherRow ? (otherRow === "top" ? "bottom" : "top") : null;
-      return {
-        from,
-        fromRow: findTeamRow(feeder, winner) ?? "middle",
-        to,
-        toRow: findTeamRow(target, winner) ?? (winner ? null : openRow) ?? "middle",
-        isDecided: !!winner,
-      };
-    });
-  });
-}
-
 /** @param {string | null} code */
 export const nameTeam = (code) => (code && TEAMS[code]?.name) || "TBD";
 

@@ -105,8 +105,8 @@ const describeUnlisted = (id) => ({
 });
 
 /**
- * The rounds left to right, each series beside the two it follows, under round names that mark
- * the round the bracket opens on. Its lines are drawn once it's on the page (bracket-tree.js).
+ * The rounds left to right, each series beside the two it follows, under the rounds' names, opening
+ * on the earliest round still playing. Its lines are drawn once it's on the page (bracket-tree.js).
  * @param {{ games?: Game[], series?: Series[] } | null} season
  * @param {number} now
  */
@@ -122,7 +122,7 @@ export function renderBracket(season, now) {
   const openingRound = findOpeningRound(rounds, (series) => !!series.winner) + 1;
   const names = Object.keys(BRACKET_ORDER).map(
     (round) =>
-      html`<h2 class="round-name round-${round}${Number(round) === openingRound ? " now" : ""}" data-round="${round}">
+      html`<h2 class="round-name round-${round}" data-round="${round}">
         <span>${ROUNDS[round].name}</span><span class="best-of">Best of ${ROUNDS[round].bestOf}</span>
       </h2>`,
   );
