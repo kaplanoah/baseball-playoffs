@@ -1,6 +1,7 @@
 import { readClubId } from "../../page/js/snapshot.js";
-import { fetchMlbJson, readSeasonParam, SEASON_RULE } from "./mlb.js";
+import { fetchMlbJson, SEASON_PARAM } from "./mlb.js";
 import { describeError, respondJson } from "../../../../shared/worker/responses.js";
+import { createReusedLoader } from "../../../../shared/worker/upstream.js";
 
 // Reads MLB for one pitcher's side of the matchup sheet: who he is, his season, what he throws,
 // his last starts, and where he ranks among the season's starters.
@@ -213,8 +214,6 @@ export function createPitcherServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
 } = {}) {
-  const leagues = new Map();
-
   async function fetchLeague(season) {
     const league = await fetchMlbJson(fetchImpl, listLeagueRequest(season), LEAGUE_CACHE_SECONDS);
     const ids = listStarterLines(league)
@@ -232,16 +231,7 @@ export function createPitcherServer({
   }
 
   // Every sheet opened in a day ranks against one read of the league.
-  function loadLeague(season) {
-    const cached = leagues.get(season);
-    if (cached && now() - cached.at < LEAGUE_REUSE_MS) return cached.promise;
-    const promise = fetchLeague(season);
-    leagues.set(season, { at: now(), promise });
-    promise.catch(() => {
-      if (leagues.get(season)?.promise === promise) leagues.delete(season);
-    });
-    return promise;
-  }
+  const loadLeague = createReusedLoader(fetchLeague, LEAGUE_REUSE_MS, now);
 
   async function loadPitcher(id, season) {
     const requests = listPitcherRequests(id, season);
@@ -257,8 +247,8 @@ export function createPitcherServer({
   async function servePitcher(url) {
     const id = readPersonId(url.searchParams);
     if (id == null) return respondJson({ error: "id must be an MLB person id" }, 400);
-    const season = readSeasonParam(url.searchParams, now());
-    if (season == null) return respondJson({ error: SEASON_RULE }, 400);
+    const season = SEASON_PARAM.readSeason(url.searchParams, now());
+    if (season == null) return respondJson({ error: SEASON_PARAM.rule }, 400);
     try {
       const pitcher = await loadPitcher(id, season);
       if (!pitcher) return respondJson({ error: "MLB has no pitcher with that id" }, 404);

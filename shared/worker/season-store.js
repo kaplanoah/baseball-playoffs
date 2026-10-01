@@ -16,17 +16,20 @@ import { describeError, respondError, respondJson } from "./responses.js";
  * @property {(loadSnapshot: (season: number) => Promise<any>, now: number) => Promise<any>} loadCurrentSnapshot
  * @property {(docs: any, season: number) => Promise<any>} readUpdates
  * @property {(docs: any, snapshot: any) => Promise<void>} saveSnapshot
- * @property {(snapshot: any) => object} describeSnapshotStatus
- * @property {(docs: any, status: object, now: number) => Promise<void>} saveStatus
+ * @property {(snapshot: any) => Record<string, string>} describeSnapshotStatus
+ * @property {Record<string, string>} [statusFields] the league's own fields of the saved status,
+ *   each as it reads with nothing to report
  * @property {(snapshot: any, now: number) => number} choosePollDelay the wait until the next
  *   update
- * @property {number[]} retryMs the waits after failed updates, longer each time
  * @property {(change: { before: any, after: any, snapshot: any, now: number }) => object[]} listNotifications
  */
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_LISTED = 100;
+const STATUS_KEY = "live/status";
+const BLANK_STATUS = { error: "", detail: "", write: "" };
+const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 
 const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
@@ -77,6 +80,10 @@ function readPath(pathname) {
     !rest.length;
   return isValid ? { collection, id } : null;
 }
+
+// A status saved before its league had a field reads that field as blank.
+const isSameStatus = (stored, current) =>
+  !!stored && Object.entries(current).every(([field, value]) => (stored[field] ?? "") === value);
 
 function openWatchSocket(ctx) {
   const [client, server] = Object.values(new WebSocketPair());
@@ -193,7 +200,7 @@ export const createSeasonStore = (league) =>
     }
 
     async alarm() {
-      let delay = league.retryMs[0];
+      let delay = RETRY_MS[0];
       try {
         delay = await this.updateSeason();
       } catch (error) {
@@ -221,8 +228,7 @@ export const createSeasonStore = (league) =>
       this.failures = 0;
       // The next update's `before` holds what this one saved, so notifying can't wait on the status.
       await this.notifyUpdates(before, snapshot);
-      const status = league.describeSnapshotStatus(snapshot);
-      await league.saveStatus(this.docs, status, this.now());
+      await this.saveStatus(league.describeSnapshotStatus(snapshot));
       return league.choosePollDelay(snapshot, this.now());
     }
 
@@ -244,11 +250,19 @@ export const createSeasonStore = (league) =>
     }
 
     async recordFailure(status) {
-      const retries = league.retryMs;
-      const delay = retries[Math.min(this.failures, retries.length - 1)];
+      const delay = RETRY_MS[Math.min(this.failures, RETRY_MS.length - 1)];
       this.failures += 1;
-      await league.saveStatus(this.docs, status, this.now());
+      await this.saveStatus(status);
       return delay;
+    }
+
+    // Stored so updates that stop can be diagnosed without the Worker's logs.
+    async saveStatus(status) {
+      const savedAt = this.now();
+      const current = { ...BLANK_STATUS, ...league.statusFields, ...status };
+      const stored = await this.docs.read(STATUS_KEY);
+      if (!isSameStatus(stored, current))
+        await this.docs.write(STATUS_KEY, { ...current, at: new Date(savedAt).toISOString() });
     }
 
     announceChange(path, data) {

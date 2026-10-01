@@ -13,8 +13,7 @@ export const SeasonStore = createSeasonStore({
   readUpdates: SeasonUpdater.readUpdates,
   saveSnapshot: SeasonUpdater.saveSnapshot,
   describeSnapshotStatus: SeasonUpdater.describeSnapshotStatus,
-  saveStatus: SeasonUpdater.saveStatus,
+  statusFields: SeasonUpdater.STATUS_FIELDS,
   choosePollDelay,
-  retryMs: SeasonUpdater.RETRY_MS,
   listNotifications: SeasonUpdater.listNotifications,
 });

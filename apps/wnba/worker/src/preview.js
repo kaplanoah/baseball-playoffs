@@ -6,7 +6,7 @@ import {
 } from "../../page/js/snapshot.js";
 import { findTeamCode, TEAMS } from "../../page/js/teams.js";
 import { respondJson } from "../../../../shared/worker/responses.js";
-import { fetchWnbaJson, readSeasonParam, SEASON_RULE } from "./wnba.js";
+import { fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
 
 // Reads the league for a game that hasn't started, for the game sheet: the two teams' meetings
 // this season, how their seasons compare, and each team's leading scorers.
@@ -132,8 +132,8 @@ export function createPreviewServer({
 
   /** @param {URL} url */
   async function servePreview(url) {
-    const season = readSeasonParam(url.searchParams, now());
-    if (season == null) return respondJson({ error: SEASON_RULE }, 400);
+    const season = SEASON_PARAM.readSeason(url.searchParams, now());
+    if (season == null) return respondJson({ error: SEASON_PARAM.rule }, 400);
     const teams = readTeams(url.searchParams);
     if (!teams) return respondJson({ error: "away and home must be two WNBA teams" }, 400);
     const responses = await loadResponses(season);
