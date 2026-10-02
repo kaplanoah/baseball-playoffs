@@ -117,3 +117,17 @@ test("a page last left on the Teams tab, which it no longer has, opens on the br
   await expect(page.getByRole("tab", { name: "Bracket" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#view-bracket")).toBeVisible();
 });
+
+test("a club's name under the pointer shifts its color a little toward the accent, with no underline", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const name = page.locator('.div-grid tr[data-team="SEA"] .team-open').locator(".team-name");
+  const readColor = () => name.evaluate((element) => getComputedStyle(element).color);
+  const before = await readColor();
+  await name.hover();
+
+  await expect.poll(readColor).not.toBe(before);
+  await expect(name).toHaveCSS("text-decoration-line", "none");
+});
