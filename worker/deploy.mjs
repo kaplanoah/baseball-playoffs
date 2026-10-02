@@ -341,6 +341,24 @@ const createAppLog = (app) => (message) => {
   console.log(`${annotation}${app}: ${text}`);
 };
 
+/**
+ * Deploys every app at once. One app's failed deploy doesn't hold back the others; each puts its
+ * own earlier version back.
+ * @param {string[]} apps
+ * @param {(app: string) => Promise<unknown>} deployApp
+ * @param {(line: string) => void} [logError]
+ * @returns {Promise<boolean>} whether every app deployed
+ */
+export async function deployApps(apps, deployApp, logError = console.error) {
+  const results = await Promise.allSettled(apps.map((app) => deployApp(app)));
+  for (const [index, result] of results.entries()) {
+    if (result.status === "fulfilled") continue;
+    const { reason } = result;
+    logError(`${apps[index]}: ${reason instanceof Error ? reason.message : reason}`);
+  }
+  return results.every((result) => result.status === "fulfilled");
+}
+
 function readReleaseOrExit() {
   try {
     return checkRelease();
@@ -360,15 +378,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(0);
   }
   console.log(`Deploying ${RELEASE_BRANCH} at ${commit.slice(0, 7)}`);
-  let hasFailed = false;
-  // One app's failed deploy doesn't hold back the others; each puts its own earlier version back.
-  for (const app of apps) {
-    try {
-      await deploy({ app, script: await buildWorker(app), commit, log: createAppLog(app) });
-    } catch (error) {
-      console.error(`${app}: ${error instanceof Error ? error.message : error}`);
-      hasFailed = true;
-    }
-  }
-  if (hasFailed) process.exit(1);
+  const isDeployed = await deployApps(apps, async (app) =>
+    deploy({ app, script: await buildWorker(app), commit, log: createAppLog(app) }),
+  );
+  if (!isDeployed) process.exit(1);
 }
