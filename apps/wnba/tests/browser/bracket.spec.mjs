@@ -141,25 +141,23 @@ test("a first-round seed's label sits outside its card, beside its row", async (
   await expect(page.locator('[data-series="2-0"] .seed-label')).toHaveCount(0);
 });
 
-test("a seed's label centers Seed on its larger number", async ({ page }) => {
+test("a seed's number and Seed share a baseline, each trimmed to its letters", async ({ page }) => {
   await openApp(page);
   const label = page.locator('[data-series="1-0"] .seed-label').first();
   await expect(label).toBeVisible();
-  // Each text's own box, so the two compare at their fonts' sizes, not their elements' heights.
-  const [word, number] = await label.evaluate((element) => {
-    const readTextMiddle = (/** @type {Node} */ text) => {
-      const range = document.createRange();
-      range.selectNodeContents(text);
-      const box = range.getBoundingClientRect();
-      return (box.top + box.bottom) / 2;
-    };
-    const number = /** @type {Element} */ (element.querySelector(".seed-number"));
-    return [
-      readTextMiddle(/** @type {Node} */ (element.firstChild)),
-      readTextMiddle(/** @type {Node} */ (number.firstChild)),
-    ];
-  });
-  expect(Math.abs(word - number)).toBeLessThan(0.3);
+  const [number, word] = await label.evaluate((element) =>
+    [".seed-number", ".seed-word"].map((selector) => {
+      const part = /** @type {Element} */ (element.querySelector(selector));
+      const box = part.getBoundingClientRect();
+      return {
+        bottom: box.bottom,
+        height: box.height,
+        fontSize: parseFloat(getComputedStyle(part).fontSize),
+      };
+    }),
+  );
+  expect(Math.abs(number.bottom - word.bottom)).toBeLessThan(0.3);
+  for (const part of [number, word]) expect(part.height).toBeLessThan(part.fontSize * 0.8);
 });
 
 test("every round's cards are one width, and each round's name starts where its cards do", async ({
