@@ -305,10 +305,10 @@ test("the page uses its own fonts, served with it", async ({ page }) => {
   const loaded = await page.evaluate(() =>
     [...document.fonts].filter((font) => font.status === "loaded").map((font) => font.family),
   );
-  expect(loaded).toEqual(expect.arrayContaining(["Saira Condensed", "Barlow Condensed", "Barlow"]));
+  expect(new Set(loaded)).toEqual(new Set(["Barlow Condensed", "Barlow"]));
 });
 
-test("the Games lists' days and series labels stand apart from the team names in Barlow", async ({
+test("the Games lists' days, series labels, and statuses are in Barlow, apart from the team names", async ({
   page,
 }) => {
   await openApp(page);
@@ -321,7 +321,25 @@ test("the Games lists' days and series labels stand apart from the team names in
       );
   expect(await readFirstFont(page.locator("#gamePager .day-name"))).toBe("Barlow");
   expect(await readFirstFont(page.locator("#gamePager .series-label"))).toBe("Barlow");
-  expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
+  expect(await readFirstFont(page.locator("#gamePager .game-status"))).toBe("Barlow");
+  expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Barlow Condensed");
+});
+
+test("every team name is in Barlow Condensed", async ({ page }) => {
+  await openApp(page);
+  const readFonts = (selector) =>
+    page
+      .locator(selector)
+      .evaluateAll((elements) =>
+        elements.map((element) =>
+          getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
+        ),
+      );
+  await expect(page.locator(".team-line .club").first()).toBeVisible();
+  expect(new Set(await readFonts(".club"))).toEqual(new Set(["Barlow Condensed"]));
+  await page.getByRole("tab", { name: "Teams" }).click();
+  await expect(page.locator(".team-full-name").first()).toBeVisible();
+  expect(new Set(await readFonts(".team-full-name"))).toEqual(new Set(["Barlow Condensed"]));
 });
 
 test("the title, the round names, and each card's note are in Barlow Condensed", async ({
