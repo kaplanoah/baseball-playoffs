@@ -4,7 +4,8 @@ import { nameTeam } from "./series.js";
 // The game sheet's chart of the lead through a game: the home team's lead above the middle line
 // and the visitors' below it, after each basket, on a tile with each team named just outside its
 // own half and each side's biggest lead marked, each side in its team's color, which the game
-// sheet sets. A live game's line stops at its latest basket.
+// sheet sets. A live game's line stops at its latest basket. The chart's words are laid over the
+// drawing rather than drawn in it, so they keep the type scale's size however wide it shows.
 
 /** @typedef {{ periods: number, isOver: boolean, scores: [number, number, number][] }} Lead each score's seconds from tip-off, then the away and home scores */
 
@@ -15,23 +16,16 @@ const REGULATION_PERIODS = 4;
 const WIDTH = 320;
 const LEFT = 30;
 const RIGHT = 6;
-const HOME_NAME_BASELINE = 13;
-const TILE_TOP = 22;
 // The tile reaches past the scale's dashed edges, so a biggest lead near one keeps its label inside.
 const TILE_ROOM = 10;
-const TOP = TILE_TOP + TILE_ROOM;
 const PLOT_HEIGHT = 102;
+const TOP = TILE_ROOM;
 const MIDDLE = TOP + PLOT_HEIGHT / 2;
-const TILE_BOTTOM = TOP + PLOT_HEIGHT + TILE_ROOM;
-const AWAY_NAME_BASELINE = TILE_BOTTOM + 18;
-const PERIOD_BASELINE = AWAY_NAME_BASELINE + 19;
-const HEIGHT = PERIOD_BASELINE + 5;
+const HEIGHT = TOP + PLOT_HEIGHT + TILE_ROOM;
 const STEP = 5;
 const SMALLEST_REACH = 10;
 // From a biggest lead's dot to the tile's edge: the dot, the label beyond it, and a gap.
-const PEAK_ROOM = 20;
-// About half a 13px Barlow Condensed character, to keep a biggest lead's label inside the chart.
-const HALF_CHARACTER = 3.3;
+const PEAK_ROOM = 24;
 const TICK_HALF = 3;
 
 /** @param {number} periods */
@@ -104,6 +98,61 @@ function traceSteps(margins, end) {
   return steps;
 }
 
+/** @param {number} value a share from 0 to 1 */
+const formatShare = (value) => `${Math.round(value * 1000) / 10}%`;
+
+/** @param {number} x across the drawing */
+const formatAcross = (x) => formatShare(x / WIDTH);
+
+/** @param {number} y down the drawing */
+const formatDown = (y) => formatShare(y / HEIGHT);
+
+const PLOT_EDGES = `--plot-left: ${formatAcross(LEFT)}; --plot-right: ${formatAcross(RIGHT)}`;
+
+/**
+ * Each team's name, outside its own half, and the plot between them, with the periods under it.
+ * @param {{ away: string, home: string }} teams
+ * @param {import("#shared/html.js").Markup} plot
+ * @param {import("#shared/html.js").Markup[]} periodNames
+ */
+const renderChartFrame = (teams, plot, periodNames) =>
+  html`<div class="lead-chart" style="${PLOT_EDGES}">
+    <p class="lead-side home" aria-hidden="true">&#9650; ${nameTeam(teams.home)} ahead</p>
+    <div class="lead-plot">${plot}</div>
+    <p class="lead-side away" aria-hidden="true">&#9660; ${nameTeam(teams.away)} ahead</p>
+    <div class="lead-periods" aria-hidden="true">${periodNames}</div>
+  </div>`;
+
+/**
+ * @param {number} periods
+ * @param {(at: number) => number} x
+ */
+function renderPeriodNames(periods, x) {
+  return [...Array(periods).keys()].map((index) => {
+    const middle = (measurePeriodStart(index) + measurePeriodStart(index + 1)) / 2;
+    return html`<span class="lead-period" style="--x: ${formatAcross(x(middle))}">${namePeriod(index)}</span>`;
+  });
+}
+
+/** @param {number} periods */
+const placeAcross = (periods) => (/** @type {number} */ at) =>
+  LEFT + (at / measureGame(periods)) * (WIDTH - LEFT - RIGHT);
+
+const renderTile = (/** @type {string} */ className) =>
+  html`<rect class="${className}" x="${LEFT - 0.5}" y="0.5" width="${WIDTH - LEFT - RIGHT + 1}" height="${HEIGHT - 1}" rx="4"></rect>`;
+
+/**
+ * The chart's shape while its scores load: the teams' names and a regulation game's periods
+ * around a pulsing tile.
+ * @param {{ away: string, home: string }} teams
+ */
+export const renderPendingLeadChart = (teams) =>
+  renderChartFrame(
+    teams,
+    html`<svg viewBox="0 0 ${WIDTH} ${HEIGHT}" aria-hidden="true">${renderTile("lead-tile pending")}</svg>`,
+    renderPeriodNames(REGULATION_PERIODS, placeAcross(REGULATION_PERIODS)),
+  );
+
 /**
  * @param {Lead} lead
  * @param {{ away: string, home: string }} teams
@@ -114,7 +163,7 @@ export function renderLeadChart(lead, teams) {
   const homeBest = findBiggestLead(margins, 1);
   const awayBest = findBiggestLead(margins, -1);
   const reach = chooseReach(Math.max(homeBest.margin, -awayBest.margin));
-  const x = (/** @type {number} */ at) => LEFT + (at / length) * (WIDTH - LEFT - RIGHT);
+  const x = placeAcross(lead.periods);
   const y = (/** @type {number} */ margin) => MIDDLE - (margin / reach) * (PLOT_HEIGHT / 2);
   const end = lead.isOver ? length : margins[margins.length - 1].at;
 
@@ -126,54 +175,54 @@ export function renderLeadChart(lead, teams) {
   const homeArea = closeToMiddle((margin) => Math.max(margin, 0));
   const awayArea = closeToMiddle((margin) => Math.min(margin, 0));
 
-  const periodIndexes = [...Array(lead.periods).keys()];
-  const periodTicks = periodIndexes
+  const periodTicks = [...Array(lead.periods).keys()]
     .slice(1)
     .map(
       (index) =>
         html`<line class="lead-tick" x1="${x(measurePeriodStart(index))}" x2="${x(measurePeriodStart(index))}" y1="${MIDDLE - TICK_HALF}" y2="${MIDDLE + TICK_HALF}"></line>`,
     );
-  const periodNames = periodIndexes.map((index) => {
-    const middle = (measurePeriodStart(index) + measurePeriodStart(index + 1)) / 2;
-    return html`<text class="lead-period" x="${formatCoordinate(x(middle))}" y="${PERIOD_BASELINE}" text-anchor="middle">${namePeriod(index)}</text>`;
-  });
   const reachLines = [reach, -reach].map(
     (margin) =>
-      html`<line class="lead-grid" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${y(margin)}" y2="${y(margin)}"></line>
-        <text class="lead-reach" x="${LEFT - 5}" y="${y(margin) + 4}" text-anchor="end">+${reach}</text>`,
+      html`<line class="lead-grid" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${y(margin)}" y2="${y(margin)}"></line>`,
+  );
+  const reachLabels = [reach, -reach].map(
+    (margin) =>
+      html`<span class="lead-reach" style="--y: ${formatDown(y(margin))}" aria-hidden="true">+${reach}</span>`,
   );
   const homeName = nameTeam(teams.home);
   const awayName = nameTeam(teams.away);
-  const renderPeak = (
+  const renderPeakDot = (
+    /** @type {{ at: number, margin: number }} */ peak,
+    /** @type {"away" | "home"} */ place,
+  ) =>
+    peak.margin
+      ? html`<circle class="lead-peak ${place}" cx="${formatCoordinate(x(peak.at))}" cy="${formatCoordinate(y(peak.margin))}" r="3.5"></circle>`
+      : "";
+  const renderPeakLabel = (
     /** @type {{ at: number, margin: number }} */ peak,
     /** @type {string} */ name,
     /** @type {"away" | "home"} */ place,
   ) => {
     if (!peak.margin) return "";
     const label = `${name} +${Math.abs(peak.margin)}`;
-    const halfWidth = label.length * HALF_CHARACTER;
-    const labelY = peak.margin > 0 ? y(peak.margin) - 7 : y(peak.margin) + 15;
-    const labelX = Math.min(Math.max(x(peak.at), LEFT + halfWidth), WIDTH - RIGHT - halfWidth);
-    return html`<circle class="lead-peak ${place}" cx="${formatCoordinate(x(peak.at))}" cy="${formatCoordinate(y(peak.margin))}" r="3.5"></circle>
-      <text class="lead-peak-label ${place}" x="${formatCoordinate(labelX)}" y="${formatCoordinate(labelY)}" text-anchor="middle">${label}</text>`;
+    const where = `--x: ${formatAcross(x(peak.at))}; --y: ${formatDown(y(peak.margin))}; --length: ${label.length}`;
+    return html`<span class="lead-peak-label ${place}" style="${where}" aria-hidden="true">${label}</span>`;
   };
   const label = [
     describeBiggestLead(homeName, homeBest.margin),
     describeBiggestLead(awayName, -awayBest.margin),
   ].join(", ");
 
-  return html`<div class="lead-chart">
-    <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${label.charAt(0).toUpperCase()}${label.slice(1)}">
-      <rect class="lead-tile" x="${LEFT - 0.5}" y="${TILE_TOP}" width="${WIDTH - LEFT - RIGHT + 1}" height="${TILE_BOTTOM - TILE_TOP}" rx="4"></rect>
+  const plot = html`<svg viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${label.charAt(0).toUpperCase()}${label.slice(1)}">
+      ${renderTile("lead-tile")}
       ${reachLines}
       <path class="lead-area home" d="${homeArea}"></path>
       <path class="lead-area away" d="${awayArea}"></path>
       <line class="lead-middle" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${MIDDLE}" y2="${MIDDLE}"></line>
       ${periodTicks}
       <path class="lead-line" d="${trace(steps)}"></path>
-      <text class="lead-side home" x="${LEFT}" y="${HOME_NAME_BASELINE}">&#9650; ${homeName} ahead</text>
-      <text class="lead-side away" x="${LEFT}" y="${AWAY_NAME_BASELINE}">&#9660; ${awayName} ahead</text>
-      ${renderPeak(homeBest, homeName, "home")}${renderPeak(awayBest, awayName, "away")}${periodNames}
+      ${renderPeakDot(homeBest, "home")}${renderPeakDot(awayBest, "away")}
     </svg>
-  </div>`;
+    ${reachLabels}${renderPeakLabel(homeBest, homeName, "home")}${renderPeakLabel(awayBest, awayName, "away")}`;
+  return renderChartFrame(teams, plot, renderPeriodNames(lead.periods, x));
 }

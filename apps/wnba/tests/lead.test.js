@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { renderBoxScore } from "../page/js/box-score-view.js";
-import { renderLeadChart } from "../page/js/lead-chart.js";
+import { renderBoxScore, renderPendingBoxScore } from "../page/js/box-score-view.js";
+import { renderLeadChart, renderPendingLeadChart } from "../page/js/lead-chart.js";
 import { describeBoxScore } from "../worker/src/box-score.js";
 import {
   createLeadServer,
@@ -150,35 +150,42 @@ test("each side's half, name, and biggest lead say whose they are, for the sheet
       ...markup.matchAll(/class="(lead-area|lead-side|lead-peak|lead-peak-label) (home|away)"/g),
     ].map(([, name, place]) => `${name} ${place}`),
     [
+      "lead-side home",
       "lead-area home",
       "lead-area away",
-      "lead-side home",
-      "lead-side away",
       "lead-peak home",
-      "lead-peak-label home",
       "lead-peak away",
+      "lead-peak-label home",
       "lead-peak-label away",
+      "lead-side away",
     ],
   );
 });
 
 test("the scale reaches past the biggest lead far enough to keep its label on the tile", () => {
-  assert.deepEqual(readLabels(renderLeadChart(leadBy(8), TEAMS).text, "lead-reach"), [
-    "+10",
-    "+10",
-  ]);
-  assert.deepEqual(readLabels(renderLeadChart(leadBy(9), TEAMS).text, "lead-reach"), [
-    "+15",
-    "+15",
-  ]);
-  assert.deepEqual(readLabels(renderLeadChart(leadBy(12), TEAMS).text, "lead-reach"), [
-    "+15",
-    "+15",
-  ]);
-  assert.deepEqual(readLabels(renderLeadChart(leadBy(13), TEAMS).text, "lead-reach"), [
-    "+20",
-    "+20",
-  ]);
+  for (const { biggest, reach } of [
+    { biggest: 7, reach: "+10" },
+    { biggest: 8, reach: "+15" },
+    { biggest: 10, reach: "+15" },
+    { biggest: 11, reach: "+20" },
+  ]) {
+    assert.deepEqual(readLabels(renderLeadChart(leadBy(biggest), TEAMS).text, "lead-reach"), [
+      reach,
+      reach,
+    ]);
+  }
+});
+
+test("the chart's shape while it loads is the loaded chart's: the same drawing's size, the teams' names, and a regulation game's periods", () => {
+  const pending = renderPendingLeadChart(TEAMS).text;
+  const loaded = renderLeadChart(leadBy(8), TEAMS).text;
+  const readViewBox = (/** @type {string} */ markup) => markup.match(/viewBox="([^"]+)"/)[1];
+
+  assert.equal(readViewBox(pending), readViewBox(loaded));
+  assert.deepEqual(readLabels(pending, "lead-side"), readLabels(loaded, "lead-side"));
+  assert.deepEqual(readLabels(pending, "lead-period"), readLabels(loaded, "lead-period"));
+  assert.match(pending, /class="lead-tile pending"/);
+  assert.doesNotMatch(pending, /lead-line|lead-peak/);
 });
 
 test("a live game's line stops at its latest basket, and a side that never led has no mark", () => {
@@ -205,12 +212,27 @@ test("the box score shows the lead under the quarters once it has a basket", () 
   const lead = describeLead(LEAD.summary);
 
   assert.match(
-    renderBoxScore(box, lead).text,
+    renderBoxScore(box, { lead }).text,
     /By quarter[\s\S]*Lead through the game[\s\S]*Team stats/,
   );
   assert.doesNotMatch(renderBoxScore(box).text, /Lead through the game/);
   assert.doesNotMatch(
-    renderBoxScore(box, { periods: 4, isOver: false, scores: [[0, 0, 0]] }).text,
+    renderBoxScore(box, { lead: { periods: 4, isOver: false, scores: [[0, 0, 0]] } }).text,
     /Lead through the game/,
   );
+});
+
+test("while the lead loads, the box score and its placeholders hold the chart's place, and show it once it's in", () => {
+  const box = describeBoxScore(GAMES.boxScores["1042600112"]);
+  const lead = describeLead(LEAD.summary);
+  const isPendingChart = (/** @type {{ text: string }} */ markup) =>
+    /Lead through the game[\s\S]*class="lead-tile pending"[\s\S]*Team stats/.test(markup.text);
+  const isLoadedChart = (/** @type {{ text: string }} */ markup) =>
+    /Lead through the game[\s\S]*class="lead-line"[\s\S]*Team stats/.test(markup.text);
+
+  assert.ok(isPendingChart(renderPendingBoxScore(TEAMS, { isLeadLoading: true })));
+  assert.ok(isPendingChart(renderBoxScore(box, { isLeadLoading: true })));
+  assert.ok(isLoadedChart(renderPendingBoxScore(TEAMS, { lead })));
+  assert.ok(isLoadedChart(renderBoxScore(box, { lead })));
+  assert.doesNotMatch(renderPendingBoxScore(TEAMS).text, /Lead through the game/);
 });
