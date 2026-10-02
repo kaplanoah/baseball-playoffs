@@ -10,7 +10,7 @@ const listLogos = (names) =>
 const LOGO_FOLDER = new URL("../shared/page/networks/", import.meta.url);
 
 /** @param {string[]} networks */
-const renderNetworksLine = (networks) => String(renderNetworks(networks));
+const renderNetworksLine = (networks) => String(renderNetworks(networks, { hasEnded: false }));
 
 test("a channel's logo is found by any name the feeds give it, whatever its case", () => {
   const logos = listNetworkLogos(["NBC", "prime video", "USA Net"]);
@@ -86,6 +86,11 @@ test("a logo whose weight sits low is nudged up, one whose weight sits high is n
   assert.match(renderNetworksLine(["NBC"]), /style="--logo-scale: [\d.]+; --logo-nudge: [\d.]+"/);
 });
 
-test("a game with nowhere to watch it has no line for it", () => {
-  assert.equal(renderNetworksLine([]), "");
+test("a game yet to end with no channels listed says to check back, and one that ended says nothing", () => {
+  assert.equal(
+    renderNetworksLine([]),
+    '<p class="networks networks-pending">Check back for where to watch</p>',
+  );
+  assert.equal(String(renderNetworks([], { hasEnded: true })), "");
+  assert.match(String(renderNetworks(["ESPN"], { hasEnded: true })), /alt="ESPN"/);
 });

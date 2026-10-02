@@ -10,9 +10,9 @@ const AFTERNOON = JSON.parse(
 const GAMES = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
 );
-// Where ESPN says the afternoon's games, and the day before's, were on.
+// Where ESPN lists each playoff game, from its scoreboard for each month they're played in.
 const ESPN_SCOREBOARD = JSON.parse(
-  readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-espn-scoreboard.json`, "utf8"),
+  readFileSync(`${import.meta.dirname}/fixtures/2026-10-02-espn-scoreboard.json`, "utf8"),
 );
 const RESPONSES = { ...AFTERNOON.responses, players: GAMES.preview.players };
 const buildAfternoon = (responses = RESPONSES) =>
@@ -74,27 +74,32 @@ test("every playoff game is listed in order, with the scoreboard's word on today
   assert.equal(tonight.start, "2026-09-30T23:00:00Z");
 });
 
-test("a game still to come or under way says where it's on, and a finished one doesn't", () => {
+test("every game says where it's on or was, from a finished one to one days ahead", () => {
   const { games } = buildAfternoon({
     ...RESPONSES,
     networks: Object.values(ESPN_SCOREBOARD.answers),
   });
-  const watchable = games.filter((game) => game.networks.length);
-  assert.deepEqual(
-    watchable.map((game) => [game.id, game.state, game.networks]),
-    [
-      ["1042600132", "pre", ["ESPN"]],
-      ["1042600112", "pre", ["ESPN"]],
-    ],
-  );
-  const finished = games.filter((game) => game.state === "final");
-  assert.ok(finished.length && finished.every((game) => !game.networks.length));
+  const readNetworks = (id) => games.find((game) => game.id === id)?.networks;
+  assert.deepEqual(readNetworks("1042600101"), ["ABC"], "finished");
+  assert.deepEqual(readNetworks("1042600132"), ["ESPN"], "tonight");
+  assert.deepEqual(readNetworks("1042600123"), ["USA Net", "CNBC"], "the day after tomorrow");
+  assert.deepEqual(readNetworks("1042600201"), [], "not on ESPN's list yet");
   assert.ok(buildAfternoon().games.every((game) => !game.networks.length));
+});
+
+test("a game whose teams ESPN hasn't named yet isn't matched to any of the league's games", () => {
+  const answers = structuredClone(Object.values(ESPN_SCOREBOARD.answers));
+  const finalsGameOne = answers[1].events.find((event) => event.date === "2026-10-17T19:30Z");
+  assert.deepEqual(finalsGameOne.competitions[0].broadcasts[0].names, ["NBC"]);
+  const { games } = buildAfternoon({ ...RESPONSES, networks: answers });
+  assert.deepEqual(games.find((game) => game.id === "1042600301").networks, []);
 });
 
 test("a game's national channels come before a team's own", () => {
   const answers = structuredClone(Object.values(ESPN_SCOREBOARD.answers));
-  const [competition] = answers[1].events[0].competitions;
+  const [competition] = answers[0].events.find(
+    (event) => event.date === "2026-09-30T23:00Z",
+  ).competitions;
   competition.broadcasts = [
     { market: "home", names: ["Monumental"] },
     { market: "national", names: ["ESPN", "Disney+"] },

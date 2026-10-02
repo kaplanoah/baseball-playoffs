@@ -86,7 +86,7 @@ const renderFaceOff = (game) =>
     <div class="faceoff-middle">
       ${renderHeadline(game)}<span class="faceoff-status">${renderStatus(game)}</span>
     </div>
-    ${renderFaceOffSide(game, "home")} ${renderNetworks(game.networks ?? [])}
+    ${renderFaceOffSide(game, "home")} ${renderNetworks(game.networks ?? [], { hasEnded: game.state === "final" })}
   </div>`;
 
 /** @param {ShownGame} opened */

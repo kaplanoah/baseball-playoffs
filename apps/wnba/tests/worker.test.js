@@ -20,7 +20,7 @@ const ESPN = JSON.parse(
 
 // Where ESPN says the afternoon's games, and the day before's, were on.
 const ESPN_SCOREBOARD = JSON.parse(
-  readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-espn-scoreboard.json`, "utf8"),
+  readFileSync(`${import.meta.dirname}/fixtures/2026-10-02-espn-scoreboard.json`, "utf8"),
 );
 
 const FEEDS = {
@@ -34,7 +34,8 @@ const FEEDS = {
   [REQUESTS.players(2025)]: "players",
 };
 
-const isNetworksRequest = (url) => url.startsWith(NETWORKS_REQUEST(""));
+const NETWORKS_PATH = new URL(NETWORKS_REQUEST("")).pathname;
+const isNetworksRequest = (url) => new URL(url).pathname === NETWORKS_PATH;
 
 /**
  * Answers the league's feeds from the fixture, or from `answers` in its place, counting reads,
@@ -205,18 +206,73 @@ test("the schedule, bracket, standings, and players' averages are read again onl
   );
 });
 
-test("where each game is on comes from ESPN's scoreboard for yesterday and today", async () => {
+/** @param {{ reads: { feed: string, url?: string }[] }} league */
+const listNetworksReads = (league) =>
+  league.reads.filter((read) => read.feed === "networks").map((read) => read.url);
+
+test("where each game is on comes from ESPN's scoreboard for each month with a playoff game", async () => {
   const league = createLeague();
   const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
 
   const snapshot = await server.loadSnapshot(2026);
 
-  assert.deepEqual(
-    league.reads.filter((read) => read.feed === "networks").map((read) => read.url),
-    [NETWORKS_REQUEST("20260929"), NETWORKS_REQUEST("20260930")],
-  );
-  const tonight = snapshot.games.find((game) => game.id === "1042600132");
-  assert.deepEqual(tonight.networks, ["ESPN"]);
+  assert.deepEqual(listNetworksReads(league), [
+    NETWORKS_REQUEST("202609"),
+    NETWORKS_REQUEST("202610"),
+  ]);
+  const readNetworks = (id) => snapshot.games.find((game) => game.id === id)?.networks;
+  assert.deepEqual(readNetworks("1042600101"), ["ABC"]);
+  assert.deepEqual(readNetworks("1042600132"), ["ESPN"]);
+  assert.deepEqual(readNetworks("1042600123"), ["USA Net", "CNBC"]);
+});
+
+test("without the league's schedule, ESPN's scoreboard is read for this month alone", async () => {
+  const league = createLeague({ refuse: { schedule: "error" } });
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  await server.loadSnapshot(2026);
+
+  assert.deepEqual(listNetworksReads(league), [NETWORKS_REQUEST("202609")]);
+});
+
+test("a month that's over is read once more, and then keeps that answer", async () => {
+  const league = createLeague();
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  now = Date.parse("2026-10-05T16:00:00Z");
+  await server.loadSnapshot(2026);
+  assert.deepEqual(listNetworksReads(league).slice(2), [
+    NETWORKS_REQUEST("202609"),
+    NETWORKS_REQUEST("202610"),
+  ]);
+
+  now += 11 * 60 * 1000;
+  const snapshot = await server.loadSnapshot(2026);
+  assert.deepEqual(listNetworksReads(league).slice(4), [NETWORKS_REQUEST("202610")]);
+  assert.deepEqual(snapshot.games.find((game) => game.id === "1042600101").networks, ["ABC"]);
+});
+
+test("a month that's over and didn't answer keeps being read until it does", async () => {
+  /** @type {Record<string, "page" | "error">} */
+  const refuse = {};
+  const league = createLeague({ refuse });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  refuse.networks = "error";
+  now = Date.parse("2026-10-05T16:00:00Z");
+  await server.loadSnapshot(2026);
+  delete refuse.networks;
+  now += 11 * 60 * 1000;
+  await server.loadSnapshot(2026);
+
+  assert.deepEqual(listNetworksReads(league).slice(4), [
+    NETWORKS_REQUEST("202609"),
+    NETWORKS_REQUEST("202610"),
+  ]);
 });
 
 test("ESPN's scoreboard is read again only after 10 minutes, even after a failed read, and kept when it stops answering", async () => {
