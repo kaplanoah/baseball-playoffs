@@ -728,7 +728,7 @@ body:has(> .home-screen-bar:not([hidden])) {
     z-index: 20;
     left: 0;
     right: 0;
-    bottom: calc(var(--tab-bar-bottom) + var(--tab-bar-height) + 12px);
+    bottom: calc(var(--tab-bar-bottom) + var(--tab-bar-height) + 6px);
     margin: 0;
     pointer-events: none;
   }

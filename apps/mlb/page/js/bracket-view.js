@@ -75,12 +75,16 @@ const STACKED = {
   noteHeight: 20,
   lineHeight: 19,
   // Room above the tab bar for the round dots, which chrome.css pins there, and a gap above them.
-  tabBarClearance: 32,
+  // It matches what --tab-bar-clearance in chrome.css adds to the bar, so a bracket that fills the
+  // screen leaves the page nothing to scroll.
+  tabBarClearance: 24,
+  minGrowth: 0.5,
   maxGrowth: 3,
 };
-/* The tightest spaces, which all grow by one factor to fill the screen's height. The page's margin
-   above the bracket, nav.tabs's on phones in styles.css, supplies the first aboveLeague. The NL's
-   line sits betweenRows below the AL's last note. */
+/* The spaces, which all grow or shrink by one factor to fit the screen's height. The page's margin
+   above the bracket, nav.tabs's on phones in styles.css, supplies the first aboveLeague, which
+   never shrinks, since the stage can't reach above its scroller. The NL's line sits betweenRows
+   below the AL's last note. */
 const SPACES = { aboveLeague: 18, belowLine: 11, betweenRows: 13 };
 // A row of level cards and their notes.
 const SERIES_HEIGHT = CARD.height + STACKED.noteHeight;
@@ -335,14 +339,21 @@ function findSpaceBottom() {
   return tabBarTop - STACKED.tabBarClearance;
 }
 
-// Solves the stage's height, the grown spaces plus the lines and rows, for the space it has.
+const INNER_SPACES_HEIGHT = 2 * SPACES.belowLine + 3 * SPACES.betweenRows;
+
+// Solves the stage's spaces for the room they have: grown, the margin above grows with them.
+const solveGrowth = (room) =>
+  room < INNER_SPACES_HEIGHT
+    ? room / INNER_SPACES_HEIGHT
+    : (room + SPACES.aboveLeague) / (SPACES.aboveLeague + INNER_SPACES_HEIGHT);
+
+// Solves the stage's height, the sized spaces plus the lines and rows, for the space it has.
 function measureGrowth(wrap) {
   if (!isShown(wrap)) return renderedGrowth || 1;
   const top = wrap.getBoundingClientRect().top + scrollY;
   const fixedHeight = 2 * STACKED.lineHeight + 4 * SERIES_HEIGHT;
-  const growingHeight = SPACES.aboveLeague + 2 * SPACES.belowLine + 3 * SPACES.betweenRows;
-  const growth = (findSpaceBottom() - top - fixedHeight + SPACES.aboveLeague) / growingHeight;
-  const bounded = Math.min(STACKED.maxGrowth, Math.max(1, growth));
+  const growth = solveGrowth(findSpaceBottom() - top - fixedHeight);
+  const bounded = Math.min(STACKED.maxGrowth, Math.max(STACKED.minGrowth, growth));
   return Math.floor(bounded * 100) / 100;
 }
 
@@ -353,7 +364,7 @@ const measureFit = (wrap) =>
 
 function sizeSpaces(growth) {
   return {
-    top: Math.floor(SPACES.aboveLeague * (growth - 1)),
+    top: Math.max(0, Math.floor(SPACES.aboveLeague * (growth - 1))),
     belowLine: Math.floor(SPACES.belowLine * growth),
     betweenRows: Math.floor(SPACES.betweenRows * growth),
   };
