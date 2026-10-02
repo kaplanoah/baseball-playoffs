@@ -36,6 +36,18 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   ]);
 });
 
+test("a losing score is lit at three quarters, without the winner's glow", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const loser = page.locator("#games-previous .scoreboard.lost rect.on").first();
+  const winner = page.locator("#games-previous .scoreboard:not(.lost) rect.on").first();
+  await expect(loser).toHaveCSS("opacity", "0.75");
+  await expect(loser).toHaveCSS("filter", "none");
+  await expect(winner).toHaveCSS("opacity", "1");
+  await expect(winner).not.toHaveCSS("filter", "none");
+});
+
 test("no text is heavier than 600 but the calendar's day numbers", async ({ page }) => {
   await openApp(page);
   expect(await listHeavyText(page)).toEqual([]);
@@ -629,6 +641,50 @@ test.describe("on a phone, the text", () => {
     const sheet = page.locator("#teamDialog");
     await expect(sheet.locator(".team-game")).toHaveCount(3);
     expect(await readSmallestText(sheet)).toBeGreaterThanOrEqual(10.5);
+  });
+});
+
+test.describe("on a phone, a team's sheet", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    contextOptions: { reducedMotion: "reduce" },
+  });
+
+  test("sets its name a size up in semibold, its stats in the wider Barlow, its text in medium, and its first part 8px under the record", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="ATL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    await expect(sheet.locator(".team-scorer")).toBeVisible();
+
+    await expect(sheet.locator("#teamTitle")).toHaveCSS("font-weight", "600");
+    await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "16px");
+    await expect(sheet.locator("#teamNote")).toHaveCSS("font-weight", "500");
+    await expect(sheet.locator(".team-stat b").first()).toHaveCSS("font-family", /^"?Barlow"?,/);
+    await expect(sheet.locator(".team-detail").first()).toHaveCSS("font-weight", "500");
+    await expect(sheet.locator(".team-game").first()).toHaveCSS("font-weight", "500");
+
+    const colors = await sheet.evaluate((dialog) => {
+      const readColor = (selector) => getComputedStyle(dialog.querySelector(selector)).color;
+      return {
+        title: readColor("#teamTitle"),
+        detail: readColor(".team-detail"),
+        note: readColor("#teamNote"),
+        label: readColor(".team-label"),
+        round: readColor(".team-round"),
+      };
+    });
+    expect(colors.detail).toBe(colors.title);
+    expect(colors.label).toBe(colors.note);
+    expect(colors.label).not.toBe(colors.round);
+
+    const note = await sheet.locator("#teamNote").boundingBox();
+    const firstPart = await sheet.locator(".sheet-part h3").first().boundingBox();
+    expect(Math.round(firstPart.y - (note.y + note.height))).toBe(8);
   });
 });
 
