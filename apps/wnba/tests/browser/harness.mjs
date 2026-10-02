@@ -66,11 +66,15 @@ async function createAfternoonStore() {
 
 /**
  * The page as the Worker serves it, with the Worker's store behind it, already updated once from
- * the afternoon's feeds, and the game sheet's routes reading the league's recorded answers.
+ * the afternoon's feeds, and the game sheet's routes reading the league's recorded answers. On a
+ * phone, the afternoon's finals would fill the Updates box above every view, so it starts
+ * dismissed unless a test is about it.
  * @param {import("@playwright/test").Page} page
- * @param {{ league?: Parameters<typeof createLeagueFetch>[0] }} [options]
+ * @param {{ league?: Parameters<typeof createLeagueFetch>[0], isShowingUpdates?: boolean }} [options]
  */
-export async function openApp(page, { league = {} } = {}) {
+export async function openApp(page, { league = {}, isShowingUpdates = false } = {}) {
+  if (!isShowingUpdates)
+    await page.addInitScript(() => localStorage.setItem("updatesSeenAt", String(Date.now() * 2)));
   const testStore = await createAfternoonStore();
   const { context, store } = testStore;
   await connectToStore(page, testStore);

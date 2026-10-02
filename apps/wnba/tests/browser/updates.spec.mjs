@@ -20,7 +20,7 @@ test.describe("on a phone", () => {
   test("the Updates box lists each playoff final, newest first, until it's dismissed, and then only what's new", async ({
     page,
   }) => {
-    const app = await openApp(page);
+    const app = await openApp(page, { isShowingUpdates: true });
     const updates = page.locator("#updates");
 
     await expect(updates.locator(".updates-count")).toHaveText("6 updates since Sunday");
@@ -47,7 +47,7 @@ test.describe("on a phone", () => {
 });
 
 test("a computer shows no Updates box", async ({ page }) => {
-  await openApp(page);
+  await openApp(page, { isShowingUpdates: true });
   await expect(page.locator(".series").first()).toBeVisible();
 
   await expect(page.locator("#updates")).toBeHidden();
