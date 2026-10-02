@@ -11,6 +11,7 @@ test("a merge of only docs, tests, and tooling skips the deploy", () => {
     "apps/mlb/tests/browser/page.spec.mjs",
     ".github/workflows/ci.yml",
     "eslint.config.mjs",
+    "worker/find-passed-ci.mjs",
     "worker/set-app-key.mjs",
   ]);
   assert.equal(decision.isNeeded, false);
