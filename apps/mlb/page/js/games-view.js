@@ -151,11 +151,21 @@ function renderStatus(game) {
   return Boolean(status) && html`${status}${renderOutLights(game)}`;
 }
 
-// The whole row opens the matchup sheet, which needs only what the row shows.
+// The whole row opens the matchup sheet, which needs only what the row knows.
 function renderMatchupButton(game, [awayStarter, homeStarter]) {
-  const { date, start, state, tbd, doubleheader, away, home, starters } = game;
+  const { date, start, state, tbd, doubleheader, away, home, starters, networks } = game;
   const names = [awayStarter, homeStarter].map((starter) => starter?.name || "TBD");
-  const details = JSON.stringify({ date, start, state, tbd, doubleheader, away, home, starters });
+  const details = JSON.stringify({
+    date,
+    start,
+    state,
+    tbd,
+    doubleheader,
+    away,
+    home,
+    starters,
+    networks,
+  });
   return html`<button type="button" class="game-open" aria-label="Pitching matchup: ${names.join(" vs ")}" data-game="${details}"></button>`;
 }
 
@@ -183,7 +193,6 @@ function renderGame(game, series, isToday) {
     label: Boolean(series) && renderSeriesLabel(game, series),
     headline: renderHeadline(game, awayLost, homeLost),
     status: renderStatus(game),
-    networks: game.networks ?? [],
     action: canOpen && renderMatchupButton(game, [awayStarter, homeStarter]),
   });
 }

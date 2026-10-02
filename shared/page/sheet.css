@@ -11,6 +11,14 @@
  *
  * While a sheet's details load, placeholders hold their place in the shape they'll have, and
  * sheet-resize.js eases the sheet to its new height once they arrive.
+ *
+ * Where to watch a game, as network-logos.js builds it, is a line of its channels, which takes
+ * these tokens from the app's :root:
+ *   --network-logo-height    a logo's height, which each logo scales so a square badge and a
+ *                            long wordmark look about the same size
+ *   --network-gap            the room between two channels
+ *   --logos-for-light        inline when a logo with a version for each background shows its
+ *   --logos-for-dark         version for a light (or dark) one, and none when it doesn't
  */
 
 .sheet-panel {
@@ -157,4 +165,30 @@
   to {
     opacity: 0.4;
   }
+}
+
+/* Each logo is moved by its nudge, the share of its height its weight sits off its middle, so a
+   logo heavy at the bottom isn't drawn low. */
+.networks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px var(--network-gap);
+  font-size: var(--size-small);
+  color: var(--ink-mid);
+}
+.network-logo {
+  --logo-height: calc(var(--network-logo-height) * var(--logo-scale, 1));
+  height: var(--logo-height);
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  translate: 0 calc(var(--logo-height) * var(--logo-nudge, 0) * -1);
+}
+.network-logo.for-light {
+  display: var(--logos-for-light);
+}
+.network-logo.for-dark {
+  display: var(--logos-for-dark);
 }

@@ -119,9 +119,8 @@
   --game-label-offset: -32px;
   --game-headline-offset: 0px;
   --game-status-offset: 32px;
-  --game-networks-bottom: 12px;
-  --network-logo-height: 11px;
-  --network-gap: 10px;
+  --network-logo-height: 14px;
+  --network-gap: 16px;
   --logos-for-light: inline;
   --logos-for-dark: none;
   color-scheme: light;
@@ -506,11 +505,6 @@ header.top h1 {
   clip-path: inset(50%);
   white-space: nowrap;
 }
-.game-networks {
-  font-family: var(--text);
-  font-size: var(--size-small);
-  color: var(--ink-mid);
-}
 .game-status,
 .series-label {
   font-weight: 600;
@@ -635,6 +629,10 @@ header.top h1 {
 .faceoff .time {
   font-size: 1.3rem;
   white-space: nowrap;
+}
+.faceoff .networks {
+  grid-column: 1 / -1;
+  margin-top: 14px;
 }
 .faceoff-status {
   font-family: var(--display);

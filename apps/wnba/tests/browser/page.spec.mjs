@@ -70,113 +70,6 @@ test("every piece of text keeps to the type scale, in every view", async ({ page
   expect(await listOffScaleText(page)).toEqual([]);
 });
 
-test("today's games still to come or under way say where they're on, and a finished one doesn't", async ({
-  page,
-}) => {
-  const app = await openApp(page);
-  await page.getByRole("tab", { name: "Games" }).click();
-  const washington = page.locator('#games-today [data-game="1042600132"]');
-  await expect(washington.locator(".game-networks").getByRole("img")).toHaveAttribute(
-    "alt",
-    "ESPN",
-  );
-  await expect(page.locator("#games-today .game-networks")).toHaveCount(2);
-  await expect(page.locator("#games-previous .game-networks")).toHaveCount(0);
-
-  await app.changeSeason((season) => {
-    const game = season.games.find((each) => each.id === "1042600132");
-    Object.assign(game, { state: "final", status: "Final", networks: [] });
-    return season;
-  });
-  await expect(washington.locator(".game-networks")).toHaveCount(0);
-});
-
-/** @type {["light" | "dark", string, string][]} */
-const LOGO_LOOKS = [
-  ["light", "for-light", "for-dark"],
-  ["dark", "for-dark", "for-light"],
-];
-for (const [scheme, shown, hidden] of LOGO_LOOKS) {
-  test(`in the ${scheme} look, a channel's logo shows its version for that background`, async ({
-    page,
-  }) => {
-    await page.emulateMedia({ colorScheme: scheme });
-    const app = await openApp(page);
-    await page.getByRole("tab", { name: "Games" }).click();
-    await app.changeSeason((season) => {
-      season.games.find((each) => each.id === "1042600132").networks = ["NBC"];
-      return season;
-    });
-    const networks = page.locator('#games-today [data-game="1042600132"] .game-networks');
-    await expect(networks.locator(`img.${shown}`)).toBeVisible();
-    await expect(networks.locator(`img.${hidden}`)).toBeHidden();
-    await expect(networks.locator(`img.${shown}`)).toHaveJSProperty("complete", true);
-    await expect(networks.locator(`img.${shown}`)).not.toHaveJSProperty("naturalWidth", 0);
-  });
-}
-
-test("a live game's clock sits beside its round while its channels show, and under its score once they're turned off", async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  const app = await openApp(page);
-  await page.getByRole("tab", { name: "Games" }).click();
-  await app.changeSeason((season) => {
-    const game = season.games.find((each) => each.id === "1042600132");
-    Object.assign(game, { state: "live", status: "Q3 4:12", period: 3, clock: "4:12" });
-    Object.assign(game.away, { score: 58 });
-    Object.assign(game.home, { score: 61 });
-    return season;
-  });
-  const row = page.locator('#games-today [data-game="1042600132"]');
-  await expect(row.locator(".game-label-status")).toHaveText("Q3 4:12");
-  await expect(row.locator(".game-status")).toBeHidden();
-  await expect(row.getByRole("img", { name: "ESPN" })).toBeVisible();
-  const [clockColor, orange] = await row.locator(".game-label-status .clock").evaluate((clock) => {
-    const probe = document.createElement("span");
-    probe.style.color = "var(--orange)";
-    clock.after(probe);
-    const colors = [getComputedStyle(clock).color, getComputedStyle(probe).color];
-    probe.remove();
-    return colors;
-  });
-  expect(clockColor).toBe(orange);
-
-  await page.getByRole("button", { name: "Settings" }).click();
-  const toggle = page.getByRole("switch", { name: "Show where to watch" });
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await expect(row.locator(".game-status")).toHaveText("Q3 4:12");
-  await expect(row.locator(".game-label-status")).toBeHidden();
-  await expect(row.getByRole("img", { name: "ESPN" })).toBeHidden();
-
-  await page.reload();
-  await page.getByRole("tab", { name: "Games" }).click();
-  await expect(page.locator("#games-today .game-networks img").first()).toBeHidden();
-  await expect(page.locator("html")).toHaveAttribute("data-where-to-watch", "off");
-});
-
-test("a square badge is drawn taller than a long wordmark, in the room under the teams", async ({
-  page,
-}) => {
-  const app = await openApp(page);
-  await page.getByRole("tab", { name: "Games" }).click();
-  await app.changeSeason((season) => {
-    season.games.find((each) => each.id === "1042600132").networks = ["ABC", "ESPN"];
-    return season;
-  });
-  const row = page.locator('#games-today [data-game="1042600132"]');
-  const abc = await row.getByRole("img", { name: "ABC" }).boundingBox();
-  const espn = await row.getByRole("img", { name: "ESPN" }).boundingBox();
-  expect(abc.height).toBeGreaterThan(espn.height * 1.2);
-  expect(espn.height).toBeGreaterThan(8);
-  const rowBox = await row.boundingBox();
-  const sides = await row.locator(".game-side.home").boundingBox();
-  expect(abc.y).toBeGreaterThan(sides.y + sides.height);
-  expect(abc.y + abc.height).toBeLessThan(rowBox.y + rowBox.height);
-});
-
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
@@ -363,7 +256,7 @@ async function chooseAppearance(page, choice) {
   await page.keyboard.press("Escape");
 }
 
-test("settings list Notifications, Show where to watch, and Appearance, with a line between each", async ({
+test("settings list Notifications above Appearance, with one line between them", async ({
   page,
 }) => {
   await openApp(page);
@@ -371,13 +264,12 @@ test("settings list Notifications, Show where to watch, and Appearance, with a l
   const rows = page.locator("#settingsDialog .control-row");
   await expect(rows.locator(".control-label > span:first-child")).toHaveText([
     "Notifications",
-    "Show where to watch",
     "Appearance",
   ]);
   await expect(rows.first()).toBeVisible();
   const readTopBorders = () =>
     rows.evaluateAll((each) => each.map((row) => getComputedStyle(row).borderTopStyle));
-  expect(await readTopBorders()).toEqual(["none", "solid", "solid"]);
+  expect(await readTopBorders()).toEqual(["none", "solid"]);
 
   await rows.first().evaluate((row) => row.setAttribute("hidden", ""));
   expect((await readTopBorders())[1]).toBe("none");
@@ -972,15 +864,13 @@ test("each day's games sit in a box of their own, apart from the next day's", as
   expect(box).toBe("solid");
 });
 
-test("each day's date sits to the left of its games, level with the first, above where to watch it", async ({
-  page,
-}) => {
+test("each day's date sits to the left of its games, level with the first", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const day = page.locator("#games-today .game-day").first();
   const date = await day.locator(".day-label").boundingBox();
   const list = await day.locator(".game-list").boundingBox();
-  const firstGame = await day.locator(".game-row .game-middle").first().boundingBox();
+  const firstGame = await day.locator(".game-row").first().boundingBox();
   expect(date.x + date.width).toBeLessThan(list.x);
   expect(
     Math.abs(date.y + date.height / 2 - (firstGame.y + firstGame.height / 2)),

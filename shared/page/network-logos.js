@@ -1,3 +1,5 @@
+import { html } from "./html.js";
+
 // The channels a game can be on that have a logo in networks/, each a public-domain file from
 // Wikimedia Commons or one the repo's owner supplied. A channel goes by more than one name across
 // the leagues' feeds, and any of them finds its logo; a channel without one shows its name instead.
@@ -153,3 +155,45 @@ const LOGO_BY_NAME = new Map(
 export const listNetworkLogos = (networks) => [
   ...new Set(networks.map((name) => LOGO_BY_NAME.get(foldName(name)) ?? name)),
 ];
+
+/**
+ * @param {NetworkLogo} logo
+ * @param {string} file
+ * @param {string} classes
+ */
+const renderLogoImage = (logo, file, classes) =>
+  html`<img class="${classes}" src="shared/networks/${file}" alt="${logo.name}"${describeLogoStyle(logo)} />`;
+
+/** @param {NetworkLogo} logo */
+function describeLogoStyle({ scale, nudge }) {
+  const properties = [scale && `--logo-scale: ${scale}`, nudge && `--logo-nudge: ${nudge}`];
+  const style = properties.filter(Boolean).join("; ");
+  return style ? html` style="${style}"` : html``;
+}
+
+// A logo with a version for each background shows the page's.
+/** @param {NetworkLogo} logo */
+function renderLogo(logo) {
+  if (!logo.darkFile) return renderLogoImage(logo, logo.file, "network-logo");
+  return html`${renderLogoImage(logo, logo.file, "network-logo for-light")}${renderLogoImage(
+    logo,
+    logo.darkFile,
+    "network-logo for-dark",
+  )}`;
+}
+
+/**
+ * Where to watch a game, as sheet.css lays it out: its channels in one line, logos standing apart
+ * by space alone, and a channel without one by its name.
+ * @param {string[]} networks
+ */
+export const renderNetworks = (networks) =>
+  networks.length
+    ? html`<div class="networks" role="group" aria-label="Where to watch">
+        ${listNetworkLogos(networks).map((network) =>
+          typeof network === "string"
+            ? html`<span class="network-name">${network}</span>`
+            : renderLogo(network),
+        )}
+      </div>`
+    : html``;

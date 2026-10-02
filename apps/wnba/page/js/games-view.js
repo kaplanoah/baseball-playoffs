@@ -96,12 +96,8 @@ function renderOpenButton(game) {
   return html`<button type="button" class="game-open" aria-label="${label}"></button>`;
 }
 
-// Only today's games say where to watch them.
-/**
- * @param {Game} game
- * @param {boolean} isToday
- */
-const renderGame = (game, isToday) =>
+/** @param {Game} game */
+const renderGame = (game) =>
   renderGameRow({
     id: game.id,
     classes: [game.state],
@@ -110,33 +106,28 @@ const renderGame = (game, isToday) =>
     label: renderSeriesLabel(game),
     headline: renderHeadline(game),
     status: renderStatus(game),
-    networks: (isToday && game.networks) || [],
     action: renderOpenButton(game),
   });
 
-/**
- * @param {Game[]} games
- * @param {boolean} isToday
- */
-const renderGameList = (games, isToday) =>
+/** @param {Game[]} games */
+const renderGameList = (games) =>
   html`<ul class="game-list">
-    ${games.map((game) => renderGame(game, isToday))}
+    ${games.map(renderGame)}
   </ul>`;
 
 /**
  * A day's games in a box of their own, beside its date as a wall calendar shows it.
  * @param {{ day: Date, games: Game[] }} gameDay
  * @param {number} now
- * @param {boolean} [isToday]
  */
-const renderDay = ({ day, games }, now, isToday = false) =>
+const renderDay = ({ day, games }, now) =>
   html`<section class="game-day">
     <h3 class="day-label" aria-label="${nameListDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
       <span class="day-month">${formatShortMonth(day)}</span
       ><span class="day-number tabular">${day.getDate()}</span
       ><span class="day-name">${abbreviateDay(day, now)}</span>
     </h3>
-    ${renderGameList(games, isToday)}
+    ${renderGameList(games)}
   </section>`;
 
 /**
@@ -191,7 +182,7 @@ const renderEmptyNote = (text) => html`<p class="empty-note">${text}</p>`;
  */
 const renderToday = (today, now) =>
   today.length
-    ? renderDay({ day: new Date(now), games: today }, now, true)
+    ? renderDay({ day: new Date(now), games: today }, now)
     : renderEmptyNote("No games today.");
 
 /**

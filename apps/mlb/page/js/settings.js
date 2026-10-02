@@ -2,7 +2,6 @@
 // the touches in the sheet that belong to the ranking and the season picker instead of the swipe.
 
 import { startSettingsSheet } from "#shared/settings-sheet.js";
-import { startWhereToWatch } from "#shared/where-to-watch.js";
 import { session } from "./session.js";
 
 const isShowingPastSeason = () => session.activeYear !== session.currentSeason;
@@ -19,5 +18,4 @@ const isOwnGesture = (target) => target instanceof Element && !!target.closest("
 
 export function startSettings() {
   startSettingsSheet({ isOwnGesture });
-  startWhereToWatch();
 }

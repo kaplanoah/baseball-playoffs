@@ -10,7 +10,6 @@ import { startSettingsSheet } from "#shared/settings-sheet.js";
 import { fillStamp } from "#shared/stamp.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { startAppearance } from "./appearance.js";
-import { startWhereToWatch } from "#shared/where-to-watch.js";
 import { placeBracket, readBracketScroll, startBracket } from "./bracket-tree.js";
 import { renderBracket } from "./bracket-view.js";
 import { refreshGameSheet, startGameSheet } from "./game-sheet.js";
@@ -84,7 +83,6 @@ function catchUp() {
 
 async function boot() {
   startAppearance();
-  startWhereToWatch();
   watchReturns({ catchUp });
   trackKeyboardFocus();
   startPageTabs();

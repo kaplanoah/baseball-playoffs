@@ -4,7 +4,6 @@ import {
   openApp,
   openSettings,
   buildFixtureSnapshot,
-  buildSnapshotWithBroadcasts,
   buildSnapshotWithStarters,
   chooseSeason,
   EVENING_FIXTURE,
@@ -423,34 +422,6 @@ test("a game still to come shows its start time centered in its row, under the T
   expect(Math.abs(timeBox.y + timeBox.height / 2 - (rowBox.y + rowBox.height / 2))).toBeLessThan(1);
   expect(Math.abs(findCenterX(timeBox) - findCenterX(rowBox))).toBeLessThan(1);
   expect(Math.abs(findCenterX(timeBox) - findCenterX(todayBox))).toBeLessThan(1);
-});
-
-test("today's games still to come or under way say where they're on, at the foot of a row as tall as the rest", async ({
-  page,
-}) => {
-  await page.setViewportSize(PHONE);
-  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: buildSnapshotWithBroadcasts() } });
-  await page.getByRole("tab", { name: "Games" }).click();
-  const rows = page.locator("#games-today .game-row");
-  const reds = rows.filter({ hasText: "Reds" });
-  const pirates = rows.filter({ hasText: "Pirates" });
-
-  const redsNetworks = reds.locator(".game-networks");
-  await expect(redsNetworks.locator(".network-name")).toHaveText(["Reds.TV", "BravesVision"]);
-  await expect(redsNetworks.locator(".sep")).toHaveCount(0);
-  await expect(redsNetworks.getByRole("img", { name: "FS1" })).toBeVisible();
-  await expect(redsNetworks.locator('img.for-dark[alt="FOX ONE"]')).toBeVisible();
-  await expect(redsNetworks.locator('img.for-light[alt="FOX ONE"]')).toBeHidden();
-  await expect(page.locator("#games-today .game-networks")).toHaveCount(7);
-  await expect(pirates.locator(".game-networks")).toHaveCount(0);
-  await expect(page.locator("#games-next .game-networks")).toHaveCount(0);
-  const redsBox = await reds.boundingBox();
-  const piratesBox = await pirates.boundingBox();
-  const logo = await redsNetworks.getByRole("img", { name: "FS1" }).boundingBox();
-  const score = await reds.locator(".game-headline").boundingBox();
-  expect(redsBox.height).toBe(piratesBox.height);
-  expect(logo.y).toBeGreaterThanOrEqual(score.y + score.height);
-  expect(logo.y + logo.height).toBeLessThan(redsBox.y + redsBox.height);
 });
 
 // A series' teamA is its higher seed or its first feeder's winner, not the game's away club.

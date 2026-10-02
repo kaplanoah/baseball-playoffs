@@ -5,22 +5,11 @@
  * pieces hold.
  *
  * An app's :root defines these tokens, each a length:
- *   --game-row-height        every game's height, with or without where to watch it
+ *   --game-row-height        every game's height
  *   --game-side-offset       each side and the line under it, as one block
  *   --game-label-offset      the label over the time or score
  *   --game-headline-offset   the time or score
  *   --game-status-offset     the status under the time or score
- *   --game-networks-bottom   the middle of the line that says where to watch a game, from the
- *                            bottom of its row
- *   --network-logo-height    a channel's logo on that line, which each logo scales so a square
- *                            badge and a long wordmark look about the same size
- *   --network-gap            the room between two channels on that line
- * A game whose status shares its line with channels shows the status beside its label instead,
- * unless the page's root says data-where-to-watch="off", which leaves the channels out.
- * And these, set for whether the page's background is light or dark, since each channel's logo
- * is drawn for one or the other:
- *   --logos-for-light        inline when a logo with a version for each shows its version for a
- *   --logos-for-dark         light (or dark) background, and none when it doesn't
  * Without a label, the time or score and its status center as a pair, as far apart as under one.
  * Its lines and the hover on a row that opens take chrome.css's --divider and --ink.
  */
@@ -105,44 +94,6 @@
 }
 .game-status {
   translate: 0 var(--status-offset);
-}
-/* Each channel centers on one line, its logo moved by its nudge, the share of its height its
-   weight sits off its middle, so a logo heavy at the bottom isn't drawn low. */
-.game-networks {
-  position: absolute;
-  inset-inline: 0;
-  bottom: var(--game-networks-bottom);
-  height: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--network-gap);
-  white-space: nowrap;
-}
-.network-logo {
-  --logo-height: calc(var(--network-logo-height) * var(--logo-scale, 1));
-  height: var(--logo-height);
-  width: auto;
-  max-width: 96px;
-  object-fit: contain;
-  translate: 0 calc(var(--logo-height) * var(--logo-nudge, 0) * -1);
-}
-.network-logo.for-light {
-  display: var(--logos-for-light);
-}
-.network-logo.for-dark {
-  display: var(--logos-for-dark);
-}
-.game-label {
-  align-items: baseline;
-}
-.game-label-status {
-  margin-left: 0.6em;
-}
-:root:not([data-where-to-watch="off"]) .game-row:has(.game-label-status) .game-status,
-:root[data-where-to-watch="off"] .game-label-status,
-:root[data-where-to-watch="off"] .game-networks {
-  display: none;
 }
 /* An action that covers the whole row, so a tap anywhere on the game opens it. */
 .game-open {

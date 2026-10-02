@@ -689,3 +689,75 @@ test("closing a team's sheet over a game's sheet leaves no focus ring around the
   await expect(gameSheet).toBeFocused();
   await expect(gameSheet).toHaveCSS("outline-style", "none");
 });
+
+/**
+ * Opens the sheet of today's game between the Mystics and the Dream, which ESPN carries.
+ * @param {import("@playwright/test").Page} page
+ */
+async function openWashingtonSheet(page) {
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.locator('#games-today [data-game="1042600132"] .game-open').click();
+  return page.getByRole("dialog");
+}
+
+test("a game's sheet says where to watch it until it ends, and its row doesn't", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  const sheet = await openWashingtonSheet(page);
+  const networks = sheet.getByRole("group", { name: "Where to watch" });
+  await expect(networks.getByRole("img")).toHaveAttribute("alt", "ESPN");
+  await expect(networks.getByRole("img")).toBeVisible();
+  await expect(page.locator("#gamePager .network-logo")).toHaveCount(0);
+  const faceOff = await sheet.locator(".faceoff-middle").boundingBox();
+  const logo = await networks.getByRole("img").boundingBox();
+  expect(logo.y).toBeGreaterThan(faceOff.y + faceOff.height);
+
+  await app.changeSeason((season) => {
+    const game = season.games.find((each) => each.id === "1042600132");
+    Object.assign(game, { state: "final", status: "Final", networks: [] });
+    Object.assign(game.away, { score: 80 });
+    Object.assign(game.home, { score: 77 });
+    return season;
+  });
+  await expect(sheet.locator(".faceoff-status")).toHaveText("Final");
+  await expect(networks).toHaveCount(0);
+});
+
+/** @type {["light" | "dark", string, string][]} */
+const LOGO_LOOKS = [
+  ["light", "for-light", "for-dark"],
+  ["dark", "for-dark", "for-light"],
+];
+for (const [scheme, shown, hidden] of LOGO_LOOKS) {
+  test(`in the ${scheme} look, a sheet shows each channel's logo in its version for that background`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ colorScheme: scheme });
+    const app = await openApp(page);
+    await app.changeSeason((season) => {
+      season.games.find((each) => each.id === "1042600132").networks = ["NBC", "ESPN"];
+      return season;
+    });
+    const sheet = await openWashingtonSheet(page);
+    const logo = sheet.locator(`.network-logo.${shown}`);
+    await expect(logo).toBeVisible();
+    await expect(logo).toHaveJSProperty("complete", true);
+    await expect(logo).not.toHaveJSProperty("naturalWidth", 0);
+    await expect(sheet.locator(`.network-logo.${hidden}`)).toBeHidden();
+    await expect(sheet.getByRole("img", { name: "ESPN" })).toBeVisible();
+  });
+}
+
+test("in a sheet, a square badge is drawn taller than a long wordmark", async ({ page }) => {
+  const app = await openApp(page);
+  await app.changeSeason((season) => {
+    season.games.find((each) => each.id === "1042600132").networks = ["ABC", "ESPN"];
+    return season;
+  });
+  const sheet = await openWashingtonSheet(page);
+  const abc = await sheet.getByRole("img", { name: "ABC" }).boundingBox();
+  const espn = await sheet.getByRole("img", { name: "ESPN" }).boundingBox();
+  expect(abc.height).toBeGreaterThan(espn.height * 1.2);
+  expect(espn.height).toBeGreaterThan(10);
+});

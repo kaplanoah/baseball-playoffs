@@ -1,9 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { renderGameRow } from "../shared/page/game-row.js";
-import { html } from "../shared/page/html.js";
-import { listNetworkLogos, NETWORK_LOGOS } from "../shared/page/network-logos.js";
+import { listNetworkLogos, NETWORK_LOGOS, renderNetworks } from "../shared/page/network-logos.js";
 
 /** @param {string[]} names */
 const listLogos = (names) =>
@@ -12,12 +10,7 @@ const listLogos = (names) =>
 const LOGO_FOLDER = new URL("../shared/page/networks/", import.meta.url);
 
 /** @param {string[]} networks */
-function renderNetworksLine(networks) {
-  const side = { lines: html`` };
-  const row = String(renderGameRow({ away: side, home: side, headline: html``, networks }));
-  const start = row.search(/<span class="game-networks"\s*>/);
-  return start === -1 ? "" : row.slice(start, row.lastIndexOf("</li>"));
-}
+const renderNetworksLine = (networks) => String(renderNetworks(networks));
 
 test("a channel's logo is found by any name the feeds give it, whatever its case", () => {
   const logos = listNetworkLogos(["NBC", "peacock", "USA Net", "WPIX"]);
@@ -72,7 +65,7 @@ test("every logo is a PNG or a plain drawing: no scripts, links, or anything it 
   }
 });
 
-test("the line under a game shows each logo, its dark version beside it, and names without one, apart by space alone", () => {
+test("the line of channels shows each logo, its dark version beside it, and names without one, apart by space alone", () => {
   const line = renderNetworksLine(["NBC", "ESPN", "Reds.TV"]);
   const images = [...line.matchAll(/<img class="([^"]*)" src="([^"]*)" alt="([^"]*)"/g)].map(
     ([, classes, source, alt]) => [classes, source, alt],
@@ -84,6 +77,7 @@ test("the line under a game shows each logo, its dark version beside it, and nam
   ]);
   assert.match(line, /<span class="network-name">Reds\.TV<\/span>/);
   assert.doesNotMatch(line, /class="sep"/);
+  assert.match(line, /^<div class="networks" role="group" aria-label="Where to watch">/);
 });
 
 test("a logo whose weight sits low is nudged up, and one with its weight centered isn't", () => {
@@ -95,33 +89,4 @@ test("a logo whose weight sits low is nudged up, and one with its weight centere
 
 test("a game with nowhere to watch it has no line for it", () => {
   assert.equal(renderNetworksLine([]), "");
-});
-
-test("a status sharing its line with channels also shows beside the label, and one without doesn't", () => {
-  const side = { lines: html`` };
-  const live = String(
-    renderGameRow({
-      away: side,
-      home: side,
-      label: html`Semis`,
-      headline: html``,
-      status: html`Q3 4:12`,
-      networks: ["ESPN"],
-    }),
-  );
-  assert.match(
-    live,
-    /<span class="game-label"\s*>Semis<span class="game-label-status">Q3 4:12<\/span>/,
-  );
-  assert.match(live, /<span class="game-status">Q3 4:12<\/span>/);
-  const final = String(
-    renderGameRow({
-      away: side,
-      home: side,
-      label: html`Semis`,
-      headline: html``,
-      status: html`Final`,
-    }),
-  );
-  assert.doesNotMatch(final, /game-label-status/);
 });
