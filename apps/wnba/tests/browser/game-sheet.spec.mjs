@@ -8,6 +8,10 @@ const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
 const VALKYRIES_AT_WINGS = "Game details: Valkyries at Wings, First Round Game 2";
 const POLL_LIVE_MS = 15 * 1000;
 
+// Most of these tests are about what a sheet shows, so they skip the eased scrolling between the
+// Games lists. The ones about how a sheet moves ask for full motion.
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
 /**
  * Shows the Games list that has the game a button names, and finds the button.
  * @param {import("@playwright/test").Page} page
@@ -278,6 +282,7 @@ test("a sheet that can't load its box score eases from the box score's shape dow
   page,
 }) => {
   const readResizes = await recordSheetResizes(page);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   await openApp(page);
   await page.route(
     (url) => url.pathname === "/box-score",
@@ -332,7 +337,12 @@ test("no text in a game's sheet is smaller than 10.5px, in its box score or its 
 });
 
 test.describe("on a phone", () => {
-  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    contextOptions: { reducedMotion: "no-preference" },
+  });
 
   test("the game sheet rises from the bottom, with a grabber in place of Done", async ({
     page,

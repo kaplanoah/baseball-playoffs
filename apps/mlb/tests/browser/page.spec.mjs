@@ -50,6 +50,8 @@ test("the page's font comes from its own server, in every weight from one file",
 test("the Games tab lists today's games and every game on each club's previous and next date", async ({
   page,
 }) => {
+  // The lists, not the scrolling between them, are what this test reads.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const shownGames = page.locator(".pager-page:not([inert])");
