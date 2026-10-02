@@ -102,22 +102,95 @@ test("the Worker answers a game's lead, says when ESPN has no such game, and tur
   }
 });
 
-test("the chart marks each side's biggest lead and names each period, overtime too", () => {
+/**
+ * The text of each of the chart's labels with the class named.
+ * @param {string} markup
+ * @param {string} name
+ */
+const readLabels = (markup, name) =>
+  [...markup.matchAll(new RegExp(`class="${name}( leader)?"[^>]*>([^<]+)<`, "g"))].map(
+    (match) => match[2],
+  );
+
+/**
+ * A game the home side leads from its first basket by up to `biggest`, and wins.
+ * @param {number} biggest
+ * @returns {import("../page/js/lead-chart.js").Lead}
+ */
+const leadBy = (biggest) => ({
+  periods: 4,
+  isOver: true,
+  scores: [
+    [0, 0, 0],
+    [600, 0, biggest],
+    [2400, 0, 2],
+  ],
+});
+
+test("the chart names each side on its own half, marks each side's biggest lead, and names each period, overtime too", () => {
   const markup = renderLeadChart(describeLead(LEAD.summary), TEAMS).text;
 
   assert.match(
     markup,
     /aria-label="The Wings led by as many as 8, the Valkyries led by as many as 8"/,
   );
+  assert.deepEqual(readLabels(markup, "lead-side"), [
+    "&#9650; Wings ahead",
+    "&#9660; Valkyries ahead",
+  ]);
+  assert.deepEqual(readLabels(markup, "lead-peak-label"), ["Wings +8", "Valkyries +8"]);
+  assert.deepEqual(readLabels(markup, "lead-period"), ["Q1", "Q2", "Q3", "Q4", "OT"]);
+});
+
+test("the side ahead at the line's end takes the accent, and a tied live game gives it to neither", () => {
+  const final = renderLeadChart(describeLead(LEAD.summary), TEAMS).text;
+
   assert.deepEqual(
-    [...markup.matchAll(/class="lead-peak-label"[^>]*>([^<]+)</g)].map((match) => match[1]),
-    ["+8", "+8"],
+    [...final.matchAll(/class="(lead-area|lead-side|lead-peak-label)( leader)?"/g)].map(
+      ([, name, leader]) => `${name}${leader ?? ""}`,
+    ),
+    [
+      "lead-area leader",
+      "lead-area",
+      "lead-side leader",
+      "lead-side",
+      "lead-peak-label leader",
+      "lead-peak-label",
+    ],
   );
-  assert.deepEqual(
-    [...markup.matchAll(/class="lead-period"[^>]*>([^<]+)</g)].map((match) => match[1]),
-    ["Q1", "Q2", "Q3", "Q4", "OT"],
-  );
-  assert.match(markup, /&#9650; Wings ahead<\/span><span>&#9660; Valkyries ahead/);
+
+  const tied = renderLeadChart(
+    {
+      periods: 4,
+      isOver: false,
+      scores: [
+        [0, 0, 0],
+        [60, 0, 2],
+        [90, 2, 2],
+      ],
+    },
+    TEAMS,
+  ).text;
+  assert.doesNotMatch(tied, /leader/);
+});
+
+test("the scale reaches past the biggest lead far enough to keep its label on the tile", () => {
+  assert.deepEqual(readLabels(renderLeadChart(leadBy(8), TEAMS).text, "lead-reach"), [
+    "+10",
+    "+10",
+  ]);
+  assert.deepEqual(readLabels(renderLeadChart(leadBy(9), TEAMS).text, "lead-reach"), [
+    "+15",
+    "+15",
+  ]);
+  assert.deepEqual(readLabels(renderLeadChart(leadBy(12), TEAMS).text, "lead-reach"), [
+    "+15",
+    "+15",
+  ]);
+  assert.deepEqual(readLabels(renderLeadChart(leadBy(13), TEAMS).text, "lead-reach"), [
+    "+20",
+    "+20",
+  ]);
 });
 
 test("a live game's line stops at its latest basket, and a side that never led has no mark", () => {
@@ -136,7 +209,7 @@ test("a live game's line stops at its latest basket, and a side that never led h
 
   assert.match(markup, /aria-label="The Wings led by as many as 10, the Valkyries never led"/);
   assert.equal(markup.match(/class="lead-peak"/g).length, 1);
-  assert.equal(line.split("L").at(-1).split(",")[0], String(24 + (600 / 2400) * 290));
+  assert.equal(line.split("L").at(-1).split(",")[0], String(30 + (600 / 2400) * 284));
 });
 
 test("the box score shows the lead under the quarters once it has a basket", () => {

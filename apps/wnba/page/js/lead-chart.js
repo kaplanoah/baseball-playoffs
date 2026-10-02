@@ -2,8 +2,9 @@ import { html } from "#shared/html.js";
 import { nameTeam } from "./series.js";
 
 // The game sheet's chart of the lead through a game: the home team's lead above the middle line
-// and the visitors' below it, after each basket, with each side's biggest lead marked. A live
-// game's line stops at its latest basket.
+// and the visitors' below it, after each basket, on a tile with each team named just outside its
+// own half and each side's biggest lead marked. The side ahead at the line's end, the winner once
+// the game is over, takes the accent. A live game's line stops at its latest basket.
 
 /** @typedef {{ periods: number, isOver: boolean, scores: [number, number, number][] }} Lead each score's seconds from tip-off, then the away and home scores */
 
@@ -12,17 +13,26 @@ const OVERTIME_SECONDS = 5 * 60;
 const REGULATION_PERIODS = 4;
 
 const WIDTH = 320;
-const HEIGHT = 140;
-const LEFT = 24;
+const LEFT = 30;
 const RIGHT = 6;
-const TOP = 18;
-const BOTTOM = 20;
-const PLOT_HEIGHT = HEIGHT - TOP - BOTTOM;
+const HOME_NAME_BASELINE = 13;
+const TILE_TOP = 22;
+// The tile reaches past the scale's dashed edges, so a biggest lead near one keeps its label inside.
+const TILE_ROOM = 10;
+const TOP = TILE_TOP + TILE_ROOM;
+const PLOT_HEIGHT = 102;
 const MIDDLE = TOP + PLOT_HEIGHT / 2;
+const TILE_BOTTOM = TOP + PLOT_HEIGHT + TILE_ROOM;
+const AWAY_NAME_BASELINE = TILE_BOTTOM + 18;
+const PERIOD_BASELINE = AWAY_NAME_BASELINE + 19;
+const HEIGHT = PERIOD_BASELINE + 5;
 const STEP = 5;
 const SMALLEST_REACH = 10;
-// Half a biggest lead's label, which stays inside the chart however near its edge the lead came.
-const PEAK_LABEL_ROOM = 10;
+// From a biggest lead's dot to the tile's edge: the dot, the label beyond it, and a gap.
+const PEAK_ROOM = 20;
+// About half a 13px Barlow Condensed character, to keep a biggest lead's label inside the chart.
+const HALF_CHARACTER = 3.3;
+const TICK_HALF = 3;
 
 /** @param {number} periods */
 const measureGame = (periods) =>
@@ -66,21 +76,22 @@ const describeBiggestLead = (name, margin) =>
   margin > 0 ? `the ${name} led by as many as ${margin}` : `the ${name} never led`;
 
 /**
- * @param {Lead} lead
- * @param {{ away: string, home: string }} teams
+ * The scale's reach, in points either way: the biggest lead rounded up to a step, and a step more
+ * while that leaves its dot and label too near the tile's edge.
+ * @param {number} biggest
  */
-export function renderLeadChart(lead, teams) {
-  const length = measureGame(lead.periods);
-  const margins = lead.scores.map(([at, away, home]) => ({ at, margin: home - away }));
-  const homeBest = findBiggestLead(margins, 1);
-  const awayBest = findBiggestLead(margins, -1);
-  const biggest = Math.max(homeBest.margin, -awayBest.margin);
-  const reach = Math.max(SMALLEST_REACH, Math.ceil(biggest / STEP) * STEP);
-  const x = (/** @type {number} */ at) => LEFT + (at / length) * (WIDTH - LEFT - RIGHT);
-  const y = (/** @type {number} */ margin) => MIDDLE - (margin / reach) * (PLOT_HEIGHT / 2);
-  const end = lead.isOver ? length : margins[margins.length - 1].at;
+function chooseReach(biggest) {
+  let reach = Math.max(SMALLEST_REACH, Math.ceil(biggest / STEP) * STEP);
+  while (((reach - biggest) / reach) * (PLOT_HEIGHT / 2) + TILE_ROOM < PEAK_ROOM) reach += STEP;
+  return reach;
+}
 
-  // The lead holds until the next basket, so the line steps.
+/**
+ * The lead holds until the next basket, so the line steps.
+ * @param {{ at: number, margin: number }[]} margins
+ * @param {number} end
+ */
+function traceSteps(margins, end) {
   const steps = margins.flatMap((point, index) =>
     index
       ? [
@@ -90,49 +101,84 @@ export function renderLeadChart(lead, teams) {
       : [[point.at, point.margin]],
   );
   steps.push([end, margins[margins.length - 1].margin]);
-  const line = `M${steps.map(([at, margin]) => `${formatCoordinate(x(at))},${formatCoordinate(y(margin))}`).join("L")}`;
-  const area = `${line}L${formatCoordinate(x(end))},${MIDDLE}L${formatCoordinate(x(0))},${MIDDLE}Z`;
+  return steps;
+}
+
+/**
+ * @param {Lead} lead
+ * @param {{ away: string, home: string }} teams
+ */
+export function renderLeadChart(lead, teams) {
+  const length = measureGame(lead.periods);
+  const margins = lead.scores.map(([at, away, home]) => ({ at, margin: home - away }));
+  const homeBest = findBiggestLead(margins, 1);
+  const awayBest = findBiggestLead(margins, -1);
+  const reach = chooseReach(Math.max(homeBest.margin, -awayBest.margin));
+  const x = (/** @type {number} */ at) => LEFT + (at / length) * (WIDTH - LEFT - RIGHT);
+  const y = (/** @type {number} */ margin) => MIDDLE - (margin / reach) * (PLOT_HEIGHT / 2);
+  const end = lead.isOver ? length : margins[margins.length - 1].at;
+  const lastMargin = margins[margins.length - 1].margin;
+  const isHomeAhead = lastMargin > 0;
+  const isAwayAhead = lastMargin < 0;
+  const markLeader = (/** @type {string} */ name, /** @type {boolean} */ isLeader) =>
+    isLeader ? `${name} leader` : name;
+
+  const steps = traceSteps(margins, end);
+  const trace = (/** @type {number[][]} */ points) =>
+    `M${points.map(([at, margin]) => `${formatCoordinate(x(at))},${formatCoordinate(y(margin))}`).join("L")}`;
+  const closeToMiddle = (/** @type {(margin: number) => number} */ clamp) =>
+    `${trace(steps.map(([at, margin]) => [at, clamp(margin)]))}L${formatCoordinate(x(end))},${MIDDLE}L${formatCoordinate(x(0))},${MIDDLE}Z`;
+  const homeArea = closeToMiddle((margin) => Math.max(margin, 0));
+  const awayArea = closeToMiddle((margin) => Math.min(margin, 0));
 
   const periodIndexes = [...Array(lead.periods).keys()];
-  const periodLines = periodIndexes
+  const periodTicks = periodIndexes
     .slice(1)
     .map(
       (index) =>
-        html`<line class="lead-grid" x1="${x(measurePeriodStart(index))}" x2="${x(measurePeriodStart(index))}" y1="${TOP}" y2="${HEIGHT - BOTTOM}"></line>`,
+        html`<line class="lead-tick" x1="${x(measurePeriodStart(index))}" x2="${x(measurePeriodStart(index))}" y1="${MIDDLE - TICK_HALF}" y2="${MIDDLE + TICK_HALF}"></line>`,
     );
   const periodNames = periodIndexes.map((index) => {
     const middle = (measurePeriodStart(index) + measurePeriodStart(index + 1)) / 2;
-    return html`<text class="lead-period" x="${formatCoordinate(x(middle))}" y="${HEIGHT - 5}" text-anchor="middle">${namePeriod(index)}</text>`;
+    return html`<text class="lead-period" x="${formatCoordinate(x(middle))}" y="${PERIOD_BASELINE}" text-anchor="middle">${namePeriod(index)}</text>`;
   });
   const reachLines = [reach, -reach].map(
     (margin) =>
-      html`<line class="lead-grid dashed" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${y(margin)}" y2="${y(margin)}"></line>
-        <text class="lead-reach" x="${LEFT - 5}" y="${y(margin) + 4}" text-anchor="end">${reach}</text>`,
+      html`<line class="lead-grid" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${y(margin)}" y2="${y(margin)}"></line>
+        <text class="lead-reach" x="${LEFT - 5}" y="${y(margin) + 4}" text-anchor="end">+${reach}</text>`,
   );
-  const renderPeak = (/** @type {{ at: number, margin: number }} */ peak) => {
-    if (!peak.margin) return "";
-    const labelY = peak.margin > 0 ? y(peak.margin) - 6 : y(peak.margin) + 15;
-    const labelX = Math.min(Math.max(x(peak.at), LEFT + PEAK_LABEL_ROOM), WIDTH - PEAK_LABEL_ROOM);
-    return html`<circle class="lead-peak" cx="${formatCoordinate(x(peak.at))}" cy="${formatCoordinate(y(peak.margin))}" r="3.5"></circle>
-      <text class="lead-peak-label" x="${formatCoordinate(labelX)}" y="${formatCoordinate(labelY)}" text-anchor="middle">+${Math.abs(peak.margin)}</text>`;
-  };
   const homeName = nameTeam(teams.home);
   const awayName = nameTeam(teams.away);
+  const renderPeak = (
+    /** @type {{ at: number, margin: number }} */ peak,
+    /** @type {string} */ name,
+    /** @type {boolean} */ isLeader,
+  ) => {
+    if (!peak.margin) return "";
+    const label = `${name} +${Math.abs(peak.margin)}`;
+    const halfWidth = label.length * HALF_CHARACTER;
+    const labelY = peak.margin > 0 ? y(peak.margin) - 7 : y(peak.margin) + 15;
+    const labelX = Math.min(Math.max(x(peak.at), LEFT + halfWidth), WIDTH - RIGHT - halfWidth);
+    return html`<circle class="lead-peak" cx="${formatCoordinate(x(peak.at))}" cy="${formatCoordinate(y(peak.margin))}" r="3.5"></circle>
+      <text class="${markLeader("lead-peak-label", isLeader)}" x="${formatCoordinate(labelX)}" y="${formatCoordinate(labelY)}" text-anchor="middle">${label}</text>`;
+  };
   const label = [
     describeBiggestLead(homeName, homeBest.margin),
     describeBiggestLead(awayName, -awayBest.margin),
   ].join(", ");
 
   return html`<div class="lead-chart">
-    <p class="lead-key">
-      <span>&#9650; ${homeName} ahead</span><span>&#9660; ${awayName} ahead</span>
-    </p>
     <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${label.charAt(0).toUpperCase()}${label.slice(1)}">
-      ${reachLines}${periodLines}
-      <path class="lead-area" d="${area}"></path>
+      <rect class="lead-tile" x="${LEFT - 0.5}" y="${TILE_TOP}" width="${WIDTH - LEFT - RIGHT + 1}" height="${TILE_BOTTOM - TILE_TOP}" rx="4"></rect>
+      ${reachLines}
+      <path class="${markLeader("lead-area", isHomeAhead)}" d="${homeArea}"></path>
+      <path class="${markLeader("lead-area", isAwayAhead)}" d="${awayArea}"></path>
       <line class="lead-middle" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${MIDDLE}" y2="${MIDDLE}"></line>
-      <path class="lead-line" d="${line}"></path>
-      ${renderPeak(homeBest)}${renderPeak(awayBest)}${periodNames}
+      ${periodTicks}
+      <path class="lead-line" d="${trace(steps)}"></path>
+      <text class="${markLeader("lead-side", isHomeAhead)}" x="${LEFT}" y="${HOME_NAME_BASELINE}">&#9650; ${homeName} ahead</text>
+      <text class="${markLeader("lead-side", isAwayAhead)}" x="${LEFT}" y="${AWAY_NAME_BASELINE}">&#9660; ${awayName} ahead</text>
+      ${renderPeak(homeBest, homeName, isHomeAhead)}${renderPeak(awayBest, awayName, isAwayAhead)}${periodNames}
     </svg>
   </div>`;
 }
