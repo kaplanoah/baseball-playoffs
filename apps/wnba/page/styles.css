@@ -447,7 +447,8 @@ header.top h1 {
   gap: 8px;
 }
 /* A score reads like an arena scoreboard: red seven-segment digits on a dark panel, with the
-   segments that are off faintly showing. The loser's digits dim. */
+   segments that are off faintly showing. The loser's digits dim a little and don't glow, so they
+   still read easily. */
 .scoreboard {
   --digit-height: 24px;
   display: inline-flex;
@@ -482,7 +483,7 @@ header.top h1 {
 }
 .scoreboard.lost rect.on {
   fill: var(--led-dim);
-  opacity: 0.6;
+  opacity: 0.75;
   filter: none;
 }
 .scoreboard-text {

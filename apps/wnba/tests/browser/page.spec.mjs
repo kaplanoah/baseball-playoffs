@@ -36,6 +36,18 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   ]);
 });
 
+test("a losing score is lit at three quarters, without the winner's glow", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const loser = page.locator("#games-previous .scoreboard.lost rect.on").first();
+  const winner = page.locator("#games-previous .scoreboard:not(.lost) rect.on").first();
+  await expect(loser).toHaveCSS("opacity", "0.75");
+  await expect(loser).toHaveCSS("filter", "none");
+  await expect(winner).toHaveCSS("opacity", "1");
+  await expect(winner).not.toHaveCSS("filter", "none");
+});
+
 test("no text is heavier than 600 but the calendar's day numbers", async ({ page }) => {
   await openApp(page);
   expect(await listHeavyText(page)).toEqual([]);
