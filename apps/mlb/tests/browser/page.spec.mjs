@@ -281,32 +281,93 @@ test("a tapped Games tab keeps its list while the lists are still on their way",
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 });
 
-test("the Games tab opens on today's list after another tab was shown", async ({ page }) => {
+/** @param {import("@playwright/test").Page} page @param {boolean} hidden */
+const setHidden = (page, hidden) =>
+  page.evaluate((isHidden) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => isHidden });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
+
+/** @param {import("@playwright/test").Page} page @param {number} minutes */
+async function comeBackAfter(page, minutes) {
+  await setHidden(page, true);
+  const now = await page.evaluate(() => Date.now());
+  await page.clock.setSystemTime(now + minutes * 60 * 1000);
+  await setHidden(page, false);
+}
+
+/** @param {import("@playwright/test").Page} page @param {string} name @param {number} position */
+async function expectGameList(page, name, position) {
+  await expect.poll(() => readPagesPosition(page)).toBe(position);
+  await expect(page.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(`#games-${name.toLowerCase()}`)).not.toHaveAttribute("inert");
+}
+
+test("the Games tab keeps its list after another tab was shown", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Next" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(2);
+  await expectGameList(page, "Next", 2);
 
   await page.getByRole("tab", { name: "Bracket" }).click();
   await page.getByRole("tab", { name: "Games" }).click();
 
-  await expect.poll(() => readPagesPosition(page)).toBe(1);
-  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+  await expectGameList(page, "Next", 2);
 });
 
-test("the Games tab goes back to today's list when the page is opened again", async ({ page }) => {
+test("the Games tab keeps its list when the page comes back within the hour", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Previous" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expectGameList(page, "Previous", 0);
 
-  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await comeBackAfter(page, 59);
 
-  await expect.poll(() => readPagesPosition(page)).toBe(1);
-  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+  await expectGameList(page, "Previous", 0);
+});
+
+test("the Games tab goes back to today's list when the page comes back after an hour away", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expectGameList(page, "Previous", 0);
+
+  await comeBackAfter(page, 60);
+
+  await expectGameList(page, "Today", 1);
+});
+
+test("the Games tab opens on today's list after an hour away spent on another tab", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expectGameList(page, "Next", 2);
+  await page.getByRole("tab", { name: "Bracket" }).click();
+
+  await comeBackAfter(page, 60);
+  await page.getByRole("tab", { name: "Games" }).click();
+
+  await expectGameList(page, "Today", 1);
+});
+
+test("the page reopens on the Games list it was last on", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expectGameList(page, "Next", 2);
+
+  await page.reload();
+
+  await expectGameList(page, "Next", 2);
 });
 
 test("a doubleheader shows as two games on its date, with no game number", async ({ page }) => {

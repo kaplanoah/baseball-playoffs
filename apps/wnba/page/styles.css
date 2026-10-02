@@ -687,31 +687,45 @@ header.top h1 {
   font-size: var(--size-glance);
 }
 
-/* The lead through the game, drawn in the sheet's ink with each side's biggest lead in orange. */
+/*
+ * The lead through the game: a fine step line on a tile, each team's half shaded faintly and the
+ * side ahead at the line's end in orange, with each side's biggest lead marked in orange.
+ */
 .lead-chart svg {
   display: block;
   width: 100%;
   height: auto;
   overflow: visible;
 }
-.lead-grid {
-  stroke: var(--divider);
-  stroke-width: 1;
+.lead-tile {
+  fill: var(--tile);
+  stroke: color-mix(in srgb, var(--divider) 70%, transparent);
 }
-.lead-grid.dashed {
+.lead-grid {
+  stroke: color-mix(in srgb, var(--divider) 60%, transparent);
+  stroke-width: 1;
   stroke-dasharray: 2 3;
 }
 .lead-middle {
-  stroke: var(--ink-dim);
+  stroke: color-mix(in srgb, var(--ink-dim) 55%, transparent);
   stroke-width: 1;
 }
+.lead-tick {
+  stroke: var(--ink-dim);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
 .lead-area {
-  fill: color-mix(in srgb, var(--ink) 12%, transparent);
+  fill: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.lead-area.leader {
+  fill: color-mix(in srgb, var(--orange) 14%, transparent);
 }
 .lead-line {
   fill: none;
   stroke: var(--ink);
-  stroke-width: 1.6;
+  stroke-width: 1.1;
+  stroke-linecap: round;
   stroke-linejoin: round;
 }
 .lead-peak {
@@ -726,22 +740,18 @@ header.top h1 {
   letter-spacing: 0.05em;
   fill: var(--ink-dim);
 }
-.lead-key {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 0 4px;
-  font-family: var(--display);
-  font-size: var(--size-small);
-  font-weight: 600;
-  letter-spacing: 0.07em;
+.lead-chart .lead-side {
+  font-family: var(--numbers);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-dim);
+  fill: var(--ink-mid);
 }
 .lead-chart .lead-peak-label {
   font-family: var(--numbers);
-  font-size: 13px;
   letter-spacing: 0;
+  fill: var(--ink-mid);
+}
+.lead-chart text.leader {
   fill: var(--orange);
 }
 
@@ -1448,19 +1458,6 @@ body.kbd .team-open:focus {
   font-weight: 600;
 }
 .team-detail .tabular {
-  white-space: nowrap;
-}
-.team-scorer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 8px;
-}
-.team-scorer > .team-label {
-  margin-right: 0;
-}
-.team-scorer b,
-.team-averages {
   white-space: nowrap;
 }
 .team-playoffs {

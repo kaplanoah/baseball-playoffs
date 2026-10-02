@@ -411,12 +411,13 @@ test("a team's sheet names it over its conference, seed, and record", () => {
   );
 });
 
-test("a team's sheet shows its averages, its leading scorer, its titles, and its playoff games", () =>
+test("a team's sheet shows its averages, its three leading scorers, its titles, and its playoff games", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
       "Season PPG 91.3 Opp PPG 84.5 Margin +6.9 Home 15-7 Road 15-7 Last 10 9-1 " +
-        "Leading scorer Allisha Gray 19.0 Pts | 3.5 Reb | 2.6 Ast Titles None yet " +
+        "Leading scorers Pts Reb Ast Allisha Gray 19.0 3.5 2.6 Rhyne Howard 17.7 3.8 3.7 " +
+        "Angel Reese 16.4 12.1 2.8 Titles None yet " +
         "Playoffs 1st Rd today G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM",
     );
     assert.match(
