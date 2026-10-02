@@ -24,6 +24,11 @@
 }
 
 :root {
+  /* Chivo Mono's own size for each step of the type scale, matched by eye to Barlow's 16, 14, and
+     13px. Its letters run wider than Barlow's, so the larger steps sit lower. */
+  --size-read: 0.90625rem;
+  --size-glance: 0.8125rem;
+  --size-small: 0.8125rem;
   --bg: #0d1f16;
   --card: #132a1f;
   --card-border: #2a4536;
@@ -165,7 +170,7 @@ header.top h1 {
   letter-spacing: 0.03em;
   /* Whole-pixel lines keep the header a whole number of pixels tall, so the Games lists rise
      exactly to the pill. */
-  line-height: 19px;
+  line-height: 18px;
   text-align: right;
 }
 .stamp b {
@@ -174,7 +179,7 @@ header.top h1 {
 }
 .stamp .ap {
   margin-left: 0.5ch;
-  font-size: 0.95em;
+  font-size: var(--size-small);
 }
 .stamp b.now {
   margin-right: 0.5ch;
