@@ -138,6 +138,7 @@ test("a release without a version names its commit", async ({ page }) => {
 test("on a wide screen, settings end at the bottom left, level with the ranking's end", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1280, height: 900 });
   await serveRelease(page, RELEASE);
   await openApp(page);
@@ -158,6 +159,7 @@ test("on a wide screen, settings end at the bottom left, level with the ranking'
 test("on a phone, settings end with the copyright, centered under the ranking", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize(PHONE);
   await openApp(page);
   await openSettings(page);
@@ -165,8 +167,9 @@ test("on a phone, settings end with the copyright, centered under the ranking", 
   const footer = page.locator("#settingsDialog .settings-body > :last-child");
   await expect(footer).toHaveText("\u00a9 2026 Noah Kaplan");
   await expect(footer).toHaveCSS("text-align", "center");
-  const ranking = await page.locator(".rank-frame").boundingBox();
-  const copyright = await footer.boundingBox();
+  const [ranking, copyright] = await Promise.all(
+    [page.locator(".rank-frame"), footer].map((each) => each.boundingBox()),
+  );
   expect(copyright.y).toBeGreaterThan(ranking.y + ranking.height);
 });
 
