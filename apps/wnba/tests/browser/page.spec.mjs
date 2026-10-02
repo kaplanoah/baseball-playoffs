@@ -733,7 +733,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name like every team's at 20px, its stats in the wider Barlow, its text in medium, and its first part 8px under the record", async ({
+  test("sets its name like every team's at 20px, its stats in Barlow Condensed like a game preview's, its text in medium, and its first part 8px under the record", async ({
     page,
   }) => {
     await openApp(page);
@@ -745,7 +745,10 @@ test.describe("on a phone, a team's sheet", () => {
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-weight", "600");
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "20px");
     await expect(sheet.locator("#teamNote")).toHaveCSS("font-weight", "500");
-    await expect(sheet.locator(".team-stat b").first()).toHaveCSS("font-family", /^"?Barlow"?,/);
+    await expect(sheet.locator(".tape-value").first()).toHaveCSS(
+      "font-family",
+      /^"Barlow Condensed"/,
+    );
     await expect(sheet.locator(".team-detail").first()).toHaveCSS("font-weight", "500");
     await expect(sheet.locator(".team-game").first()).toHaveCSS("font-weight", "500");
 
@@ -764,7 +767,7 @@ test.describe("on a phone, a team's sheet", () => {
     expect(colors.label).not.toBe(colors.round);
 
     const note = await sheet.locator("#teamNote").boundingBox();
-    const firstPart = await sheet.locator(".sheet-part h3").first().boundingBox();
+    const firstPart = await sheet.locator(".sheet-part-head").first().boundingBox();
     expect(Math.round(firstPart.y - (note.y + note.height))).toBe(8);
   });
 });
@@ -787,10 +790,30 @@ test.describe("a team's sheet", () => {
       season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
       return season;
     });
-    await expect(sheet).toContainText(/Last 10\s*9-1/);
+    await expect(sheet).toContainText(/9-1\s*Last 10/);
 
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toBeHidden();
+  });
+
+  test("a team without playoff games shows its regular season alone, each number after its measure's name, with no bars", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="SEA"] td.season').first().click();
+    const stats = page.locator("#teamDialog .team-tape");
+
+    await expect(stats.locator(".tape-teams")).toHaveText("Regular season");
+    const record = stats.locator(".tape-row").first();
+    await expect(record).toHaveText(/8-36\s*Record/);
+    const label = await record.locator(".tape-label").boundingBox();
+    const value = await record.locator(".tape-value").boundingBox();
+    expect(value.x).toBeGreaterThan(label.x + label.width);
+    const shownBars = await stats
+      .locator(".tape-bar")
+      .evaluateAll((bars) => bars.filter((bar) => bar.checkVisibility()).length);
+    expect(shownBars).toBe(0);
   });
 
   test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {
@@ -875,7 +898,7 @@ test.describe("a team's sheet", () => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 360, height: 780 }, contextOptions: { reducedMotion: "reduce" } });
 
-  test("a team's leading scorers keep their names on one line, and its averages fit their tiles", async ({
+  test("a team's leading scorers keep their names on one line, and its stats fit their sides", async ({
     page,
   }) => {
     await openApp(page);
@@ -894,11 +917,11 @@ test.describe("on a phone", () => {
       );
       expect(lineCounts, code).toEqual([1, 1, 1]);
       const overflowing = await sheet
-        .locator(".team-stat")
-        .evaluateAll((stats) =>
-          stats
-            .filter((stat) => stat.scrollWidth > stat.clientWidth)
-            .map((stat) => stat.textContent),
+        .locator(".tape-side")
+        .evaluateAll((sides) =>
+          sides
+            .filter((side) => side.scrollWidth > side.clientWidth)
+            .map((side) => side.textContent),
         );
       expect(overflowing, code).toEqual([]);
       await page.keyboard.press("Escape");

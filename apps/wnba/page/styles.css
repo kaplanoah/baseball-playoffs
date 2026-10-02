@@ -613,10 +613,11 @@ header.top h1 {
 .game-sheet-body :is(.tape-side, .lead-chart *).home {
   --side: var(--home);
 }
-.game-sheet-body .tape-bar i {
+/* A team's sheet draws its stats' bars the same way, both sides in the team's color. */
+:is(.game-sheet-body, .team-tape) .tape-bar i {
   background: color-mix(in oklch, var(--side) 47%, oklch(from var(--card) l 0 none));
 }
-.game-sheet-body .tape-bar i.lead {
+:is(.game-sheet-body, .team-tape) .tape-bar i.lead {
   background: var(--side);
 }
 /* The game's title and its teams share one tinted band across the top of the sheet, which sets
@@ -1505,6 +1506,43 @@ table.standings tr.playoff-line + tr td {
 .team-game.soon .team-when {
   color: var(--orange);
   font-weight: 600;
+}
+/* A team's stats face off like a game preview's, the regular season on the left against the
+   playoffs on the right, each named above its side, with a winning streak marked like a win.
+   Before the team's first playoff game, the regular season stands alone, each number after its
+   measure's name and with no bar, since there's nothing to measure it against. */
+.team-tape {
+  --side: var(--team-light, var(--ink-dim));
+  display: grid;
+  gap: 8px;
+}
+:root[data-theme="dark"] .team-tape {
+  --side: var(--team-dark, var(--ink-dim));
+}
+.team-tape .tape {
+  gap: 12px;
+}
+.team-tape .streak-won {
+  color: var(--teal);
+}
+.team-tape.solo .tape {
+  gap: 8px;
+}
+.team-tape.solo .tape-row {
+  grid-template-columns: 6.4em minmax(0, 1fr);
+}
+.team-tape.solo .tape-label {
+  order: -1;
+  text-align: left;
+}
+.team-tape.solo .tape-side.away {
+  justify-items: start;
+}
+.team-tape.solo .tape-side.away .tape-value {
+  flex-direction: row;
+}
+.team-tape.solo :is(.tape-side.home, .tape-bar) {
+  display: none;
 }
 
 /* The Home Screen bar and box show the icon the theme showing would give the Home Screen. */

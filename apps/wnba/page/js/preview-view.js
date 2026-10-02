@@ -6,9 +6,8 @@ import { renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
 import { nameTeam } from "./series.js";
 import {
-  findLeader,
-  measureAgainst,
-  readWinShare,
+  describeNumbers,
+  describeRecords,
   renderSheetMessage,
   renderTapeTeams,
 } from "./sheet-parts.js";
@@ -98,46 +97,6 @@ const renderPendingMeetings = () =>
 
 const formatAverage = (value) => value.toFixed(1);
 const formatMargin = (value) => `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
-
-/**
- * A row that compares two records, like 15-7, by the share of games each won.
- * @param {import("#shared/html.js").Markup | string} label
- * @param {[string, string]} records
- */
-function describeRecords(label, records) {
-  const shares = records.map(readWinShare);
-  const describeSide = (index) => ({
-    value: records[index],
-    bar: shares[index] == null ? null : Math.round(shares[index] * 100),
-  });
-  return {
-    label,
-    away: describeSide(0),
-    home: describeSide(1),
-    leader: findLeader(shares[0], shares[1]),
-  };
-}
-
-/**
- * A row that compares two numbers, each bar as long as its share of the larger.
- * @param {import("#shared/html.js").Markup | string} label
- * @param {[number, number]} values
- * @param {{ format: (value: number) => string, isLowerBetter?: boolean }} options
- */
-function describeNumbers(label, values, { format, isLowerBetter = false }) {
-  const reaches = values.map((value) => Math.max(value, 0));
-  const most = Math.max(...reaches);
-  const describeSide = (index) => ({
-    value: format(values[index]),
-    bar: measureAgainst(reaches[index], most),
-  });
-  return {
-    label,
-    away: describeSide(0),
-    home: describeSide(1),
-    leader: findLeader(values[0], values[1], { isLowerBetter }),
-  };
-}
 
 // The visitors play on the road and the hosts at home, so each is measured where it plays.
 /**

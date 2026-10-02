@@ -388,6 +388,26 @@ test("the side behind on a measure gets a paler bar of its own team's hue, on ea
   }
 });
 
+test("a team's sheet draws its regular season and its playoffs in the team's color on each theme, the side behind paler", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await page.locator('#standings-league tr[data-team="ATL"] td.season').first().click();
+  const points = page
+    .locator("#teamDialog .tape-row")
+    .filter({ has: page.locator(".tape-label", { hasText: /^PPG$/ }) });
+  await expect(points.locator(".home .tape-bar i")).toHaveClass("lead");
+
+  for (const theme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme: theme });
+    const teamColor = formatRgb(TEAMS.ATL.chartColors[theme][0]);
+    await expect(points.locator(".home .tape-bar i")).toHaveCSS("background-color", teamColor);
+    await expect(points.locator(".away .tape-bar i")).not.toHaveCSS("background-color", teamColor);
+  }
+});
+
 test("a live game's sheet reads its lead again with its box score", async ({ page }) => {
   const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
   await app.changeSeason(startValkyriesAtWings);
