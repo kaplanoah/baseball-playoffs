@@ -65,7 +65,6 @@ export const renderLeaderTable = (heading, leaders) =>
   </table>`;
 
 /** @param {Leader[]} leaders */
-/** @param {Leader[]} leaders */
 const renderLeadingScorers = (leaders) =>
   leaders.length > 0 &&
   renderSheetPart("Leading scorers", renderLeaderTable("Player", leaders), "Per game");
