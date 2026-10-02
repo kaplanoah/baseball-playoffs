@@ -3,6 +3,7 @@ import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
 import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
+import { TEAMS } from "../../page/js/teams.js";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
 const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
@@ -14,6 +15,13 @@ const NAME_GAP_PX = 4;
 // Most of these tests are about what a sheet shows, so they skip the eased scrolling between the
 // Games lists. The ones about how a sheet moves ask for full motion.
 test.use({ contextOptions: { reducedMotion: "reduce" } });
+
+/**
+ * A color as the browser computes it.
+ * @param {string} hex like #1c1c1c
+ */
+const formatRgb = (hex) =>
+  `rgb(${[1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16)).join(", ")})`;
 
 /**
  * Shows the Games list that has the game a button names, and finds the button.
@@ -181,6 +189,34 @@ test("the lead chart keeps each biggest lead's label on its tile and each team's
   for (const label of labels) {
     expect(label.left).toBeGreaterThanOrEqual(tile.left);
     expect(label.right).toBeLessThanOrEqual(tile.right);
+  }
+});
+
+test("each team's side of the lead chart and the team stats takes its color, on each theme", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  const chart = sheet.locator(".lead-chart");
+  const fieldGoals = sheet.locator(".tape-row").first();
+  await expect(fieldGoals.locator(".home .tape-bar i")).toHaveClass("lead");
+
+  for (const theme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme: theme });
+    const [awayColor, homeColor] = ["GSV", "DAL"].map((code) =>
+      formatRgb(TEAMS[code].chartColors[theme][0]),
+    );
+    await expect(chart.locator(".lead-side.home")).toHaveCSS("fill", homeColor);
+    await expect(chart.locator(".lead-peak.home")).toHaveCSS("fill", homeColor);
+    await expect(chart.locator(".lead-side.away")).toHaveCSS("fill", awayColor);
+    await expect(chart.locator(".lead-peak-label.away")).toHaveCSS("fill", awayColor);
+    await expect(fieldGoals.locator(".home .tape-bar i")).toHaveCSS("background-color", homeColor);
+    await expect(fieldGoals.locator(".away .tape-bar i")).not.toHaveCSS(
+      "background-color",
+      awayColor,
+    );
   }
 });
 

@@ -108,7 +108,7 @@ test("the Worker answers a game's lead, says when ESPN has no such game, and tur
  * @param {string} name
  */
 const readLabels = (markup, name) =>
-  [...markup.matchAll(new RegExp(`class="${name}( leader)?"[^>]*>([^<]+)<`, "g"))].map(
+  [...markup.matchAll(new RegExp(`class="${name}( home| away)?"[^>]*>([^<]+)<`, "g"))].map(
     (match) => match[2],
   );
 
@@ -142,36 +142,24 @@ test("the chart names each side on its own half, marks each side's biggest lead,
   assert.deepEqual(readLabels(markup, "lead-period"), ["Q1", "Q2", "Q3", "Q4", "OT"]);
 });
 
-test("the side ahead at the line's end takes the accent, and a tied live game gives it to neither", () => {
-  const final = renderLeadChart(describeLead(LEAD.summary), TEAMS).text;
+test("each side's half, name, and biggest lead say whose they are, for the sheet to color", () => {
+  const markup = renderLeadChart(describeLead(LEAD.summary), TEAMS).text;
 
   assert.deepEqual(
-    [...final.matchAll(/class="(lead-area|lead-side|lead-peak-label)( leader)?"/g)].map(
-      ([, name, leader]) => `${name}${leader ?? ""}`,
-    ),
     [
-      "lead-area leader",
-      "lead-area",
-      "lead-side leader",
-      "lead-side",
-      "lead-peak-label leader",
-      "lead-peak-label",
+      ...markup.matchAll(/class="(lead-area|lead-side|lead-peak|lead-peak-label) (home|away)"/g),
+    ].map(([, name, place]) => `${name} ${place}`),
+    [
+      "lead-area home",
+      "lead-area away",
+      "lead-side home",
+      "lead-side away",
+      "lead-peak home",
+      "lead-peak-label home",
+      "lead-peak away",
+      "lead-peak-label away",
     ],
   );
-
-  const tied = renderLeadChart(
-    {
-      periods: 4,
-      isOver: false,
-      scores: [
-        [0, 0, 0],
-        [60, 0, 2],
-        [90, 2, 2],
-      ],
-    },
-    TEAMS,
-  ).text;
-  assert.doesNotMatch(tied, /leader/);
 });
 
 test("the scale reaches past the biggest lead far enough to keep its label on the tile", () => {
@@ -208,7 +196,7 @@ test("a live game's line stops at its latest basket, and a side that never led h
   const line = markup.match(/class="lead-line" d="([^"]+)"/)[1];
 
   assert.match(markup, /aria-label="The Wings led by as many as 10, the Valkyries never led"/);
-  assert.equal(markup.match(/class="lead-peak"/g).length, 1);
+  assert.deepEqual(markup.match(/class="lead-peak [a-z]+"/g), ['class="lead-peak home"']);
   assert.equal(line.split("L").at(-1).split(",")[0], String(30 + (600 / 2400) * 284));
 });
 

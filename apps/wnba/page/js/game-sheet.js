@@ -14,6 +14,7 @@ import { findLoser, nameGame, renderHeadline, renderStatus } from "./games-view.
 import { renderPreview } from "./preview-view.js";
 import { describeSeriesStanding } from "./series.js";
 import { session } from "./session.js";
+import { formatSheetColors } from "./sheet-colors.js";
 import { renderSheetMessage } from "./sheet-parts.js";
 import { POLL_LIVE_MS } from "./snapshot.js";
 
@@ -101,6 +102,7 @@ function renderSheet() {
   redrawSheet(findDialog(), () => {
     findElement("gameTitle").textContent = nameGame(game);
     setHtml(findElement("gameWhen"), renderWhen(game));
+    body.setAttribute("style", formatSheetColors(game.away.team, game.home.team));
     setHtml(body, html`${renderFaceOff(game)}${renderDetails(shown, game)}`);
     body.setAttribute("aria-busy", String(isLoading(shown)));
   });
