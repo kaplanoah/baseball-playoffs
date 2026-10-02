@@ -1,6 +1,7 @@
 import { test, expect, openApp } from "./harness.mjs";
 import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 import { serveReleases } from "../../../../tests/browser/serve-releases.mjs";
+import { listHeavyText } from "./text-weights.mjs";
 
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
@@ -30,6 +31,28 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await expect(page.locator("#standings-league tr.playoff-line + tr")).toContainText("Fire");
   await page.getByRole("tab", { name: "Teams" }).click();
   await expect(page.locator("#teamsWrap .team").first()).toContainText("Minnesota Lynx");
+});
+
+test("no text is heavier than 600 but the calendar's day numbers", async ({ page }) => {
+  await openApp(page);
+  expect(await listHeavyText(page)).toEqual([]);
+  await page.getByRole("tab", { name: "Games" }).click();
+  for (const list of ["Previous", "Today", "Next"]) {
+    await page.getByRole("tab", { name: list }).click();
+    await expect(page.locator(`#games-${list.toLowerCase()} .game-row`).first()).toBeVisible();
+    expect(await listHeavyText(page)).toEqual([]);
+  }
+  await expect(page.locator(".day-number").first()).toHaveCSS("font-weight", "700");
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await expect(page.locator("#standings-league tr").nth(2)).toBeVisible();
+  expect(await listHeavyText(page)).toEqual([]);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  await page.locator("#teamsWrap .team summary").first().click();
+  await expect(page.locator("#teamsWrap .team[open] .team-scorer")).toBeVisible();
+  expect(await listHeavyText(page)).toEqual([]);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.locator("#settingsDialog")).toBeVisible();
+  expect(await listHeavyText(page)).toEqual([]);
 });
 
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
@@ -121,6 +144,31 @@ test.describe("on a phone, the Games lists", () => {
     expect(box.x).toBe(0);
     expect(box.width).toBe(390);
   });
+});
+
+test("a standings conference tag's letter is trimmed to its capital, with even room around it", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const tag = page.locator("#standings-league .conference-tag").first();
+  await expect(tag).toHaveText(/^[EW]$/);
+  const room = await tag.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const content =
+      element.getBoundingClientRect().height -
+      ["borderTopWidth", "borderBottomWidth", "paddingTop", "paddingBottom"]
+        .map((side) => parseFloat(style[side]))
+        .reduce((sum, value) => sum + value);
+    return {
+      content,
+      fontSize: parseFloat(style.fontSize),
+      above: style.paddingTop,
+      below: style.paddingBottom,
+    };
+  });
+  expect(room.content).toBeLessThan(room.fontSize * 0.8);
+  expect(room.above).toBe(room.below);
 });
 
 test("a team stays put as Bonus comes and goes, level with the score", async ({ page }) => {
@@ -816,6 +864,8 @@ for (const width of [440, 430, 402, 390, 375, 360]) {
     test("every team's whole name fits in its game row", async ({ page }) => {
       await openApp(page);
       await page.getByRole("tab", { name: "Games" }).click();
+      await expect(page.locator("#gamePager .game-side .team-name").first()).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
       const cutNames = await page
         .locator("#gamePager .game-side .team-name")
         .evaluateAll((names) =>

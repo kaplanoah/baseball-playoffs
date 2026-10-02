@@ -23,12 +23,6 @@
   src: url(fonts/barlow-condensed-600.woff2) format("woff2");
 }
 @font-face {
-  font-family: "Barlow Condensed";
-  font-weight: 700;
-  font-display: swap;
-  src: url(fonts/barlow-condensed-700.woff2) format("woff2");
-}
-@font-face {
   font-family: "Barlow";
   font-weight: 400;
   font-display: swap;
@@ -62,9 +56,10 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's. Teal marks structure: section
- * labels, the playoff line, Bonus, and how a finished series ended in the Games list. A bracket
- * card's note keeps to the plain ink unless its game is live.
+ * Orange marks what's happening now, live games and today's, and a bracket's winners. Teal marks
+ * structure: section labels, the playoff line, Bonus, and how a finished series ended in the Games
+ * list. A bracket card's note keeps to the plain ink unless its game is live. Text stops at 600,
+ * but for the Games list's day numbers.
  */
 :root {
   --bg: #ead5b2;
@@ -196,7 +191,7 @@ header.top {
 header.top h1 {
   font-family: var(--heading);
   font-size: 1.72rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -251,7 +246,7 @@ header.top h1 {
   margin: 0 0 6px;
   font-family: var(--display);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--teal);
@@ -348,7 +343,7 @@ header.top h1 {
 .day-month {
   font-family: var(--heading);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -530,7 +525,7 @@ header.top h1 {
 .clock {
   font-family: var(--numbers);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: none;
   letter-spacing: normal;
   color: var(--orange);
@@ -552,7 +547,7 @@ header.top h1 {
   color: var(--teal-ink);
   font-family: var(--display);
   font-size: 0.55rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -636,7 +631,7 @@ header.top h1 {
 .sheet-part-head h3 {
   font-family: var(--display);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--teal);
@@ -731,14 +726,14 @@ table.line-score .now {
   color: var(--orange);
 }
 table.line-score th.now {
-  font-weight: 700;
+  font-weight: 600;
 }
 table.line-score .ahead {
   color: var(--ink-dim);
   opacity: 0.5;
 }
 table.line-score .total {
-  font-weight: 700;
+  font-weight: 600;
 }
 table.line-score .lost {
   color: var(--ink-dim);
@@ -796,7 +791,7 @@ table.players td.minutes {
   border-radius: var(--radius);
   font-family: var(--display);
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   vertical-align: 1px;
@@ -833,7 +828,7 @@ table.players td.minutes {
 .meeting-score {
   font-family: var(--numbers);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ink);
 }
 
@@ -869,17 +864,24 @@ table.players td.minutes {
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
 }
-.bracket-lines {
+.bracket-lines,
+.bracket-turns {
   position: absolute;
   top: 0;
   left: 0;
   overflow: visible;
   pointer-events: none;
 }
-.bracket-lines path {
+.bracket-lines path,
+.bracket-turns path {
   fill: none;
   stroke: var(--line);
   stroke-width: 1;
+}
+/* A turn left in the screen's margin, where a round scrolled off joins the one on screen, would be
+   a sliver at the screen's edge, so it hides and the lines run off the edge instead. */
+.bracket-turns {
+  clip-path: inset(0 0 0 calc(var(--scroll-left, 0px) + var(--page-gutter)));
 }
 /* A round's name, with Best of in the text face just after it, on the name's baseline but lifted
    half a pixel, which looks level beside the name's heavier capitals. */
@@ -891,7 +893,7 @@ table.players td.minutes {
   padding-inline: 2px;
   font-family: var(--heading);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -1064,8 +1066,18 @@ table.players td.minutes {
 .team-line.out .wins {
   color: var(--ink-dim);
 }
-.team-line.won .club {
-  font-weight: 700;
+/* A series' winner has its block painted orange, its number in the floor's color as if cut
+   through to it. */
+.team-line.won .wins {
+  color: var(--bg);
+  text-shadow: none;
+}
+.team-line.won .wins::before {
+  background: color-mix(in oklab, var(--orange) 60%, var(--shadow-ink));
+}
+.team-line.won .wins::after {
+  background: var(--orange);
+  box-shadow: none;
 }
 .team-line.out {
   color: var(--ink-dim);
@@ -1178,14 +1190,17 @@ tr.below .streak-won {
 table.standings td.team .club {
   font-size: 0.98rem;
 }
+/* Barlow's line runs well above its capitals, so the letter is trimmed to its capital and centers
+   by what's drawn. */
 .conference-tag {
-  padding: 0 4px;
+  padding: 3px 4px;
   border: 1px solid currentColor;
   border-radius: var(--radius);
   font-family: var(--display);
   font-size: 0.6rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
 }
 .conference-tag.east {
   color: var(--teal);
@@ -1265,7 +1280,7 @@ body.kbd .team summary:focus {
   border-radius: 3px;
   font-family: var(--display);
   font-size: 0.62rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -1312,7 +1327,7 @@ body.kbd .team summary:focus {
   padding-left: 2px;
   font-family: var(--numbers);
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 .team-last-title {
   display: flex;
@@ -1466,7 +1481,7 @@ body.kbd .team summary:focus {
 }
 .team-result {
   font-family: var(--display);
-  font-weight: 700;
+  font-weight: 600;
   text-align: center;
 }
 .team-result.won {

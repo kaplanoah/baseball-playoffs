@@ -40,33 +40,67 @@ function readPoint(tree, card, edge) {
 }
 
 /**
- * A bracket joining two series to the one they feed, turning halfway between the rounds.
+ * A bracket joining two series to the one they feed, turning halfway between the rounds: the lines
+ * from each series to the turn and on into the one they feed, and the turn itself, which reaches
+ * half the lines' width past them so its corners are square.
  * @param {Point} upper
  * @param {Point} lower
  * @param {Point} next
  */
 function buildBracket(upper, lower, next) {
   const turn = (upper.x + next.x) / 2;
-  return `M${upper.x} ${upper.y} H${turn} V${lower.y} H${lower.x} M${turn} ${next.y} H${next.x}`;
+  return {
+    lines: `M${upper.x} ${upper.y} H${turn} M${lower.x} ${lower.y} H${turn} M${turn} ${next.y} H${next.x}`,
+    turn: `M${turn} ${upper.y - 0.5} V${lower.y + 0.5}`,
+  };
+}
+
+/**
+ * @param {SVGSVGElement} svg
+ * @param {HTMLElement} tree
+ * @param {{ next: string, shape: string }[]} paths
+ */
+function drawPaths(svg, tree, paths) {
+  svg.setAttribute("width", String(tree.scrollWidth));
+  svg.setAttribute("height", String(tree.scrollHeight));
+  setHtml(
+    svg,
+    html`${paths.map(({ next, shape }) => html`<path data-next="${next}" d="${shape}"/>`)}`,
+  );
 }
 
 /** @param {HTMLElement} tree */
 function drawLines(tree) {
-  const svg = /** @type {SVGSVGElement} */ (tree.querySelector(".bracket-lines"));
-  svg.setAttribute("width", String(tree.scrollWidth));
-  svg.setAttribute("height", String(tree.scrollHeight));
   const findCard = (/** @type {string} */ id) =>
     /** @type {Element} */ (tree.querySelector(`[data-series="${id}"]`));
-  const paths = Object.entries(BRACKET_FEEDERS).map(([next, [upper, lower]]) => {
-    const shape = buildBracket(
+  const brackets = Object.entries(BRACKET_FEEDERS).map(([next, [upper, lower]]) => ({
+    next,
+    ...buildBracket(
       readPoint(tree, findCard(upper), "right"),
       readPoint(tree, findCard(lower), "right"),
       readPoint(tree, findCard(next), "left"),
-    );
-    return html`<path data-next="${next}" d="${shape}"/>`;
-  });
-  setHtml(svg, html`${paths}`);
+    ),
+  }));
+  const findSvg = (/** @type {string} */ selector) =>
+    /** @type {SVGSVGElement} */ (tree.querySelector(selector));
+  drawPaths(
+    findSvg(".bracket-lines"),
+    tree,
+    brackets.map(({ next, lines }) => ({ next, shape: lines })),
+  );
+  drawPaths(
+    findSvg(".bracket-turns"),
+    tree,
+    brackets.map(({ next, turn }) => ({ next, shape: turn })),
+  );
 }
+
+/**
+ * Tells the bracket how far it has scrolled, so a turn in the screen's left margin hides and the
+ * lines into the round beside it run off the screen's edge.
+ * @param {HTMLElement} tree
+ */
+const markScrollLeft = (tree) => tree.style.setProperty("--scroll-left", `${tree.scrollLeft}px`);
 
 /**
  * While the round dots are pinned above a phone's tab bar, the gaps between the cards grow alike
@@ -96,11 +130,13 @@ function layOutBracket() {
   if (!tree || !isShown(tree)) return;
   sizeCardGaps(tree);
   drawLines(tree);
+  markScrollLeft(tree);
 }
 
 function markVisibleRound() {
   const tree = findTree();
   if (!tree) return;
+  markScrollLeft(tree);
   const names = /** @type {HTMLElement[]} */ ([...tree.querySelectorAll(".round-name")]);
   const dots = /** @type {HTMLElement} */ (findWrap().querySelector(".round-dots"));
   markScrolledRound(tree, names, dots);
