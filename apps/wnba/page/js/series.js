@@ -42,6 +42,20 @@ export function describeSeriesStanding(series) {
 }
 
 /**
+ * Where a series stood after a game, as its winner tells it: "Dream won to lead 2-0", "Dream won
+ * to tie 1-1", "Dream won but trail 1-2", or "Dream won the series 2-0".
+ * @param {{ winner: string, wins: number, losses: number, winsNeeded: number }} result
+ */
+export function describeSeriesAfterWin({ winner, wins, losses, winsNeeded }) {
+  const score = `${wins}-${losses}`;
+  const name = nameTeam(winner);
+  if (wins === winsNeeded) return `${name} won the series ${score}`;
+  if (wins === losses) return `${name} won to tie ${score}`;
+  if (wins < losses) return `${name} won but trail ${score}`;
+  return `${name} won to lead ${score}`;
+}
+
+/**
  * How far each team got: its seed, the round it's playing or went out in, and whether it won it
  * all.
  * @param {Series[]} allSeries

@@ -574,22 +574,38 @@ header.top h1 {
 }
 
 /* The game sheet: the two teams across the score, then the game's parts, each under a teal
-   title. Each team's side of a chart or bar is in its color for the theme, which
-   js/sheet-colors.js hands the sheet, and the side behind on a measure gets a lighter bar. */
+   title, with --part-space-first between the line under the teams and the first title,
+   --part-space-above each later title, and --part-space-below it. Each team's side of a chart or
+   bar is in its color for the theme, which js/sheet-colors.js hands the sheet, and the side
+   behind on a measure gets a paler bar of the same hue, faded toward a gray as light as the
+   sheet, since fading it toward the tan track or the cream sheet would turn blue gray and green
+   olive. */
 .game-sheet-body {
   --away: var(--away-light, var(--ink-dim));
   --home: var(--home-light, var(--ink-dim));
+  --part-space-first: 15px;
+  --part-space-above: 24px;
+  --part-space-below: 14px;
   display: grid;
-  gap: 20px;
-  padding-top: 4px;
+  gap: var(--part-space-above);
+}
+.game-sheet-body > .faceoff {
+  margin-bottom: calc(var(--part-space-first) - var(--part-space-above));
+}
+.game-sheet-body > .sheet-part {
+  gap: var(--part-space-below);
+}
+/* By quarter's first row is its small, light quarter numbers, which read as more room under its
+   title than the same gap does under the others. */
+.game-sheet-body > .sheet-part:has(> .line-score) {
+  gap: 6px;
+}
+.game-sheet-body .tape {
+  gap: 12px;
 }
 :root[data-theme="dark"] .game-sheet-body {
   --away: var(--away-dark, var(--ink-dim));
   --home: var(--home-dark, var(--ink-dim));
-}
-/* A tape of stats is the sheet's densest part, so it gets more room from the parts around it. */
-.game-sheet-body > .sheet-part:has(> .tape) {
-  margin-block: 8px;
 }
 .game-sheet-body :is(.tape-side, .lead-chart *).away {
   --side: var(--away);
@@ -598,18 +614,24 @@ header.top h1 {
   --side: var(--home);
 }
 .game-sheet-body .tape-bar i {
-  background: color-mix(in srgb, var(--side) 38%, var(--divider));
+  background: color-mix(in oklch, var(--side) 47%, oklch(from var(--card) l 0 none));
 }
 .game-sheet-body .tape-bar i.lead {
   background: var(--side);
+}
+/* The game's title and its teams share one tinted band across the top of the sheet, which sets
+   them apart from the parts below without a line like the ones between the parts' rows. */
+#gameDialog .sheet-top {
+  background: var(--tile);
 }
 .faceoff {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   column-gap: 10px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--divider);
+  margin-inline: -22px;
+  padding: 6px 22px 14px;
+  background: var(--tile);
 }
 .faceoff-side {
   display: flex;
@@ -654,7 +676,7 @@ header.top h1 {
   white-space: nowrap;
 }
 .faceoff:has(.networks) {
-  padding-bottom: 7px;
+  padding-bottom: 10px;
 }
 .faceoff .networks {
   grid-column: 1 / -1;
@@ -1587,6 +1609,11 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
     flex-basis: 100%;
     align-items: flex-start;
     text-align: left;
+  }
+  /* The band reaches the sheet's edges, which sit closer on a phone. */
+  .faceoff {
+    margin-inline: -18px;
+    padding-inline: 18px;
   }
 }
 
