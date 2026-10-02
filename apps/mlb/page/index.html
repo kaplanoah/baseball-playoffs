@@ -26,6 +26,7 @@
     { "imports": { "#shared/": "./shared/" } }
   </script>
 
+  <div class="home-screen-bar" id="homeScreenBar" hidden></div>
   <header class="top">
     <div class="title-row">
       <h1>MLB</h1>
@@ -182,28 +183,31 @@
           </button>
         </div>
       </div>
-      <div class="settings-controls">
-        <label class="control-row">
-          <span>Season</span>
-          <select id="yearSel" class="select-field" aria-label="Season"></select>
-        </label>
-        <div class="control-row" id="notifyRow" hidden>
-          <span class="control-label">
-            <span id="notifyTitle">Notifications</span>
-            <span class="control-note" id="notifyNote" role="status"></span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            class="switch"
-            id="notifySwitch"
-            aria-checked="false"
-            aria-labelledby="notifyTitle"
-            hidden
-          >
-            <span class="switch-knob" aria-hidden="true"></span>
-          </button>
+      <div class="settings-main">
+        <div class="settings-controls">
+          <label class="control-row">
+            <span>Season</span>
+            <select id="yearSel" class="select-field" aria-label="Season"></select>
+          </label>
+          <div class="control-row" id="notifyRow" hidden>
+            <span class="control-label">
+              <span id="notifyTitle">Notifications</span>
+              <span class="control-note" id="notifyNote" role="status"></span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              class="switch"
+              id="notifySwitch"
+              aria-checked="false"
+              aria-labelledby="notifyTitle"
+              hidden
+            >
+              <span class="switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
+        <div class="home-screen-tip" id="homeScreenTip" hidden></div>
       </div>
       <section class="settings-ranking" aria-labelledby="rankingTitle">
         <div class="ranking-heading">

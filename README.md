@@ -139,7 +139,9 @@ says why the Worker couldn't read the league, and `write` names the save that fa
 
 **5. Save it to the home screen.** On an iPhone, have them open the address
 in Safari and choose **Share > Add to Home Screen**. It then opens full
-screen with its own icon.
+screen with its own icon. On a phone, the page shows these steps itself, in a
+bar across the top until it's closed and at the bottom of settings, and on
+Android its **Install** button opens Chrome's own install dialog.
 
 **6. Turn on notifications.** From the home screen icon, have them tap the
 sliders at the top right to open settings, turn on **Notifications**, and allow
@@ -192,7 +194,8 @@ look at it. The bundle records its version, the commit it was built from, and
 when, and the page's settings show them.
 
 Code every app uses lives in `shared/`: the page's tab bar and settings sheet
-(their styles in `chrome.css`), the sheet a tap on a game opens (`sheet.css`),
+and the bar that asks a phone to add the page to the Home Screen (their styles
+in `chrome.css`), the sheet a tap on a game opens (`sheet.css`),
 catching up on return, showing what the page last showed while it loads, and
 store client in
 `shared/page/`, and the Worker's routing and push
