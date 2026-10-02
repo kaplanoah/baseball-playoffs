@@ -20,6 +20,8 @@ let isReloadPending = false;
 let isBusy = () => false;
 /** @type {() => void} */
 let catchUp = () => {};
+/** @type {((awayMs: number) => void)[]} */
+const awayWatchers = [];
 
 /**
  * @param {import("./release.js").Release | null} loaded
@@ -52,10 +54,14 @@ export async function reloadIfReplaced() {
 // a page that was hidden or asleep catches up.
 function catchUpOnReturn() {
   if (document.hidden) return;
-  const hasBeenAway = wasHidden || Date.now() - activeAt >= ASLEEP_MS;
+  const awayMs = Date.now() - activeAt;
+  const hasBeenAway = wasHidden || awayMs >= ASLEEP_MS;
   activeAt = Date.now();
   wasHidden = false;
-  if (hasBeenAway) catchUp();
+  if (hasBeenAway) {
+    for (const watcher of awayWatchers) watcher(awayMs);
+    catchUp();
+  }
   reloadIfReplaced();
 }
 
@@ -67,6 +73,15 @@ function tick() {
     activeAt = Date.now();
     if (isReleaseCheckOwed) reloadIfReplaced();
   }
+}
+
+/**
+ * Calls `watcher` with how long the page was away each time it comes back from being hidden or
+ * asleep, once `watchReturns` is watching.
+ * @param {(awayMs: number) => void} watcher
+ */
+export function watchTimeAway(watcher) {
+  awayWatchers.push(watcher);
 }
 
 // iOS doesn't always report a home-screen page coming back, so every sign of it counts.
