@@ -58,20 +58,20 @@ const renderExtra = (side, place) =>
   side.extra ? html`<span class="game-extra ${place}">${side.extra}</span>` : html``;
 
 /**
+ * @param {import("./network-logos.js").NetworkLogo} logo
  * @param {string} file
- * @param {string} alt
  * @param {string} classes
  */
-const renderLogoImage = (file, alt, classes) =>
-  html`<img class="${classes}" src="shared/networks/${file}" alt="${alt}" />`;
+const renderLogoImage = (logo, file, classes) =>
+  html`<img class="${classes}" src="shared/networks/${file}" alt="${logo.name}"${logo.scale && html` style="--logo-scale: ${logo.scale}"`} />`;
 
 // A logo with a version for each background shows the page's.
 /** @param {import("./network-logos.js").NetworkLogo} logo */
 function renderLogo(logo) {
-  if (!logo.darkFile) return renderLogoImage(logo.file, logo.name, "network-logo");
-  return html`${renderLogoImage(logo.file, logo.name, "network-logo for-light")}${renderLogoImage(
+  if (!logo.darkFile) return renderLogoImage(logo, logo.file, "network-logo");
+  return html`${renderLogoImage(logo, logo.file, "network-logo for-light")}${renderLogoImage(
+    logo,
     logo.darkFile,
-    logo.name,
     "network-logo for-dark",
   )}`;
 }

@@ -115,6 +115,26 @@ for (const [scheme, shown, hidden] of LOGO_LOOKS) {
   });
 }
 
+test("a square badge is drawn taller than a long wordmark, in the room under the teams", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await app.changeSeason((season) => {
+    season.games.find((each) => each.id === "1042600132").networks = ["ABC", "ESPN"];
+    return season;
+  });
+  const row = page.locator('#games-today [data-game="1042600132"]');
+  const abc = await row.getByRole("img", { name: "ABC" }).boundingBox();
+  const espn = await row.getByRole("img", { name: "ESPN" }).boundingBox();
+  expect(abc.height).toBeCloseTo(14 * 1.29, 0);
+  expect(espn.height).toBeCloseTo(14 * 0.79, 0);
+  const rowBox = await row.boundingBox();
+  const sides = await row.locator(".game-side.home").boundingBox();
+  expect(abc.y).toBeGreaterThan(sides.y + sides.height);
+  expect(abc.y + abc.height).toBeLessThan(rowBox.y + rowBox.height);
+});
+
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();

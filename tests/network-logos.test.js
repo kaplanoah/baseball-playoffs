@@ -5,6 +5,10 @@ import { renderGameRow } from "../shared/page/game-row.js";
 import { html } from "../shared/page/html.js";
 import { listNetworkLogos, NETWORK_LOGOS } from "../shared/page/network-logos.js";
 
+/** @param {string[]} names */
+const listLogos = (names) =>
+  /** @type {import("../shared/page/network-logos.js").NetworkLogo[]} */ (listNetworkLogos(names));
+
 const LOGO_FOLDER = new URL("../shared/page/networks/", import.meta.url);
 
 /** @param {string[]} networks */
@@ -24,15 +28,26 @@ test("a channel's logo is found by any name the feeds give it, whatever its case
 });
 
 test("two names for one channel show its logo once, and a channel with no logo keeps its name", () => {
-  const [espn, ...rest] = listNetworkLogos(["ESPN", "ESPN App", "Reds.TV", "Rays.TV"]);
-  assert.deepEqual(espn, { name: "ESPN", file: "espn.svg" });
+  const [espn, ...rest] = /** @type {any[]} */ (
+    listNetworkLogos(["ESPN", "ESPN App", "Reds.TV", "Rays.TV"])
+  );
+  assert.equal(espn.name, "ESPN");
   assert.deepEqual(rest, ["Reds.TV", "Rays.TV"]);
 });
 
 test("a logo that works on one background has a version for the other", () => {
-  const [nbc, espn] = listNetworkLogos(["NBC", "ESPN"]);
-  assert.deepEqual(nbc, { name: "NBC", file: "nbc.svg", darkFile: "nbc-dark.svg" });
-  assert.deepEqual(espn, { name: "ESPN", file: "espn.svg" });
+  const [nbc, espn] = listLogos(["NBC", "ESPN"]);
+  assert.deepEqual([nbc.file, nbc.darkFile], ["nbc.svg", "nbc-dark.svg"]);
+  assert.deepEqual([espn.file, espn.darkFile], ["espn.svg", undefined]);
+});
+
+test("a square badge is drawn taller than a long wordmark, so the two look about the same size", () => {
+  const [abc, espn, fox] = listLogos(["ABC", "ESPN", "FOX"]);
+  assert.ok(abc.scale > 1 && espn.scale < 1);
+  assert.equal(fox.scale, undefined);
+  const line = renderNetworksLine(["ABC", "FOX"]);
+  assert.match(line, /alt="ABC" style="--logo-scale: 1.29"/);
+  assert.match(line, /alt="FOX" \/>/);
 });
 
 test("every logo the table names is in its folder, and every file there is one it names", () => {

@@ -11,7 +11,10 @@
  *   --game-headline-offset   the time or score
  *   --game-status-offset     the status under the time or score
  *   --game-networks-height   the line under a game that says where to watch it
- *   --network-logo-height    a channel's logo on that line
+ *   --network-logo-height    a channel's logo on that line, which each logo scales so a square
+ *                            badge and a long wordmark look about the same size
+ *   --game-networks-offset   that line, from the bottom of the row's usual height, into the room
+ *                            under the sides
  * and these, set for whether the page's background is light or dark, since each channel's logo
  * is drawn for one or the other:
  *   --logos-for-light        inline when a logo with a version for each shows its version for a
@@ -108,6 +111,7 @@
 }
 .game-networks {
   grid-area: 5 / 1 / 6 / -1;
+  translate: 0 var(--game-networks-offset);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -117,7 +121,7 @@
 }
 .network-logo {
   display: inline;
-  height: var(--network-logo-height);
+  height: calc(var(--network-logo-height) * var(--logo-scale, 1));
   width: auto;
   max-width: 96px;
   object-fit: contain;
