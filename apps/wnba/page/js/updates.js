@@ -1,12 +1,13 @@
 // The Updates box: each playoff game finished since this device last dismissed it, with where its
-// series stood after it. Nobody signs in, and people share the page's address, so each device
+// series stood after it, and the release notes out since then. Nobody signs in, and people share the page's address, so each device
 // keeps its own dismissal, and only phones and tablets show the box.
 
 import { readEasternDay } from "#shared/days.js";
 import { isTouchDevice } from "#shared/device.js";
 import { html } from "#shared/html.js";
-import { showUpdates } from "#shared/updates.js";
+import { listFreshNotes, showUpdates } from "#shared/updates.js";
 import { renderTeamName } from "./clubs.js";
+import { RELEASE_NOTES } from "./release-notes.js";
 import { session } from "./session.js";
 import { ROUNDS } from "./snapshot.js";
 
@@ -161,14 +162,22 @@ export function listFreshUpdates() {
   return wins.filter((win) => win.at > seenAt);
 }
 
-// The newest update's time is the Worker's, so the dismissal doesn't depend on this device's clock.
+/** The release notes out since this device last dismissed the box. */
+const listFreshReleaseNotes = () =>
+  listFreshNotes(RELEASE_NOTES, readOrStartSeenAt(listPlayoffWins(session.season)));
+
+// The newest update's time is the Worker's, and a note's is the one it was given, so the
+// dismissal doesn't depend on this device's clock.
 function dismissUpdates() {
-  const fresh = listFreshUpdates();
-  if (fresh.length) saveSeenAt(Math.max(...fresh.map((update) => update.at)));
+  const times = [...listFreshUpdates(), ...listFreshReleaseNotes()].map((item) => item.at);
+  if (times.length) saveSeenAt(Math.max(...times));
   drawUpdates();
 }
 
 export function drawUpdates() {
-  const updates = isTouchDevice() ? listFreshUpdates() : [];
-  showUpdates(findPanel(), updates, { dismiss: dismissUpdates });
+  const isShown = isTouchDevice();
+  showUpdates(findPanel(), isShown ? listFreshUpdates() : [], {
+    dismiss: dismissUpdates,
+    notes: isShown ? listFreshReleaseNotes() : [],
+  });
 }

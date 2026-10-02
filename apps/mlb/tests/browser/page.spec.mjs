@@ -1512,6 +1512,31 @@ test("rebuilds updates from the saved readings as the Worker adds to them", asyn
   expect(await listOffScaleText(page)).toEqual([]);
 });
 
+test("a release note shows in the Updates box, headed New in the app, until it's dismissed", async ({
+  page,
+}) => {
+  await page.route("**/js/release-notes.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: 'export const RELEASE_NOTES = [{ at: "2026-09-24T23:00:00Z", text: "Something new." }];',
+    }),
+  );
+  const app = await openApp(page);
+  const updates = page.locator("#updates");
+
+  await expect(updates.locator(".updates-count")).toHaveText("New in the app");
+  await expect(updates.locator(".what")).toHaveText("Something new.");
+
+  await page.getByRole("button", { name: "Dismiss updates" }).click();
+  await expect(updates).toBeHidden();
+  await expect
+    .poll(async () => (await app.readDocument("seasons/2026"))?.seenAt)
+    .toBe("2026-09-24T23:00:00.000Z");
+  await page.reload();
+  await expect(page.locator("#bracketWrap")).toBeVisible();
+  await expect(updates).toBeHidden();
+});
+
 test("switching to 2025 shows the finished bracket and its champion, and stops polling", async ({
   page,
 }) => {
