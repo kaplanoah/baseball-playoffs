@@ -613,10 +613,11 @@ header.top h1 {
 .game-sheet-body :is(.tape-side, .lead-chart *).home {
   --side: var(--home);
 }
-.game-sheet-body .tape-bar i {
+/* A team's sheet draws its bars the same way, the team's side in its color. */
+:is(.game-sheet-body, .team-tape) .tape-bar i {
   background: color-mix(in oklch, var(--side) 47%, oklch(from var(--card) l 0 none));
 }
-.game-sheet-body .tape-bar i.lead {
+:is(.game-sheet-body, .team-tape) .tape-bar i.lead {
   background: var(--side);
 }
 /* The game's title and its teams share one tinted band across the top of the sheet, which sets
@@ -1506,22 +1507,27 @@ table.standings tr.playoff-line + tr td {
   color: var(--orange);
   font-weight: 600;
 }
-/* Each part's numbers, the regular season's and the playoffs', in one list of the same measures,
-   each after its name, the names in a column, and a winning streak marked like a win. */
-.team-numbers {
+/* Each part's numbers face off like a game preview's: the team on the left in its color for the
+   theme, which js/sheet-colors.js hands it, across from the league's in gray, with a winning
+   streak marked like a win. */
+.team-tape {
+  --team: var(--team-light, var(--ink-dim));
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: baseline;
-  gap: 8px 16px;
-  margin: 0;
+  gap: 10px;
 }
-.team-numbers dd {
-  margin: 0;
-  font-family: var(--numbers);
-  font-size: 0.95rem;
-  font-weight: 600;
+:root[data-theme="dark"] .team-tape {
+  --team: var(--team-dark, var(--ink-dim));
 }
-.team-numbers .streak-won {
+.team-tape .tape {
+  gap: 12px;
+}
+.team-tape .tape-side.away {
+  --side: var(--team);
+}
+.team-tape .tape-side.home {
+  --side: var(--ink-dim);
+}
+.team-tape .streak-won {
   color: var(--teal);
 }
 .team-titles {

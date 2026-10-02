@@ -1,9 +1,12 @@
 import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
-import { renderDot, renderTeamName } from "./clubs.js";
+import { renderTapeRow } from "#shared/tape.js";
+import { renderDot, renderPlainClub, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { readPlayoffRuns } from "./series.js";
+import { formatTeamColors } from "./sheet-colors.js";
+import { describeNumbers, describeRecords } from "./sheet-parts.js";
 import { ROUNDS } from "./snapshot.js";
 import { renderStreak } from "./standings-view.js";
 import { TEAMS } from "./teams.js";
@@ -14,7 +17,7 @@ import { TEAMS } from "./teams.js";
 /** @typedef {{ seed: number | null, round: number, isOut: boolean, isChampion: boolean }} Run */
 /** @typedef {{ team: string, id: number, firstName: string, lastName: string, games: number, points: number, rebounds: number, assists: number }} Leader */
 /** @typedef {{ series?: Series[], standings?: StandingsRow[], games?: Game[], leaders?: Leader[] }} Season */
-/** @typedef {{ record: string, pointsFor: number | null, pointsAgainst: number | null, margin: number | null, home: string | null, road: string | null, lastTen: string | null, streak: string | null }} PhaseStats */
+/** @typedef {{ record: string | null, pointsFor: number | null, pointsAgainst: number | null, margin: number | null, home: string | null, road: string | null, lastTen: string | null, streak: string | null }} PhaseStats */
 
 /**
  * @param {Game} game
@@ -135,7 +138,11 @@ function listTitles(code, run, year) {
 }
 
 /** @param {number} margin */
-const formatMargin = (margin) => (margin > 0 ? `+${margin.toFixed(1)}` : margin.toFixed(1));
+function formatMargin(margin) {
+  const shown = margin.toFixed(1);
+  if (Number(shown) === 0) return "0.0";
+  return margin > 0 ? `+${shown}` : shown;
+}
 
 /** @param {boolean[]} results each game's, oldest first, true for a win */
 function formatRecord(results) {
@@ -198,44 +205,143 @@ function readPlayoffs(finished, team) {
   };
 }
 
+/** @param {number[]} values */
+const averageOf = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+
 /**
- * A phase's numbers, each after its name, leaving out those it has none for.
- * @param {PhaseStats} stats
+ * Wins and losses added up across records like 15-7.
+ * @param {string[]} records
  */
-function renderNumbers(stats) {
-  /** @type {[string, import("#shared/html.js").Markup | string | null][]} */
-  const numbers = [
-    ["Record", stats.record],
-    ["PPG", stats.pointsFor == null ? null : formatAverage(stats.pointsFor)],
-    ["Opp PPG", stats.pointsAgainst == null ? null : formatAverage(stats.pointsAgainst)],
-    ["Margin", stats.margin == null ? null : formatMargin(stats.margin)],
-    ["Home", stats.home],
-    ["Road", stats.road],
-    ["Last 10", stats.lastTen],
-    ["Streak", stats.streak == null ? null : renderStreak(stats.streak)],
-  ];
-  return html`<dl class="team-numbers">
-    ${numbers
-      .filter(([, value]) => value != null)
-      .map(
-        ([label, value]) =>
-          html`<dt class="team-label">${label}</dt><dd class="tabular">${value}</dd>`,
-      )}
-  </dl>`;
+function addRecords(records) {
+  const totals = records
+    .map((record) => record.split("-").map(Number))
+    .reduce(([wins, losses], [won, lost]) => [wins + won, losses + lost], [0, 0]);
+  return `${totals[0]}-${totals[1]}`;
 }
 
 /**
- * The team's regular season: its numbers from the standings, then its leading scorers.
- * @param {StandingsRow | undefined} row
+ * The league's regular season, as one side to measure a team against: its teams' average points
+ * scored, allowed, and margin, and every team's home and road games added up.
+ * @param {StandingsRow[]} standings
+ * @returns {PhaseStats}
+ */
+function readLeagueRegularSeason(standings) {
+  /** @param {(row: StandingsRow) => number | null | undefined} read */
+  const averageAll = (read) => {
+    const values = standings.map(read).filter((value) => value != null);
+    return values.length ? averageOf(/** @type {number[]} */ (values)) : null;
+  };
+  /** @param {(row: StandingsRow) => string | null | undefined} read */
+  const addAll = (read) => {
+    const records = standings.map(read).filter(Boolean);
+    return records.length ? addRecords(/** @type {string[]} */ (records)) : null;
+  };
+  return {
+    record: null,
+    pointsFor: averageAll((row) => row.pointsFor),
+    pointsAgainst: averageAll((row) => row.pointsAgainst),
+    margin: averageAll((row) => row.margin),
+    home: addAll((row) => row.home),
+    road: addAll((row) => row.road),
+    lastTen: null,
+    streak: null,
+  };
+}
+
+/**
+ * The playoffs so far, as one side to measure a team against: the points each team scored a game,
+ * and how home teams and road teams have done, or null before the first game ends.
+ * @param {Game[]} games
+ * @returns {PhaseStats | null}
+ */
+function readLeaguePlayoffs(games) {
+  const finished = games.filter((game) => game.state === "final");
+  if (!finished.length) return null;
+  const points = averageOf(
+    finished.flatMap((game) => [game.home.score ?? 0, game.away.score ?? 0]),
+  );
+  const homeWins = finished.filter((game) => (game.home.score ?? 0) > (game.away.score ?? 0));
+  const homeRecord = `${homeWins.length}-${finished.length - homeWins.length}`;
+  const roadRecord = `${finished.length - homeWins.length}-${homeWins.length}`;
+  return {
+    record: null,
+    pointsFor: points,
+    pointsAgainst: points,
+    margin: 0,
+    home: homeRecord,
+    road: roadRecord,
+    lastTen: null,
+    streak: null,
+  };
+}
+
+/**
+ * A row for a streak, which has no bar, since a winning streak and a losing one don't compare by
+ * length.
+ * @param {(string | null)[]} streaks
+ * @returns {import("#shared/tape.js").TapeRow}
+ */
+function describeStreaks(streaks) {
+  const [away, home] = streaks.map((streak) => (streak ? { value: renderStreak(streak) } : null));
+  return { label: "Streak", away, home, leader: null };
+}
+
+/**
+ * The team across from the league, measure by measure, leaving out a measure the team doesn't
+ * have. The league has no record, last ten, or streak, so those show for the team alone.
+ * @param {PhaseStats} team
+ * @param {PhaseStats | null} league
+ */
+function describeStatRows(team, league) {
+  /** @param {keyof PhaseStats} measure */
+  const pick = (measure) =>
+    /** @type {[any, any]} */ ([team[measure] ?? null, league?.[measure] ?? null]);
+  const rows = [
+    describeRecords("Record", pick("record")),
+    describeNumbers("PPG", pick("pointsFor"), { format: formatAverage }),
+    describeNumbers("Opp PPG", pick("pointsAgainst"), {
+      format: formatAverage,
+      isLowerBetter: true,
+    }),
+    describeNumbers("Margin", pick("margin"), { format: formatMargin }),
+    describeRecords("Home", pick("home")),
+    describeRecords("Road", pick("road")),
+    describeRecords("Last 10", pick("lastTen")),
+    describeStreaks(pick("streak")),
+  ];
+  return rows.filter((row) => row.away);
+}
+
+/**
+ * A team's numbers across from the league's, in the game preview's tape: the team on the left in
+ * its color, and the league on the right.
+ * @param {string} code
+ * @param {PhaseStats} team
+ * @param {PhaseStats | null} league
+ * @param {string} leagueName what the league's side is called
+ */
+const renderAgainstLeague = (code, team, league, leagueName) =>
+  html`<div class="team-tape" style="${formatTeamColors(code)}">
+    <div class="tape-teams">${renderPlainClub(code)}<span class="club">${leagueName}</span></div>
+    <div class="tape">${describeStatRows(team, league).map(renderTapeRow)}</div>
+  </div>`;
+
+/**
+ * The team's regular season across from the league's, from the standings, then its leading
+ * scorers.
+ * @param {string} code
+ * @param {StandingsRow[]} standings
  * @param {Leader[]} leaders
  */
-function renderRegularSeason(row, leaders) {
+function renderRegularSeason(code, standings, leaders) {
+  const row = standings.find((each) => each.team === code);
   if (!row && !leaders.length) return false;
+  const numbers =
+    row &&
+    renderAgainstLeague(code, readRegularSeason(row), readLeagueRegularSeason(standings), "League");
   return renderSheetPart(
     "Regular season",
-    html`<div class="team-season">
-      ${row && renderNumbers(readRegularSeason(row))}${renderLeadingScorers(leaders)}
-    </div>`,
+    html`<div class="team-season">${numbers}${renderLeadingScorers(leaders)}</div>`,
   );
 }
 
@@ -299,21 +405,21 @@ function renderNextGame(game, team, now) {
 }
 
 /**
- * The team's playoff numbers and games under its run so far, or only the run for a team that
- * missed them.
+ * The team's playoff numbers across from the whole playoff field's, then its games, under its run
+ * so far, or only the run for a team that missed them.
  * @param {string} team
  * @param {{ finished: Game[], next: Game | null }} games
  * @param {{ label: string, kind: string } | null} chip
- * @param {{ isPlaying: boolean, now: number }} context
+ * @param {{ isPlaying: boolean, field: PhaseStats | null, now: number }} context
  */
-function renderPlayoffs(team, { finished, next }, chip, { isPlaying, now }) {
+function renderPlayoffs(team, { finished, next }, chip, { isPlaying, field, now }) {
   if (!chip) return false;
   const stats = readPlayoffs(finished, team);
   const shownNext = isPlaying && next;
   return renderSheetPart(
     "Playoffs",
     html`<div class="team-season">
-      ${stats && renderNumbers(stats)}
+      ${stats && renderAgainstLeague(team, stats, field, "Playoff field")}
       <div class="team-playoffs">
         ${finished.map((game) => renderFinishedGame(game, team))}
         ${shownNext && renderNextGame(shownNext, team, now)}
@@ -348,8 +454,16 @@ export function renderTeamSheet(season, code, { year, now }) {
   const isPlaying = !!run && !run.isOut && !run.isChampion;
   const chip = describeChip(run, isPlaying ? games.next : null, { hasField: runs.size > 0, now });
   const titles = listTitles(code, run, year);
-  const regularSeason = renderRegularSeason(row, findTeamLeaders(season, code));
-  const playoffs = renderPlayoffs(code, games, chip, { isPlaying, now });
+  const regularSeason = renderRegularSeason(
+    code,
+    season?.standings ?? [],
+    findTeamLeaders(season, code),
+  );
+  const playoffs = renderPlayoffs(code, games, chip, {
+    isPlaying,
+    field: readLeaguePlayoffs(season?.games ?? []),
+    now,
+  });
   return {
     heading: html`${renderDot(code)}<span>${team.city} ${team.name}</span>`,
     note: joinWithSeparator(listFacts(row, run)),
