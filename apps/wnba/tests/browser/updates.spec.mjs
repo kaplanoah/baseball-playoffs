@@ -17,19 +17,17 @@ function finishDreamAtMystics(season) {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("the Updates box lists each playoff final, newest first, until it's dismissed, and then only what's new", async ({
+  test("the Updates box opens on the latest day's playoff finals, newest first, until it's dismissed, and then lists only what's new", async ({
     page,
   }) => {
     const app = await openApp(page, { isShowingUpdates: true });
     const updates = page.locator("#updates");
 
-    await expect(updates.locator(".updates-count")).toHaveText("6 updates since Sunday");
-    await expect(updates.locator(".what").first()).toHaveText(
+    await expect(updates.locator(".updates-count")).toHaveText("2 updates since yesterday");
+    await expect(updates.locator(".what")).toHaveText([
       "Liberty beat the Lynx 87-71 to win the First Round 2\u20130",
-    );
-    await expect(updates.locator(".what").nth(1)).toHaveText(
       "Fever beat the Aces 99-89 in Game\u00a02\u00a0\u2014 tie the First Round 1\u20131",
-    );
+    ]);
 
     await page.getByRole("button", { name: "Dismiss updates" }).click();
     await expect(updates).toBeHidden();

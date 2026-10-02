@@ -452,7 +452,8 @@ header.top h1 {
   gap: 8px;
 }
 /* A score reads like an arena scoreboard: red seven-segment digits on a dark panel, with the
-   segments that are off faintly showing. The loser's digits dim. */
+   segments that are off faintly showing. The loser's digits dim a little and don't glow, so they
+   still read easily. */
 .scoreboard {
   --digit-height: 24px;
   display: inline-flex;
@@ -487,7 +488,7 @@ header.top h1 {
 }
 .scoreboard.lost rect.on {
   fill: var(--led-dim);
-  opacity: 0.6;
+  opacity: 0.75;
   filter: none;
 }
 .scoreboard-text {
@@ -1344,6 +1345,11 @@ body.kbd .team-open:focus {
   gap: 20px;
   padding-top: 4px;
 }
+@media (max-width: 779px) {
+  .team-sheet-body {
+    padding-top: 2px;
+  }
+}
 /* The title is the team's name, so it's set like every other team's. */
 #teamTitle {
   display: flex;
@@ -1355,6 +1361,10 @@ body.kbd .team-open:focus {
   letter-spacing: 0.02em;
   text-transform: none;
 }
+#teamNote {
+  font-weight: 500;
+  color: var(--ink-mid);
+}
 #teamTitle .dot {
   width: 14px;
   height: 14px;
@@ -1365,7 +1375,7 @@ body.kbd .team-open:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--ink-dim);
+  color: var(--ink-mid);
 }
 /* Shaped like baseball's chips. */
 .status-chip {
@@ -1421,22 +1431,21 @@ body.kbd .team-open:focus {
   border-left: 1px solid var(--divider);
 }
 .team-stat b {
-  font-family: var(--numbers);
+  font-family: var(--display);
   font-size: 1.15rem;
   font-weight: 600;
 }
 .team-detail {
   margin: 0;
   font-size: var(--size-glance);
+  font-weight: 500;
   line-height: 1.4;
-  color: var(--ink-mid);
 }
 .team-detail > .team-label {
   margin-right: 6px;
 }
 .team-detail b {
   font-weight: 600;
-  color: var(--ink);
 }
 .team-detail .tabular {
   white-space: nowrap;
@@ -1464,6 +1473,7 @@ body.kbd .team-open:focus {
   align-items: center;
   gap: 8px;
   font-size: var(--size-glance);
+  font-weight: 500;
 }
 .team-game-number {
   font-family: var(--display);
@@ -1471,7 +1481,7 @@ body.kbd .team-open:focus {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--ink-dim);
+  color: var(--ink-mid);
 }
 .team-result {
   font-family: var(--display);
@@ -1486,6 +1496,7 @@ body.kbd .team-open:focus {
 }
 .team-round {
   font-size: var(--size-glance);
+  font-weight: 500;
   color: var(--ink-dim);
 }
 .team-score {
