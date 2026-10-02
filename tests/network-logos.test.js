@@ -67,7 +67,7 @@ test("the line under a game shows each logo, its dark version beside it, and nam
     ["network-logo for-dark", "shared/networks/nbc-dark.svg", "NBC"],
     ["network-logo", "shared/networks/espn.svg", "ESPN"],
   ]);
-  assert.match(line, /<span class="sep">&bull;<\/span>Reds\.TV<\/span\s*>/);
+  assert.match(line, /<span class="sep">&bull;<\/span><\/span><span class="fact">Reds\.TV<\/span>/);
 });
 
 test("a game with nowhere to watch it has no line for it", () => {

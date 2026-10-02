@@ -909,13 +909,15 @@ test("each day's games sit in a box of their own, apart from the next day's", as
   expect(box).toBe("solid");
 });
 
-test("each day's date sits to the left of its games, level with the first", async ({ page }) => {
+test("each day's date sits to the left of its games, level with the first, above where to watch it", async ({
+  page,
+}) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const day = page.locator("#games-today .game-day").first();
   const date = await day.locator(".day-label").boundingBox();
   const list = await day.locator(".game-list").boundingBox();
-  const firstGame = await day.locator(".game-row").first().boundingBox();
+  const firstGame = await day.locator(".game-row .game-middle").first().boundingBox();
   expect(date.x + date.width).toBeLessThan(list.x);
   expect(
     Math.abs(date.y + date.height / 2 - (firstGame.y + firstGame.height / 2)),
