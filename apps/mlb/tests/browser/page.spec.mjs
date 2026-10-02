@@ -307,7 +307,7 @@ test("the Games tab keeps its list after another tab was shown", async ({ page }
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Next" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(2);
+  await expectGameList(page, "Next", 2);
 
   await page.getByRole("tab", { name: "Bracket" }).click();
   await page.getByRole("tab", { name: "Games" }).click();
@@ -320,7 +320,7 @@ test("the Games tab keeps its list when the page comes back within the hour", as
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Previous" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expectGameList(page, "Previous", 0);
 
   await comeBackAfter(page, 59);
 
@@ -334,7 +334,7 @@ test("the Games tab goes back to today's list when the page comes back after an 
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Previous" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expectGameList(page, "Previous", 0);
 
   await comeBackAfter(page, 60);
 
@@ -348,7 +348,7 @@ test("the Games tab opens on today's list after an hour away spent on another ta
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Next" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(2);
+  await expectGameList(page, "Next", 2);
   await page.getByRole("tab", { name: "Bracket" }).click();
 
   await comeBackAfter(page, 60);
@@ -362,7 +362,7 @@ test("the page reopens on the Games list it was last on", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Next" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(2);
+  await expectGameList(page, "Next", 2);
 
   await page.reload();
 
