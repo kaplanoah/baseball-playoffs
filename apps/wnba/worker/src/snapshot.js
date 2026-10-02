@@ -127,25 +127,38 @@ export function createSnapshotServer({
     return { games: games.filter(Boolean) };
   }
 
-  // A month that's over keeps its first good answer for good. This month's and later ones are read
-  // again now and then, and a read that fails waits as long as one that answers, with the last
-  // good answer standing in meanwhile.
+  // A month's answer from after the month ended is final, so it's kept for good. Any other month is
+  // read again now and then, and a read that fails waits as long as one that answers, with the
+  // last good answer standing in meanwhile.
+  /**
+   * @param {{ answeredAt: number | null }} kept
+   * @param {string} month
+   */
+  const isFinalAnswer = (kept, month) =>
+    kept.answeredAt !== null && formatEspnMonth(kept.answeredAt) > month;
+
   /** @param {string} month */
   function isDueForNetworksRead(month) {
     const kept = networkMonths.get(month);
     if (!kept) return true;
-    if (kept.data && month < formatEspnMonth(now())) return false;
+    if (isFinalAnswer(kept, month)) return false;
     return now() - kept.readAt >= NETWORKS_MS;
   }
 
   /** @param {string} month */
   async function readNetworkMonth(month) {
-    if (!isDueForNetworksRead(month)) return networkMonths.get(month).data;
-    const data = await fetchEspnJson(WNBASnapshot.NETWORKS_REQUEST(month)).catch(
-      () => networkMonths.get(month)?.data ?? null,
-    );
-    networkMonths.set(month, { readAt: now(), data });
-    return data;
+    const kept = networkMonths.get(month);
+    if (!isDueForNetworksRead(month)) return kept.data;
+    try {
+      const data = await fetchEspnJson(WNBASnapshot.NETWORKS_REQUEST(month));
+      networkMonths.set(month, { readAt: now(), answeredAt: now(), data });
+      return data;
+    } catch {
+      const answeredAt = kept?.answeredAt ?? null;
+      const data = kept?.data ?? null;
+      networkMonths.set(month, { readAt: now(), answeredAt, data });
+      return data;
+    }
   }
 
   // Each month with a playoff game, and yesterday's and today's, since a late game is still being

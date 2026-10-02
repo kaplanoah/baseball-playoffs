@@ -235,17 +235,44 @@ test("without the league's schedule, ESPN's scoreboard is read for this month al
   assert.deepEqual(listNetworksReads(league), [NETWORKS_REQUEST("202609")]);
 });
 
-test("a month that's over keeps its scoreboard, and this month's is read again", async () => {
+test("a month that's over is read once more, and then keeps that answer", async () => {
   const league = createLeague();
   let now = NOW;
   const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
   await server.loadSnapshot(2026);
 
   now = Date.parse("2026-10-05T16:00:00Z");
-  const snapshot = await server.loadSnapshot(2026);
+  await server.loadSnapshot(2026);
+  assert.deepEqual(listNetworksReads(league).slice(2), [
+    NETWORKS_REQUEST("202609"),
+    NETWORKS_REQUEST("202610"),
+  ]);
 
-  assert.deepEqual(listNetworksReads(league).slice(2), [NETWORKS_REQUEST("202610")]);
+  now += 11 * 60 * 1000;
+  const snapshot = await server.loadSnapshot(2026);
+  assert.deepEqual(listNetworksReads(league).slice(4), [NETWORKS_REQUEST("202610")]);
   assert.deepEqual(snapshot.games.find((game) => game.id === "1042600101").networks, ["ABC"]);
+});
+
+test("a month that's over and didn't answer keeps being read until it does", async () => {
+  /** @type {Record<string, "page" | "error">} */
+  const refuse = {};
+  const league = createLeague({ refuse });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  refuse.networks = "error";
+  now = Date.parse("2026-10-05T16:00:00Z");
+  await server.loadSnapshot(2026);
+  delete refuse.networks;
+  now += 11 * 60 * 1000;
+  await server.loadSnapshot(2026);
+
+  assert.deepEqual(listNetworksReads(league).slice(4), [
+    NETWORKS_REQUEST("202609"),
+    NETWORKS_REQUEST("202610"),
+  ]);
 });
 
 test("ESPN's scoreboard is read again only after 10 minutes, even after a failed read, and kept when it stops answering", async () => {
