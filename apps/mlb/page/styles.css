@@ -55,6 +55,7 @@
   --pager-thumb: rgba(255, 255, 255, 0.11);
   --pager-thumb-edge: rgba(255, 255, 255, 0.14);
   --pager-label: var(--ink-dim);
+  --updates-head: var(--gold);
   --game-row-height: 63.5px;
   --game-side-offset: 1px;
   --game-label-offset: -21px;
@@ -668,90 +669,10 @@ table.st .seed-cell {
   font-size: inherit;
 }
 
-.updates {
-  border: 1px solid var(--card-border);
-  background: var(--card);
-  border-radius: 6px;
-  padding: 10px 22px 10px 13px;
-  margin: 0 0 18px;
-  max-width: 900px;
-}
 nav.tabs + .updates {
   margin-top: -12px;
 }
-@media (min-width: 780px) {
-  .updates {
-    width: fit-content;
-    min-width: 420px;
-  }
-}
-.updates-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-.updates-count {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--gold);
-}
-.updates-x {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  margin: -4px -16px -2px 0;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 0;
-  border-radius: 3px;
-  color: color-mix(in srgb, var(--ink-dim) 62%, transparent);
-  cursor: pointer;
-}
-.updates-x svg {
-  width: 10px;
-  height: 10px;
-  display: block;
-}
-@media (hover: hover) {
-  .updates-x:hover {
-    color: var(--ink-dim);
-    background: var(--divider);
-  }
-}
-.updates-list {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-}
-.updates-list li {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  font-size: 0.82rem;
-  padding: 5px 0;
-}
-.updates-list li:first-child {
-  padding-top: 0;
-}
-.updates-list li:last-child {
-  padding-bottom: 0;
-}
-.updates-list .when {
-  flex: none;
-  width: 62px;
-  font-size: 0.68rem;
-  color: var(--ink-dim);
-  font-variant-numeric: tabular-nums;
-}
 .updates-list .what {
-  color: var(--ink);
-  min-width: 0;
-  line-height: 1.45;
   font-weight: 300;
 }
 .updates-list .what b {
@@ -771,12 +692,6 @@ nav.tabs + .updates {
 }
 .updates .club {
   gap: 7px;
-}
-/* The .when column's 62px plus the row's 12px gap. */
-.updates-list .more {
-  font-size: 0.7rem;
-  color: var(--ink-dim);
-  padding-left: 74px;
 }
 
 .no-field-note {

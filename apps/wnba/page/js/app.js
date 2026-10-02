@@ -19,6 +19,7 @@ import { session } from "./session.js";
 import { describeStampProblem, renderStampLines } from "./stamp.js";
 import { drawStandings, startStandings } from "./standings-view.js";
 import { refreshTeamSheet, startTeamSheet } from "./team-sheet.js";
+import { drawUpdates } from "./updates.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
 
@@ -38,6 +39,7 @@ function renderAll() {
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
   drawStandings(session.season);
+  drawUpdates();
   renderStamp();
   refreshGameSheet();
   refreshTeamSheet();
