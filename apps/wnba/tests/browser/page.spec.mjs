@@ -581,6 +581,57 @@ test("hovering the settings button shades a rounded square around its icon", asy
   await expect(button).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
 
+/**
+ * The size of the smallest text an element holds, in pixels.
+ * @param {import("@playwright/test").Locator} area
+ */
+const readSmallestText = (area) =>
+  area.evaluate((root) =>
+    Math.min(
+      ...[...root.querySelectorAll("*")]
+        .filter((element) =>
+          [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent?.trim()),
+        )
+        .map((element) => parseFloat(getComputedStyle(element).fontSize)),
+    ),
+  );
+
+test.describe("on a phone, the text", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    contextOptions: { reducedMotion: "reduce" },
+  });
+
+  test("of the header's lines, the games, the standings, and a team's sheet is never tiny, with the ranks in a narrow column", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await expect(page.locator("#stamp")).toBeVisible();
+    expect(
+      parseFloat(
+        await page.locator("#stamp").evaluate((stamp) => getComputedStyle(stamp).fontSize),
+      ),
+    ).toBeGreaterThanOrEqual(13);
+
+    await page.getByRole("tab", { name: "Games" }).click();
+    await expect(page.locator("#games-today .series-label").first()).toBeVisible();
+    expect(await readSmallestText(page.locator("#games-today"))).toBeGreaterThanOrEqual(10.5);
+
+    await page.getByRole("tab", { name: "Standings" }).click();
+    const standings = page.locator("#standings-league");
+    await expect(standings.locator("tbody tr").first()).toBeVisible();
+    expect(await readSmallestText(standings)).toBeGreaterThanOrEqual(10.5);
+    await expect(standings.locator("td.place").first()).toHaveCSS("width", "28px");
+
+    await standings.locator('tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    await expect(sheet.locator(".team-game")).toHaveCount(3);
+    expect(await readSmallestText(sheet)).toBeGreaterThanOrEqual(10.5);
+  });
+});
+
 test.describe("a team's sheet", () => {
   test.use({ contextOptions: { reducedMotion: "reduce" } });
 

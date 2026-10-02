@@ -88,10 +88,12 @@ export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOn
   const readBarTop = () => parseFloat(getComputedStyle(findBar()).top) || 0;
 
   // A list is never shorter than the space under the pill, so the lists can always rise to just
-  // under it: the list a swipe brings in then starts there, even from far down a longer one.
+  // under it: the list a swipe brings in then starts there, even from far down a longer one. The
+  // page's height and scroll are whole pixels, so the space takes a pixel more, or lists that start
+  // a fraction of a pixel down the page would stop just short of the pill.
   function measureRoomUnderBar() {
     const bottomPadding = parseFloat(getComputedStyle(document.body).paddingBottom);
-    return Math.floor(innerHeight - bottomPadding - readBarTop() - findBar().offsetHeight);
+    return Math.ceil(innerHeight - bottomPadding - readBarTop() - findBar().offsetHeight) + 1;
   }
 
   function fitPagesToShownList() {
