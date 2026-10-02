@@ -9,9 +9,12 @@ export const SEASON_PARAM = createSeasonParam({
 });
 
 // The league's feeds answer only what looks like its own site in a browser: without these, the
-// CDN answers with a web page and the stats site never answers at all.
+// CDN answers with a web page and the stats site never answers at all. The stats site also hangs
+// on a caller that can't take a compressed answer, and can answer anything but gzip alone from a
+// months-old copy.
 export const FEED_HEADERS = {
   accept: "application/json, text/plain, */*",
+  "accept-encoding": "gzip",
   "accept-language": "en-US,en;q=0.9",
   "user-agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",

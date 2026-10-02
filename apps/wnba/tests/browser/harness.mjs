@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { buildSnapshot } from "../../page/js/snapshot.js";
+import { buildSnapshot, REQUESTS } from "../../page/js/snapshot.js";
 import { createBoxScoreServer, nameBoxScoreRequest } from "../../worker/src/box-score.js";
-import { createPreviewServer, listPreviewRequests } from "../../worker/src/preview.js";
+import { createPreviewServer } from "../../worker/src/preview.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import {
   test,
@@ -23,20 +23,18 @@ const GAMES = JSON.parse(
 export { test, expect, GAMES };
 
 /**
- * The league's answers to the game sheet's routes, from the recorded box scores and preview feeds,
- * with any of them changed or refused. A game without a box score is one that hasn't started.
- * @param {{ boxScores?: Record<string, any>, refused?: string[] }} league
+ * The league's answers to the game sheet's routes, from the recorded box scores and schedule, with
+ * any box score changed, or the schedule refused. A game without a box score is one that hasn't
+ * started.
+ * @param {{ boxScores?: Record<string, any>, isScheduleRefused?: boolean }} league
  */
-function createLeagueFetch({ boxScores = {}, refused = [] }) {
-  const previewRequests = listPreviewRequests(GAMES.season);
+function createLeagueFetch({ boxScores = {}, isScheduleRefused = false }) {
   const answers = new Map([
     ...Object.entries({ ...GAMES.boxScores, ...boxScores }).map(
       ([id, box]) => /** @type {[string, any]} */ ([nameBoxScoreRequest(id), box]),
     ),
-    ...Object.entries(previewRequests)
-      .filter(([name]) => !refused.includes(name))
-      .map(([name, url]) => /** @type {[string, any]} */ ([url, GAMES.preview[name]])),
   ]);
+  if (!isScheduleRefused) answers.set(REQUESTS.schedule, GAMES.preview.schedule);
   return async (url) =>
     answers.has(url)
       ? new Response(JSON.stringify(answers.get(url)))

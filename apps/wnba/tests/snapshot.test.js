@@ -184,14 +184,36 @@ test("each team's standing has its points a game, for and against, and its home 
   );
 });
 
-test("each team's top scorer is the one with the most points a game who played most of its games", () => {
+test("each team's three leading scorers are those with the most points a game who played most of its games", () => {
   const { leaders } = buildAfternoon();
-  assert.equal(leaders.length, 15);
-  const lasVegas = leaders.find((leader) => leader.team === "LVA");
+  assert.equal(leaders.length, 45);
+  const indiana = leaders.filter((leader) => leader.team === "IND");
   assert.deepEqual(
-    [lasVegas.firstName, lasVegas.lastName, lasVegas.points, lasVegas.rebounds],
-    ["A'ja", "Wilson", 26.2, 9.4],
+    indiana.map((leader) => `${leader.firstName} ${leader.lastName}`),
+    ["Kelsey Mitchell", "Caitlin Clark", "Aliyah Boston"],
   );
+  assert.deepEqual(
+    leaders.find((leader) => leader.team === "LVA"),
+    {
+      team: "LVA",
+      id: 1628932,
+      firstName: "A'ja",
+      lastName: "Wilson",
+      games: 41,
+      points: 26.2,
+      rebounds: 9.4,
+      assists: 3.2,
+    },
+  );
+
+  const players = structuredClone(RESPONSES.players);
+  const table = players.resultSets[0];
+  const column = Object.fromEntries(table.headers.map((header, index) => [header, index]));
+  const mitchell = table.rowSet.find((row) => row[column.PLAYER_NAME] === "Kelsey Mitchell");
+  mitchell[column.GP] = 10;
+  const fewGames = buildAfternoon({ ...RESPONSES, players }).leaders;
+  assert.ok(!fewGames.some((leader) => leader.lastName === "Mitchell"));
+  assert.equal(fewGames.filter((leader) => leader.team === "IND").length, 3);
 });
 
 test("without the players' averages, there are no top scorers, and the feed is missing", () => {

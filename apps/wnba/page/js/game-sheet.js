@@ -11,14 +11,14 @@ import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { fetchBoxScore, fetchPreview } from "./game-details-fetch.js";
 import { findLoser, nameGame, renderHeadline, renderStatus } from "./games-view.js";
-import { renderPendingPreview, renderPreview } from "./preview-view.js";
+import { renderPreview } from "./preview-view.js";
 import { describeSeriesStanding } from "./series.js";
 import { session } from "./session.js";
 import { renderSheetMessage } from "./sheet-parts.js";
 import { POLL_LIVE_MS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
-/** @typedef {{ id: string, kind: "box" | "preview", details: any, problem: string }} ShownGame */
+/** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any }} ShownGame */
 
 // The game the sheet shows. Each opening, and each switch to a box score, is a new one, so an
 // answer that arrives after it changed is dropped.
@@ -76,18 +76,20 @@ const renderFaceOff = (game) =>
   </div>`;
 
 /** @param {ShownGame} opened */
-const isLoading = (opened) => !opened.details && !opened.problem;
+const isLoading = (opened) => !opened.details && !opened.error;
 
 /**
  * @param {ShownGame} opened
  * @param {Game} game
  */
 function renderDetails(opened, game) {
-  if (opened.problem) return renderSheetMessage(opened.problem);
   const teams = { away: game.away.team, home: game.home.team };
-  if (opened.kind === "box")
-    return opened.details ? renderBoxScore(opened.details) : renderPendingBoxScore(teams);
-  return opened.details ? renderPreview(opened.details) : renderPendingPreview(teams);
+  if (opened.kind === "preview") {
+    const meetings = opened.details?.meetings ?? null;
+    return renderPreview({ teams, season: session.season, meetings, isLoading: isLoading(opened) });
+  }
+  if (opened.error) return renderSheetMessage(describeProblem(opened.error));
+  return opened.details ? renderBoxScore(opened.details) : renderPendingBoxScore(teams);
 }
 
 function renderSheet() {
@@ -102,15 +104,10 @@ function renderSheet() {
   });
 }
 
-/**
- * @param {ShownGame["kind"]} kind
- * @param {any} error
- */
-function describeProblem(kind, error) {
-  if (kind === "box" && error?.status === 404)
-    return "The league hasn't posted a box score for this game yet.";
-  const part = kind === "box" ? "box score" : "preview";
-  return `Couldn't load the ${part}. Close and try again in a minute.`;
+/** @param {any} error why the box score didn't load */
+function describeProblem(error) {
+  if (error?.status === 404) return "The league hasn't posted a box score for this game yet.";
+  return "Couldn't load the box score. Close and try again in a minute.";
 }
 
 /** @param {Game} game */
@@ -133,10 +130,10 @@ async function refreshDetails() {
     const details = await loadDetails(game);
     if (shown !== opened) return;
     opened.details = details;
-    opened.problem = "";
+    opened.error = null;
   } catch (error) {
     if (shown !== opened) return;
-    if (!opened.details) opened.problem = describeProblem(opened.kind, error);
+    if (!opened.details) opened.error = error;
   }
   renderSheet();
   if (isLiveBoxScore(opened)) refreshTimer = window.setTimeout(refreshDetails, POLL_LIVE_MS);
@@ -145,7 +142,7 @@ async function refreshDetails() {
 /** @param {string} id */
 function showGame(id) {
   const game = findGame(id);
-  shown = { id, kind: chooseKind(game), details: null, problem: "" };
+  shown = { id, kind: chooseKind(game), details: null, error: null };
   renderSheet();
   refreshDetails();
 }
