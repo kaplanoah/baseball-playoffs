@@ -11,8 +11,8 @@ const findWrap = () => /** @type {HTMLElement} */ (document.getElementById("brac
 const findTree = () => /** @type {HTMLElement | null} */ (findWrap().querySelector(".bracket"));
 const isShown = (/** @type {HTMLElement} */ element) => element.getClientRects().length > 0;
 
-// As on MLB's bracket, the cards spread at most this many times their tightest gap.
-const MAX_GAP_GROWTH = 3;
+// The cards spread at most this many times their tightest gap.
+const MAX_GAP_GROWTH = 1.45;
 const GAPS_BETWEEN_CARDS = 3;
 const ROUND_DOTS_CLEARANCE = 12;
 
