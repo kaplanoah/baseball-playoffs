@@ -1,25 +1,30 @@
+/* Barlow Condensed draws 8% larger, so it looks as big as Barlow at the same font size. */
 @font-face {
   font-family: "Barlow Condensed";
   font-weight: 300;
   font-display: swap;
+  size-adjust: 108%;
   src: url(fonts/barlow-condensed-300.woff2) format("woff2");
 }
 @font-face {
   font-family: "Barlow Condensed";
   font-weight: 400;
   font-display: swap;
+  size-adjust: 108%;
   src: url(fonts/barlow-condensed-400.woff2) format("woff2");
 }
 @font-face {
   font-family: "Barlow Condensed";
   font-weight: 500;
   font-display: swap;
+  size-adjust: 108%;
   src: url(fonts/barlow-condensed-500.woff2) format("woff2");
 }
 @font-face {
   font-family: "Barlow Condensed";
   font-weight: 600;
   font-display: swap;
+  size-adjust: 108%;
   src: url(fonts/barlow-condensed-600.woff2) format("woff2");
 }
 @font-face {
@@ -109,11 +114,11 @@
   --pager-thumb-edge: rgba(255, 255, 255, 0.6);
   --pager-label: var(--ink-mid);
   --updates-head: var(--teal);
-  --game-row-height: 88px;
+  --game-row-height: 90px;
   --game-side-offset: 9px;
-  --game-label-offset: -31px;
+  --game-label-offset: -32px;
   --game-headline-offset: 0px;
-  --game-status-offset: 31px;
+  --game-status-offset: 32px;
   color-scheme: light;
 }
 /* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
@@ -218,7 +223,7 @@ header.top h1 {
   align-items: flex-end;
   gap: 4px;
   min-width: 0;
-  font-size: 0.75rem;
+  font-size: var(--size-glance);
   line-height: 1.35;
   color: var(--ink-dim);
   text-align: right;
@@ -247,7 +252,7 @@ header.top h1 {
 .section-label {
   margin: 0 0 6px;
   font-family: var(--display);
-  font-size: 0.75rem;
+  font-size: var(--size-small);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -256,7 +261,7 @@ header.top h1 {
 .empty-note {
   margin: 8px 0 18px;
   color: var(--ink-dim);
-  font-size: 0.9rem;
+  font-size: var(--size-read);
 }
 
 .dot {
@@ -291,7 +296,7 @@ header.top h1 {
 /* A little below the name's middle, where it sits level with the name's baseline. */
 .seed {
   translate: 0 1px;
-  font-size: 0.7em;
+  font-size: var(--size-small);
   font-weight: 400;
   color: var(--ink-dim);
 }
@@ -337,7 +342,7 @@ header.top h1 {
 }
 .day-month {
   font-family: var(--heading);
-  font-size: 0.75rem;
+  font-size: var(--size-small);
   font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
@@ -353,7 +358,7 @@ header.top h1 {
 .day-name {
   margin-top: 3px;
   font-family: var(--text);
-  font-size: 0.6rem;
+  font-size: var(--size-small);
   font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
@@ -412,7 +417,7 @@ header.top h1 {
     --day-inset: 4px;
   }
   .game-day .game-side .club {
-    font-size: 1rem;
+    font-size: 0.925rem;
   }
   .game-day .score {
     gap: 4px;
@@ -426,7 +431,7 @@ header.top h1 {
 }
 .game-side .club {
   max-width: 100%;
-  font-size: 1.05rem;
+  font-size: 0.97rem;
 }
 .game-side.home .club {
   flex-direction: row-reverse;
@@ -499,16 +504,17 @@ header.top h1 {
   font-weight: 600;
   text-transform: uppercase;
   color: var(--ink-dim);
+  line-height: 1;
 }
 .game-status {
   font-family: var(--display);
-  font-size: 0.65rem;
+  font-size: var(--size-small);
   letter-spacing: 0.08em;
 }
 /* Labels in the text face stand apart from the condensed team names around them. */
 .series-label {
   font-family: var(--text);
-  font-size: 0.6rem;
+  font-size: var(--size-small);
   letter-spacing: 0.06em;
 }
 .series-count {
@@ -542,7 +548,7 @@ header.top h1 {
   background: var(--teal);
   color: var(--teal-ink);
   font-family: var(--display);
-  font-size: 0.55rem;
+  font-size: var(--size-small);
   font-weight: 600;
   line-height: 12px;
   text-transform: uppercase;
@@ -585,11 +591,11 @@ header.top h1 {
   color: var(--ink-dim);
 }
 .faceoff-record {
-  font-size: 0.8rem;
+  font-size: var(--size-glance);
   color: var(--ink-dim);
 }
 .sheet-note {
-  font-size: 0.75rem;
+  font-size: var(--size-small);
 }
 .faceoff-middle {
   display: grid;
@@ -608,7 +614,7 @@ header.top h1 {
 }
 .faceoff-status {
   font-family: var(--display);
-  font-size: 0.75rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -626,20 +632,20 @@ header.top h1 {
 }
 .sheet-part-head h3 {
   font-family: var(--display);
-  font-size: 0.8rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--teal);
 }
 .sheet-part-head span {
-  font-size: 0.78rem;
+  font-size: var(--size-glance);
   text-align: right;
   color: var(--ink-dim);
 }
 .sheet-message {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--size-read);
   color: var(--ink-dim);
 }
 .tape-teams {
@@ -654,7 +660,7 @@ header.top h1 {
   flex-direction: row-reverse;
 }
 .tape-label {
-  font-size: 0.68rem;
+  font-size: var(--size-small);
 }
 /* Road on the visitors' side and Home on the hosts', with a thin rule between. */
 .label-split {
@@ -675,10 +681,10 @@ header.top h1 {
 }
 .tape-detail {
   font-family: var(--text);
-  font-size: 0.72rem;
+  font-size: var(--size-small);
 }
 .tape-note {
-  font-size: 0.78rem;
+  font-size: var(--size-glance);
 }
 
 /* The lead through the game, drawn in the sheet's ink with each side's biggest lead in orange. */
@@ -715,7 +721,7 @@ header.top h1 {
 }
 .lead-chart text {
   font-family: var(--display);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.05em;
   fill: var(--ink-dim);
@@ -726,7 +732,7 @@ header.top h1 {
   gap: 12px;
   margin: 0 0 4px;
   font-family: var(--display);
-  font-size: 0.68rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -734,7 +740,7 @@ header.top h1 {
 }
 .lead-chart .lead-peak-label {
   font-family: var(--numbers);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0;
   fill: var(--orange);
 }
@@ -748,7 +754,7 @@ table.line-score th,
 table.players thead th {
   padding: 0 0 5px;
   font-family: var(--display);
-  font-size: 0.7rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -844,7 +850,7 @@ table.players td.minutes {
   border: 1px solid currentColor;
   border-radius: var(--radius);
   font-family: var(--display);
-  font-size: 0.68rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -866,7 +872,7 @@ table.players td.minutes {
   gap: 8px;
   padding: 7px 0;
   border-bottom: 1px solid var(--divider);
-  font-size: 0.85rem;
+  font-size: var(--size-glance);
   color: var(--ink-dim);
 }
 .meeting-result {
@@ -958,7 +964,7 @@ table.players td.minutes {
 .round-name .best-of {
   translate: 0 -0.5px;
   font-family: var(--text);
-  font-size: 0.68rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--ink-mid);
@@ -1016,7 +1022,7 @@ table.players td.minutes {
   padding-left: 1px;
   overflow: hidden;
   font-family: var(--text);
-  font-size: 0.8125rem;
+  font-size: var(--size-glance);
   font-style: italic;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -1050,7 +1056,7 @@ table.players td.minutes {
   display: flex;
   align-items: flex-end;
   gap: 0.45em;
-  font-size: 0.66rem;
+  font-size: var(--size-small);
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.06em;
@@ -1162,23 +1168,23 @@ table.players td.minutes {
   font-family: var(--display);
   font-weight: 600;
 }
+.updates-list .series-score {
+  white-space: nowrap;
+}
 .updates-list .what b {
   font-family: var(--team-name);
-  font-size: 1.06em;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
-/* Barlow reads lighter than baseball's monospace, so the names in a pill are a little larger and
-   heavier. */
+/* Barlow reads lighter than baseball's monospace, so the names in a pill are a little heavier. */
 .pager-tabs button {
-  font-size: 0.74rem;
   font-weight: 500;
 }
 
 /* Standings: one table at a phone's width for the league and each conference, side by side under
-   a pill like the Games view's. W-L and GB lead as the season; L10 and Strk follow, smaller, as
-   recent form. */
+   a pill like the Games view's. W-L and GB lead as the season; L10 and Strk follow as recent
+   form. */
 table.standings {
   width: 100%;
   border-collapse: collapse;
@@ -1187,7 +1193,7 @@ table.standings {
 table.standings th {
   padding: 0 0 6px 12px;
   font-family: var(--display);
-  font-size: 0.7rem;
+  font-size: var(--size-small);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1196,7 +1202,7 @@ table.standings th {
 }
 table.standings tr.groups th {
   padding-bottom: 2px;
-  font-size: 0.66rem;
+  font-size: var(--size-small);
   letter-spacing: 0.1em;
   color: var(--teal);
 }
@@ -1233,16 +1239,16 @@ table.standings .recent-start {
   padding-left: 28px;
 }
 table.standings td.season {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 500;
 }
 table.standings td.recent {
-  font-size: 0.8rem;
+  font-size: var(--size-glance);
   font-weight: 500;
   color: var(--ink-mid);
 }
 table.standings th.recent {
-  font-size: 0.62rem;
+  font-size: var(--size-small);
 }
 table.standings tr.below td {
   color: var(--ink-dim);
@@ -1263,7 +1269,7 @@ tr.below .streak-won {
   vertical-align: middle;
 }
 table.standings td.team .club {
-  font-size: 0.98rem;
+  font-size: 1rem;
 }
 /* Barlow's line runs well above its capitals, so the letter is trimmed to its capital and centers
    by what's drawn. */
@@ -1272,7 +1278,7 @@ table.standings td.team .club {
   border: 1px solid currentColor;
   border-radius: var(--radius);
   font-family: var(--display);
-  font-size: 0.6rem;
+  font-size: var(--size-small);
   font-weight: 600;
   line-height: 1;
   text-box: trim-both cap alphabetic;
@@ -1285,7 +1291,7 @@ table.standings td.team .club {
 }
 .seed-note {
   font-family: var(--display);
-  font-size: 0.65rem;
+  font-size: var(--size-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--teal);
@@ -1344,11 +1350,16 @@ body.kbd .team-open:focus {
     padding-top: 2px;
   }
 }
+/* The title is the team's name, so it's set like every other team's. */
 #teamTitle {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: var(--team-name);
+  font-size: 1.25rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 #teamNote {
   font-weight: 500;
@@ -1360,7 +1371,7 @@ body.kbd .team-open:focus {
 }
 .team-label {
   font-family: var(--display);
-  font-size: 0.64rem;
+  font-size: var(--size-small);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1374,7 +1385,7 @@ body.kbd .team-open:focus {
   padding: 0 7px;
   border-radius: 3px;
   font-family: var(--display);
-  font-size: 0.66rem;
+  font-size: var(--size-small);
   font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
@@ -1419,9 +1430,6 @@ body.kbd .team-open:focus {
 .team-stat:not(:nth-child(3n + 1)) {
   border-left: 1px solid var(--divider);
 }
-.team-stat .team-label {
-  font-size: 0.6rem;
-}
 .team-stat b {
   font-family: var(--display);
   font-size: 1.15rem;
@@ -1429,7 +1437,7 @@ body.kbd .team-open:focus {
 }
 .team-detail {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--size-glance);
   font-weight: 500;
   line-height: 1.4;
 }
@@ -1451,12 +1459,12 @@ body.kbd .team-open:focus {
   grid-template-columns: 26px 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
+  font-size: var(--size-glance);
   font-weight: 500;
 }
 .team-game-number {
   font-family: var(--display);
-  font-size: 0.68rem;
+  font-size: var(--size-small);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1474,7 +1482,7 @@ body.kbd .team-open:focus {
   color: var(--ink-dim);
 }
 .team-round {
-  font-size: 0.76rem;
+  font-size: var(--size-glance);
   font-weight: 500;
   color: var(--ink-dim);
 }
@@ -1488,7 +1496,7 @@ body.kbd .team-open:focus {
   color: var(--ink-dim);
 }
 .team-when {
-  font-size: 0.8rem;
+  font-size: var(--size-glance);
 }
 .team-game.soon .team-result,
 .team-game.soon .team-when {
@@ -1519,7 +1527,7 @@ body.kbd .team-open:focus {
   display: grid;
   justify-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+  font-size: var(--size-small);
   color: var(--ink-dim);
   cursor: pointer;
 }
@@ -1595,76 +1603,10 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
   display: none;
 }
 
-/* A phone is read at arm's length, so the smallest text steps up a little there: the header's
-   lines, a game's round and weekday, the standings, and a team's sheet. */
+/* A phone gives the standings' ranks a narrower column, so the teams have room. */
 @media (max-width: 779px) {
-  .stamp {
-    font-size: 0.82rem;
-  }
-  .series-label {
-    font-size: 0.68rem;
-  }
-  table.standings th {
-    font-size: 0.72rem;
-  }
-  table.standings tr.groups th {
-    font-size: 0.68rem;
-  }
-  table.standings th.recent {
-    font-size: 0.66rem;
-  }
-  table.standings td.season {
-    font-size: 0.92rem;
-  }
-  table.standings td.recent {
-    font-size: 0.82rem;
-  }
-  table.standings td.team .club {
-    font-size: 1rem;
-  }
   table.standings .place {
     width: 28px;
     min-width: 28px;
-    font-size: 0.88rem;
-  }
-  .conference-tag {
-    font-size: 0.66rem;
-  }
-  .seed-note {
-    font-size: 0.68rem;
-  }
-  .day-name {
-    font-size: 0.66rem;
-  }
-  #teamTitle {
-    font-size: 1rem;
-  }
-  #teamNote {
-    font-size: 0.84rem;
-  }
-  .team-label {
-    font-size: 0.7rem;
-  }
-  .team-stat .team-label {
-    font-size: 0.66rem;
-  }
-  .team-stat b {
-    font-size: 1.25rem;
-  }
-  .team-detail,
-  .team-game {
-    font-size: 0.9rem;
-  }
-  .team-game-number {
-    font-size: 0.74rem;
-  }
-  .team-round {
-    font-size: 0.82rem;
-  }
-  .team-when {
-    font-size: 0.86rem;
-  }
-  .status-chip {
-    font-size: 0.72rem;
   }
 }

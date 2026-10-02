@@ -2,7 +2,7 @@ import { test, expect, openApp, GAMES } from "./harness.mjs";
 import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
 import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
-import { listHeavyText } from "./text-weights.mjs";
+import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
 const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
@@ -171,22 +171,36 @@ test("a live game's sheet reads its lead again with its box score", async ({ pag
   await expect.poll(() => reads.count).toBe(2);
 });
 
-test("no text in a live game's row, its sheet, or a preview is heavier than 600", async ({
-  page,
-}) => {
-  const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
-  await app.changeSeason(startValkyriesAtWings);
-  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
-  await expect(page.locator(".bonus").first()).toBeAttached();
-  await expect(sheet.locator(".line-score th.now")).toBeVisible();
-  expect(await listHeavyText(page)).toEqual([]);
-  await sheet.getByRole("button", { name: "Done" }).click();
-  await expect(page.locator(".clock").first()).toBeVisible();
-  expect(await listHeavyText(page)).toEqual([]);
-  const preview = await openSheet(page, FEVER_AT_ACES);
-  await expect(preview.locator(".meeting-score").first()).toBeVisible();
-  expect(await listHeavyText(page)).toEqual([]);
-});
+for (const { screen, viewport } of [
+  { screen: "a wide screen", viewport: { width: 1280, height: 900 } },
+  { screen: "a phone", viewport: { width: 390, height: 844 } },
+]) {
+  test.describe(`on ${screen}`, () => {
+    test.use({ viewport });
+
+    test("every piece of text in a live game's row, its sheet, a final's sheet, and a preview keeps to the type scale", async ({
+      page,
+    }) => {
+      const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
+      await app.changeSeason(startValkyriesAtWings);
+      const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+      await expect(page.locator(".bonus").first()).toBeAttached();
+      await expect(sheet.locator(".line-score th.now")).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".clock").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      const final = await openSheet(page, ACES_AT_FEVER);
+      await expect(final.locator(".line-score")).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(final).toBeHidden();
+      const preview = await openSheet(page, FEVER_AT_ACES);
+      await expect(preview.locator(".meeting-score").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+    });
+  });
+}
 
 test("a live game's sheet reads its box score again as often as the score, until it closes", async ({
   page,
@@ -238,7 +252,7 @@ test("a game that hasn't started previews the meetings, the season stats, and th
     "Record",
     "PPG",
     "Opp PPG",
-    "Differential",
+    "Margin",
     /^Road\s+Home$/,
     "Last 10",
   ]);
