@@ -712,6 +712,9 @@ test("a game's sheet says where to watch it until it ends, and its row doesn't",
   const faceOff = await sheet.locator(".faceoff-middle").boundingBox();
   const logo = await networks.getByRole("img").boundingBox();
   expect(logo.y).toBeGreaterThan(faceOff.y + faceOff.height);
+  const readRoomBelow = () =>
+    sheet.locator(".faceoff").evaluate((element) => getComputedStyle(element).paddingBottom);
+  const roomBelowLogos = await readRoomBelow();
 
   await app.changeSeason((season) => {
     const game = season.games.find((each) => each.id === "1042600132");
@@ -722,6 +725,7 @@ test("a game's sheet says where to watch it until it ends, and its row doesn't",
   });
   await expect(sheet.locator(".faceoff-status")).toHaveText("Final");
   await expect(networks).toHaveCount(0);
+  expect(parseFloat(await readRoomBelow())).toBeGreaterThan(parseFloat(roomBelowLogos));
 });
 
 /** @type {["light" | "dark", string, string][]} */

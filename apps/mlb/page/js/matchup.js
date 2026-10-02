@@ -10,7 +10,6 @@ import { describeStart, formatGameDay, renderArm } from "./games-view.js";
 import { formatShortDate, readCalendarDate } from "#shared/days.js";
 import { watchGameOpens } from "#shared/game-row.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
-import { renderNetworks } from "#shared/network-logos.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderPendingPitchMix, renderPitchMix } from "./pitch-mix.js";
 import { fetchPitcher, fetchRotation } from "./pitcher-fetch.js";
@@ -249,8 +248,7 @@ function renderPendingScouting(name) {
 }
 
 function renderBody(game, sides) {
-  return html`${renderNetworks(game.networks ?? [])}
-    <div class="faceoff">${sides.map(renderPitcherId)}</div>
+  return html`<div class="faceoff">${sides.map(renderPitcherId)}</div>
     ${renderTape(sides)}
     ${sides.map((side) => renderScouting(side, game))}`;
 }
@@ -290,7 +288,7 @@ async function loadSide(side, game, season) {
 }
 
 /**
- * @param {{ date: string, start: string, state: string, tbd?: boolean, doubleheader?: number, away: string, home: string, starters: object[], networks?: string[] }} game
+ * @param {{ date: string, start: string, state: string, tbd?: boolean, doubleheader?: number, away: string, home: string, starters: object[] }} game
  */
 async function openMatchup(game) {
   const sequence = ++opening;

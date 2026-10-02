@@ -20,8 +20,7 @@ standings until the field is set), your ranking of who you want to win the World
 Series, each team's
 previous, current and next game with its starting pitchers, and scores that update
 automatically. Tap a game to compare its starters: how they rank among the season's starters,
-what they throw, and how their last starts went, and, for a game today, which channels it's on.
-A game later today whose club hasn't named
+what they throw, and how their last starts went. A game later today whose club hasn't named
 its starter says "Still TBD" and opens to who started for that club lately and how rested each
 would be.
 
@@ -37,8 +36,9 @@ A private web page that follows the WNBA season. It shows the playoff bracket,
 every playoff game with live scores and clocks, and the league and conference standings with
 the playoff line. Tap a team's name or dot anywhere, even inside a game, for its season: its
 conference, seed, and record, its scoring, home and road records, top scorer,
-titles, and how far it got in the playoffs. Tap a game for its details: which
-channels it's on, until it ends; once it starts, its points by quarter, a chart of the lead through the game, the two
+titles, and how far it got in the playoffs. Tap a game for its details: for a
+game today, which channels it's on until it ends; once it starts, its points by quarter, a chart
+of the lead through the game, the two
 teams' stats side by side, and each team's top scorers; before it does, the two
 teams' meetings this season, how their seasons compare, and each team's leading
 scorers. On a phone or tablet, an Updates box under the tabs lists each playoff

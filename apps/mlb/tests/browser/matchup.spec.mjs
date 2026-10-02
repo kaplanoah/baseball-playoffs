@@ -446,29 +446,3 @@ test("each pitch is a row with its name, a bar for how often he throws it, its s
   await expect(rows.locator(".pitch-speed")).toHaveText(["86 mph", "87 mph", "95 mph"]);
   await expect(rows.locator(".pitch-bar i").last()).toHaveAttribute("style", "width: 100%");
 });
-
-test("a game's matchup says where to watch it, above its starters, and its row doesn't", async ({
-  page,
-}) => {
-  const snapshot = buildSnapshotWithStarters();
-  const game = snapshot.slate.today.games.find((each) => each.starters?.[0]?.id === 1);
-  game.networks = ["FOX ONE", "FS1", "Space City Home Network"];
-  const sheet = await openMatchup(page, PITCHERS, snapshot);
-  const networks = sheet.getByRole("group", { name: "Where to watch" });
-  await expect(networks.locator(".network-name")).toHaveText("Space City Home Network");
-  await expect(networks.getByRole("img", { name: "FS1" })).toBeVisible();
-  await expect(networks.locator('img.for-dark[alt="FOX ONE"]')).toBeVisible();
-  await expect(networks.locator('img.for-light[alt="FOX ONE"]')).toBeHidden();
-  await expect(page.locator("#gamePager .network-logo")).toHaveCount(0);
-  const logo = await networks.getByRole("img", { name: "FS1" }).boundingBox();
-  const starters = await sheet.locator(".faceoff").boundingBox();
-  expect(logo.y + logo.height).toBeLessThan(starters.y);
-});
-
-test("a game with nowhere to watch it listed has no line for it in its matchup", async ({
-  page,
-}) => {
-  const sheet = await openMatchup(page);
-  await expect(sheet.locator(".pitcher-last")).toHaveText(["Blubaugh", "Springs"]);
-  await expect(sheet.locator(".networks")).toHaveCount(0);
-});

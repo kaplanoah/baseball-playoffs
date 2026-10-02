@@ -13,19 +13,19 @@ const LOGO_FOLDER = new URL("../shared/page/networks/", import.meta.url);
 const renderNetworksLine = (networks) => String(renderNetworks(networks));
 
 test("a channel's logo is found by any name the feeds give it, whatever its case", () => {
-  const logos = listNetworkLogos(["NBC", "peacock", "USA Net", "WPIX"]);
+  const logos = listNetworkLogos(["NBC", "prime video", "USA Net"]);
   assert.deepEqual(
     logos.map((logo) => typeof logo === "object" && logo.name),
-    ["NBC", "Peacock", "USA Network", "PIX11"],
+    ["NBC", "Prime Video", "USA Network"],
   );
 });
 
 test("two names for one channel show its logo once, and a channel with no logo keeps its name", () => {
-  const [espn, ...rest] = /** @type {any[]} */ (
-    listNetworkLogos(["ESPN", "ESPN App", "Reds.TV", "Rays.TV"])
+  const [usa, ...rest] = /** @type {any[]} */ (
+    listNetworkLogos(["USA Network", "USA Net", "Peacock", "ION"])
   );
-  assert.equal(espn.name, "ESPN");
-  assert.deepEqual(rest, ["Reds.TV", "Rays.TV"]);
+  assert.equal(usa.name, "USA Network");
+  assert.deepEqual(rest, ["Peacock", "ION"]);
 });
 
 test("a logo that works on one background has a version for the other", () => {
@@ -35,12 +35,11 @@ test("a logo that works on one background has a version for the other", () => {
 });
 
 test("a square badge is drawn taller than a long wordmark, so the two look about the same size", () => {
-  const [abc, espn, fox] = listLogos(["ABC", "ESPN", "FOX"]);
+  const [abc, espn] = listLogos(["ABC", "ESPN"]);
   assert.ok(abc.scale > 1 && espn.scale < 1);
-  assert.equal(fox.scale, undefined);
-  const line = renderNetworksLine(["ABC", "FOX"]);
+  const line = renderNetworksLine(["ABC", "ESPN"]);
   assert.match(line, new RegExp(`alt="ABC" style="--logo-scale: ${abc.scale}"`));
-  assert.match(line, /alt="FOX" \/>/);
+  assert.match(line, new RegExp(`alt="ESPN" style="--logo-scale: ${espn.scale}; --logo-nudge: `));
 });
 
 test("every logo the table names is in its folder, and every file there is one it names", () => {
@@ -66,7 +65,7 @@ test("every logo is a PNG or a plain drawing: no scripts, links, or anything it 
 });
 
 test("the line of channels shows each logo, its dark version beside it, and names without one, apart by space alone", () => {
-  const line = renderNetworksLine(["NBC", "ESPN", "Reds.TV"]);
+  const line = renderNetworksLine(["NBC", "ESPN", "Peacock"]);
   const images = [...line.matchAll(/<img class="([^"]*)" src="([^"]*)" alt="([^"]*)"/g)].map(
     ([, classes, source, alt]) => [classes, source, alt],
   );
@@ -75,15 +74,15 @@ test("the line of channels shows each logo, its dark version beside it, and name
     ["network-logo for-dark", "shared/networks/nbc-dark.svg", "NBC"],
     ["network-logo", "shared/networks/espn.svg", "ESPN"],
   ]);
-  assert.match(line, /<span class="network-name">Reds\.TV<\/span>/);
+  assert.match(line, /<span class="network-name">Peacock<\/span>/);
   assert.doesNotMatch(line, /class="sep"/);
   assert.match(line, /^<div class="networks" role="group" aria-label="Where to watch">/);
 });
 
-test("a logo whose weight sits low is nudged up, and one with its weight centered isn't", () => {
-  const [nbc, espn] = listLogos(["NBC", "ESPN"]);
-  assert.ok(nbc.nudge > 0);
-  assert.equal(espn.nudge, undefined);
+test("a logo whose weight sits low is nudged up, one whose weight sits high is nudged down, and one centered isn't", () => {
+  const [nbc, espn, abc] = listLogos(["NBC", "ESPN", "ABC"]);
+  assert.ok(nbc.nudge > 0 && espn.nudge < 0);
+  assert.equal(abc.nudge, undefined);
   assert.match(renderNetworksLine(["NBC"]), /style="--logo-scale: [\d.]+; --logo-nudge: [\d.]+"/);
 });
 
