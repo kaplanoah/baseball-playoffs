@@ -31,10 +31,11 @@ const FEED_DATA = {
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Where a game is on rarely changes on its day, so ESPN's scoreboard is read at most this often.
+// Where a game is on rarely changes, so ESPN's scoreboard is read at most this often.
 const NETWORKS_MS = 10 * 60 * 1000;
 
 const formatEspnDay = (ms) => readEasternDay(ms).date.replaceAll("-", "");
+const formatEspnMonth = (ms) => formatEspnDay(ms).slice(0, 6);
 
 // ESPN's own links are plain http, so they're read over https instead.
 const upgradeLink = (link) => String(link).replace(/^http:/, "https:");
@@ -52,8 +53,7 @@ export function createSnapshotServer({
   const slowFeeds = new Map();
   const failedFeeds = new Map();
   let lastFinals = null;
-  let keptNetworks = null;
-  let networksReadAt = null;
+  const networkMonths = new Map();
 
   /**
    * @param {keyof typeof FEED_DATA} name
@@ -127,20 +127,52 @@ export function createSnapshotServer({
     return { games: games.filter(Boolean) };
   }
 
-  // Yesterday's too, since a late game is still being played after midnight Eastern. A read that
-  // fails waits as long as one that answers, and the last good answer stands in meanwhile.
-  async function readNetworks() {
-    if (networksReadAt !== null && now() - networksReadAt < NETWORKS_MS) return keptNetworks;
-    networksReadAt = now();
+  // A month's answer from after the month ended is final, so it's kept for good. Any other month is
+  // read again now and then, and a read that fails waits as long as one that answers, with the
+  // last good answer standing in meanwhile.
+  /**
+   * @param {{ answeredAt: number | null }} kept
+   * @param {string} month
+   */
+  const isFinalAnswer = (kept, month) =>
+    kept.answeredAt !== null && formatEspnMonth(kept.answeredAt) > month;
+
+  /** @param {string} month */
+  function isDueForNetworksRead(month) {
+    const kept = networkMonths.get(month);
+    if (!kept) return true;
+    if (isFinalAnswer(kept, month)) return false;
+    return now() - kept.readAt >= NETWORKS_MS;
+  }
+
+  /** @param {string} month */
+  async function readNetworkMonth(month) {
+    const kept = networkMonths.get(month);
+    if (!isDueForNetworksRead(month)) return kept.data;
     try {
-      const days = [now() - DAY_MS, now()].map(formatEspnDay);
-      keptNetworks = await Promise.all(
-        days.map((day) => fetchEspnJson(WNBASnapshot.NETWORKS_REQUEST(day))),
-      );
+      const data = await fetchEspnJson(WNBASnapshot.NETWORKS_REQUEST(month));
+      networkMonths.set(month, { readAt: now(), answeredAt: now(), data });
+      return data;
     } catch {
-      // The last good answer stands in.
+      const answeredAt = kept?.answeredAt ?? null;
+      const data = kept?.data ?? null;
+      networkMonths.set(month, { readAt: now(), answeredAt, data });
+      return data;
     }
-    return keptNetworks;
+  }
+
+  // Each month with a playoff game, and yesterday's and today's, since a late game is still being
+  // played after midnight Eastern, and the schedule may not have answered.
+  function listNetworkMonths(schedule, season) {
+    const starts = WNBASnapshot.listScheduledStarts(schedule, season).map(Date.parse);
+    const times = [now() - DAY_MS, now(), ...starts].filter(Number.isFinite);
+    return [...new Set(times.map(formatEspnMonth))].sort();
+  }
+
+  async function readNetworks(schedule, season) {
+    const months = listNetworkMonths(schedule, season);
+    const answers = await Promise.all(months.map(readNetworkMonth));
+    return answers.filter(Boolean);
   }
 
   async function fetchResponses(season) {
@@ -151,16 +183,18 @@ export function createSnapshotServer({
     const finals = scoreboard ? countFinals(scoreboard) : lastFinals;
     const hasNewFinal = lastFinals !== null && finals > lastFinals;
     lastFinals = finals;
-    const [schedule, bracket, standings, players, networks] = await Promise.all([
+    const [schedule, bracket, standings, players] = await Promise.all([
       readSlowFeed("schedule", WNBASnapshot.REQUESTS.schedule, hasNewFinal).catch(() => null),
       readSlowFeed("bracket", WNBASnapshot.REQUESTS.bracket(season), hasNewFinal).catch(() => null),
       readSlowFeed("standings", WNBASnapshot.REQUESTS.standings(season), false).catch(() => null),
       readSlowFeed("players", WNBASnapshot.REQUESTS.players(season), false).catch(() => null),
-      readNetworks(),
     ]);
     if (!scoreboard && !schedule && !bracket)
       throw new Error("None of the WNBA's feeds answered with data");
-    const backup = scoreboard ? null : await fetchBackup().catch(() => null);
+    const [backup, networks] = await Promise.all([
+      scoreboard ? null : fetchBackup().catch(() => null),
+      readNetworks(schedule, season),
+    ]);
     return { scoreboard, schedule, bracket, standings, players, backup, networks };
   }
 

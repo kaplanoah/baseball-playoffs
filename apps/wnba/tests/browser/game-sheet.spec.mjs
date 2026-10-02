@@ -768,7 +768,7 @@ async function openWashingtonSheet(page) {
   return page.getByRole("dialog");
 }
 
-test("a game's sheet says where to watch it until it ends, and its row doesn't", async ({
+test("a game's sheet says where to watch it, still once it's over, and its row doesn't", async ({
   page,
 }) => {
   const app = await openApp(page);
@@ -786,14 +786,37 @@ test("a game's sheet says where to watch it until it ends, and its row doesn't",
 
   await app.changeSeason((season) => {
     const game = season.games.find((each) => each.id === "1042600132");
-    Object.assign(game, { state: "final", status: "Final", networks: [] });
+    Object.assign(game, { state: "final", status: "Final" });
     Object.assign(game.away, { score: 80 });
     Object.assign(game.home, { score: 77 });
     return season;
   });
   await expect(sheet.locator(".faceoff-status")).toHaveText("Final");
+  await expect(networks.getByRole("img")).toHaveAttribute("alt", "ESPN");
+
+  await app.changeSeason((season) => {
+    season.games.find((each) => each.id === "1042600132").networks = [];
+    return season;
+  });
   await expect(networks).toHaveCount(0);
+  await expect(sheet.locator(".networks")).toHaveCount(0);
   expect(parseFloat(await readRoomBelow())).toBeGreaterThan(parseFloat(roomBelowLogos));
+});
+
+test("a game yet to end whose channels aren't listed yet says to check back, under its time", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.changeSeason((season) => {
+    season.games.find((each) => each.id === "1042600132").networks = [];
+    return season;
+  });
+  const sheet = await openWashingtonSheet(page);
+  const note = sheet.locator(".faceoff .networks-pending");
+  await expect(note).toHaveText("Check back for where to watch");
+  const faceOff = await sheet.locator(".faceoff-middle").boundingBox();
+  expect((await note.boundingBox()).y).toBeGreaterThan(faceOff.y + faceOff.height);
+  expect(await listOffScaleText(page)).toEqual([]);
 });
 
 /** @type {["light" | "dark", string, string][]} */
