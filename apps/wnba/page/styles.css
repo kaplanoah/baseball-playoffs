@@ -1292,7 +1292,7 @@ table.players td.minutes {
 
 /* Standings: one table at a phone's width for the league and each conference, side by side under
    a pill like the Games view's. W-L and GB lead as the season; L10 and Strk follow as recent
-   form. */
+   form, until the playoffs' first round and where each team's run stands take their place. */
 table.standings {
   width: 100%;
   border-collapse: collapse;
@@ -1309,7 +1309,7 @@ table.standings th {
   color: var(--ink-dim);
 }
 table.standings tr.groups th {
-  padding-bottom: 2px;
+  padding-bottom: 6px;
   font-size: var(--size-small);
   letter-spacing: 0.1em;
   color: var(--teal);
@@ -1361,8 +1361,13 @@ table.standings th.recent {
 table.standings tr.below td {
   color: var(--ink-dim);
 }
-.streak-won {
+.streak-won,
+.series-won,
+.still-in {
   font-weight: 600;
+}
+.playoff-out {
+  color: var(--ink-dim);
 }
 /* Bold reads darker, so a winning streak below the line steps paler to sit with its row. */
 tr.below .streak-won {

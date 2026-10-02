@@ -36,7 +36,7 @@ happens to a team in your ranking.
 
 A private web page that follows the WNBA season. It shows the playoff bracket,
 every playoff game with live scores and clocks, and the league and conference standings with
-the playoff line. Tap a team's name or dot anywhere, even inside a game, for its season: its
+the playoff line and, once the field is set, each team's first round and where its run stands. Tap a team's name or dot anywhere, even inside a game, for its season: its
 conference, seed, and record, its scoring, home and road records, top scorer,
 titles, and how far it got in the playoffs. Tap a game for its details: which
 channels it's on, or was; once it starts, its points by quarter, a chart

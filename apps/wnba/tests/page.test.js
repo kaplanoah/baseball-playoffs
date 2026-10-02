@@ -364,13 +364,16 @@ const readStandingsRows = (markup) =>
       text: readText({ text: `<tr${row}` }),
     }));
 
-test("the league's standings show the season, then recent form, with the playoff line above ninth", () => {
-  const text = readText(renderStandings(SEASON));
+// The same standings before the playoff field is set.
+const REGULAR_SEASON = { ...SEASON, series: [] };
+
+test("through the regular season, the league's standings show the season, then recent form, with the playoff line above ninth", () => {
+  const text = readText(renderStandings(REGULAR_SEASON));
   assert.match(
     text,
     /^Season Recent Team W-L GB L10 Strk 1 Lynx W 33-11 - 6-4 W 1 2 Valkyries W 32-12 1\.0 7-3 W 1 /,
   );
-  const rows = readStandingsRows(renderStandings(SEASON));
+  const rows = readStandingsRows(renderStandings(REGULAR_SEASON));
   const line = rows.findIndex((row) => row.className === "playoff-line");
   assert.equal(line, 8, "eight teams above the line");
   assert.match(rows[line + 1].text, /^9 Fire W 17-27 16\.0 3-7 W 1$/);
@@ -382,18 +385,63 @@ test("the league's standings show the season, then recent form, with the playoff
 });
 
 test("a conference's standings rank its own teams, note each playoff team's league seed, and draw the line after its last one", () => {
-  const text = readText(renderStandings(SEASON, "East"));
+  const text = readText(renderStandings(REGULAR_SEASON, "East"));
   assert.match(
     text,
     /Strk 1 Dream 4 seed 30-14 - 9-1 W 5 2 Mystics 5 seed 28-16 2\.0 8-2 W 4 3 Fever 6 seed /,
   );
-  const rows = readStandingsRows(renderStandings(SEASON, "East"));
+  const rows = readStandingsRows(renderStandings(REGULAR_SEASON, "East"));
   assert.deepEqual(
     rows.map((row) => row.className),
     ["", "", "", "", "playoff-line", "below", "below", "below"],
   );
   assert.match(rows[5].text, /^5 Sky 16-28 14\.0 4-6 L 1$/, "no seed below the line");
-  assert.match(readText(renderStandings(SEASON, "West")), /Strk 1 Lynx 1 seed 33-11 - /);
+  assert.match(readText(renderStandings(REGULAR_SEASON, "West")), /Strk 1 Lynx 1 seed 33-11 - /);
+});
+
+test("once the playoff field is set, each team's first round and where its run stands replace recent form", () => {
+  const text = readText(renderStandings(SEASON));
+  assert.match(text, /^Season Playoffs Team W-L GB Rd 1 Now 1 Lynx W 33-11 - L 0-2 Out /);
+  assert.match(text, / Aces W 31-13 2\.0 1-1 Game 3 /, "a first round still being played");
+  assert.match(text, / Liberty E 26-18 7\.0 W 2-0 Semis /);
+  const rows = readStandingsRows(renderStandings(SEASON));
+  assert.match(rows[9].text, /^9 Fire W 17-27 16\.0$/, "nothing for a team that missed them");
+});
+
+test("a won first round and a team still in are marked, and a team that's out shows paler", () => {
+  const rows = renderStandings(SEASON).text.split("<tr").slice(1);
+  const liberty = rows.find((row) => row.includes(">Liberty<"));
+  const lynx = rows.find((row) => row.includes(">Lynx<"));
+  assert.match(
+    liberty,
+    /<span class="series-won">W 2-0<\/span>[\s\S]*<span class="still-in">Semis<\/span>/,
+  );
+  assert.match(lynx, /<td class="tabular recent recent-start">L 0-2<\/td>/);
+  assert.match(lynx, /<span class="playoff-out">Out<\/span>/);
+});
+
+test("a team's run reads the round it won its way to, even before the bracket lists it there, and Champions once it wins it all", () => {
+  const firstRoundOnly = {
+    ...SEASON,
+    series: SEASON.series.filter((series) => series.round === 1),
+  };
+  assert.match(readText(renderStandings(firstRoundOnly)), / Liberty E 26-18 7\.0 W 2-0 Semis /);
+  const champions = {
+    ...SEASON,
+    series: [
+      ...SEASON.series.filter((series) => series.round < 3),
+      {
+        id: "3-0",
+        round: 3,
+        top: { team: "LVA", seed: 3, wins: 2 },
+        bottom: { team: "NYL", seed: 8, wins: 4 },
+        winner: "NYL",
+        status: "",
+        nextGame: null,
+      },
+    ],
+  };
+  assert.match(readText(renderStandings(champions)), / Liberty E 26-18 7\.0 W 2-0 Champions /);
 });
 
 test("each standings table names the view it shows", () => {
@@ -401,7 +449,7 @@ test("each standings table names the view it shows", () => {
 });
 
 test("a winning streak is marked, so one below the line can show paler than one above it", () => {
-  const rows = renderStandings(SEASON).text.split("<tr").slice(1);
+  const rows = renderStandings(REGULAR_SEASON).text.split("<tr").slice(1);
   const fire = rows.find((row) => row.includes(">Fire<"));
   const lynx = rows.find((row) => row.includes(">Lynx<"));
   assert.match(fire, /^ class="below"[\s\S]*<span class="streak-won">W 1<\/span>/);
