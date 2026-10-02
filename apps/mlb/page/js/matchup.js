@@ -37,12 +37,6 @@ const findDialog = () =>
   /** @type {HTMLDialogElement} */ (document.getElementById("matchupDialog"));
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
-const readLastName = (side) => side.starter?.name || "TBD";
-
-function renderTitle(sides) {
-  return html`${readLastName(sides[0])} vs ${readLastName(sides[1])}`;
-}
-
 function renderWhen(game) {
   return joinWithSeparator([formatGameDay(game.date), describeStart(game)]);
 }
@@ -259,7 +253,6 @@ const isLoadingSide = (side, game) =>
 function renderMatchup(game, sides) {
   const body = findElement("matchupBody");
   redrawSheet(findDialog(), () => {
-    setHtml(findElement("matchupTitle"), renderTitle(sides));
     setHtml(findElement("matchupWhen"), renderWhen(game));
     setHtml(body, renderBody(game, sides));
     body.setAttribute("aria-busy", String(sides.some((side) => isLoadingSide(side, game))));

@@ -96,7 +96,7 @@ test("tapping a game with its starters named opens their matchup, and Done close
   page,
 }) => {
   const sheet = await openMatchup(page);
-  await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("Blubaugh vs Springs");
+  await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("Pitching matchup");
   await expect(sheet.locator(".pitcher-first")).toHaveText(["AJ", "Jeffrey"]);
   await expect(sheet.locator(".pitcher-last")).toHaveText(["Blubaugh", "Springs"]);
   await expect(sheet.locator(".pitcher-bio .arm")).toHaveText(["R", "L"]);
@@ -112,6 +112,36 @@ test("tapping a game with its starters named opens their matchup, and Done close
 
   await sheet.getByRole("button", { name: "Done" }).click();
   await expect(sheet).toBeHidden();
+});
+
+test("the sheet's title names it in capitals, a step larger on a desktop than on a phone", async ({
+  page,
+}) => {
+  const sheet = await openMatchup(page);
+  const title = sheet.getByRole("heading", { level: 2 });
+  await expect(title).toHaveCSS("text-transform", "uppercase");
+  await expect(title).toHaveCSS("font-weight", "400");
+  await expect(title).toHaveCSS("font-size", "18px");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(title).toHaveCSS("font-size", "16px");
+});
+
+test("the sheet's parts and lists leave room between their rows", async ({ page }) => {
+  const sheet = await openMatchup(page);
+  const blubaugh = sheet.locator(".scout").first();
+  await expect(blubaugh.locator(".pitch-name")).toHaveCount(3);
+  const readGaps = (list) =>
+    list.evaluateAll((items) =>
+      items.slice(1).map((item, index) => {
+        const above = items[index].getBoundingClientRect();
+        return Math.round(item.getBoundingClientRect().top - above.bottom);
+      }),
+    );
+  expect(await readGaps(blubaugh.locator(".pitch-name"))).toEqual([10, 10]);
+  expect(await readGaps(blubaugh.locator(".recent-starts li"))).toEqual([8]);
+  const tape = await sheet.locator(".tape").boundingBox();
+  const scout = await blubaugh.boundingBox();
+  expect(Math.round(scout.y - (tape.y + tape.height))).toBe(22);
 });
 
 test("on a phone, the matchup rises as a sheet that a swipe down closes", async ({ page }) => {
@@ -278,6 +308,10 @@ test("a game later today without a starter says Still TBD, and opens to who star
   await expect(starters.nth(1)).toHaveText(/Soriano\s*R\s*5 IP, 101 pitches\s*4 days' rest/);
   await expect(starters.nth(1)).toHaveClass("rested");
   await expect(starters.first()).not.toHaveClass("rested");
+  const [above, below] = await Promise.all(
+    [starters.first(), starters.nth(1)].map((starter) => starter.boundingBox()),
+  );
+  expect(Math.round(below.y - (above.y + above.height))).toBe(5);
   await expect(sheet.locator(".scout").nth(1).locator(".scout-note")).toHaveText(
     "Couldn't load who started lately. Close and try again in a minute.",
   );
@@ -485,6 +519,36 @@ test("the bar over the line ends where the line does, split by how often he thro
   expect(fourSeam / slider).toBeCloseTo(0.52 / 0.3, 1);
   expect(changeup / slider).toBeCloseTo(0.17 / 0.3, 1);
 });
+
+for (const viewport of [
+  { width: 1280, height: 720 },
+  { width: 320, height: 640 },
+]) {
+  test(`at ${viewport.width}px wide, the speed labels stay 13px, each number on its speed, over the pitches`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const sheet = await openMatchup(page);
+    const chart = sheet.locator(".pitch-mix").first();
+    const labels = chart.locator(".speed-label");
+    await expect(labels).toHaveText(["70 mph", "80", "90", "100"]);
+    await expect(labels.first()).toHaveCSS("font-size", "13px");
+    const { lineStart, lineEnd } = await measurePitchMix(chart);
+    const readCenters = () =>
+      labels.evaluateAll((elements) =>
+        elements.map((element) => {
+          const box = element.getBoundingClientRect();
+          return box.left + box.width / 2;
+        }),
+      );
+    const centers = await readCenters();
+    expect(centers[0]).toBeCloseTo(lineStart, 0);
+    expect(centers.at(-1)).toBeCloseTo(lineEnd, 0);
+    const scale = await chart.locator(".speed-labels").boundingBox();
+    const rows = await chart.locator(".pitch-rows").boundingBox();
+    expect(Math.round(rows.y - (scale.y + scale.height))).toBe(12);
+  });
+}
 
 for (const { screen, viewport, smallest } of [
   { screen: "a phone", viewport: { width: 390, height: 844 }, smallest: false },

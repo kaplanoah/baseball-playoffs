@@ -84,12 +84,8 @@ const isNamed = (starter) => Boolean(starter?.name);
 export const renderArm = (hand) =>
   ARMS[hand] ? html`<span class="arm" title="${ARMS[hand]}">${hand}</span>` : html``;
 
-function renderStarter(starter, side) {
-  const era =
-    starter.era &&
-    html`<span class="starter-era tabular"><b>${starter.era}</b> <span class="starter-era-label">ERA</span></span>`;
-  return html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${renderArm(starter.hand)}${era}</span>`;
-}
+const renderStarter = (starter, side) =>
+  html`<span class="starter ${side}" title="Starting pitcher"><span class="starter-name">${starter.name}</span>${renderArm(starter.hand)}</span>`;
 
 function isOut(id) {
   const { state } = session;

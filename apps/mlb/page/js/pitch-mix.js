@@ -1,6 +1,6 @@
 // A pitcher's pitches from slowest to fastest: a bar split by how often he throws each, a line
-// that places each by its speed, then a row for each, keyed by a dot the size of the line's. Until
-// they load, gray rows stand in.
+// that places each by its speed over a label every 10 mph, then a row for each, keyed by a dot the
+// size of the line's. Until they load, gray rows stand in.
 
 import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
@@ -33,8 +33,7 @@ const DOT_RADIUS = 5.5;
 const DOT_EDGE = 1.5;
 const DOT_STEP = 2 * DOT_RADIUS + 1;
 const LABEL_STEP_MPH = 10;
-const LABEL_Y = LINE_Y + 19;
-const LINE_HEIGHT = 32;
+const LINE_HEIGHT = 16;
 
 export const namePitch = (pitch) => PITCH_NAMES[pitch.code] || pitch.name;
 
@@ -94,18 +93,19 @@ const renderDot = ({ pitch, x }) =>
 // the bar ends where the line does, and a row's dot is the line's dot inside its edge.
 const LINE_SCALE = `--line-edge: ${EDGE / WIDTH}; --line-dot: ${(2 * DOT_RADIUS - DOT_EDGE) / WIDTH}`;
 
-// A label every 10 mph, with the unit on the first, whose number still centers on its speed.
+const renderSpeedUnit = () => html`<span class="speed-unit"> mph</span>`;
+
+// Page text rather than the line's own, so the labels keep their size however wide the line is
+// drawn. The unit rides on the first, whose number still centers on its speed.
 function renderSpeedLabels(low, high, toX) {
   const labels = [];
   for (let mph = low; mph <= high; mph += LABEL_STEP_MPH) {
-    const x = formatNumber(toX(mph));
+    const left = formatNumber((toX(mph) / WIDTH) * 100);
     labels.push(
-      mph === low
-        ? html`<text class="speed-label first" x="${x}" dx="-${String(mph).length * 0.3}em" y="${LABEL_Y}">${mph} mph</text>`
-        : html`<text class="speed-label" x="${x}" y="${LABEL_Y}">${mph}</text>`,
+      html`<span class="speed-label" style="left: ${left}%">${mph}${mph === low && renderSpeedUnit()}</span>`,
     );
   }
-  return labels;
+  return html`<div class="speed-labels" aria-hidden="true">${labels}</div>`;
 }
 
 function renderSpeedLine(pitches) {
@@ -115,9 +115,9 @@ function renderSpeedLine(pitches) {
   return html`<svg class="speed-line" viewBox="0 0 ${WIDTH} ${LINE_HEIGHT}" aria-hidden="true">
     <line class="speed-axis" x1="${EDGE}" y1="${LINE_Y}" x2="${WIDTH - EDGE}" y2="${LINE_Y}"/>
     <line class="speed-range" x1="${formatNumber(first)}" y1="${LINE_Y}" x2="${formatNumber(last)}" y2="${LINE_Y}"/>
-    ${renderSpeedLabels(low, high, toX)}
     ${placeDots(pitches, toX).map(renderDot)}
-  </svg>`;
+  </svg>
+  ${renderSpeedLabels(low, high, toX)}`;
 }
 
 const renderSlice = (pitch) =>
@@ -161,6 +161,7 @@ export function renderPendingPitchMix() {
     <svg class="speed-line" viewBox="0 0 ${WIDTH} ${LINE_HEIGHT}" aria-hidden="true">
       <line class="speed-axis" x1="${EDGE}" y1="${LINE_Y}" x2="${WIDTH - EDGE}" y2="${LINE_Y}"/>
     </svg>
+    <div class="speed-labels" aria-hidden="true"></div>
     <ol class="pitch-rows">${Array.from({ length: PENDING_ROWS }, renderPendingRow)}</ol>
   </div>`;
 }
