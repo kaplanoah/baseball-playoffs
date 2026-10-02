@@ -1,19 +1,26 @@
+import { runWithTimeout } from "./timeout.js";
+
 // Reading a league's own feeds, which every app's Worker does the same way.
 
 export const UPSTREAM_TIMEOUT_MS = 8000;
 
 /**
- * Asks a feed for `url`, giving up after UPSTREAM_TIMEOUT_MS, and letting Cloudflare's edge keep
- * the answer for `cacheSeconds`, or not at all when it's null.
+ * Asks a feed for `url` and reads its whole answer, giving up after UPSTREAM_TIMEOUT_MS, and
+ * letting Cloudflare's edge keep the answer for `cacheSeconds`, or not at all when it's null.
  * @param {(input: string, init: object) => Promise<Response>} fetchImpl
  * @param {string} url
  * @param {{ headers: Record<string, string>, cacheSeconds: number | null }} options
+ * @returns {Promise<Response>}
  */
 export const fetchUpstream = (fetchImpl, url, { headers, cacheSeconds }) =>
-  fetchImpl(url, {
-    headers,
-    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    ...(cacheSeconds !== null && { cf: { cacheTtl: cacheSeconds, cacheEverything: true } }),
+  runWithTimeout(UPSTREAM_TIMEOUT_MS, async (signal) => {
+    const response = await fetchImpl(url, {
+      headers,
+      signal,
+      ...(cacheSeconds !== null && { cf: { cacheTtl: cacheSeconds, cacheEverything: true } }),
+    });
+    const body = response.body ? await response.arrayBuffer() : null;
+    return new Response(body, response);
   });
 
 /**

@@ -1,6 +1,8 @@
 // Sends Web Push messages: signed for the push service (RFC 8292, VAPID) and encrypted for the
 // browser (RFC 8291). Uses only Web Crypto, which Workers and Node both have.
 
+import { runWithTimeout } from "./timeout.js";
+
 const RECORD_SIZE = 4096;
 const TOKEN_LIFETIME_S = 12 * 60 * 60;
 const MESSAGE_TTL_S = 6 * 60 * 60;
@@ -189,11 +191,13 @@ export async function sendPush({
     ttl: String(MESSAGE_TTL_S),
     urgency: "normal",
   };
-  const response = await fetchImpl(subscription.endpoint, {
-    method: "POST",
-    headers,
-    body,
-    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+  return runWithTimeout(SEND_TIMEOUT_MS, async (signal) => {
+    const response = await fetchImpl(subscription.endpoint, {
+      method: "POST",
+      headers,
+      body,
+      signal,
+    });
+    return response.status;
   });
-  return response.status;
 }
