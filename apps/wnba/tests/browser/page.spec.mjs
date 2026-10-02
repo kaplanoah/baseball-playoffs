@@ -733,7 +733,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name like every team's at 20px, its stats in the wider Barlow, its text in medium, and its first part 8px under the record", async ({
+  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium but None yet a step lighter, and its title in a tinted band like a game's, over a hairline like a bracket card's border, with its first part 15px under it", async ({
     page,
   }) => {
     await openApp(page);
@@ -745,27 +745,44 @@ test.describe("on a phone, a team's sheet", () => {
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-weight", "600");
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "20px");
     await expect(sheet.locator("#teamNote")).toHaveCSS("font-weight", "500");
-    await expect(sheet.locator(".team-stat b").first()).toHaveCSS("font-family", /^"?Barlow"?,/);
-    await expect(sheet.locator(".team-detail").first()).toHaveCSS("font-weight", "500");
+    await expect(sheet.locator(".tape-value").first()).toHaveCSS(
+      "font-family",
+      /^"Barlow Condensed"/,
+    );
+    await expect(sheet.locator(".team-titles")).toHaveCSS("font-weight", "500");
+    await expect(sheet.locator(".team-titles")).toHaveText("None yet");
+    await expect(sheet.locator(".team-titles-none")).toHaveCSS("font-weight", "400");
     await expect(sheet.locator(".team-game").first()).toHaveCSS("font-weight", "500");
 
     const colors = await sheet.evaluate((dialog) => {
       const readColor = (selector) => getComputedStyle(dialog.querySelector(selector)).color;
       return {
         title: readColor("#teamTitle"),
-        detail: readColor(".team-detail"),
-        note: readColor("#teamNote"),
-        label: readColor(".team-label"),
-        round: readColor(".team-round"),
+        titles: readColor(".team-titles"),
       };
     });
-    expect(colors.detail).toBe(colors.title);
-    expect(colors.label).toBe(colors.note);
-    expect(colors.label).not.toBe(colors.round);
+    expect(colors.titles).toBe(colors.title);
 
-    const note = await sheet.locator("#teamNote").boundingBox();
-    const firstPart = await sheet.locator(".sheet-part h3").first().boundingBox();
-    expect(Math.round(firstPart.y - (note.y + note.height))).toBe(8);
+    const backgrounds = await page.evaluate(() =>
+      ["#teamDialog .sheet-top", "#gameDialog .sheet-top", "#teamDialog"].map(
+        (selector) => getComputedStyle(document.querySelector(selector)).backgroundColor,
+      ),
+    );
+    const [band, gameBand, sheetColor] = backgrounds;
+    expect(band).toBe(gameBand);
+    expect(band).not.toBe(sheetColor);
+    const top = await sheet.locator(".sheet-top").boundingBox();
+    const firstPart = await sheet.locator(".sheet-part-head").first().boundingBox();
+    expect(Math.round(firstPart.y - (top.y + top.height))).toBe(15);
+    const [line, cardBorder] = await page.evaluate(() =>
+      [
+        getComputedStyle(document.querySelector("#teamDialog .sheet-top")),
+        getComputedStyle(document.querySelector(".series")),
+      ].map((style, index) =>
+        index ? style.borderTopColor : `${style.borderBottomWidth} ${style.borderBottomColor}`,
+      ),
+    );
+    expect(line).toBe(`1px ${cardBorder}`);
   });
 });
 
@@ -787,10 +804,97 @@ test.describe("a team's sheet", () => {
       season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
       return season;
     });
-    await expect(sheet).toContainText(/Last 10\s*9-1/);
+    await expect(sheet.locator(".team-form")).toContainText(/Last 10\s*9-1/);
 
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toBeHidden();
+  });
+
+  test("a team's sheet shows its playoffs, then its regular season, each with the team on the left across from the league, then its titles", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+
+    await expect(sheet.locator(".sheet-part h3")).toHaveText([
+      "Playoffs",
+      "Regular season",
+      "Leading scorers",
+      "Titles",
+    ]);
+    await expect(sheet.locator(".team-tape .tape-teams")).toHaveText([
+      /^Liberty\s*Playoff field$/,
+      /^Liberty\s*League$/,
+    ]);
+  });
+
+  test("a team's sheet names the sides over its numbers at 16px, and sets Last 10 and Streak like its measures", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    await expect(sheet.locator("table.players")).toBeVisible();
+
+    const styles = await sheet.evaluate((dialog) => {
+      const read = (selector) => {
+        const style = getComputedStyle(dialog.querySelector(selector));
+        return {
+          color: style.color,
+          font: `${style.fontFamily} ${style.fontSize} ${style.fontWeight} ${style.letterSpacing} ${style.textTransform}`,
+        };
+      };
+      return {
+        measure: read(".team-tape .tape-label"),
+        formName: read(".team-form dt"),
+        number: read(".team-tape .tape-value"),
+        formNumber: read(".team-form dd"),
+        side: read(".team-tape .tape-teams .club"),
+      };
+    });
+    expect(styles.formName).toEqual(styles.measure);
+    expect(styles.formNumber).toEqual(styles.number);
+    await expect(sheet.locator(".team-tape .tape-teams .club").first()).toHaveCSS(
+      "font-size",
+      "16px",
+    );
+  });
+
+  test("a team's next game is marked with a 14px caret, orange on the day it's played like its time", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="ATL"] td.season').first().click();
+    const next = page.locator("#teamDialog .team-game.next");
+    const icon = next.locator(".next-game-icon");
+
+    await expect(icon).toHaveCSS("width", "14px");
+    await expect(icon).toHaveCSS("height", "14px");
+    const when = await next
+      .locator(".team-when")
+      .evaluate((element) => getComputedStyle(element).color);
+    await expect(icon).toHaveCSS("color", when);
+  });
+
+  test("Last 10 sits 20px under the regular season's numbers, and Streak 14px under Last 10", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    const numbers = await sheet.locator(".team-tape").last().boundingBox();
+    const form = await sheet.locator(".team-form").boundingBox();
+    const [lastTen, streak] = await sheet
+      .locator(".team-form dd")
+      .evaluateAll((values) => values.map((value) => value.getBoundingClientRect().toJSON()));
+
+    expect(Math.round(form.y - (numbers.y + numbers.height))).toBe(20);
+    expect(Math.round(streak.top - lastTen.bottom)).toBe(14);
   });
 
   test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {
@@ -875,7 +979,7 @@ test.describe("a team's sheet", () => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 360, height: 780 }, contextOptions: { reducedMotion: "reduce" } });
 
-  test("a team's leading scorers keep their names on one line, and its averages fit their tiles", async ({
+  test("a team's leading scorers keep their names on one line, and its numbers fit their sides", async ({
     page,
   }) => {
     await openApp(page);
@@ -894,11 +998,11 @@ test.describe("on a phone", () => {
       );
       expect(lineCounts, code).toEqual([1, 1, 1]);
       const overflowing = await sheet
-        .locator(".team-stat")
-        .evaluateAll((stats) =>
-          stats
-            .filter((stat) => stat.scrollWidth > stat.clientWidth)
-            .map((stat) => stat.textContent),
+        .locator(".tape-side")
+        .evaluateAll((sides) =>
+          sides
+            .filter((side) => side.scrollWidth > side.clientWidth)
+            .map((side) => side.textContent),
         );
       expect(overflowing, code).toEqual([]);
       await page.keyboard.press("Escape");

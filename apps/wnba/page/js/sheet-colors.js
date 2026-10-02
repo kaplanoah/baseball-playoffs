@@ -2,7 +2,8 @@ import { TEAMS } from "./teams.js";
 
 // The game sheet draws each team's side of its charts and bars in the team's own color, on each
 // theme. When the two teams' colors look alike, the away team takes its other color, and only if
-// neither of its colors will do does the home team take its other one too.
+// neither of its colors will do does the home team take its other one too. A team's sheet draws the
+// team's side of its stats in the team's own first color, across from the league's in gray.
 
 const THEMES = /** @type {const} */ (["light", "dark"]);
 // How far apart two colors are in OKLab before one side reads apart from the other at a glance.
@@ -76,3 +77,10 @@ export function formatSheetColors(away, home) {
     return `--away-${theme}: ${colors.away}; --home-${theme}: ${colors.home};`;
   }).join(" ");
 }
+
+/**
+ * The style that hands a team's sheet the team's color on each theme.
+ * @param {string} code
+ */
+export const formatTeamColors = (code) =>
+  THEMES.map((theme) => `--team-${theme}: ${TEAMS[code].chartColors[theme][0]};`).join(" ");

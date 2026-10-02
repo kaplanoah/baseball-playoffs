@@ -44,8 +44,11 @@ function renderTeamTag(row, view) {
   return isAboveLine(row) ? html`<span class="seed-note">${row.place} seed</span>` : "";
 }
 
-/** @param {string | null} streak */
-const renderStreak = (streak) =>
+/**
+ * A streak, like W 3, marked when it's a winning one.
+ * @param {string | null} streak
+ */
+export const renderStreak = (streak) =>
   streak?.startsWith("W") ? html`<span class="streak-won">${streak}</span>` : (streak ?? "");
 
 /**

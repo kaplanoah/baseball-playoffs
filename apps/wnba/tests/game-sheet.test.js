@@ -174,20 +174,33 @@ const renderFeverAtAces = (parts = {}) =>
     ...parts,
   });
 
-test("each team in a preview opens its sheet: each meeting's winner, the season stats, and the leading scorers", () =>
+test("each team in a preview opens its sheet: each meeting's winner and the team it beat, the season stats, and the leading scorers", () =>
   checkInTimeZone(EASTERN, () => {
     const buttons = listTeamButtons(renderFeverAtAces());
     assert.deepEqual(buttons.slice(-4), ["IND", "LVA", "IND", "LVA"]);
     assert.deepEqual([...new Set(buttons)].sort(), ["IND", "LVA"]);
     assert.equal(buttons.length, 7);
+    const meetings =
+      renderFeverAtAces().text.match(/<ul class="meetings">[\s\S]*?<\/ul>/)?.[0] ?? "";
+    assert.deepEqual(
+      [...meetings.matchAll(/class="team-open" data-team="(\w+)"/g)].map(([, team]) => team),
+      ["IND", "LVA", "LVA"],
+    );
   }));
 
-test("a preview lists the regular season's meetings, each by its winner, with the season series", () =>
+test("a preview lists the regular season's meetings, each by its winner and where it was played, with the season series", () =>
   checkInTimeZone(EASTERN, () => {
     const text = readText(renderFeverAtAces());
     assert.match(text, /Meetings Fever won the season series 2-1/);
-    assert.match(text, /Aug 6 Aces 86-84 on the road/);
-    assert.match(text, /Jul 12 Fever 109-75 on the road/);
+    assert.match(text, /Aug 6 Aces 86-84 at Fever/);
+    assert.match(text, /Jul 12 Fever 109-75 at Aces/);
+    const homeWin = {
+      id: "1022600001",
+      start: "2026-06-01T23:00:00Z",
+      away: { team: "IND", score: 70 },
+      home: { team: "LVA", score: 80 },
+    };
+    assert.match(readText(renderFeverAtAces({ meetings: [homeWin] })), /Jun 1 Aces 80-70 vs Fever/);
     assert.doesNotMatch(text, /Sep 2\d|1st Rd/);
   }));
 

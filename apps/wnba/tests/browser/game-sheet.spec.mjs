@@ -294,7 +294,7 @@ for (const [device, viewport] of Object.entries({
   "a computer": { width: 1280, height: 720 },
   "a phone": { width: 390, height: 844 },
 })) {
-  test(`on ${device}, a sheet's title and teams share one tinted band to its edges, with no line under the teams`, async ({
+  test(`on ${device}, a sheet's title and teams share one tinted band to its edges, over a hairline like a bracket card's border`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -312,12 +312,16 @@ for (const [device, viewport] of Object.entries({
         teams: read(".faceoff").backgroundColor,
         sheet: getComputedStyle(dialog).backgroundColor,
         line: read(".faceoff").borderBottomWidth,
+        lineColor: read(".faceoff").borderBottomColor,
+        cardBorder: getComputedStyle(/** @type {Element} */ (document.querySelector(".series")))
+          .borderTopColor,
         edges: [faceoff.left - content.left, content.right - faceoff.right],
       };
     });
     expect(band.teams).toBe(band.top);
     expect(band.teams).not.toBe(band.sheet);
-    expect(band.line).toBe("0px");
+    expect(band.line).toBe("1px");
+    expect(band.lineColor).toBe(band.cardBorder);
     expect(band.edges).toEqual([0, 0]);
   });
 }
@@ -382,6 +386,53 @@ test("the side behind on a measure gets a paler bar of its own team's hue, on ea
   for (const theme of /** @type {const} */ (["light", "dark"])) {
     await page.emulateMedia({ colorScheme: theme });
     const teamColor = TEAMS.GSV.chartColors[theme][0];
+    await expect(behind).not.toHaveCSS("background-color", formatRgb(teamColor));
+    const turn = Math.abs(measureHue(await readPaintedBackground(behind)) - measureHue(teamColor));
+    expect(Math.min(turn, 360 - turn)).toBeLessThan(LARGEST_HUE_TURN);
+  }
+});
+
+/**
+ * Opens a team's sheet from the standings and finds its regular season's PPG row.
+ * @param {import("@playwright/test").Page} page
+ * @param {string} code
+ */
+async function openRegularSeasonPoints(page, code) {
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await page.locator(`#standings-league tr[data-team="${code}"] td.season`).first().click();
+  return page
+    .locator("#teamDialog .tape-row")
+    .filter({ has: page.locator(".tape-label", { hasText: /^PPG$/ }) })
+    .last();
+}
+
+test("a team's sheet draws the team's side in its color on each theme, across from the league's in gray, the side behind paler", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openApp(page);
+  const liberty = await openRegularSeasonPoints(page, "NYL");
+  await expect(liberty.locator(".away .tape-bar i")).toHaveClass("lead");
+  for (const theme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme: theme });
+    await expect(liberty.locator(".away .tape-bar i")).toHaveCSS(
+      "background-color",
+      formatRgb(TEAMS.NYL.chartColors[theme][0]),
+    );
+  }
+  await page.keyboard.press("Escape");
+
+  await page.emulateMedia({ colorScheme: "light" });
+  const storm = await openRegularSeasonPoints(page, "SEA");
+  await expect(storm.locator(".home .tape-bar i")).toHaveClass("lead");
+  for (const theme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme: theme });
+    const gray = await storm.evaluate((row) =>
+      getComputedStyle(row).getPropertyValue("--ink-dim").trim(),
+    );
+    await expect(storm.locator(".home .tape-bar i")).toHaveCSS("background-color", formatRgb(gray));
+    const teamColor = TEAMS.SEA.chartColors[theme][0];
+    const behind = storm.locator(".away .tape-bar i");
     await expect(behind).not.toHaveCSS("background-color", formatRgb(teamColor));
     const turn = Math.abs(measureHue(await readPaintedBackground(behind)) - measureHue(teamColor));
     expect(Math.min(turn, 360 - turn)).toBeLessThan(LARGEST_HUE_TURN);
@@ -478,9 +529,7 @@ test("a game that hasn't started previews the meetings, the season stats, and th
     /Meetings\s*Fever won the season series 2-1/,
   );
   await expect(sheet.locator(".meetings li")).toHaveCount(3);
-  await expect(sheet.locator(".meetings li").first()).toHaveText(
-    /Aug 6\s*Aces\s*86-84\s*on the road/,
-  );
+  await expect(sheet.locator(".meetings li").first()).toHaveText(/Aug 6\s*Aces\s*86-84\s*at Fever/);
   await expect(sheet.locator(".tape-label")).toHaveText([
     "Record",
     "PPG",
