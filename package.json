@@ -22,7 +22,8 @@
     "test:browser": "playwright test",
     "build": "node worker/build.mjs",
     "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs",
-    "set-app-key": "NODE_USE_ENV_PROXY=1 node worker/set-app-key.mjs"
+    "set-app-key": "NODE_USE_ENV_PROXY=1 node worker/set-app-key.mjs",
+    "set-access-code": "NODE_USE_ENV_PROXY=1 node worker/set-access-code.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
