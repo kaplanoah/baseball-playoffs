@@ -5,7 +5,7 @@
 /**
  * A channel's logo, for a light background, with a version for a dark one beside it, its name
  * ending in -dark, unless the one works on both.
- * @typedef {{ name: string, file: string, darkFile?: string, scale?: number }} NetworkLogo
+ * @typedef {{ name: string, file: string, darkFile?: string, scale?: number, nudge?: number }} NetworkLogo
  */
 
 /**
@@ -16,31 +16,61 @@
  * @property {boolean} [hasDarkVersion]
  * @property {number} [scale] its height against the line's usual logo height, so a square badge
  *   and a long wordmark look about the same size
+ * @property {number} [nudge] how far up to move it, as a share of its height, when its weight sits
+ *   below its middle (or down, when negative), so it lines up with the rest by eye
  */
 
 /** @type {Channel[]} */
 const CHANNELS = [
-  { name: "ABC", file: "abc.png", names: [], hasDarkVersion: true, scale: 1.29 },
-  { name: "Apple TV", file: "apple-tv.svg", names: [], hasDarkVersion: true, scale: 1.14 },
-  { name: "CBS", file: "cbs.png", names: ["CBS Miam"], hasDarkVersion: true, scale: 0.86 },
-  { name: "CNBC", file: "cnbc.svg", names: [], hasDarkVersion: true, scale: 1.36 },
-  { name: "Disney+", file: "disney-plus.svg", names: [], hasDarkVersion: true, scale: 1.29 },
-  { name: "ESPN", file: "espn.svg", names: ["ESPN App"], scale: 0.79 },
-  { name: "ESPN2", file: "espn2.svg", names: [], scale: 0.71 },
+  { name: "ABC", file: "abc.png", names: [], hasDarkVersion: true, scale: 1.16 },
+  {
+    name: "Apple TV",
+    file: "apple-tv.svg",
+    names: [],
+    hasDarkVersion: true,
+    scale: 1.08,
+    nudge: 0.14,
+  },
+  { name: "CBS", file: "cbs.png", names: ["CBS Miam"], hasDarkVersion: true, scale: 0.92 },
+  { name: "CNBC", file: "cnbc.svg", names: [], hasDarkVersion: true, scale: 1.2, nudge: 0.04 },
+  {
+    name: "Disney+",
+    file: "disney-plus.svg",
+    names: [],
+    hasDarkVersion: true,
+    scale: 1.16,
+    nudge: 0.14,
+  },
+  { name: "ESPN", file: "espn.svg", names: ["ESPN App"], scale: 0.87 },
+  { name: "ESPN2", file: "espn2.svg", names: [], scale: 0.81 },
   { name: "FOX", file: "fox.svg", names: [], hasDarkVersion: true },
-  { name: "FOX ONE", file: "fox-one.svg", names: [], hasDarkVersion: true, scale: 0.79 },
-  { name: "FS1", file: "fs1.svg", names: [], scale: 1.07 },
-  { name: "HBO Max", file: "hbo-max.svg", names: [], hasDarkVersion: true, scale: 1.29 },
-  { name: "ION", file: "ion.png", names: [], scale: 1.14 },
-  { name: "NBC", file: "nbc.svg", names: [], hasDarkVersion: true, scale: 0.86 },
-  { name: "Paramount+", file: "paramount-plus.svg", names: [], hasDarkVersion: true, scale: 0.86 },
-  { name: "Peacock", file: "peacock.svg", names: [], hasDarkVersion: true, scale: 0.86 },
+  { name: "FOX ONE", file: "fox-one.svg", names: [], hasDarkVersion: true, scale: 0.87 },
+  { name: "FS1", file: "fs1.svg", names: [], scale: 1.04 },
+  {
+    name: "HBO Max",
+    file: "hbo-max.svg",
+    names: [],
+    hasDarkVersion: true,
+    scale: 1.16,
+    nudge: -0.09,
+  },
+  { name: "ION", file: "ion.png", names: [], scale: 1.08, nudge: 0.17 },
+  { name: "NBC", file: "nbc.svg", names: [], hasDarkVersion: true, scale: 0.92, nudge: 0.14 },
+  {
+    name: "Paramount+",
+    file: "paramount-plus.svg",
+    names: [],
+    hasDarkVersion: true,
+    scale: 0.92,
+    nudge: 0.12,
+  },
+  { name: "Peacock", file: "peacock.svg", names: [], hasDarkVersion: true, scale: 0.92 },
   {
     name: "TBS",
     file: "tbs.svg",
     names: ["TBS (out-of-market only)"],
     hasDarkVersion: true,
-    scale: 1.07,
+    scale: 1.04,
   },
   { name: "truTV", file: "trutv.svg", names: [], hasDarkVersion: true },
   { name: "USA Network", file: "usa.png", names: ["USA Net"] },
@@ -48,31 +78,48 @@ const CHANNELS = [
     name: "MLB Network",
     file: "mlb-network.png",
     names: ["MLBN", "MLBN (out-of-market only)"],
-    scale: 1.43,
+    scale: 1.24,
+    nudge: -0.17,
   },
-  { name: "NBA TV", file: "nba-tv.png", names: [], scale: 1.29 },
-  { name: "WNBA League Pass", file: "league-pass.png", names: [], scale: 1.29 },
-  { name: "KPIX+", file: "kpix-plus.png", names: [], hasDarkVersion: true, scale: 0.93 },
-  { name: "KSMO", file: "ksmo.png", names: [], hasDarkVersion: true, scale: 0.79 },
+  { name: "NBA TV", file: "nba-tv.png", names: [], scale: 1.16 },
+  { name: "WNBA League Pass", file: "league-pass.png", names: [], scale: 1.16 },
+  {
+    name: "KPIX+",
+    file: "kpix-plus.png",
+    names: [],
+    hasDarkVersion: true,
+    scale: 0.96,
+    nudge: -0.15,
+  },
+  { name: "KSMO", file: "ksmo.png", names: [], hasDarkVersion: true, scale: 0.87, nudge: 0.15 },
   {
     name: "NBCSN",
     file: "nbcsn.png",
     names: ["NBC Sports Network", "NBCSN Extra"],
     hasDarkVersion: true,
-    scale: 0.79,
+    scale: 0.87,
+    nudge: -0.08,
   },
-  { name: "Netflix", file: "netflix.png", names: [], scale: 0.79 },
-  { name: "PIX11", file: "pix11.png", names: ["WPIX"], hasDarkVersion: true, scale: 0.86 },
+  { name: "Netflix", file: "netflix.png", names: [], scale: 0.87, nudge: -0.08 },
+  { name: "PIX11", file: "pix11.png", names: ["WPIX"], hasDarkVersion: true, scale: 0.92 },
   {
     name: "Prime Video",
     file: "prime-video.png",
     names: ["Amazon Prime Video", "Prime Video-Seattle"],
-    scale: 1.21,
+    scale: 1.12,
+    nudge: -0.06,
   },
-  { name: "SNY", file: "sny.png", names: [], hasDarkVersion: true },
-  { name: "TSN", file: "tsn.png", names: [], scale: 0.79 },
-  { name: "NBC10", file: "wcau.png", names: ["NBC 10"], hasDarkVersion: true, scale: 1.14 },
-  { name: "FOX 5 Plus", file: "wwor.png", names: ["WWOR-TV"], hasDarkVersion: true, scale: 0.86 },
+  { name: "SNY", file: "sny.png", names: [], hasDarkVersion: true, nudge: 0.14 },
+  { name: "TSN", file: "tsn.png", names: [], scale: 0.87, nudge: -0.08 },
+  {
+    name: "NBC10",
+    file: "wcau.png",
+    names: ["NBC 10"],
+    hasDarkVersion: true,
+    scale: 1.08,
+    nudge: 0.12,
+  },
+  { name: "FOX 5 Plus", file: "wwor.png", names: ["WWOR-TV"], hasDarkVersion: true, scale: 0.92 },
 ];
 
 const foldName = (name) => name.trim().toLowerCase();
@@ -81,11 +128,12 @@ const foldName = (name) => name.trim().toLowerCase();
  * @param {Channel} channel
  * @returns {NetworkLogo}
  */
-const describeLogo = ({ name, file, hasDarkVersion, scale }) => ({
+const describeLogo = ({ name, file, hasDarkVersion, scale, nudge }) => ({
   name,
   file,
   ...(hasDarkVersion && { darkFile: file.replace(/(\.\w+)$/, "-dark$1") }),
   ...(scale && { scale }),
+  ...(nudge && { nudge }),
 });
 
 export const NETWORK_LOGOS = CHANNELS.map(describeLogo);

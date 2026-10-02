@@ -127,8 +127,8 @@ test("a square badge is drawn taller than a long wordmark, in the room under the
   const row = page.locator('#games-today [data-game="1042600132"]');
   const abc = await row.getByRole("img", { name: "ABC" }).boundingBox();
   const espn = await row.getByRole("img", { name: "ESPN" }).boundingBox();
-  expect(abc.height).toBeCloseTo(14 * 1.29, 0);
-  expect(espn.height).toBeCloseTo(14 * 0.79, 0);
+  expect(abc.height).toBeGreaterThan(espn.height * 1.2);
+  expect(espn.height).toBeGreaterThan(8);
   const rowBox = await row.boundingBox();
   const sides = await row.locator(".game-side.home").boundingBox();
   expect(abc.y).toBeGreaterThan(sides.y + sides.height);

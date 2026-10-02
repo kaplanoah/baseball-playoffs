@@ -1,4 +1,4 @@
-import { html, joinWithSeparator } from "./html.js";
+import { html } from "./html.js";
 import { listNetworkLogos } from "./network-logos.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
@@ -63,7 +63,14 @@ const renderExtra = (side, place) =>
  * @param {string} classes
  */
 const renderLogoImage = (logo, file, classes) =>
-  html`<img class="${classes}" src="shared/networks/${file}" alt="${logo.name}"${logo.scale && html` style="--logo-scale: ${logo.scale}"`} />`;
+  html`<img class="${classes}" src="shared/networks/${file}" alt="${logo.name}"${describeLogoStyle(logo)} />`;
+
+/** @param {import("./network-logos.js").NetworkLogo} logo */
+function describeLogoStyle({ scale, nudge }) {
+  const properties = [scale && `--logo-scale: ${scale}`, nudge && `--logo-nudge: ${nudge}`];
+  const style = properties.filter(Boolean).join("; ");
+  return style ? html` style="${style}"` : html``;
+}
 
 // A logo with a version for each background shows the page's.
 /** @param {import("./network-logos.js").NetworkLogo} logo */
@@ -76,14 +83,15 @@ function renderLogo(logo) {
   )}`;
 }
 
+// Logos stand apart by space alone, and a channel without one shows its name.
 /** @param {string[]} networks */
 const renderNetworks = (networks) =>
   networks.length
     ? html`<span class="game-networks"
-        >${joinWithSeparator(
-          listNetworkLogos(networks).map((network) =>
-            typeof network === "string" ? html`${network}` : renderLogo(network),
-          ),
+        >${listNetworkLogos(networks).map((network) =>
+          typeof network === "string"
+            ? html`<span class="network-name">${network}</span>`
+            : renderLogo(network),
         )}</span
       >`
     : html``;

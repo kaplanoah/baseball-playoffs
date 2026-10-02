@@ -5,16 +5,16 @@
  * pieces hold.
  *
  * An app's :root defines these tokens, each a length:
- *   --game-row-height        every game's height
+ *   --game-row-height        every game's height, with or without where to watch it
  *   --game-side-offset       each side and the line under it, as one block
  *   --game-label-offset      the label over the time or score
  *   --game-headline-offset   the time or score
  *   --game-status-offset     the status under the time or score
- *   --game-networks-height   the line under a game that says where to watch it
+ *   --game-networks-bottom   the middle of the line that says where to watch a game, from the
+ *                            bottom of its row
  *   --network-logo-height    a channel's logo on that line, which each logo scales so a square
  *                            badge and a long wordmark look about the same size
- *   --game-networks-offset   that line, from the bottom of the row's usual height, into the room
- *                            under the sides
+ *   --network-gap            the room between two channels on that line
  * and these, set for whether the page's background is light or dark, since each channel's logo
  * is drawn for one or the other:
  *   --logos-for-light        inline when a logo with a version for each shows its version for a
@@ -73,7 +73,7 @@
 .game-middle {
   --headline-offset: var(--game-headline-offset);
   --status-offset: var(--game-status-offset);
-  grid-area: 1 / 2 / 5 / 3;
+  grid-area: 1 / 2 / -1 / 3;
   display: grid;
   grid-template-rows: 1fr;
   justify-items: center;
@@ -104,27 +104,26 @@
 .game-status {
   translate: 0 var(--status-offset);
 }
-/* Where to watch adds a line under the rest of the game, which stays as it is without it. */
-.game-row:has(> .game-networks) {
-  grid-template-rows: 1fr auto auto 1fr var(--game-networks-height);
-  height: calc(var(--game-row-height) + var(--game-networks-height));
-}
+/* Each channel centers on one line, its logo moved by its nudge, the share of its height its
+   weight sits off its middle, so a logo heavy at the bottom isn't drawn low. */
 .game-networks {
-  grid-area: 5 / 1 / 6 / -1;
-  translate: 0 var(--game-networks-offset);
+  position: absolute;
+  inset-inline: 0;
+  bottom: var(--game-networks-bottom);
+  height: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-width: 0;
-  overflow: hidden;
+  gap: var(--network-gap);
   white-space: nowrap;
 }
 .network-logo {
-  display: inline;
-  height: calc(var(--network-logo-height) * var(--logo-scale, 1));
+  --logo-height: calc(var(--network-logo-height) * var(--logo-scale, 1));
+  height: var(--logo-height);
   width: auto;
   max-width: 96px;
   object-fit: contain;
+  translate: 0 calc(var(--logo-height) * var(--logo-nudge, 0) * -1);
 }
 .network-logo.for-light {
   display: var(--logos-for-light);

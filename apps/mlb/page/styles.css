@@ -64,9 +64,9 @@
   --game-label-offset: -21px;
   --game-headline-offset: -1px;
   --game-status-offset: 19.5px;
-  --game-networks-height: 24px;
-  --network-logo-height: 13px;
-  --game-networks-offset: 0px;
+  --game-networks-bottom: 12px;
+  --network-logo-height: 11px;
+  --network-gap: 10px;
   --logos-for-light: none;
   --logos-for-dark: inline;
   /* Pitch colors run by family: fastballs warm, breaking balls blue, changeups pink. */

@@ -46,7 +46,7 @@ test("a square badge is drawn taller than a long wordmark, so the two look about
   assert.ok(abc.scale > 1 && espn.scale < 1);
   assert.equal(fox.scale, undefined);
   const line = renderNetworksLine(["ABC", "FOX"]);
-  assert.match(line, /alt="ABC" style="--logo-scale: 1.29"/);
+  assert.match(line, new RegExp(`alt="ABC" style="--logo-scale: ${abc.scale}"`));
   assert.match(line, /alt="FOX" \/>/);
 });
 
@@ -72,7 +72,7 @@ test("every logo is a PNG or a plain drawing: no scripts, links, or anything it 
   }
 });
 
-test("the line under a game shows each logo, its dark version beside it, and names without one", () => {
+test("the line under a game shows each logo, its dark version beside it, and names without one, apart by space alone", () => {
   const line = renderNetworksLine(["NBC", "ESPN", "Reds.TV"]);
   const images = [...line.matchAll(/<img class="([^"]*)" src="([^"]*)" alt="([^"]*)"/g)].map(
     ([, classes, source, alt]) => [classes, source, alt],
@@ -82,7 +82,15 @@ test("the line under a game shows each logo, its dark version beside it, and nam
     ["network-logo for-dark", "shared/networks/nbc-dark.svg", "NBC"],
     ["network-logo", "shared/networks/espn.svg", "ESPN"],
   ]);
-  assert.match(line, /<span class="sep">&bull;<\/span><\/span><span class="fact">Reds\.TV<\/span>/);
+  assert.match(line, /<span class="network-name">Reds\.TV<\/span>/);
+  assert.doesNotMatch(line, /class="sep"/);
+});
+
+test("a logo whose weight sits low is nudged up, and one with its weight centered isn't", () => {
+  const [nbc, espn] = listLogos(["NBC", "ESPN"]);
+  assert.ok(nbc.nudge > 0);
+  assert.equal(espn.nudge, undefined);
+  assert.match(renderNetworksLine(["NBC"]), /style="--logo-scale: [\d.]+; --logo-nudge: [\d.]+"/);
 });
 
 test("a game with nowhere to watch it has no line for it", () => {
