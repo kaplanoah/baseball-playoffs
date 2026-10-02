@@ -9,6 +9,7 @@ import {
   EVENING_FIXTURE,
 } from "./harness.mjs";
 import { createReading } from "../../page/js/readings.js";
+import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 
 const PLAYOFF_FIELD_2026 = [
@@ -335,7 +336,7 @@ test("each day of games is closed by lines, with its date in open space above it
   const dates = shownGames.locator(".game-day");
   await expect(days).toHaveCount(2);
 
-  await expect(dates.first()).toHaveCSS("font-size", "10.24px");
+  await expect(dates.first()).toHaveCSS("font-size", "13px");
   await expect(days.first()).toHaveCSS("border-top-width", "1px");
   await expect(days.first().locator(".game-row").last()).toHaveCSS("border-bottom-width", "1px");
   const firstDay = await days.first().boundingBox();
@@ -559,11 +560,11 @@ test("the Games tab bolds each winner and dims only the clubs that are out", asy
   const winnerOut = findSide("Nationals", "Tigers", "away").locator(".team-name");
   const loserOut = findSide("Nationals", "Tigers", "home");
 
-  await expect(winnerStillIn).toHaveCSS("font-weight", "700");
+  await expect(winnerStillIn).toHaveCSS("font-weight", "550");
   await expect(winnerStillIn).toHaveCSS("color", CREAM);
-  await expect(loserStillIn).toHaveCSS("font-weight", "500");
+  await expect(loserStillIn).toHaveCSS("font-weight", "400");
   await expect(loserStillIn).toHaveCSS("color", CREAM);
-  await expect(winnerOut).toHaveCSS("font-weight", "700");
+  await expect(winnerOut).toHaveCSS("font-weight", "550");
   await expect(winnerOut).toHaveCSS("color", GREEN);
   await expect(loserOut.locator(".team-name")).toHaveCSS("color", GREEN);
   await expect(loserOut.locator(".dot")).toHaveCSS("opacity", "0.55");
@@ -801,12 +802,12 @@ test("under each card, the next game shows its day, as today or tomorrow when it
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   const notes = page.locator("#bracketWrap .card-note");
 
-  await expect(notes.filter({ hasText: /^Next game today\u20229:10\sPM$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game tomorrow\u20227:08\sPM$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game tomorrow\u2022time TBD$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game Sat Oct 3\u20224:08\sPM$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game Sat Oct 3\u2022time TBD$/ })).toHaveCount(3);
-  await expect(notes.filter({ hasText: /^Next game Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Today\u20229:10\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Tomorrow\u20227:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Tomorrow\u2022time TBD$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Sat Oct 3\u20224:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Sat Oct 3\u2022time TBD$/ })).toHaveCount(3);
+  await expect(notes.filter({ hasText: /^Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
 });
 
 // The page's clock reads 8:44 PM Eastern, which is already the next morning in London.
@@ -824,14 +825,33 @@ test.describe("in Europe/London", () => {
     await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
 
     await expect(
-      page
-        .locator("#bracketWrap .card-note")
-        .filter({ hasText: /^Next game today\u20226:10\sPM$/ }),
+      page.locator("#bracketWrap .card-note").filter({ hasText: /^Today\u20226:10\sPM$/ }),
     ).toHaveCount(1);
   });
 });
 
 const WILD_CARD_SERIES = ["AL_WC1", "AL_WC2", "NL_WC1", "NL_WC2"];
+
+for (const width of [360, 390]) {
+  test.describe(`on a ${width}px phone`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("every card's next game fits on one line under it", async ({ page }) => {
+      await openApp(page);
+      const notes = page.locator("#bracketWrap .card-note");
+      await expect(notes.first()).toBeVisible();
+      const lineCounts = await notes.evaluateAll((elements) =>
+        elements.map((note) => {
+          const range = document.createRange();
+          range.selectNodeContents(note);
+          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.bottom))).size;
+        }),
+      );
+      expect(lineCounts.length).toBeGreaterThan(0);
+      expect(lineCounts.filter((count) => count !== 1)).toEqual([]);
+    });
+  });
+}
 
 test("under a card whose game is under way, the score, inning, and outs show instead of the next game", async ({
   page,
@@ -891,7 +911,7 @@ test("under a card whose game is under way, the score, inning, and outs show ins
   await expect(delayed).toHaveCount(1);
   await expect(delayed).toHaveCSS("color", await readColor(page, "--gold"));
   await expect(delayed.locator(".out-light")).toHaveCount(0);
-  await expect(notes.filter({ hasText: /^Next game today\u20227:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Today\u20227:08\sPM$/ })).toHaveCount(1);
 });
 
 test("under a card whose series already counts the game, the next game shows even while the slate reads it as under way", async ({
@@ -917,7 +937,7 @@ test("under a card whose series already counts the game, the next game shows eve
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   const notes = page.locator("#bracketWrap .card-note");
 
-  await expect(notes.filter({ hasText: /^Next game tomorrow\u20227:08\sPM$/ })).toHaveCount(4);
+  await expect(notes.filter({ hasText: /^Tomorrow\u20227:08\sPM$/ })).toHaveCount(4);
   await expect(page.locator("#bracketWrap .card-note.live")).toHaveCount(0);
 });
 
@@ -940,7 +960,7 @@ test("in the half hour before first pitch, a card counts down the minutes on the
   const countdown = notes.filter({ hasText: /^First pitch in 18 min$/ });
   await expect(countdown).toHaveCount(1);
   await expect(countdown).toHaveCSS("color", await readColor(page, "--copper-ink"));
-  await expect(notes.filter({ hasText: /^Next game today\u20229:02\sPM$/ })).toHaveCount(3);
+  await expect(notes.filter({ hasText: /^Today\u20229:02\sPM$/ })).toHaveCount(3);
 
   await page.clock.runFor(60 * 1000);
   await expect(notes.filter({ hasText: /^First pitch in 17 min$/ })).toHaveCount(1);
@@ -951,7 +971,7 @@ test("more than a half hour before first pitch, a card shows its next game", asy
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
 
   await expect(
-    page.locator("#bracketWrap .card-note").filter({ hasText: /^Next game today\u20229:20\sPM$/ }),
+    page.locator("#bracketWrap .card-note").filter({ hasText: /^Today\u20229:20\sPM$/ }),
   ).toHaveCount(4);
 });
 
@@ -1104,7 +1124,7 @@ const readStackedSpaces = (page) =>
     return {
       aboveLeague: line.top - banner.bottom,
       belowLine: upperCard.top - line.bottom,
-      betweenRows: lowerCard.top - upperCard.bottom - 20,
+      betweenRows: lowerCard.top - upperCard.bottom - 22,
     };
   });
 
@@ -1428,6 +1448,7 @@ test("rebuilds updates from the saved readings as the Worker adds to them", asyn
 
   await expect(updates).toContainText(/Mets .*Phillies/);
   expect((await app.readDocument(`readings-2026/${part}`)).changes).toHaveLength(2);
+  expect(await listOffScaleText(page)).toEqual([]);
 });
 
 test("switching to 2025 shows the finished bracket and its champion, and stops polling", async ({
@@ -1881,7 +1902,7 @@ test("on a phone, the bracket fills the height above the tab bar and swipes side
 test("on a phone a little short of room, the bracket's spaces shrink so it fits above the round dots", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 781 });
+  await page.setViewportSize({ width: 390, height: 840 });
   await openApp(page);
   await expect(page.locator(".bracket-stage")).toBeVisible();
   await expectBracketToFillHeight(page);
@@ -1979,4 +2000,48 @@ test("a tap shows only the page's own states: no gray flash, and no hover left b
   await openApp(page);
   expect(await listTapFlashes(page)).toEqual([]);
   expect(await listTouchHoverRules(page)).toEqual([]);
+});
+
+for (const { screen, viewport } of [
+  { screen: "a wide screen", viewport: { width: 1280, height: 900 } },
+  { screen: "a phone", viewport: { width: 390, height: 844 } },
+]) {
+  test.describe(`on ${screen}`, () => {
+    test.use({ viewport, contextOptions: { reducedMotion: "reduce" } });
+
+    test("every piece of text keeps to the type scale, in every view", async ({ page }) => {
+      await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
+      await expect(page.locator("#bracketWrap .card-note").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await page.getByRole("tab", { name: "Games" }).click();
+      for (const list of ["Previous", "Today", "Next"]) {
+        await page.getByRole("tab", { name: list }).click();
+        await expect(page.locator(`#games-${list.toLowerCase()} .game-row`).first()).toBeVisible();
+        expect(await listOffScaleText(page)).toEqual([]);
+      }
+      await page.getByRole("tab", { name: "Standings" }).click();
+      await expect(page.locator("table.st tbody tr").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await page.getByRole("tab", { name: "Teams" }).click();
+      await expect(page.locator("table.ref tbody tr").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await openSettings(page);
+      await expect(page.locator("#settingsDialog")).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+    });
+  });
+}
+
+test("Chivo Mono draws 6% smaller than its size, so it looks as big as Barlow", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.evaluate(() => document.fonts.ready);
+  const sizeAdjusts = await page.evaluate(() =>
+    [...document.fonts]
+      .filter((font) => font.family.replaceAll('"', "") === "Chivo Mono")
+      // TypeScript's DOM types don't list FontFace's sizeAdjust yet.
+      .map((font) => /** @type {FontFace & { sizeAdjust: string }} */ (font).sizeAdjust),
+  );
+  expect(sizeAdjusts).toEqual(["94%", "94%"]);
 });

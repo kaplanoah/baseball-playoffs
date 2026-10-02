@@ -1,8 +1,10 @@
 /**
- * Every piece of shown text off the apps' type scale, with what sets it and why. Sizes are as
- * drawn, after the font's size-adjust: nothing under 13px, uppercase under 16px at least 500,
- * weights 400 to 600 under 24px and 300 to 700 from there, and Barlow Condensed never over 600.
- * The tab bar's labels keep the phone's own size, and text hidden for screen readers is left out.
+ * Every piece of shown text off the apps' type scale, with what sets it and why. Sizes and weights
+ * are Barlow's: a font's size-adjust makes its size look like Barlow's at that size, and Chivo
+ * Mono reads heavier, so its weights count 50 more. Nothing is under 13px, capitals under 16px are
+ * at least 500, weights are 400 to 600 under 24px and 300 to 700 from there, and Barlow Condensed
+ * never goes over 600. The tab bar's labels keep the phone's own size, and text hidden for screen
+ * readers is left out.
  * @param {import("@playwright/test").Page} page
  */
 export const listOffScaleText = (page) =>
@@ -12,16 +14,8 @@ export const listOffScaleText = (page) =>
     const LARGE_SIZE = 24;
     const SMALL_CAPS_SIZE = 16;
     const HEAVIEST_CONDENSED = 600;
-
-    /** @param {string} family */
-    const readSizeAdjust = (family) => {
-      const face = [...document.fonts].find(
-        (font) => font.family.replaceAll('"', "") === family && font.status === "loaded",
-      );
-      // TypeScript's DOM types don't list FontFace's sizeAdjust yet.
-      const sizeAdjust = face && /** @type {FontFace & { sizeAdjust: string }} */ (face).sizeAdjust;
-      return sizeAdjust ? parseFloat(sizeAdjust) / 100 : 1;
-    };
+    /** @type {Record<string, number>} */
+    const WEIGHT_SHIFTS = { "Chivo Mono": 50 };
 
     /** @param {number} size @param {number} weight */
     const describeWeightProblem = (size, weight) => {
@@ -45,8 +39,8 @@ export const listOffScaleText = (page) =>
     const listProblems = (element) => {
       const style = getComputedStyle(element);
       const family = style.fontFamily.split(",")[0].replaceAll('"', "").trim();
-      const size = parseFloat(style.fontSize) * readSizeAdjust(family) * readDrawnScale(element);
-      const weight = Number(style.fontWeight);
+      const size = parseFloat(style.fontSize) * readDrawnScale(element);
+      const weight = Number(style.fontWeight) + (WEIGHT_SHIFTS[family] ?? 0);
       const isUppercase = style.textTransform === "uppercase";
       return [
         size < SMALLEST_SIZE - 0.01 ? `size ${size.toFixed(1)}px under ${SMALLEST_SIZE}px` : "",

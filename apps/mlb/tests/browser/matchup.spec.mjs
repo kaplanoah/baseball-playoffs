@@ -2,6 +2,7 @@ import { test, expect, openApp, buildSnapshotWithStarters, swipeSheetDown } from
 import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
 import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
+import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
 // What the Worker answers for Astros at Athletics' starters, Blubaugh and Springs.
 const describePitcher = (id, [firstName, lastName], hand, line, ranks, pitches) => ({
@@ -116,7 +117,7 @@ test("tapping a game with its starters named opens their matchup, and Done close
 test("on a phone, the matchup rises as a sheet that a swipe down closes", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const sheet = await openMatchup(page);
-  await expect(sheet.locator(".pitch-columns")).toHaveCount(2);
+  await expect(sheet.locator(".pitch-mix")).toHaveCount(2);
   await page.waitForFunction(() => document.getAnimations().length === 0);
   const done = sheet.getByRole("button", { name: "Done" });
   expect((await done.boundingBox()).width).toBeLessThanOrEqual(1);
@@ -187,14 +188,14 @@ test("the pitches run slowest to fastest, leaving out the ones he barely throws"
   page,
 }) => {
   const sheet = await openMatchup(page);
-  const columns = sheet.locator(".pitch-columns").first();
-  await expect(columns.locator(".pitch-name")).toHaveText(["Slider", "Changeup", "Four-seam"]);
-  await expect(columns.locator(".pitch-share")).toHaveText(["30%", "17%", "52%"]);
+  const pitches = sheet.locator(".pitch-mix").first();
+  await expect(pitches.locator(".pitch-name")).toHaveText(["Slider", "Changeup", "Four-seam"]);
+  await expect(pitches.locator(".pitch-share")).toHaveText(["30%", "17%", "52%"]);
 });
 
 test("a starter the Worker can't describe says so, and the other still shows", async ({ page }) => {
   const sheet = await openMatchup(page, { 1: PITCHERS[1] });
-  await expect(sheet.locator(".pitch-columns")).toHaveCount(1);
+  await expect(sheet.locator(".pitch-mix")).toHaveCount(1);
   await expect(sheet.locator(".scout-note")).toHaveText(
     "Couldn't load his numbers. Close and try again in a minute.",
   );
@@ -359,7 +360,7 @@ test("while the starters' numbers load, the matchup holds their shape, then fill
   await expect(sheet.locator(".pitcher-first .placeholder")).toHaveCount(2);
   await expect(sheet.locator(".tape-label")).toHaveText(["ERA", "K/9", "BB/9", "Fastball mph"]);
   await expect(sheet.locator(".scout h3 span")).toHaveText(["What he throws", "What he throws"]);
-  await expect(sheet.locator(".pitch-columns")).toHaveCount(2);
+  await expect(sheet.locator(".pitch-mix")).toHaveCount(2);
   await expect(sheet.locator(".recent-starts li")).toHaveCount(6);
 
   release();
@@ -396,7 +397,7 @@ test("a finger coming down on a game starts reading its starters' numbers", asyn
   await expect.poll(() => reads.count).toBe(2);
 
   await button.click();
-  await expect(page.getByRole("dialog").locator(".pitch-columns")).toHaveCount(2);
+  await expect(page.getByRole("dialog").locator(".pitch-mix")).toHaveCount(2);
   expect(reads.count).toBe(2);
 });
 
@@ -418,4 +419,30 @@ test("a matchup whose starters can't load eases from their shape down to the mes
   const [from] = resizes[0].heights.map(parseFloat);
   const [, to] = resizes.at(-1).heights.map(parseFloat);
   expect(to).toBeLessThan(from);
+});
+
+for (const { screen, viewport } of [
+  { screen: "a wide screen", viewport: { width: 1280, height: 900 } },
+  { screen: "a phone", viewport: { width: 390, height: 844 } },
+]) {
+  test.describe(`on ${screen}`, () => {
+    test.use({ viewport });
+
+    test("every piece of text in a matchup keeps to the type scale", async ({ page }) => {
+      const sheet = await openMatchup(page);
+      await expect(sheet.locator(".pitch-rows li")).toHaveCount(5);
+      expect(await listOffScaleText(page)).toEqual([]);
+    });
+  });
+}
+
+test("each pitch is a row with its name, a bar for how often he throws it, its share, and its speed", async ({
+  page,
+}) => {
+  const sheet = await openMatchup(page);
+  const rows = sheet.locator(".pitch-mix").first().locator(".pitch-rows li");
+  await expect(rows.locator(".pitch-name")).toHaveText(["Slider", "Changeup", "Four-seam"]);
+  await expect(rows.locator(".pitch-share")).toHaveText(["30%", "17%", "52%"]);
+  await expect(rows.locator(".pitch-speed")).toHaveText(["86 mph", "87 mph", "95 mph"]);
+  await expect(rows.locator(".pitch-bar i").last()).toHaveAttribute("style", "width: 100%");
 });
