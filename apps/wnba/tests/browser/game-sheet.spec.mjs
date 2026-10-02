@@ -98,6 +98,20 @@ test("tapping a final opens its sheet with the score, the box score, and the top
   await expect(sheet).toBeHidden();
 });
 
+test("only the team rows of By quarter have a line above them, not its heading row", async ({
+  page,
+}) => {
+  await openApp(page);
+  const sheet = await openSheet(page, ACES_AT_FEVER);
+  const lineScore = sheet.locator(".line-score");
+  await expect(lineScore.locator("tbody tr")).toHaveCount(2);
+
+  for (const cell of await lineScore.locator("thead td, thead th").all())
+    await expect(cell).toHaveCSS("border-top-width", "0px");
+  for (const cell of await lineScore.locator("tbody td, tbody th").all())
+    await expect(cell).toHaveCSS("border-top-width", "1px");
+});
+
 test("no text in a live game's row, its sheet, or a preview is heavier than 600", async ({
   page,
 }) => {
@@ -403,5 +417,66 @@ test.describe("on a phone", () => {
         { id: "gameDialog", part: "::backdrop", to: { opacity: 0 } },
       ]);
     }
+  });
+});
+
+/**
+ * How far down each of a text's words sits, so a test can tell which line it's on.
+ * @param {import("@playwright/test").Locator} element
+ */
+const readWordTops = (element) =>
+  element.evaluate((root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const tops = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = /** @type {Text} */ (node);
+      for (const word of text.data.matchAll(/\S+/g)) {
+        const range = document.createRange();
+        range.setStart(text, word.index);
+        range.setEnd(text, word.index + word[0].length);
+        tops.push({ word: word[0], top: Math.round(range.getBoundingClientRect().top) });
+      }
+    }
+    return tops;
+  });
+
+/** @param {{ word: string, top: number }[]} tops */
+const groupLines = (tops) =>
+  [...new Set(tops.map(({ top }) => top))].map((line) =>
+    tops
+      .filter(({ top }) => top === line)
+      .map(({ word }) => word)
+      .join(" "),
+  );
+
+test.describe("on a phone, with less motion", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test("a team stat's label that takes two lines splits them evenly", async ({ page }) => {
+    await openApp(page);
+    const sheet = await openSheet(page, ACES_AT_FEVER);
+    const label = sheet.locator(".tape-label", { hasText: "Points in the paint" });
+    await expect(label).toBeVisible();
+
+    expect(groupLines(await readWordTops(label))).toEqual(["Points in", "the paint"]);
+  });
+
+  test("the game's facts under the team stats break only after a dot, each fact on one line", async ({
+    page,
+  }) => {
+    const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
+    await app.changeSeason(startValkyriesAtWings);
+    const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+    const note = sheet.locator(".tape-note");
+    await expect(note).toContainText("Timeouts left");
+
+    expect(groupLines(await readWordTops(note))).toEqual([
+      "Biggest lead: Valkyries 8, Wings 8 \u2022 Lead changes: 15 \u2022",
+      "Ties: 14 \u2022 Timeouts left: Valkyries 0, Wings 1",
+    ]);
   });
 });
