@@ -1537,3 +1537,74 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
 :root:not([data-theme="dark"]) .gate-icon-dark {
   display: none;
 }
+
+/* A phone is read at arm's length, so the smallest text steps up a little there: the header's
+   lines, a game's round and weekday, the standings, and a team's sheet. */
+@media (max-width: 779px) {
+  .stamp {
+    font-size: 0.82rem;
+  }
+  .series-label {
+    font-size: 0.68rem;
+  }
+  table.standings th {
+    font-size: 0.72rem;
+  }
+  table.standings tr.groups th {
+    font-size: 0.68rem;
+  }
+  table.standings th.recent {
+    font-size: 0.66rem;
+  }
+  table.standings td.season {
+    font-size: 0.92rem;
+  }
+  table.standings td.recent {
+    font-size: 0.82rem;
+  }
+  table.standings td.team .club {
+    font-size: 1rem;
+  }
+  table.standings .place {
+    width: 28px;
+    min-width: 28px;
+    font-size: 0.88rem;
+  }
+  .conference-tag {
+    font-size: 0.66rem;
+  }
+  .seed-note {
+    font-size: 0.68rem;
+  }
+  .day-name {
+    font-size: 0.66rem;
+  }
+  #teamNote {
+    font-size: 0.84rem;
+  }
+  .team-label {
+    font-size: 0.7rem;
+  }
+  .team-stat .team-label {
+    font-size: 0.66rem;
+  }
+  .team-stat b {
+    font-size: 1.25rem;
+  }
+  .team-detail,
+  .team-game {
+    font-size: 0.9rem;
+  }
+  .team-game-number {
+    font-size: 0.74rem;
+  }
+  .team-round {
+    font-size: 0.82rem;
+  }
+  .team-when {
+    font-size: 0.86rem;
+  }
+  .status-chip {
+    font-size: 0.72rem;
+  }
+}

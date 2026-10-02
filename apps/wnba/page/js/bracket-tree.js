@@ -121,7 +121,9 @@ function sizeCardGaps(tree) {
   const room = dots.getBoundingClientRect().top - ROUND_DOTS_CLEARANCE - top;
   const fittingGap = tightestGap + (room - tightestHeight) / GAPS_BETWEEN_CARDS;
   const grownGap = Math.min(tightestGap * MAX_GAP_GROWTH, Math.max(tightestGap, fittingGap));
-  tree.style.setProperty("--card-gap", `${Math.floor(grownGap)}px`);
+  // Half pixels still fall on a phone's screen pixels, and leave the cards at most a pixel and a
+  // half short of the dots across their three gaps.
+  tree.style.setProperty("--card-gap", `${Math.floor(grownGap * 2) / 2}px`);
 }
 
 // A hidden tab has no layout to measure, so its spacing and lines wait until it shows.
