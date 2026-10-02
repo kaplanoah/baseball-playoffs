@@ -366,7 +366,7 @@ test("a team opens to its season, and stays open as the season changes", async (
   await expect(aces.locator(".team-season")).toBeHidden();
 
   await aces.locator("summary").click();
-  await expect(aces.locator(".team-season")).toContainText("Top scorer");
+  await expect(aces.locator(".team-season")).toContainText("Leading scorer");
   await app.changeSeason((season) => {
     season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
     return season;
@@ -374,6 +374,77 @@ test("a team opens to its season, and stays open as the season changes", async (
 
   await expect(aces.locator(".team-season")).toContainText(/Last 10\s*9-1/);
   await expect(aces).toHaveAttribute("open", "");
+});
+
+/** @param {import("@playwright/test").Locator} team */
+const readTeamEasing = (team) =>
+  team.evaluate((details) =>
+    details
+      .getAnimations()
+      .map((animation) =>
+        /** @type {KeyframeEffect} */ (animation.effect)
+          .getKeyframes()
+          .map((keyframe) => parseFloat(String(keyframe.height))),
+      ),
+  );
+
+test("a team eases open to its season, and stays open while it eases closed", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"]');
+  const closedHeight = await aces.evaluate((details) => details.getBoundingClientRect().height);
+
+  await aces.locator("summary").click();
+  const [[openFrom, openTo]] = await readTeamEasing(aces);
+  expect(openFrom).toBeCloseTo(closedHeight, 1);
+  expect(openTo).toBeGreaterThan(closedHeight + 100);
+  await expect(aces).toHaveAttribute("open", "");
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+
+  await aces.locator("summary").click();
+  expect(await aces.evaluate((details) => details.hasAttribute("open"))).toBe(true);
+  const [[closeFrom, closeTo]] = await readTeamEasing(aces);
+  expect(closeFrom).toBeCloseTo(openTo, 1);
+  expect(closeTo).toBeCloseTo(closedHeight, 1);
+  await expect(aces).not.toHaveAttribute("open");
+  await expect(aces).not.toHaveClass(/closing/);
+});
+
+test("with reduced motion, a team opens at once", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"]');
+
+  await aces.locator("summary").click();
+  await expect(aces).toHaveAttribute("open", "");
+  expect(await readTeamEasing(aces)).toEqual([]);
+});
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 360, height: 780 } });
+
+  test("a team's leading scorer keeps their name on one line, and its averages fit their tiles", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Teams" }).click();
+    for (const code of ["LVA", "LAS", "CON"]) {
+      const team = page.locator(`#teamsWrap [data-team="${code}"]`);
+      await team.locator("summary").click();
+      const name = team.locator(".team-scorer b");
+      await expect(name).toBeVisible();
+      expect(await name.evaluate((element) => element.getClientRects().length), code).toBe(1);
+      const overflowing = await team
+        .locator(".team-stat")
+        .evaluateAll((stats) =>
+          stats
+            .filter((stat) => stat.scrollWidth > stat.clientWidth)
+            .map((stat) => stat.textContent),
+        );
+      expect(overflowing, code).toEqual([]);
+    }
+  });
 });
 
 test("redrawing the teams each minute keeps keyboard focus on the team it was on", async ({

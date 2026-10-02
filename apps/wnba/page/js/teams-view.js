@@ -123,9 +123,9 @@ const formatMargin = (margin) => (margin > 0 ? `+${margin.toFixed(1)}` : margin.
 function renderStats(row) {
   if (!row) return false;
   const stats = [
-    ["Points", row.pointsFor?.toFixed(1)],
-    ["Allowed", row.pointsAgainst?.toFixed(1)],
-    ["Net", row.margin == null ? null : formatMargin(row.margin)],
+    ["PPG", row.pointsFor?.toFixed(1)],
+    ["Opp PPG", row.pointsAgainst?.toFixed(1)],
+    ["Differential", row.margin == null ? null : formatMargin(row.margin)],
     ["Home", row.home],
     ["Road", row.road],
     ["Last 10", row.lastTen],
@@ -141,16 +141,25 @@ function renderStats(row) {
   </div>`;
 }
 
+/**
+ * @param {number} value
+ * @param {string} label
+ */
+const renderAverage = (value, label) =>
+  html`<span class="tabular">${value.toFixed(1)} <span class="team-label">${label}</span></span>`;
+
+// The name and the averages each keep to one line, and the averages move under the name together
+// when both don't fit.
 /** @param {Leader | undefined} leader */
-const renderTopScorer = (leader) =>
+const renderLeadingScorer = (leader) =>
   leader &&
-  html`<p class="team-detail">
-    <span class="team-label">Top scorer</span>${joinWithSeparator([
-      html`<b>${leader.firstName} ${leader.lastName}</b>`,
-      html`<span class="tabular">${leader.points.toFixed(1)} pts</span>`,
-      html`<span class="tabular">${leader.rebounds.toFixed(1)} reb</span>`,
-      html`<span class="tabular">${leader.assists.toFixed(1)} ast</span>`,
-    ])}
+  html`<p class="team-detail team-scorer">
+    <span class="team-label">Leading scorer</span><b>${leader.firstName} ${leader.lastName}</b
+    ><span class="team-averages">${joinWithSeparator([
+      renderAverage(leader.points, "Pts"),
+      renderAverage(leader.rebounds, "Reb"),
+      renderAverage(leader.assists, "Ast"),
+    ])}</span>
   </p>`;
 
 /**
@@ -265,7 +274,7 @@ export function renderTeams(season, { year, now, openTeams = new Set() }) {
         ${renderChip(chip)}${CARET}
       </summary>
       <div class="team-season">
-        ${renderStats(row)}${renderTopScorer(leadersByTeam.get(code))}${renderTitles(code, titles)}
+        ${renderStats(row)}${renderLeadingScorer(leadersByTeam.get(code))}${renderTitles(code, titles)}
         ${renderPlayoffs(code, games, isPlaying, now)}
       </div>
     </details>`;
@@ -281,7 +290,7 @@ export function renderTeams(season, { year, now, openTeams = new Set() }) {
  */
 export function drawTeams(wrap, season, options) {
   const openTeams = new Set(
-    [...wrap.querySelectorAll("details[open]")].map(
+    [...wrap.querySelectorAll("details[open]:not(.closing)")].map(
       (details) => /** @type {HTMLElement} */ (details).dataset.team ?? "",
     ),
   );

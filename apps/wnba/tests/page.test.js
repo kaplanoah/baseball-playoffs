@@ -374,12 +374,12 @@ test("teams follow the standings, each with its conference, seed, record, last t
     assert.match(markup, /class="team" data-team="NYL"/);
   }));
 
-test("a team opens to its season: its averages, its top scorer, its titles, and its playoff games", () =>
+test("a team opens to its season: its averages, its leading scorer, its titles, and its playoff games", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").details,
-      "Points 91.3 Allowed 84.5 Net +6.9 Home 15-7 Road 15-7 Last 10 9-1 " +
-        "Top scorer Allisha Gray | 19.0 pts | 3.5 reb | 2.6 ast " +
+      "PPG 91.3 Opp PPG 84.5 Differential +6.9 Home 15-7 Road 15-7 Last 10 9-1 " +
+        "Leading scorer Allisha Gray 19.0 Pts | 3.5 Reb | 2.6 Ast " +
         "Playoffs G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM",
     );
     assert.match(
