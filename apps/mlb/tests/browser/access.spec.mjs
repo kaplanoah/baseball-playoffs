@@ -1,4 +1,5 @@
 import { test, expect, openLockedApp } from "./harness.mjs";
+import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
 /** @param {import("@playwright/test").Page} page */
 const findCodeField = (page) => page.getByRole("textbox", { name: "Access code" });
@@ -14,6 +15,12 @@ async function sendCode(page, code) {
   await findCodeField(page).fill(code);
   await page.getByRole("button", { name: "Open" }).click();
 }
+
+test("the gate's text keeps to the type scale", async ({ page }) => {
+  await openLockedApp(page, { accessCode: "FASTBREAK" });
+  await expect(findGate(page)).toBeVisible();
+  expect(await listOffScaleText(page)).toEqual([]);
+});
 
 test("the page asks for its code in baseball's gold and copper, and the right one opens the app for good", async ({
   page,

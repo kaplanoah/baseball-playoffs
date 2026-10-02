@@ -11,7 +11,7 @@ import { formatShortDate, readCalendarDate } from "#shared/days.js";
 import { watchGameOpens } from "#shared/game-row.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
-import { renderPendingPitchColumns, renderPitchColumns } from "./pitch-columns.js";
+import { renderPendingPitchMix, renderPitchMix } from "./pitch-mix.js";
 import { fetchPitcher, fetchRotation } from "./pitcher-fetch.js";
 import { session } from "./session.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
@@ -226,7 +226,7 @@ function renderScouting(side, game) {
     html`<h4>Last starts</h4><ul class="recent-starts">${pitcher.starts.map((start) => renderStart(start, isUnderWay(start, side, game)))}</ul>`;
   return html`<section class="scout">
     <h3>${name}<span>What he throws</span></h3>
-    ${renderPitchColumns(pitcher.pitches, name)}
+    ${renderPitchMix(pitcher.pitches)}
     ${starts}
   </section>`;
 }
@@ -241,7 +241,7 @@ const renderPendingStart = () =>
 function renderPendingScouting(name) {
   return html`<section class="scout">
     <h3>${name}<span>What he throws</span></h3>
-    ${renderPendingPitchColumns()}
+    ${renderPendingPitchMix()}
     <h4>Last starts</h4>
     <ul class="recent-starts">${Array.from({ length: PENDING_STARTS }, renderPendingStart)}</ul>
   </section>`;

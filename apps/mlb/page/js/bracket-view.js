@@ -72,7 +72,7 @@ const STACKED = {
   inset: SEED_LABEL_ROOM,
   columnGaps: [56, 32, 32],
   worldSeriesWidth: 240,
-  noteHeight: 20,
+  noteHeight: 22,
   lineHeight: 19,
   // Room above the tab bar for the round dots, which chrome.css pins there, and a gap above them.
   // It matches what --tab-bar-clearance in chrome.css adds to the bar, so a bracket that fills the
@@ -109,7 +109,11 @@ function drawConnector(x1, y1, x2, y2) {
 const formatWeekdayBeforeDate = (day) => `${formatShortWeekday(day)} ${formatShortDate(day)}`;
 
 const describeGameDay = (day, now) =>
-  nameDay(day, now, { nearDays: [0, 1], nameOtherDay: formatWeekdayBeforeDate });
+  nameDay(day, now, {
+    nearDays: [0, 1],
+    nameOtherDay: formatWeekdayBeforeDate,
+    isCapitalized: true,
+  });
 
 function describeStartTime(game) {
   const start = new Date(game.at);
@@ -122,10 +126,7 @@ function describeNextGame(series) {
   if (series.winner || !next) return "";
   const day = readGameDay(next);
   if (!day) return "";
-  return joinWithSeparator([
-    `Next game ${describeGameDay(day, new Date())}`,
-    describeStartTime(next),
-  ]);
+  return joinWithSeparator([describeGameDay(day, new Date()), describeStartTime(next)]);
 }
 
 const readWinningPercentage = (team) =>
