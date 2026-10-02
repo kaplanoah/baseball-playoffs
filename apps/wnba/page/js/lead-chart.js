@@ -26,7 +26,8 @@ const PEAK_LABEL_ROOM = 10;
 
 /** @param {number} periods */
 const measureGame = (periods) =>
-  REGULATION_PERIODS * QUARTER_SECONDS + Math.max(0, periods - REGULATION_PERIODS) * OVERTIME_SECONDS;
+  REGULATION_PERIODS * QUARTER_SECONDS +
+  Math.max(0, periods - REGULATION_PERIODS) * OVERTIME_SECONDS;
 
 /** @param {number} index */
 const measurePeriodStart = (index) =>
@@ -81,7 +82,12 @@ export function renderLeadChart(lead, teams) {
 
   // The lead holds until the next basket, so the line steps.
   const steps = margins.flatMap((point, index) =>
-    index ? [[point.at, margins[index - 1].margin], [point.at, point.margin]] : [[point.at, point.margin]],
+    index
+      ? [
+          [point.at, margins[index - 1].margin],
+          [point.at, point.margin],
+        ]
+      : [[point.at, point.margin]],
   );
   steps.push([end, margins[margins.length - 1].margin]);
   const line = `M${steps.map(([at, margin]) => `${formatCoordinate(x(at))},${formatCoordinate(y(margin))}`).join("L")}`;

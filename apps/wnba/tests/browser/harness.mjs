@@ -39,7 +39,11 @@ export { test, expect, GAMES, LEAD };
  * ESPN answers for the one game its lead was recorded for, Valkyries at Wings, Game 2.
  * @param {{ boxScores?: Record<string, any>, isScheduleRefused?: boolean, leadSummary?: any }} league
  */
-function createLeagueFetch({ boxScores = {}, isScheduleRefused = false, leadSummary = LEAD.summary }) {
+function createLeagueFetch({
+  boxScores = {},
+  isScheduleRefused = false,
+  leadSummary = LEAD.summary,
+}) {
   const answers = new Map([
     ...Object.entries({ ...GAMES.boxScores, ...boxScores }).map(
       ([id, box]) => /** @type {[string, any]} */ ([nameBoxScoreRequest(id), box]),

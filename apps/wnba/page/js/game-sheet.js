@@ -89,7 +89,9 @@ function renderDetails(opened, game) {
     return renderPreview({ teams, season: session.season, meetings, isLoading: isLoading(opened) });
   }
   if (opened.error) return renderSheetMessage(describeProblem(opened.error));
-  return opened.details ? renderBoxScore(opened.details, opened.lead) : renderPendingBoxScore(teams);
+  return opened.details
+    ? renderBoxScore(opened.details, opened.lead)
+    : renderPendingBoxScore(teams);
 }
 
 function renderSheet() {

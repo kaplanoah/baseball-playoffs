@@ -23,7 +23,8 @@ export const nameScoreboardRequest = (start) =>
 export const nameSummaryRequest = (eventId) => `${ESPN_SITE}/summary?event=${eventId}`;
 
 /** @param {number} period */
-const measurePeriod = (period) => (period > REGULATION_PERIODS ? OVERTIME_SECONDS : QUARTER_SECONDS);
+const measurePeriod = (period) =>
+  period > REGULATION_PERIODS ? OVERTIME_SECONDS : QUARTER_SECONDS;
 
 /**
  * The seconds played when a period's clock reads `clock`, like 7:58 or, in its last minute, 45.2.
