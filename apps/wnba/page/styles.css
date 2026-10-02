@@ -88,6 +88,8 @@
   --shadow-ink: #321c08;
   --engrave-light: rgba(255, 255, 255, 0.4);
   --block-side: #d6bfa0;
+  --dot-shadow: color-mix(in srgb, var(--shadow-ink) 30%, transparent);
+  --dot-light: rgba(255, 255, 255, 0.49);
   --accent: var(--orange);
   --accent-ink: var(--orange-ink);
   --focus-ring: var(--teal);
@@ -143,6 +145,8 @@
   --shadow-ink: #000000;
   --engrave-light: rgba(255, 255, 255, 0.1);
   --block-side: #261610;
+  --dot-shadow: color-mix(in srgb, var(--shadow-ink) 62%, transparent);
+  --dot-light: rgba(255, 255, 255, 0.15);
   --glass-light: 255, 255, 255;
   --glass-saturation: 160%;
   --glass-pill: rgba(255, 255, 255, 0.11);
@@ -277,7 +281,11 @@ header.top h1 {
   height: 12px;
   border-radius: 50%;
   background: linear-gradient(var(--color) 50%, var(--color2) 50%);
-  box-shadow: 0 0 0 1px var(--divider);
+  /* Set into the floor, lit from the top left like the numbers cut into the win blocks. */
+  box-shadow:
+    inset 0.4px 0.4px 1px var(--dot-shadow),
+    0.4px 0.4px 0 var(--dot-light),
+    0 0 0 0.15px color-mix(in srgb, var(--shadow-ink) 3%, transparent);
 }
 .dot.unknown {
   background: var(--divider);

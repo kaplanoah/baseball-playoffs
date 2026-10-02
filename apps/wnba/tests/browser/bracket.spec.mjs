@@ -399,6 +399,28 @@ test("a team's dot splits its colors top and bottom, with nothing between them",
   );
 });
 
+test("a team's dot is set into the floor, shadowed inside its top left and lit below its bottom right", async ({
+  page,
+}) => {
+  await openApp(page);
+  const dot = page.locator('[data-series="1-0"] .dot').first();
+  const readShadows = () =>
+    dot.evaluate((element) => getComputedStyle(element).boxShadow.split(/,(?![^(]*\))/));
+  const readAlpha = (shadow) =>
+    Number(/\/ ([\d.]+)\)|, ([\d.]+)\)/.exec(shadow).slice(1).find(Boolean));
+  const depths = {};
+  for (const colorScheme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
+    const [inside, below] = await readShadows();
+    expect(inside).toMatch(/ 0\.4px 0\.4px 1px 0px inset$/);
+    expect(below).toMatch(/^ ?rgba\(255, 255, 255, [\d.]+\) 0\.4px 0\.4px 0px 0px$/);
+    depths[colorScheme] = { shadow: readAlpha(inside), light: readAlpha(below) };
+  }
+  expect(depths.dark.shadow).toBeGreaterThan(depths.light.shadow);
+  expect(depths.dark.light).toBeLessThan(depths.light.light);
+});
+
 test("the Finals card has the same outline as every other series", async ({ page }) => {
   await openApp(page);
   const readOutline = (id) =>
