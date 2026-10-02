@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderBracket } from "../page/js/bracket-view.js";
 import { readGameDay } from "../page/js/days.js";
-import { renderGames, sortGamesByDay } from "../page/js/games-view.js";
+import { renderGames, renderHeadline, sortGamesByDay } from "../page/js/games-view.js";
 import { renderScoreboard } from "../page/js/scoreboard.js";
 import { describeSeriesStanding } from "../page/js/series.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
@@ -181,21 +181,20 @@ test("each day's games share a box beside its date, named for yesterday, tomorro
     ]);
   }));
 
-test("a day's date reads in full to a screen reader, and only yesterday and tomorrow stand out", () =>
+test("a day's date reads in full to a screen reader, and every day's name looks alike", () =>
   inEastern(() => {
     const markup = renderGames(SEASON, NOW);
     const readNames = (list) =>
       [...markup[list].text.matchAll(/<h3 class="day-label" aria-label="([^"]*)"/g)].map(
         ([, name]) => name,
       );
-    const readNearDays = (list) =>
-      [...markup[list].text.matchAll(/class="day-name near">(\w+)</g)].map(([, name]) => name);
+    const readDayNameClasses = (list) =>
+      [...markup[list].text.matchAll(/<span class="(day-name[^"]*)">/g)].map(([, name]) => name);
     assert.deepEqual(readNames("previous"), ["Yesterday, Sep 29", "Sunday, Sep 27"]);
     assert.deepEqual(readNames("today"), ["Wednesday, Sep 30"]);
     assert.deepEqual(readNames("next").slice(0, 2), ["Tomorrow, Oct 1", "Friday, Oct 2"]);
-    assert.deepEqual(readNearDays("previous"), ["Yest"]);
-    assert.deepEqual(readNearDays("today"), []);
-    assert.deepEqual(readNearDays("next"), ["Tmrw"]);
+    for (const list of ["previous", "today", "next"])
+      assert.deepEqual(new Set(readDayNameClasses(list)), new Set(["day-name"]));
   }));
 
 test("a game whose teams aren't both known yet names its number instead of a series count", () =>
@@ -625,7 +624,7 @@ test("the header names a problem with the page's server or the league's feeds", 
 });
 
 test("a score shows in scoreboard digits, and still reads as its number", () => {
-  const markup = renderScoreboard(89).text;
+  const markup = renderScoreboard(89, { places: 3 }).text;
   assert.match(markup, /<span class="scoreboard-text">89<\/span>/);
   assert.equal(markup.match(/<svg/g).length, 3);
   assert.equal(
@@ -633,18 +632,30 @@ test("a score shows in scoreboard digits, and still reads as its number", () => 
     7 + 6,
     "an 8 lights every segment, a 9 all but one",
   );
-  assert.match(renderScoreboard(68, { isLoser: true }).text, /class="scoreboard lost"/);
+  assert.match(renderScoreboard(68, { places: 2, isLoser: true }).text, /class="scoreboard lost"/);
 });
 
-test("every score fills three places, so each panel is one width, with the unused places dark", () => {
-  const readLitPlaces = (score) =>
-    renderScoreboard(score)
-      .text.split("<svg")
-      .slice(1)
-      .map((place) => (place.match(/class="on"/g) ?? []).length);
-  assert.deepEqual(readLitPlaces(7), [0, 0, 3]);
-  assert.deepEqual(readLitPlaces(89), [0, 7, 6]);
-  assert.deepEqual(readLitPlaces(101), [2, 6, 2]);
+/** @param {{ text: string }} markup */
+const readLitPlaces = (markup) =>
+  markup.text
+    .split("<svg")
+    .slice(1)
+    .map((place) => (place.match(/class="on"/g) ?? []).length);
+
+test("a score fills the places it's given, with the ones it doesn't reach dark", () => {
+  assert.deepEqual(readLitPlaces(renderScoreboard(7, { places: 2 })), [0, 3]);
+  assert.deepEqual(readLitPlaces(renderScoreboard(89, { places: 2 })), [7, 6]);
+  assert.deepEqual(readLitPlaces(renderScoreboard(98, { places: 3 })), [0, 6, 7]);
+});
+
+test("a game's two panels match, with a hundreds place only once a score reaches 100", () => {
+  const [game] = structuredClone(SEASON.games.filter((each) => each.state === "final"));
+  Object.assign(game.away, { score: 7 });
+  Object.assign(game.home, { score: 89 });
+  assert.deepEqual(readLitPlaces(renderHeadline(game)), [0, 3, 7, 6]);
+  Object.assign(game.away, { score: 101 });
+  Object.assign(game.home, { score: 98 });
+  assert.deepEqual(readLitPlaces(renderHeadline(game)), [2, 6, 2, 0, 6, 7]);
 });
 
 test("each game's score shows in scoreboard digits, the loser's dimmed", () =>

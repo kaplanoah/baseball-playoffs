@@ -2,7 +2,7 @@ import { countDaysBetween, formatClockTime, formatShortMonth } from "#shared/day
 import { renderGameRow } from "#shared/game-row.js";
 import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
-import { abbreviateDay, isNearDay, nameListDay, readGameDay } from "./days.js";
+import { abbreviateDay, nameListDay, readGameDay } from "./days.js";
 import { renderScoreboard } from "./scoreboard.js";
 import { nameTeam } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
@@ -45,6 +45,12 @@ export function describeLiveClock(game) {
   return isRunning ? `${describePeriod(game.period)} ${game.clock}` : game.status;
 }
 
+// Both of a game's panels hold the places its higher score needs, and at least two, so they match
+// each other and a hundreds place shows only once a game reaches 100.
+/** @param {Game} game */
+const countScorePlaces = (game) =>
+  Math.max(2, ...[game.away.score, game.home.score].map((score) => String(score ?? "").length));
+
 /** @param {Game} game */
 export function renderHeadline(game) {
   if (game.state === "pre") {
@@ -52,10 +58,11 @@ export function renderHeadline(game) {
     return html`<span class="time tabular">${time}</span>`;
   }
   const loser = findLoser(game);
-  return html`<span class="score"
-    >${renderScoreboard(game.away.score, { isLoser: loser === "away" })}${renderScoreboard(
+  const places = countScorePlaces(game);
+  return html`<span class="score${places > 2 ? " hundreds" : ""}"
+    >${renderScoreboard(game.away.score, { places, isLoser: loser === "away" })}${renderScoreboard(
       game.home.score,
-      { isLoser: loser === "home" },
+      { places, isLoser: loser === "home" },
     )}</span
   >`;
 }
@@ -165,7 +172,7 @@ const renderDay = ({ day, games }, allGames, now) =>
     <h3 class="day-label" aria-label="${nameListDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
       <span class="day-month">${formatShortMonth(day)}</span
       ><span class="day-number tabular">${day.getDate()}</span
-      ><span class="day-name${isNearDay(day, now) ? " near" : ""}">${abbreviateDay(day, now)}</span>
+      ><span class="day-name">${abbreviateDay(day, now)}</span>
     </h3>
     ${renderGameList(games, allGames)}
   </section>`;

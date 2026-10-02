@@ -589,6 +589,28 @@ test("each day's date sits to the left of its games, level with the first", asyn
   ).toBeLessThanOrEqual(1);
 });
 
+test("a game's series line, score, and status each have room in its row", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const row = page.locator("#games-previous .game-row:has(.score)").first();
+  const [box, label, score, status] = await Promise.all(
+    [
+      row,
+      ...[".game-label", ".game-headline", ".game-status"].map((part) => row.locator(part)),
+    ].map((part) => part.evaluate((element) => element.getBoundingClientRect().toJSON())),
+  );
+  expect(label.top - box.top).toBeGreaterThanOrEqual(6);
+  expect(score.top - label.bottom).toBeGreaterThanOrEqual(5);
+  expect(status.top - score.bottom).toBeGreaterThanOrEqual(4);
+  expect(box.bottom - status.bottom).toBeGreaterThanOrEqual(4);
+  const corners = await row
+    .locator(".scoreboard")
+    .first()
+    .evaluate((panel) => getComputedStyle(panel).borderRadius);
+  expect(corners).toBe("1px");
+});
+
 const DAY_ROOM_BY_WIDTH = [
   { width: 402, edge: 10, gap: 10, inset: 14 },
   { width: 390, edge: 8, gap: 10, inset: 10 },
@@ -614,7 +636,7 @@ for (const { width, edge, gap, inset } of DAY_ROOM_BY_WIDTH) {
   });
 }
 
-for (const width of [402, 390, 375, 360]) {
+for (const width of [430, 402, 390, 375, 360]) {
   test.describe(`on a ${width}px phone`, () => {
     test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
 

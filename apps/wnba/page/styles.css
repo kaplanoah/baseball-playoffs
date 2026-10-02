@@ -43,10 +43,9 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's, and the Games list's yesterday and
- * tomorrow. Teal marks structure: section labels, the playoff line, Bonus, and how a finished
- * series ended in the Games list. A bracket card's note keeps to the plain ink unless its game is
- * live.
+ * Orange marks what's happening now: live games and today's. Teal marks structure: section
+ * labels, the playoff line, Bonus, and how a finished series ended in the Games list. A bracket
+ * card's note keeps to the plain ink unless its game is live.
  */
 :root {
   --bg: #ead5b2;
@@ -93,11 +92,11 @@
   --pager-track-edge: rgba(42, 28, 16, 0.08);
   --pager-thumb: var(--card);
   --pager-thumb-edge: rgba(255, 255, 255, 0.6);
-  --game-row-height: 84px;
+  --game-row-height: 88px;
   --game-side-offset: 9px;
-  --game-label-offset: -21.5px;
+  --game-label-offset: -31px;
   --game-headline-offset: 0px;
-  --game-status-offset: 23px;
+  --game-status-offset: 31px;
   color-scheme: light;
 }
 /* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
@@ -305,7 +304,7 @@ header.top h1 {
 /* Games: each day's games share a card, beside its date as a wall calendar shows it, level with
    the first game, and in it the away and home teams face each other across the score. */
 .game-day {
-  --day-inset: 16px;
+  --day-inset: 14px;
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
   column-gap: 12px;
@@ -349,9 +348,6 @@ header.top h1 {
   letter-spacing: 0.06em;
   color: var(--ink-dim);
 }
-.day-name.near {
-  color: var(--orange);
-}
 .game-day .game-list {
   overflow: clip;
 }
@@ -363,13 +359,12 @@ header.top h1 {
 .game-day .game-row:last-child {
   border-bottom: 0;
 }
-/* A phone narrows the date's column and lets it reach into the page's margin, and trims the card's
-   sides, so a long name still fits beside a three-digit score. Narrower phones trim the room around
-   the date and inside the card further, and the narrowest also sets the names and the scores a
-   little closer. */
+/* A phone narrows the date's column and lets it reach into the page's margin, and trims the room
+   around the score, so a long name still fits beside it. Narrower phones trim
+   the room around the date and inside the card further, and the narrowest also sets the names and
+   the scores a little closer. */
 @media (max-width: 429px) {
   .game-day {
-    --day-inset: 14px;
     grid-template-columns: 28px minmax(0, 1fr);
     column-gap: 10px;
     margin-left: -6px;
@@ -379,6 +374,13 @@ header.top h1 {
   }
   .game-day .game-side .club {
     gap: 6px;
+  }
+  .game-day .game-middle {
+    padding-inline: 2px;
+  }
+  .game-day .scoreboard {
+    gap: 2px;
+    padding: 0 4px;
   }
 }
 @media (max-width: 399px) {
@@ -424,6 +426,16 @@ header.top h1 {
 }
 .game-middle {
   min-width: 76px;
+  padding-inline: 4px;
+}
+/* A game that reaches 100 draws its digits smaller, so a long name still fits beside them. */
+.game-day .game-middle:has(.hundreds) {
+  padding-inline: 0;
+}
+.game-day .hundreds .scoreboard {
+  --digit-height: 20px;
+  gap: 2px;
+  padding: 0 3px;
 }
 .score {
   display: flex;
@@ -432,15 +444,15 @@ header.top h1 {
 /* A score reads like an arena scoreboard: red seven-segment digits on a dark panel, with the
    segments that are off faintly showing. The loser's digits dim. */
 .scoreboard {
-  --digit-height: 20px;
+  --digit-height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  height: calc(var(--digit-height) * 1.6);
+  gap: 3px;
+  height: calc(var(--digit-height) * 1.5);
   min-width: calc(var(--digit-height) * 1.2);
-  padding: 0 3px;
-  border-radius: 3px;
+  padding: 0 5px;
+  border-radius: 1px;
   background: var(--scoreboard);
 }
 .scoreboard svg {
