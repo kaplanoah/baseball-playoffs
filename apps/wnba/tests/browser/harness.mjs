@@ -149,6 +149,7 @@ export async function openLockedApp(page, { accessCode }) {
   const env = {
     APP_KEY: PAGE_KEY,
     ACCESS_CODE: accessCode,
+    ACCESS_SIGNING_KEY: "test-signing-key",
     ACCESS_LIMIT: { limit: async () => ({ success: !tries.isOverLimit }) },
     STORE: { idFromName: () => "store", get: () => store },
   };

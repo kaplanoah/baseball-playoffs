@@ -25,17 +25,18 @@ const changeCode = (cloudflare, options) =>
     ...options,
   });
 
-test("the code is stored as the Worker's ACCESS_CODE secret", async () => {
+test("the code is stored as the Worker's ACCESS_CODE secret, after a new key to sign with", async () => {
   const cloudflare = createFakeCloudflare();
-  await changeCode(cloudflare, { code: "fast break" });
-  const [put] = cloudflare.calls;
-  assert.equal(put.url, SECRETS_URL);
-  assert.equal(put.init.method, "PUT");
-  assert.deepEqual(JSON.parse(put.init.body), {
-    name: "ACCESS_CODE",
-    text: "fast break",
-    type: "secret_text",
-  });
+  await changeCode(cloudflare, { code: "fast break", makeSigningKey: () => "n3wsigningkey" });
+  const puts = cloudflare.calls.filter((call) => call.init.method === "PUT");
+  assert.ok(puts.every((put) => put.url === SECRETS_URL));
+  assert.deepEqual(
+    puts.map((put) => JSON.parse(put.init.body)),
+    [
+      { name: "ACCESS_SIGNING_KEY", text: "n3wsigningkey", type: "secret_text" },
+      { name: "ACCESS_CODE", text: "fast break", type: "secret_text" },
+    ],
+  );
 });
 
 test("a code too short to guard the page, or none, is refused before Cloudflare hears of it", async () => {
@@ -52,11 +53,19 @@ test("an app whose page has no gate can't be given a code", async () => {
   assert.equal(cloudflare.calls.length, 0);
 });
 
-test("--remove deletes the code, and does nothing when there's none", async () => {
-  const set = createFakeCloudflare({ secrets: [{ name: "ACCESS_CODE", type: "secret_text" }] });
+test("--remove deletes the code and its signing key, and does nothing when there's none", async () => {
+  const set = createFakeCloudflare({
+    secrets: [
+      { name: "ACCESS_CODE", type: "secret_text" },
+      { name: "ACCESS_SIGNING_KEY", type: "secret_text" },
+    ],
+  });
   await changeCode(set, { isRemoving: true });
-  const removal = set.calls.find((call) => call.init.method === "DELETE");
-  assert.equal(removal.url, `${SECRETS_URL}/ACCESS_CODE`);
+  const removals = set.calls.filter((call) => call.init.method === "DELETE");
+  assert.deepEqual(
+    removals.map((call) => call.url),
+    [`${SECRETS_URL}/ACCESS_CODE`, `${SECRETS_URL}/ACCESS_SIGNING_KEY`],
+  );
 
   const unset = createFakeCloudflare();
   const printed = [];

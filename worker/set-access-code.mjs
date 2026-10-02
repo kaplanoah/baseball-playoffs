@@ -1,12 +1,15 @@
-// Sets the ACCESS_CODE secret, the code an app's page asks for before it opens, or with --remove,
-// stops asking. A new code signs every phone out until it types the new one.
+// Sets the ACCESS_CODE secret, the code an app's page asks for before it opens, with a new
+// ACCESS_SIGNING_KEY for the cookies that keep phones signed in, or with --remove, stops asking.
+// A new code signs every phone out until it types the new one.
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { normalizeCode } from "../shared/worker/access-gate.js";
 import { checkAppName, findPageRoot } from "./apps.mjs";
+import { createKey } from "./set-app-key.mjs";
 import { createSecretsClient } from "./worker-secrets.mjs";
 
-const SECRET_NAME = "ACCESS_CODE";
+const CODE_SECRET = "ACCESS_CODE";
+const SIGNING_SECRET = "ACCESS_SIGNING_KEY";
 const SHORTEST_CODE = 4;
 
 /** @param {string} app */
@@ -31,6 +34,7 @@ function checkCode(code) {
  * @param {typeof fetch} [options.fetchImpl]
  * @param {NodeJS.ProcessEnv} [options.env]
  * @param {typeof console.log} [options.log]
+ * @param {() => string} [options.makeSigningKey]
  */
 export async function setAccessCode({
   app,
@@ -39,20 +43,24 @@ export async function setAccessCode({
   fetchImpl = fetch,
   env = process.env,
   log = console.log,
+  makeSigningKey = createKey,
 }) {
   const secrets = createSecretsClient({ app, fetchImpl, env, log });
   if (isRemoving) {
-    if (!(await secrets.listSecretNames()).includes(SECRET_NAME)) {
+    const names = await secrets.listSecretNames();
+    if (!names.includes(CODE_SECRET)) {
       log("The page asks for no code.");
       return;
     }
-    await secrets.deleteSecret(SECRET_NAME);
+    await secrets.deleteSecret(CODE_SECRET);
+    if (names.includes(SIGNING_SECRET)) await secrets.deleteSecret(SIGNING_SECRET);
     log("The page opens without a code now.");
     return;
   }
   checkAppHasGate(app);
   checkCode(code);
-  await secrets.putSecret(SECRET_NAME, code);
+  await secrets.putSecret(SIGNING_SECRET, makeSigningKey());
+  await secrets.putSecret(CODE_SECRET, code);
   log("The page asks for the code now. Each phone types it once, and again after a new one.");
 }
 

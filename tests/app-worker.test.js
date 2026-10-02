@@ -1,4 +1,5 @@
 import test from "node:test";
+import { createHmac } from "node:crypto";
 import assert from "node:assert/strict";
 import { createAppWorker } from "../shared/worker/app-worker.js";
 
@@ -80,7 +81,7 @@ function createLockedWorker() {
   });
 }
 
-const LOCKED_ENV = { APP_KEY: "key", ACCESS_CODE: "fast break" };
+const LOCKED_ENV = { APP_KEY: "key", ACCESS_CODE: "fast break", ACCESS_SIGNING_KEY: "signing" };
 
 /**
  * @param {string} path under the page's key
@@ -174,6 +175,25 @@ test("a new code signs every phone out, and the gate can say so", async () => {
   assert.deepEqual(await (await requestLocked("/access", { cookie, env })).json(), {
     isChanged: true,
   });
+});
+
+test("a cookie anyone with the link could make from its key and a guessed code opens nothing", async () => {
+  const guessed = createHmac("sha256", "key").update("FASTBREAK").digest("base64url");
+  const cookie = `access=${guessed}`;
+  assert.equal(await (await requestLocked("/", { cookie })).text(), "the gate");
+  assert.equal((await requestLocked("/snapshot", { cookie })).status, 401);
+});
+
+test("a code without a key to sign with keeps the page locked and signs no one in", async () => {
+  const env = { APP_KEY: "key", ACCESS_CODE: "fast break" };
+  const response = await requestLocked("/access", {
+    method: "POST",
+    body: { code: "FASTBREAK" },
+    env,
+  });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.equal(await (await requestLocked("/", { env })).text(), "the gate");
 });
 
 test("too many tries from one address are turned away, even with the right code", async () => {

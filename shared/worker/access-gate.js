@@ -1,6 +1,8 @@
 // A Worker with the ACCESS_CODE secret asks for that code before its page opens. A phone that
-// sends it gets a cookie signed with the code and the page's key, so a new code signs every
-// phone out, and the Worker holds nothing about who has signed in.
+// sends it gets a cookie signed over the code with ACCESS_SIGNING_KEY, so a new code signs every
+// phone out, and the Worker holds nothing about who has signed in. The signing key is its own
+// secret because the page's key is in every link, and a cookie signed with it could be made, and
+// a code guessed, without ever meeting the limit on tries.
 import { respondError, respondJson } from "./responses.js";
 
 export const ACCESS_PATH = "/access";
@@ -24,12 +26,12 @@ function encodeBase64Url(buffer) {
 
 /**
  * @param {string} code
- * @param {string} appKey
+ * @param {string} signingKey
  */
-async function signCode(code, appKey) {
+async function signCode(code, signingKey) {
   const key = await crypto.subtle.importKey(
     "raw",
-    textEncoder.encode(appKey),
+    textEncoder.encode(signingKey),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -70,8 +72,9 @@ function readAccessCookie(request) {
 export async function readAccess(request, env) {
   if (!env.ACCESS_CODE) return "open";
   const cookie = readAccessCookie(request);
-  if (cookie === null) return "missing";
-  return isSameText(cookie, await signCode(env.ACCESS_CODE, env.APP_KEY)) ? "open" : "changed";
+  if (cookie === null || !env.ACCESS_SIGNING_KEY) return "missing";
+  const expected = await signCode(env.ACCESS_CODE, env.ACCESS_SIGNING_KEY);
+  return isSameText(cookie, expected) ? "open" : "changed";
 }
 
 /**
@@ -81,7 +84,7 @@ export async function readAccess(request, env) {
 export async function createAccessCookie(request, env) {
   const isSecure = new URL(request.url).protocol === "https:";
   return [
-    `${COOKIE_NAME}=${await signCode(env.ACCESS_CODE, env.APP_KEY)}`,
+    `${COOKIE_NAME}=${await signCode(env.ACCESS_CODE, env.ACCESS_SIGNING_KEY)}`,
     `Path=/${env.APP_KEY}/`,
     `Max-Age=${COOKIE_MAX_AGE_SECONDS}`,
     "HttpOnly",
@@ -118,10 +121,12 @@ async function readSentCode(request) {
 async function checkSentCode(request, env) {
   const code = await readSentCode(request);
   if (code === null) return respondError(400, "bad_request", "Send the code as { code }.");
+  if (!env.ACCESS_SIGNING_KEY)
+    return respondError(503, "not_ready", "The Worker has no ACCESS_SIGNING_KEY to sign in with.");
   if (!(await isWithinTryLimit(request, env)))
     return respondError(429, "too_many_tries", "Too many tries. Try again in a minute.");
-  const expected = await signCode(env.ACCESS_CODE, env.APP_KEY);
-  if (!isSameText(await signCode(code, env.APP_KEY), expected))
+  const expected = await signCode(env.ACCESS_CODE, env.ACCESS_SIGNING_KEY);
+  if (!isSameText(await signCode(code, env.ACCESS_SIGNING_KEY), expected))
     return respondError(401, "wrong_code", "That code isn't right.");
   return new Response(null, {
     status: 204,
