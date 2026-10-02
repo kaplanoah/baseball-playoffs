@@ -23,7 +23,7 @@ const linearize = (channel) =>
  * @param {string} hex like #1c1c1c
  * @returns {[number, number, number]}
  */
-function readOklab(hex) {
+export function readOklab(hex) {
   const [red, green, blue] = [1, 3, 5].map((start) =>
     linearize(parseInt(hex.slice(start, start + 2), 16) / 255),
   );

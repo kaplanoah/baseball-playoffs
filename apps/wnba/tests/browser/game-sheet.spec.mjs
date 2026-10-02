@@ -3,6 +3,7 @@ import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
 import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
+import { readOklab } from "../../page/js/sheet-colors.js";
 import { TEAMS } from "../../page/js/teams.js";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
@@ -15,6 +16,8 @@ const SMALLEST_TEXT_PX = 13;
 const TAPE_ROOM_PX = 8;
 // The least room between a team's name, as its font draws it, and the edge of the lead chart's tile.
 const NAME_GAP_PX = 4;
+// How far, in degrees, the paler bar of the side behind may turn from its team's own hue.
+const LARGEST_HUE_TURN = 10;
 
 // Most of these tests are about what a sheet shows, so they skip the eased scrolling between the
 // Games lists. The ones about how a sheet moves ask for full motion.
@@ -26,6 +29,30 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
  */
 const formatRgb = (hex) =>
   `rgb(${[1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16)).join(", ")})`;
+
+/**
+ * A color's hue in OKLCH, in degrees.
+ * @param {string} hex like #1c1c1c
+ */
+function measureHue(hex) {
+  const [, greenRed, blueYellow] = readOklab(hex);
+  return (Math.atan2(blueYellow, greenRed) * 180) / Math.PI;
+}
+
+/**
+ * The color an element's background paints, as hex, whatever form the browser computes it in.
+ * @param {import("@playwright/test").Locator} locator
+ */
+const readPaintedBackground = (locator) =>
+  locator.evaluate((element) => {
+    const context = /** @type {CanvasRenderingContext2D} */ (
+      document.createElement("canvas").getContext("2d")
+    );
+    context.fillStyle = getComputedStyle(element).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+    return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+  });
 
 /**
  * Shows the Games list that has the game a button names, and finds the button.
@@ -86,7 +113,7 @@ test("tapping a final opens its sheet with the score, the box score, and the top
   const sheet = await openSheet(page, ACES_AT_FEVER);
 
   await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("First Round Game 2");
-  await expect(sheet.locator("#gameWhen")).toHaveText("Tied 1-1•Yesterday");
+  await expect(sheet.locator("#gameWhen")).toHaveText("Fever won to tie 1-1•Yesterday");
   await expect(sheet.locator(".faceoff .score")).toHaveText(/89\s*99/);
   await expect(sheet.locator(".faceoff-record")).toHaveText(["31-13", "28-16"]);
   await expect(sheet.locator(".line-score tbody tr").first()).toHaveText(
@@ -285,6 +312,25 @@ test("each team's side of the lead chart and the team stats takes its color, on 
       "background-color",
       awayColor,
     );
+  }
+});
+
+test("the side behind on a measure gets a paler bar of its own team's hue, on each theme", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  const behind = sheet.locator(".tape-row").first().locator(".away .tape-bar i");
+  await expect(behind).not.toHaveClass("lead");
+
+  for (const theme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme: theme });
+    const teamColor = TEAMS.GSV.chartColors[theme][0];
+    await expect(behind).not.toHaveCSS("background-color", formatRgb(teamColor));
+    const turn = Math.abs(measureHue(await readPaintedBackground(behind)) - measureHue(teamColor));
+    expect(Math.min(turn, 360 - turn)).toBeLessThan(LARGEST_HUE_TURN);
   }
 });
 
