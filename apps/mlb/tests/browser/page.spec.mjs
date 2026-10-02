@@ -755,6 +755,27 @@ test("on a wide screen, the whole bracket shows without round dots", async ({ pa
   await expect(page.locator("#bracketWrap .round-dots")).toHaveCount(0);
 });
 
+test("a stacked bracket that fits the screen's width has no round dots and nothing to scroll", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openApp(page);
+  const scroller = page.locator("#bracketWrap .tree-scroll");
+  const dots = page.locator("#bracketWrap .round-dots");
+  const canScroll = () => scroller.evaluate((tree) => tree.scrollWidth > tree.clientWidth);
+  await expect(scroller).toHaveClass(/stacked/);
+  await expect(dots).toHaveCount(0);
+  expect(await canScroll()).toBe(false);
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(dots).toHaveCount(1);
+  expect(await canScroll()).toBe(true);
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(dots).toHaveCount(0);
+  expect(await canScroll()).toBe(false);
+});
+
 test("on a phone, the bracket stacks the AL above the NL, each running left to right into the World Series", async ({
   page,
 }) => {

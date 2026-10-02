@@ -91,6 +91,7 @@ const findColumnLeft = (layout, index) =>
   layout.inset + index * CARD.width + sumGaps(layout, index);
 const findColumnRight = (layout, index) => findColumnLeft(layout, index) + CARD.width;
 const WIDE_STAGE_WIDTH = findColumnRight(WIDE, 6) + WIDE.inset;
+const STACKED_LINES_WIDTH = findColumnLeft(STACKED, 3) + STACKED.worldSeriesWidth;
 
 const PAGE_GUTTER = 18; // body's side padding in styles.css
 const NARROW = matchMedia(`(max-width: ${WIDE_STAGE_WIDTH + 2 * PAGE_GUTTER - 1}px)`);
@@ -322,6 +323,7 @@ function renderWideStage(bracket) {
 const isShown = (element) => element.getClientRects().length > 0;
 
 let renderedGrowth = 0;
+let renderedFits = false;
 
 // A floating tab bar's transform is left out, since the bar stretches while it moves.
 function findSpaceBottom() {
@@ -343,6 +345,11 @@ function measureGrowth(wrap) {
   const bounded = Math.min(STACKED.maxGrowth, Math.max(1, growth));
   return Math.floor(bounded * 100) / 100;
 }
+
+// A stacked bracket as wide as the screen or narrower has nothing to scroll to.
+/** @param {HTMLElement} wrap */
+const measureFit = (wrap) =>
+  isShown(wrap) ? STACKED_LINES_WIDTH <= wrap.clientWidth : renderedFits;
 
 function sizeSpaces(growth) {
   return {
@@ -399,20 +406,21 @@ function renderLeague(key, league, place) {
   ];
 }
 
-function renderStackedStage(bracket, growth) {
+function renderStackedStage(bracket, growth, fits) {
   const spaces = sizeSpaces(growth);
   const al = placeLeague(spaces.top, spaces);
   const nl = placeLeague(al.bottom + spaces.betweenRows, spaces);
   const worldSeriesY = Math.round((al.championshipY + nl.championshipY) / 2);
   const worldSeriesLeft = findColumnLeft(STACKED, 3);
-  const linesWidth = worldSeriesLeft + STACKED.worldSeriesWidth;
   const height = nl.bottom;
   // Running half the scroller's width past the World Series card's middle lets the card scroll to
   // the screen's middle.
   const worldSeriesMiddle = worldSeriesLeft + STACKED.worldSeriesWidth / 2;
-  const stageWidth = `max(${linesWidth}px, calc(${worldSeriesMiddle}px + 50%))`;
+  const stageWidth = fits
+    ? `${STACKED_LINES_WIDTH}px`
+    : `max(${STACKED_LINES_WIDTH}px, calc(${worldSeriesMiddle}px + 50%))`;
   return html`<div class="bracket-stage" style="width:${stageWidth}; height:${height}px;">
-    <svg class="bracket-lines" width="${linesWidth}" height="${height}" viewBox="0 0 ${linesWidth} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
+    <svg class="bracket-lines" width="${STACKED_LINES_WIDTH}" height="${height}" viewBox="0 0 ${STACKED_LINES_WIDTH} ${height}">${drawStackedConnectors([al, nl], worldSeriesY)}</svg>
     ${renderLeague("al", bracket.al, al)}
     ${renderSeriesCard(bracket.ws, worldSeriesY, worldSeriesLeft, {
       champLine: describeWorldSeriesWin(bracket.ws),
@@ -434,7 +442,7 @@ function findOpeningRoundCode(bracket) {
 /** @type {ReturnType<typeof watchOpeningRound> | null} */
 let placeBracket = null;
 
-// Only the stacked bracket scrolls sideways, so only it has round dots.
+// Only a stacked bracket wider than the screen scrolls sideways, so only it has round dots.
 function markRoundScrolledTo() {
   const wrap = /** @type {HTMLElement} */ (document.getElementById("bracketWrap"));
   const dots = /** @type {HTMLElement | null} */ (wrap.querySelector(".round-dots"));
@@ -460,13 +468,16 @@ export function renderBracket() {
   }
 
   const growth = NARROW.matches ? measureGrowth(wrap) : 0;
-  const stage = NARROW.matches ? renderStackedStage(bracket, growth) : renderWideStage(bracket);
+  const fits = !NARROW.matches || measureFit(wrap);
+  const stage = NARROW.matches
+    ? renderStackedStage(bracket, growth, fits)
+    : renderWideStage(bracket);
   const scrollLeft = wrap.querySelector(".tree-scroll")?.scrollLeft ?? 0;
   const hadFocus = wrap.contains(document.activeElement);
   setHtml(
     wrap,
     html`<div class="tree-scroll ${NARROW.matches ? "stacked" : ""}" tabindex="0" role="region" aria-label="Bracket">${stage}</div>
-      ${NARROW.matches && renderRoundDots(ROUND_ORDER)}`,
+      ${!fits && renderRoundDots(ROUND_ORDER)}`,
   );
   const scroller = /** @type {HTMLElement} */ (wrap.querySelector(".tree-scroll"));
   const openingRound = findOpeningRoundCode(bracket);
@@ -483,17 +494,19 @@ export function renderBracket() {
   if (hadFocus) scroller.focus({ preventScroll: true });
   markRoundScrolledTo();
   renderedGrowth = growth;
+  renderedFits = fits;
   renderBanner(bracket);
 }
 
 /* Redraws when the whole wide bracket starts or stops fitting, and while stacked when the spaces'
-   share of the screen changes: the screen resizes, the bracket tab shows, or content above the
-   bracket grows or shrinks. */
+   share of the screen changes or the stacked bracket starts or stops fitting its width: the screen
+   resizes, the bracket tab shows, or content above the bracket grows or shrinks. */
 export function watchBracketSpace() {
   const wrap = document.getElementById("bracketWrap");
   const redrawIfResized = () => {
     if (!NARROW.matches || !renderedGrowth || !isShown(wrap)) return;
-    if (measureGrowth(wrap) !== renderedGrowth) renderBracket();
+    if (measureGrowth(wrap) !== renderedGrowth || measureFit(wrap) !== renderedFits)
+      renderBracket();
   };
   NARROW.addEventListener("change", renderBracket);
   addEventListener("resize", redrawIfResized);
