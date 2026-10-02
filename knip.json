@@ -14,7 +14,7 @@
     "shared/page/release-guard.js",
     "apps/*/tests/*.test.js",
     "apps/*/tests/browser/*.spec.mjs",
-    "apps/*/tests/fixtures/record.js"
+    "apps/*/tests/fixtures/record*.js"
   ],
   "project": [
     "apps/*/page/js/**/*.js",

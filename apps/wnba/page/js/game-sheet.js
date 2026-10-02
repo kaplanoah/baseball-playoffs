@@ -9,7 +9,7 @@ import { openSheet, wireSheet } from "#shared/sheet.js";
 import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
-import { fetchBoxScore, fetchPreview } from "./game-details-fetch.js";
+import { fetchBoxScore, fetchLead, fetchPreview } from "./game-details-fetch.js";
 import { findLoser, nameGame, renderHeadline, renderStatus } from "./games-view.js";
 import { renderPreview } from "./preview-view.js";
 import { describeSeriesStanding } from "./series.js";
@@ -18,7 +18,7 @@ import { renderSheetMessage } from "./sheet-parts.js";
 import { POLL_LIVE_MS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
-/** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any }} ShownGame */
+/** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any, lead: any }} ShownGame */
 
 // The game the sheet shows. Each opening, and each switch to a box score, is a new one, so an
 // answer that arrives after it changed is dropped.
@@ -89,7 +89,9 @@ function renderDetails(opened, game) {
     return renderPreview({ teams, season: session.season, meetings, isLoading: isLoading(opened) });
   }
   if (opened.error) return renderSheetMessage(describeProblem(opened.error));
-  return opened.details ? renderBoxScore(opened.details) : renderPendingBoxScore(teams);
+  return opened.details
+    ? renderBoxScore(opened.details, opened.lead)
+    : renderPendingBoxScore(teams);
 }
 
 function renderSheet() {
@@ -119,6 +121,32 @@ const loadDetails = (game) =>
 /** @param {ShownGame} opened */
 const isLiveBoxScore = (opened) => opened.kind === "box" && findGame(opened.id)?.state === "live";
 
+/** @param {Game} game */
+const loadLead = (game) =>
+  fetchLead({
+    away: /** @type {string} */ (game.away.team),
+    home: /** @type {string} */ (game.home.team),
+    start: /** @type {string} */ (game.start),
+  });
+
+// The lead comes from ESPN, beside the league's box score, so the box score never waits on it, and
+// a read that fails keeps the chart already showing, or none.
+/**
+ * @param {ShownGame} opened
+ * @param {Game} game
+ */
+async function refreshLead(opened, game) {
+  if (opened.kind !== "box" || !game.start) return;
+  try {
+    const lead = await loadLead(game);
+    if (shown !== opened) return;
+    opened.lead = lead;
+    renderSheet();
+  } catch {
+    // ESPN didn't answer, so the sheet goes on without the chart.
+  }
+}
+
 // A live game's box score is read again as often as its score, until the sheet closes. A read
 // that fails keeps the box score already showing.
 async function refreshDetails() {
@@ -126,6 +154,7 @@ async function refreshDetails() {
   const game = findGame(opened.id);
   clearTimeout(refreshTimer);
   if (!game) return;
+  refreshLead(opened, game);
   try {
     const details = await loadDetails(game);
     if (shown !== opened) return;
@@ -142,7 +171,7 @@ async function refreshDetails() {
 /** @param {string} id */
 function showGame(id) {
   const game = findGame(id);
-  shown = { id, kind: chooseKind(game), details: null, error: null };
+  shown = { id, kind: chooseKind(game), details: null, error: null, lead: null };
   renderSheet();
   refreshDetails();
 }
