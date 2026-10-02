@@ -154,26 +154,23 @@ section.view.active {
   display: block;
 }
 
-/* Settings run the full height of the screen under a pinned header. An app can size a section to
-   fill the rest of the sheet from --head-height, --section-gap, and --bottom-padding. */
+/* Settings are as tall as what they hold, up to nearly the screen's height, under a pinned header.
+   An app that fills the whole sheet sizes its sections from --head-height, the header's least
+   height, --section-gap, and --bottom-padding. */
 .settings-panel {
   --head-height: 64px;
   --section-gap: 14px;
   --bottom-padding: 22px;
   width: calc(100% - 24px);
   max-width: 420px;
-  height: calc(100% - 48px);
-  max-height: none;
-  margin: 24px auto;
+  max-height: calc(100% - 48px);
+  margin: auto;
   padding: 0;
   background: var(--card);
   color: var(--ink);
   border: 1px solid var(--card-border);
   border-radius: 12px;
   box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
-  container-type: size;
-  scroll-snap-type: y proximity;
-  scroll-padding-top: calc(var(--head-height) + var(--section-gap));
   overscroll-behavior: contain;
 }
 .settings-panel::backdrop {
@@ -192,9 +189,9 @@ section.view.active {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  height: var(--head-height);
+  min-height: var(--head-height);
   margin-inline: -22px;
-  padding-inline: 22px;
+  padding: 10px 22px;
   background: var(--card);
   transition: box-shadow 0.2s;
 }
@@ -268,7 +265,6 @@ section.view.active {
 }
 .settings-controls {
   border-block: 1px solid var(--divider);
-  scroll-snap-align: start;
 }
 .control-row {
   display: flex;
@@ -525,14 +521,14 @@ body:has(> .home-screen-bar:not([hidden])) {
     margin-bottom: 0;
   }
 
-  /* On phones, settings rise from the bottom as a sheet as tall as the screen allows, and a swipe
-     down closes them. settings-sheet.js moves the sheet with the finger. */
+  /* On phones, settings rise from the bottom as a sheet, and a swipe down closes them.
+     sheet-swipe.js moves the sheet with the finger. */
   .settings-panel {
     --head-height: 63px;
     --bottom-padding: max(22px, env(safe-area-inset-bottom));
     width: 100%;
     max-width: none;
-    height: calc(100% - 44px - env(safe-area-inset-top));
+    max-height: calc(100% - 44px - env(safe-area-inset-top));
     margin: auto 0 0;
     border-width: 1px 0 0;
     border-radius: 22px 22px 0 0;
@@ -552,19 +548,22 @@ body:has(> .home-screen-bar:not([hidden])) {
   .sheet-top {
     justify-content: flex-start;
     margin-inline: -18px;
-    padding-inline: 18px;
+    padding: 0 18px 6px;
   }
   .sheet-grabber {
     display: block;
     width: 48px;
     height: 5px;
-    margin: 8px auto 6px;
+    margin: 8px auto 12px;
     border-radius: 3px;
     background: color-mix(in srgb, var(--ink) 25%, transparent);
   }
+  /* Done has no room of its own here, so the title sits a set distance under the grabber however
+     many lines it has. */
   .sheet-head {
     position: relative;
     justify-content: center;
+    min-height: 0;
   }
   .sheet-title {
     align-items: center;

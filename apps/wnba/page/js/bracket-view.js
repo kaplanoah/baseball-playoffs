@@ -127,7 +127,8 @@ const describeUnlisted = (id) => ({
 
 /**
  * The rounds left to right, each series beside the two it follows, under the rounds' names, opening
- * on the earliest round still playing. Its lines are drawn once it's on the page (bracket-tree.js).
+ * on the earliest round still playing. Its lines and their turns are drawn once it's on the page
+ * (bracket-tree.js).
  * @param {{ games?: Game[], series?: Series[] } | null} season
  * @param {number} now
  */
@@ -149,7 +150,8 @@ export function renderBracket(season, now) {
   );
   const cells = rounds.flat().map((series) => renderSeries(series, games, now));
   return html`<div class="bracket" data-opening-round="${openingRound}">
-      <svg class="bracket-lines" aria-hidden="true"></svg>${names}${cells}
+      <svg class="bracket-lines" aria-hidden="true"></svg
+      ><svg class="bracket-turns" aria-hidden="true"></svg>${names}${cells}
     </div>
     ${renderRoundDots(Object.keys(BRACKET_ORDER))}`;
 }

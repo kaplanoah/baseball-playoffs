@@ -167,6 +167,44 @@ test.describe("on a phone, the bracket", () => {
     for (const gap of gaps.between) expect(gap).toBeCloseTo(TIGHTEST_CARD_GAP, 0);
   });
 
+  test("on the Semifinals, the first round's lines run off the screen's edge without turning at it", async ({
+    page,
+  }) => {
+    const app = await openApp(page);
+    await app.changeSeason(finishFirstRound);
+    await expect(readRoundName(page, 2)).toBeInViewport({ ratio: 1 });
+    /** Each turn's place on the screen, and whether it shows past the turns' clip. */
+    const readTurns = () =>
+      page.locator(".bracket-turns").evaluate((svg) => {
+        const clipLeft = Number(getComputedStyle(svg).clipPath.match(/([\d.]+)px\)$/)?.[1]);
+        const svgLeft = svg.getBoundingClientRect().left;
+        return [...svg.querySelectorAll("path")].map((path) => {
+          const x = svgLeft + /** @type {SVGPathElement} */ (path).getBBox().x;
+          return { next: path.dataset.next, x, isShown: x >= svgLeft + clipLeft };
+        });
+      });
+    await expect
+      .poll(async () =>
+        (await readTurns()).filter((turn) => !turn.isShown).map((turn) => turn.next),
+      )
+      .toEqual(["2-0", "2-1"]);
+    for (const turn of await readTurns()) if (!turn.isShown) expect(turn.x).toBeLessThan(16);
+    const card = await page.locator('[data-series="2-0"]').boundingBox();
+    // The line into a card starts at its turn: the last move in its shape.
+    const lineStart = await page
+      .locator('.bracket-lines path[data-next="2-0"]')
+      .evaluate((path) => {
+        const svg = /** @type {Element} */ (path.closest("svg")).getBoundingClientRect();
+        const moves = [...String(path.getAttribute("d")).matchAll(/M([\d.]+)/g)];
+        return svg.left + Number(moves.at(-1)?.[1]);
+      });
+    expect(lineStart).toBeLessThan(2);
+    expect(card.x - lineStart).toBeGreaterThan(14);
+
+    await page.locator(".bracket").evaluate((tree) => (tree.scrollLeft = 0));
+    await expect.poll(async () => (await readTurns()).every((turn) => turn.isShown)).toBe(true);
+  });
+
   test("shows the next round's edge beside the one it opens on", async ({ page }) => {
     await openApp(page);
     await expect(page.locator('[data-series="2-0"]')).toBeVisible();
@@ -402,6 +440,40 @@ test("a round's Best of sits just after its name", async ({ page }) => {
     .locator(":scope > span")
     .evaluateAll((parts) => parts.map((part) => part.getBoundingClientRect().toJSON()));
   expect(bestOf.left - name.right).toBeCloseTo(10, 0);
+});
+
+test("a series' winner has its wins on an orange block, cut through to the floor, its name at the weight of the rest", async ({
+  page,
+}) => {
+  await openApp(page);
+  const card = page.locator('[data-series="1-0"]');
+  const [won, out] = [card.locator(".team-line.won"), card.locator(".team-line.out")];
+  await expect(won).toContainText("Liberty");
+  const readBlock = (line) =>
+    line.locator(".wins").evaluate((wins) => ({
+      face: getComputedStyle(wins, "::after").backgroundColor,
+      number: getComputedStyle(wins).color,
+    }));
+  const readColors = () =>
+    page.evaluate(() => {
+      const probe = document.createElement("i");
+      document.body.append(probe);
+      const read = (token) => {
+        probe.style.color = `var(${token})`;
+        return getComputedStyle(probe).color;
+      };
+      const colors = { orange: read("--orange"), floor: read("--bg") };
+      probe.remove();
+      return colors;
+    });
+  for (const colorScheme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme });
+    const { orange, floor } = await readColors();
+    expect(await readBlock(won)).toEqual({ face: orange, number: floor });
+    expect((await readBlock(out)).face).not.toBe(orange);
+  }
+  await expect(won.locator(".club")).toHaveCSS("font-weight", "600");
+  await expect(out.locator(".club")).toHaveCSS("font-weight", "600");
 });
 
 test("each team's wins sit on a block that casts a shadow on the card", async ({ page }) => {
