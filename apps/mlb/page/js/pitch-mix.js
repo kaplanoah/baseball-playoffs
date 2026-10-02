@@ -1,5 +1,6 @@
-// A pitcher's pitches from slowest to fastest: a line that places each by its speed, then a row
-// for each with a bar for how often he throws it. Until they load, gray rows stand in.
+// A pitcher's pitches from slowest to fastest: a bar split by how often he throws each, a line
+// that places each by its speed, then a row for each, keyed by a dot the size of the line's. Until
+// they load, gray rows stand in.
 
 import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
@@ -29,12 +30,11 @@ const WIDTH = 320;
 const EDGE = 10;
 const LINE_Y = 8;
 const DOT_RADIUS = 5.5;
+const DOT_EDGE = 1.5;
 const DOT_STEP = 2 * DOT_RADIUS + 1;
 const LABEL_STEP_MPH = 10;
 const LABEL_Y = LINE_Y + 19;
 const LINE_HEIGHT = 32;
-// A pitch thrown half the time fills its bar.
-const FULL_BAR_SHARE = 0.5;
 
 export const namePitch = (pitch) => PITCH_NAMES[pitch.code] || pitch.name;
 
@@ -88,7 +88,11 @@ function keepOnLine(dots) {
 const formatNumber = (value) => Number(value.toFixed(1));
 
 const renderDot = ({ pitch, x }) =>
-  html`<circle class="pitch-dot pitch-${pitch.code}" cx="${formatNumber(x)}" cy="${LINE_Y}" r="${DOT_RADIUS}"/>`;
+  html`<circle class="pitch-dot pitch-${pitch.code}" cx="${formatNumber(x)}" cy="${LINE_Y}" r="${DOT_RADIUS}" stroke-width="${DOT_EDGE}"/>`;
+
+// The line scales with the chart's width, so the bar's inset and the rows' dots are shares of it:
+// the bar ends where the line does, and a row's dot is the line's dot inside its edge.
+const LINE_SCALE = `--line-edge: ${EDGE / WIDTH}; --line-dot: ${(2 * DOT_RADIUS - DOT_EDGE) / WIDTH}`;
 
 // A label every 10 mph, with the unit on the first, whose number still centers on its speed.
 function renderSpeedLabels(low, high, toX) {
@@ -116,12 +120,16 @@ function renderSpeedLine(pitches) {
   </svg>`;
 }
 
-const measureBar = (share) => Math.round(Math.min(1, share / FULL_BAR_SHARE) * 100);
+const renderSlice = (pitch) =>
+  html`<i class="pitch-${pitch.code}" style="flex-grow: ${pitch.share}"></i>`;
+
+const renderUsage = (pitches) =>
+  html`<div class="pitch-usage" aria-hidden="true">${pitches.map(renderSlice)}</div>`;
 
 const renderPitchRow = (pitch) =>
   html`<li class="pitch-${pitch.code}">
+    <span class="pitch-key"></span>
     <span class="pitch-name">${namePitch(pitch)}</span>
-    <span class="pitch-bar"><i style="width: ${measureBar(pitch.share)}%"></i></span>
     <span class="pitch-share tabular">${Math.round(pitch.share * 100)}%</span>
     <span class="pitch-speed tabular">${Math.round(pitch.mph)} mph</span>
   </li>`;
@@ -130,28 +138,29 @@ const renderPitchRow = (pitch) =>
 export function renderPitchMix(allPitches) {
   const pitches = listShownPitches(allPitches);
   if (!pitches.length) return html``;
-  return html`<div class="pitch-mix">
+  return html`<div class="pitch-mix" style="${LINE_SCALE}">
+    ${renderUsage(pitches)}
     ${renderSpeedLine(pitches)}
     <ol class="pitch-rows">${pitches.map(renderPitchRow)}</ol>
   </div>`;
 }
 
-// The stand-in rows' bars, as shares of a full bar.
-const PENDING_BARS = [60, 90, 30];
+const PENDING_ROWS = 3;
 
-const renderPendingRow = (width) =>
+const renderPendingRow = () =>
   html`<li>
+    <span class="pitch-key pending"></span>
     <span class="pitch-name">${renderPlaceholder("Four-seam")}</span>
-    <span class="pitch-bar pending"><i style="width: ${width}%"></i></span>
     <span class="pitch-share">${renderPlaceholder("00%")}</span>
     <span class="pitch-speed">${renderPlaceholder("00 mph")}</span>
   </li>`;
 
 export function renderPendingPitchMix() {
-  return html`<div class="pitch-mix">
+  return html`<div class="pitch-mix" style="${LINE_SCALE}">
+    <div class="pitch-usage pending" aria-hidden="true"><i></i></div>
     <svg class="speed-line" viewBox="0 0 ${WIDTH} ${LINE_HEIGHT}" aria-hidden="true">
       <line class="speed-axis" x1="${EDGE}" y1="${LINE_Y}" x2="${WIDTH - EDGE}" y2="${LINE_Y}"/>
     </svg>
-    <ol class="pitch-rows">${PENDING_BARS.map(renderPendingRow)}</ol>
+    <ol class="pitch-rows">${Array.from({ length: PENDING_ROWS }, renderPendingRow)}</ol>
   </div>`;
 }
