@@ -929,14 +929,15 @@ table.players td.minutes {
 .team-line + .team-line {
   border-top: 1px solid var(--divider);
 }
-/* Seed and its number center on each other, rather than sharing a baseline. */
+/* The number and Seed share a baseline. Each is trimmed to its letters, from the top of a capital
+   to the baseline, so the pair centers on its row by what's drawn rather than by its fonts' boxes. */
 .seed-label {
   position: absolute;
   top: 50%;
   right: calc(100% + 9px);
   translate: 0 -50%;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.45em;
   font-size: 0.66rem;
   font-weight: 500;
@@ -952,6 +953,10 @@ table.players td.minutes {
   line-height: 1;
   letter-spacing: 0;
   color: var(--ink);
+}
+.seed-number,
+.seed-word {
+  text-box: trim-both cap alphabetic;
 }
 /* A team's wins sit on a square block resting on the card, seen from a little above and to the
    left: its bottom and right sides show, mitred where they meet the face, and it casts a soft

@@ -19,7 +19,7 @@ import { ROUNDS } from "./snapshot.js";
  */
 const renderSeedLabel = (side, series) =>
   series.round === 1 && side.seed
-    ? html`<span class="seed-label"><span class="seed-number">${side.seed}</span> seed</span>`
+    ? html`<span class="seed-label"><span class="seed-number">${side.seed}</span> <span class="seed-word">seed</span></span>`
     : "";
 
 /**
