@@ -371,16 +371,22 @@ header.top h1 {
    little closer. */
 @media (max-width: 429px) {
   .game-day {
-    --day-inset: 10px;
+    --day-inset: 14px;
     grid-template-columns: 28px minmax(0, 1fr);
     column-gap: 10px;
-    margin-left: -8px;
+    margin-left: -6px;
   }
   .game-day .game-row {
     column-gap: 4px;
   }
   .game-day .game-side .club {
     gap: 6px;
+  }
+}
+@media (max-width: 399px) {
+  .game-day {
+    --day-inset: 10px;
+    margin-left: -8px;
   }
 }
 @media (max-width: 389px) {
