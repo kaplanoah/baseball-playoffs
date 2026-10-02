@@ -70,11 +70,11 @@ const LIVE_TONIGHT = replaceGame(SEASON, "1042600132", {
   home: { team: "WAS", seed: 5, score: 68, seriesWins: 0, isInBonus: true, timeouts: 1 },
 });
 
-test("a team's dot shows its logo's colors, top then bottom", () => {
-  assert.match(renderDot("WAS").text, /--color:#002b5c;--color2:#e03a3e/);
-  assert.match(renderDot("PHX").text, /--color:#fa4b0a;--color2:#3c286e/);
-  assert.match(renderDot("MIN").text, /--color:#315c98;--color2:#6cc32e/);
-  assert.match(renderDot("LVA").text, /--color:#000000;--color2:#a7a8aa/);
+test("a team's dot shows its logo's colors, top then bottom, with a lighter half given less room", () => {
+  assert.match(renderDot("WAS").text, /--color:#002b5c;--color2:#e03a3e;--split:51%/);
+  assert.match(renderDot("IND").text, /--color:#20305d;--color2:#fad412;--split:52%/);
+  assert.match(renderDot("NYL").text, /--color:#87d5b5;--color2:#100f0d;--split:49%/);
+  assert.match(renderDot("PHX").text, /--color:#fa4b0a;--color2:#3c286e;--split:50%/);
 });
 
 test("a series reads as who leads, a tie, or who won it", () => {

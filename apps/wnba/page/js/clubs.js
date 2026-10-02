@@ -7,7 +7,7 @@ import { TEAMS } from "./teams.js";
 export function renderDot(code) {
   const team = code ? TEAMS[code] : null;
   if (!team) return html`<span class="dot unknown"></span>`;
-  return html`<span class="dot" style="--color:${team.color};--color2:${team.color2}"></span>`;
+  return html`<span class="dot" style="--color:${team.color};--color2:${team.color2};--split:${team.dotSplit}%"></span>`;
 }
 
 // The feeds give a seed of 0 to a team that isn't known yet.
