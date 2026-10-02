@@ -29,8 +29,11 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await expect(page.locator("#games-today .game-row").first()).toContainText("7:00");
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standings-league tr.playoff-line + tr")).toContainText("Fire");
-  await page.getByRole("tab", { name: "Teams" }).click();
-  await expect(page.locator("#teamsWrap .team").first()).toContainText("Minnesota Lynx");
+  await expect(page.locator("nav.tabs").getByRole("tab")).toHaveText([
+    "Bracket",
+    "Games",
+    "Standings",
+  ]);
 });
 
 test("no text is heavier than 600 but the calendar's day numbers", async ({ page }) => {
@@ -46,10 +49,11 @@ test("no text is heavier than 600 but the calendar's day numbers", async ({ page
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standings-league tr").nth(2)).toBeVisible();
   expect(await listHeavyText(page)).toEqual([]);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  await page.locator("#teamsWrap .team summary").first().click();
-  await expect(page.locator("#teamsWrap .team[open] .team-scorer")).toBeVisible();
+  await page.getByRole("button", { name: "Team details: Minnesota Lynx" }).first().click();
+  await expect(page.locator("#teamDialog .team-scorer")).toBeVisible();
   expect(await listHeavyText(page)).toEqual([]);
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#teamDialog")).toBeHidden();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settingsDialog")).toBeVisible();
   expect(await listHeavyText(page)).toEqual([]);
@@ -527,9 +531,6 @@ test("every team name is in Barlow Condensed", async ({ page }) => {
       );
   await expect(page.locator(".team-line .club").first()).toBeVisible();
   expect(new Set(await readFonts(".club"))).toEqual(new Set(["Barlow Condensed"]));
-  await page.getByRole("tab", { name: "Teams" }).click();
-  await expect(page.locator(".team-full-name").first()).toBeVisible();
-  expect(new Set(await readFonts(".team-full-name"))).toEqual(new Set(["Barlow Condensed"]));
 });
 
 test("the title and the round names are in Barlow Condensed, and each card's note in Barlow's italic", async ({
@@ -567,7 +568,7 @@ test("a tap shows only the page's own states: no gray flash, and no hover left b
   page,
 }) => {
   await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
+  await page.getByRole("tab", { name: "Standings" }).click();
   expect(await listTapFlashes(page)).toEqual([]);
   expect(await listTouchHoverRules(page)).toEqual([]);
 });
@@ -580,153 +581,81 @@ test("hovering the settings button shades a rounded square around its icon", asy
   await expect(button).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
 
-test("a team opens to its season, and stays open as the season changes", async ({ page }) => {
-  const app = await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const aces = page.locator('#teamsWrap [data-team="LVA"]');
-  await expect(aces.locator(".team-season")).toBeHidden();
+test.describe("a team's sheet", () => {
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-  await aces.locator("summary").click();
-  await expect(aces.locator(".team-season")).toContainText("Leading scorer");
-  await app.changeSeason((season) => {
-    season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
-    return season;
+  test("a team in the standings opens its sheet, which follows the season as it changes, and Done closes it", async ({
+    page,
+  }) => {
+    const app = await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="LVA"] td.recent').first().click();
+    const sheet = page.locator("#teamDialog");
+
+    await expect(sheet.locator("#teamTitle")).toHaveText("Las Vegas Aces");
+    await expect(sheet.locator("#teamNote")).toHaveText("West\u20223 seed\u202231-13");
+    await expect(sheet).toContainText("Leading scorer");
+    await app.changeSeason((season) => {
+      season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
+      return season;
+    });
+    await expect(sheet).toContainText(/Last 10\s*9-1/);
+
+    await sheet.getByRole("button", { name: "Done" }).click();
+    await expect(sheet).toBeHidden();
   });
 
-  await expect(aces.locator(".team-season")).toContainText(/Last 10\s*9-1/);
-  await expect(aces).toHaveAttribute("open", "");
-});
+  test("a team in the bracket opens its sheet", async ({ page }) => {
+    await openApp(page);
+    await page.locator('#bracketWrap .team-line[data-team="NYL"]').first().click();
+    const sheet = page.locator("#teamDialog");
 
-/**
- * Notes the heights each team's easing runs between, as it starts, for `read` to return and
- * forget. While `hold` is on, each easing stops halfway. Call it before the page loads.
- * @param {import("@playwright/test").Page} page
- */
-async function recordTeamEasings(page) {
-  await page.addInitScript(() => {
-    const record = { easings: [], isHeld: false };
-    Object.assign(window, { teamEasings: record });
-    const { animate } = Element.prototype;
-    Element.prototype.animate = function (keyframes, options) {
-      const animation = animate.call(this, keyframes, options);
-      if (this instanceof HTMLDetailsElement && Array.isArray(keyframes)) {
-        record.easings.push(keyframes.map((keyframe) => parseFloat(String(keyframe.height))));
-        if (record.isHeld) {
-          animation.pause();
-          animation.currentTime = 125;
-        }
-      }
-      return animation;
-    };
-  });
-  return {
-    read: () => page.evaluate(() => /** @type {any} */ (window).teamEasings.easings.splice(0)),
-    /** @param {boolean} isHeld */
-    hold: (isHeld) =>
-      page.evaluate((held) => {
-        /** @type {any} */ (window).teamEasings.isHeld = held;
-      }, isHeld),
-  };
-}
-
-/** @param {import("@playwright/test").Locator} team */
-const readHeight = (team) => team.evaluate((details) => details.getBoundingClientRect().height);
-
-test("a team eases open to its season, and stays open while it eases closed", async ({ page }) => {
-  const easings = await recordTeamEasings(page);
-  await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const aces = page.locator('#teamsWrap [data-team="LVA"]');
-  const closedHeight = await readHeight(aces);
-
-  await easings.hold(true);
-  await aces.locator("summary").click();
-  const [[openFrom, openTo]] = await easings.read();
-  expect(openFrom).toBeCloseTo(closedHeight, 1);
-  expect(openTo).toBeGreaterThan(closedHeight + 100);
-  await expect(aces).toHaveAttribute("open", "");
-  await easings.hold(false);
-  await page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()));
-
-  await easings.hold(true);
-  await aces.locator("summary").click();
-  const [[closeFrom, closeTo]] = await easings.read();
-  expect(closeFrom).toBeCloseTo(openTo, 1);
-  expect(closeTo).toBeCloseTo(closedHeight, 1);
-  await expect(aces).toHaveAttribute("open", "");
-  await expect(aces).toHaveClass(/closing/);
-
-  await page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()));
-  await expect(aces).not.toHaveAttribute("open");
-  await expect(aces).not.toHaveClass(/closing/);
-});
-
-test("a team tapped while it eases turns back from the height it's at", async ({ page }) => {
-  const easings = await recordTeamEasings(page);
-  await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const aces = page.locator('#teamsWrap [data-team="LVA"]');
-  const closedHeight = await readHeight(aces);
-
-  await easings.hold(true);
-  await aces.locator("summary").click();
-  const halfwayHeight = await readHeight(aces);
-  expect(halfwayHeight).toBeGreaterThan(closedHeight + 10);
-
-  await easings.hold(false);
-  await aces.locator("summary").click();
-  const [, [from, to]] = await easings.read();
-  expect(from).toBeCloseTo(halfwayHeight, 1);
-  expect(to).toBeCloseTo(closedHeight, 1);
-  await expect(aces).not.toHaveAttribute("open");
-});
-
-test("a team redrawn while it eases closed stays closed", async ({ page }) => {
-  const easings = await recordTeamEasings(page);
-  const app = await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const aces = page.locator('#teamsWrap [data-team="LVA"]');
-  await aces.locator("summary").click();
-  await page.waitForFunction(() => document.getAnimations().length === 0);
-
-  await easings.hold(true);
-  await aces.locator("summary").click();
-  await app.changeSeason((season) => {
-    season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
-    return season;
+    await expect(sheet.locator("#teamTitle")).toHaveText("New York Liberty");
+    await expect(sheet.locator(".team-game")).toHaveCount(3);
   });
 
-  await expect(aces.locator(".team-season")).toContainText(/Last 10\s*9-1/);
-  await expect(aces).not.toHaveAttribute("open");
-});
+  test("a team's name in the standings opens its sheet from the keyboard", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    const fever = page.locator("#standings-league").getByRole("button", {
+      name: "Team details: Indiana Fever",
+    });
+    await fever.focus();
+    await page.keyboard.press("Enter");
 
-test("with reduced motion, a team opens at once", async ({ page }) => {
-  const easings = await recordTeamEasings(page);
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const aces = page.locator('#teamsWrap [data-team="LVA"]');
+    await expect(page.locator("#teamDialog #teamTitle")).toHaveText("Indiana Fever");
+  });
 
-  await aces.locator("summary").click();
-  await expect(aces).toHaveAttribute("open", "");
-  expect(await easings.read()).toEqual([]);
+  test("redrawing the standings each minute keeps keyboard focus on the team it was on", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    const aces = page.locator("#standings-league").getByRole("button", {
+      name: "Team details: Las Vegas Aces",
+    });
+    await aces.focus();
+
+    await page.clock.runFor(60 * 1000);
+    await expect(aces).toBeFocused();
+  });
 });
 
 test.describe("on a phone", () => {
-  test.use({ viewport: { width: 360, height: 780 } });
+  test.use({ viewport: { width: 360, height: 780 }, contextOptions: { reducedMotion: "reduce" } });
 
   test("a team's leading scorer keeps their name on one line, and its averages fit their tiles", async ({
     page,
   }) => {
     await openApp(page);
-    await page.getByRole("tab", { name: "Teams" }).click();
+    await page.getByRole("tab", { name: "Standings" }).click();
+    const sheet = page.locator("#teamDialog");
     for (const code of ["LVA", "LAS", "CON"]) {
-      const team = page.locator(`#teamsWrap [data-team="${code}"]`);
-      await team.locator("summary").click();
-      const name = team.locator(".team-scorer b");
+      await page.locator(`#standings-league tr[data-team="${code}"] td.season`).first().click();
+      const name = sheet.locator(".team-scorer b");
       await expect(name).toBeVisible();
       expect(await name.evaluate((element) => element.getClientRects().length), code).toBe(1);
-      const overflowing = await team
+      const overflowing = await sheet
         .locator(".team-stat")
         .evaluateAll((stats) =>
           stats
@@ -734,20 +663,10 @@ test.describe("on a phone", () => {
             .map((stat) => stat.textContent),
         );
       expect(overflowing, code).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(sheet).toBeHidden();
     }
   });
-});
-
-test("redrawing the teams each minute keeps keyboard focus on the team it was on", async ({
-  page,
-}) => {
-  await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const aces = page.locator('#teamsWrap [data-team="LVA"] summary');
-  await aces.focus();
-
-  await page.clock.runFor(60 * 1000);
-  await expect(aces).toBeFocused();
 });
 
 test("redrawing the games each minute keeps keyboard focus on the game it was on", async ({
@@ -760,26 +679,6 @@ test("redrawing the games each minute keeps keyboard focus on the game it was on
 
   await page.clock.runFor(60 * 1000);
   await expect(game).toBeFocused();
-});
-
-test("on a phone, the team rows' dividers run edge to edge", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 800 });
-  await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  const box = await page.locator("#teamsWrap .team").first().boundingBox();
-  expect([box.x, box.width]).toEqual([0, 390]);
-});
-
-test("on a phone, the header's line tops the teams, with the first as far below it as the rest below their dividers", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 390, height: 800 });
-  await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  await expect(page.locator("#teamsWrap .team-list")).toHaveCSS("border-top-style", "none");
-  const header = await page.locator("header.top").boundingBox();
-  const first = await page.locator("#teamsWrap .team").first().boundingBox();
-  expect(first.y).toBeCloseTo(header.y + header.height, 1);
 });
 
 test("each day's games sit in a box of their own, apart from the next day's", async ({ page }) => {
@@ -973,7 +872,7 @@ test("a day of games and a series in the bracket share one thin outline, lighter
   expect(await readOutline(page.locator("#games-today .game-day .game-list"))).toEqual(series);
 });
 
-test("on a wide screen, the Games, Standings, and Teams lists keep to one phone's width, in the middle of the page", async ({
+test("on a wide screen, the Games and Standings lists keep to one phone's width, in the middle of the page", async ({
   page,
 }) => {
   await openApp(page);
@@ -985,7 +884,6 @@ test("on a wide screen, the Games, Standings, and Teams lists keep to one phone'
       pill: "#standingsPager .pager-tabs",
       list: "#standings-league table.standings",
     },
-    { tab: "Teams", list: "#teamsWrap .team" },
   ]) {
     await page.getByRole("tab", { name: tab }).click();
     for (const selector of [pill, list].filter(Boolean)) {
@@ -1020,10 +918,34 @@ test("the Standings pill switches between the league and each conference, throug
   await expect(shownFirstTeam).toContainText("31-14");
   await expect(page.getByRole("table", { name: "East standings" })).toBeInViewport();
 
-  await page.getByRole("tab", { name: "Teams" }).click();
+  await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.getByRole("table", { name: "East standings" })).toBeInViewport();
   await expect(pill.getByRole("tab", { name: "East" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("the standings' recent form reads a step below the season, in the mid ink, and the pill's other lists' names too", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const lynx = page.locator('#standings-league tr[data-team="MIN"]');
+  await expect(lynx).toBeVisible();
+  const readType = (cell) =>
+    cell.evaluate((element) => {
+      const { fontSize, fontWeight, color } = getComputedStyle(element);
+      return { size: parseFloat(fontSize), weight: fontWeight, color };
+    });
+  const season = await readType(lynx.locator("td.season").first());
+  const recent = await readType(lynx.locator("td.recent").first());
+  const middle = await readTokenColor(page, "--ink-mid");
+
+  expect(recent.size).toBeLessThan(season.size);
+  expect(recent.size).toBeGreaterThanOrEqual(12.8);
+  expect([recent.weight, recent.color]).toEqual(["500", middle]);
+  const east = page.getByRole("tablist", { name: "Standings" }).getByRole("tab", { name: "East" });
+  await expect(east).toHaveCSS("color", middle);
+  await expect(east).toHaveCSS("font-weight", "500");
 });
 
 test("the playoff line is one dashed strip across the whole table", async ({ page }) => {
@@ -1053,12 +975,12 @@ test("the standings draw lines only between rows, none under the playoff line or
 test("clicking the tab that's showing scrolls back to the top", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 400 });
   await openApp(page);
-  await page.getByRole("tab", { name: "Teams" }).click();
-  await expect(page.locator("#teamsWrap .team").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await expect(page.locator("#standings-league tbody tr").first()).toBeVisible();
   await page.mouse.wheel(0, 800);
   await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
 
-  await page.getByRole("tab", { name: "Teams" }).dispatchEvent("click");
+  await page.getByRole("tab", { name: "Standings" }).dispatchEvent("click");
 
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 });
@@ -1077,8 +999,10 @@ test("the page reopens on the tab it was last on", async ({ page }) => {
   await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
 });
 
-test("a page last left on a tab it no longer has opens on the bracket", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("lastTab", "schedule"));
+test("a page last left on a tab it no longer has, like Teams, opens on the bracket", async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("lastTab", "teams"));
   await openApp(page);
 
   await expect(page.getByRole("tab", { name: "Bracket" })).toHaveAttribute("aria-selected", "true");
@@ -1099,7 +1023,7 @@ test.describe("on a phone", () => {
     const headerBottom = await page
       .locator("header.top")
       .evaluate((header) => header.getBoundingClientRect().bottom);
-    for (const tab of ["Bracket", "Games", "Standings", "Teams"]) {
+    for (const tab of ["Bracket", "Games", "Standings"]) {
       await page.getByRole("tab", { name: tab }).click();
       const width = await page.evaluate(() => document.documentElement.scrollWidth);
       expect(width, tab).toBeLessThanOrEqual(390);

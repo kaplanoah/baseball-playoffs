@@ -2,12 +2,13 @@
  * A pill over lists side by side, like the Games view's, as pager.js builds them. Apps link it
  * after chrome.css, before their own styles.css, which styles what the lists hold.
  *
- * Beside chrome.css's --bg, --ink, and --ink-dim, an app's :root defines these tokens:
+ * Beside chrome.css's --bg and --ink, an app's :root defines these tokens:
  *   --page-gutter          the body's side padding, which the lists reach past to the screen's edges
  *   --pager-track          the pill's fill
  *   --pager-track-edge     the pill's inner outline
  *   --pager-thumb          the fill of the thumb under the shown list's name
  *   --pager-thumb-edge     the thumb's lit top edge
+ *   --pager-label          the names of the lists not showing
  */
 
 /* The pill and the lists keep to a phone's width, centered on a wider screen. Their bar and the
@@ -72,7 +73,7 @@
   background: none;
   border: 0;
   border-radius: 999px;
-  color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--ink-dim));
+  color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--pager-label));
   padding: 7px 0;
   cursor: pointer;
 }

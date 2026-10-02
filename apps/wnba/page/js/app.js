@@ -18,8 +18,7 @@ import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStampProblem, renderStampLines } from "./stamp.js";
 import { drawStandings, startStandings } from "./standings-view.js";
-import { startTeamEasing } from "./team-easing.js";
-import { drawTeams } from "./teams-view.js";
+import { refreshTeamSheet, startTeamSheet } from "./team-sheet.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
 
@@ -39,9 +38,9 @@ function renderAll() {
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
   drawStandings(session.season);
-  drawTeams(findElement("teamsWrap"), session.season, { year: session.year, now });
   renderStamp();
   refreshGameSheet();
+  refreshTeamSheet();
 }
 
 // Times read as today or tomorrow, so they're redrawn as the clock moves on.
@@ -87,11 +86,11 @@ async function boot() {
   startPageTabs();
   startGamePager();
   startGameSheet();
+  startTeamSheet();
   startSettingsSheet();
   startHomeScreen();
   startBracket();
   startStandings();
-  startTeamEasing(findElement("teamsWrap"));
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);

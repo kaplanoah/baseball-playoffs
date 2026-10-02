@@ -109,22 +109,6 @@
               /></svg></span
           ><span class="tab-label">Standings</span>
         </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-teams"
-          data-tab="teams"
-          aria-controls="view-teams"
-          aria-selected="false"
-          tabindex="-1"
-        >
-          <span class="tab-icon" aria-hidden="true"
-            ><svg viewBox="0 0 256 256" fill="currentColor">
-              <path
-                d="M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z"
-              /></svg></span
-          ><span class="tab-label">Teams</span>
-        </button>
       </div>
       <span class="tab-pill" aria-hidden="true"><span class="tab-pill-row"></span></span>
     </div>
@@ -143,9 +127,6 @@
     <div id="standingsPager"></div>
   </section>
 
-  <section id="view-teams" role="tabpanel" aria-labelledby="tab-teams" class="view">
-    <div id="teamsWrap"></div>
-  </section>
   <script>
     openLastTab();
   </script>
@@ -243,6 +224,29 @@
         </div>
       </div>
       <div class="game-sheet-body" id="gameBody"></div>
+    </div>
+  </dialog>
+
+  <dialog id="teamDialog" class="sheet-panel" aria-labelledby="teamTitle">
+    <div class="sheet-content">
+      <div class="sheet-top">
+        <span class="sheet-grabber" aria-hidden="true"></span>
+        <div class="sheet-head">
+          <div class="sheet-title">
+            <h2 id="teamTitle">Team</h2>
+            <p class="sheet-note" id="teamNote"></p>
+          </div>
+          <button type="button" class="sheet-done" id="teamDoneBtn">
+            <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+              <path
+                d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
+              />
+            </svg>
+            <span class="sheet-done-label">Done</span>
+          </button>
+        </div>
+      </div>
+      <div class="team-sheet-body" id="teamBody"></div>
     </div>
   </dialog>
 
