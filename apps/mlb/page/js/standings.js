@@ -1,4 +1,4 @@
-import { listRankedOrder, renderRankTag, renderTeamTag } from "./clubs.js";
+import { listRankedOrder, renderClub, renderRankTag } from "./clubs.js";
 import { readGameDay } from "./dates.js";
 import { formatClockTimeWithoutMeridiem, formatShortWeekday, nameDay } from "#shared/days.js";
 import { html, setHtml } from "#shared/html.js";
@@ -75,29 +75,42 @@ function describeGameUnderWay(game, id) {
   return game.delay ? matchup : `${matchup} in the ${formatOrdinal(game.inning || 1)}`;
 }
 
-function renderGameUnderWayCell(game, id) {
+function describeGameUnderWayWithDelay(game, id) {
   const text = describeGameUnderWay(game, id);
   if (game.delay)
-    return html`<td class="next-cell live delayed">${text} &mdash; ${game.delay}</td>`;
-  return html`<td class="next-cell live">${text}</td>`;
+    return { text: html`${text} &mdash; ${game.delay}`, classes: ["live", "delayed"] };
+  return { text, classes: ["live"] };
 }
 
-export function renderNextCell(row, { isOut = false, now = Date.now() } = {}) {
-  const gameUnderWay = findGameUnderWay(row.id, now);
-  if (gameUnderWay && (!isOut || gameUnderWay.postseason))
-    return renderGameUnderWayCell(gameUnderWay, row.id);
-  const next = findNextGame(row, now);
-  if (!isNextShown(next, isOut)) return EMPTY_NEXT_CELL;
-  const start = new Date(next.at);
+function describeComingGame(next, now) {
   const gameDay = readGameDay(next);
-  if (!gameDay) return EMPTY_NEXT_CELL;
+  if (!gameDay) return null;
   const day = nameDay(gameDay, new Date(now), {
     nearDays: [0],
     nameOtherDay: formatShortWeekday,
     isCapitalized: true,
   });
-  const time = next.tbd ? "" : ` ${formatClockTimeWithoutMeridiem(start)}`;
-  return html`<td class="next-cell">${day}${time} ${next.home ? "vs" : "@"} ${next.opp || "TBD"}</td>`;
+  const time = next.tbd ? "" : ` ${formatClockTimeWithoutMeridiem(new Date(next.at))}`;
+  return { text: `${day}${time} ${next.home ? "vs" : "@"} ${next.opp || "TBD"}`, classes: [] };
+}
+
+/**
+ * A club's game under way, or else its next game, in words, with whether it's under way or
+ * delayed, or null when it has none to show.
+ * @returns {{ text: import("#shared/html.js").Markup | string, classes: string[] } | null}
+ */
+export function describeNextGame(row, { isOut = false, now = Date.now() } = {}) {
+  const gameUnderWay = findGameUnderWay(row.id, now);
+  if (gameUnderWay && (!isOut || gameUnderWay.postseason))
+    return describeGameUnderWayWithDelay(gameUnderWay, row.id);
+  const next = findNextGame(row, now);
+  return isNextShown(next, isOut) ? describeComingGame(next, now) : null;
+}
+
+export function renderNextCell(row, options = {}) {
+  const next = describeNextGame(row, options);
+  if (!next) return EMPTY_NEXT_CELL;
+  return html`<td class="${["next-cell", ...next.classes].join(" ")}">${next.text}</td>`;
 }
 
 const readSeed = (id) => session.state.teams[id] && session.state.teams[id].seed;
@@ -113,10 +126,10 @@ function renderStandingsRow(row, cells, { out = false, cut = false, groupEnd = f
   const rowClass = [out ? "eliminated" : "alive", cut && "cut", groupEnd && "group-end"]
     .filter(Boolean)
     .join(" ");
-  const rowMarkup = html`<tr class="${rowClass}">
+  const rowMarkup = html`<tr class="${rowClass}" data-team="${row.id}">
     ${renderRankCell(row.id)}
     <td class="seed-cell">${readSeed(row.id) || ""}</td>
-    <td class="team">${renderTeamTag(row.id)}</td>
+    <td class="team">${renderClub(row.id)}</td>
     ${cells}
   </tr>`;
   // One cell spanning the table, so the dashes run at a single even pitch.
@@ -207,7 +220,7 @@ function listChasers(chasers) {
 }
 
 // The leader's edge on the club behind it, which MLB gives only as that club's games back.
-function describeDivisionLead(leader, divisions) {
+export function describeDivisionLead(leader, divisions) {
   const rows = Object.values(divisions).find((division) => division.includes(leader)) || [];
   const second = rows.find((row) => row !== leader);
   if (!second || !/^\d/.test(second.gb || "")) return second ? second.gb : null;

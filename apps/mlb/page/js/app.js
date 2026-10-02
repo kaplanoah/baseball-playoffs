@@ -24,9 +24,12 @@ import {
 } from "./season-store.js";
 import { composeState, hasSpringStarted, session, readSeasonYear } from "./session.js";
 import { startSettings } from "./settings.js";
+import { renderTeamSheet } from "./team-view.js";
+import { TEAMS } from "./teams.js";
 import { renderStamp, showSaveResult } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
 import { renderUpdates } from "./updates.js";
+import { startTeamSheet } from "#shared/team-sheet.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
@@ -133,6 +136,7 @@ function wireControls() {
   startPageTabs();
   startGamePager();
   startMatchups();
+  startTeamSheet({ isTeam: (id) => id in TEAMS, renderSheet: (id) => renderTeamSheet(id) });
   startSettings();
   startHomeScreen();
   const picker = findYearPicker();
