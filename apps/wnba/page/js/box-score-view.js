@@ -3,7 +3,7 @@ import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderPendingTapeRow, renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
-import { renderLeadChart } from "./lead-chart.js";
+import { renderLeadChart, renderPendingLeadChart } from "./lead-chart.js";
 import {
   findLeader,
   measureAgainst,
@@ -13,8 +13,8 @@ import {
 import { nameTeam } from "./series.js";
 
 // The game sheet's box score for a game that has started: points by quarter, the lead through the
-// game once it loads, the teams' stats side by side, and each team's top scorers. Until it loads, each part holds its shape with
-// placeholders.
+// game, the teams' stats side by side, and each team's top scorers. Until each loads, it holds its
+// shape with placeholders.
 
 /** @typedef {{ id: number, firstName: string, lastName: string, minutes: number, points: number, rebounds: number, assists: number, fouls: number }} BoxPlayer */
 /** @typedef {{ fieldGoals: number[], threePointers: number[], freeThrows: number[], rebounds: number, assists: number, turnovers: number, paintPoints: number, benchPoints: number, biggestLead: number }} TeamStats */
@@ -249,15 +249,30 @@ const renderScorersTable = (team, rows) =>
 /** @param {import("#shared/html.js").Markup[]} tables */
 const renderPlayerTables = (tables) => html`<div class="player-tables">${tables}</div>`;
 
+/** @typedef {{ lead?: import("./lead-chart.js").Lead | null, isLeadLoading?: boolean }} LeadState */
+
+/**
+ * The lead through the game once it has a basket, or its shape while it loads, so the sheet
+ * keeps its height as it arrives.
+ * @param {Record<"away" | "home", string>} teams
+ * @param {LeadState} state
+ */
+function renderLeadPart(teams, { lead = null, isLeadLoading = false }) {
+  if (lead && lead.scores.length > 1)
+    return renderSheetPart("Lead through the game", renderLeadChart(lead, teams));
+  if (isLeadLoading) return renderSheetPart("Lead through the game", renderPendingLeadChart(teams));
+  return false;
+}
+
 /**
  * @param {BoxScore} box
- * @param {import("./lead-chart.js").Lead | null} [lead]
+ * @param {LeadState} [leadState]
  */
-export function renderBoxScore(box, lead = null) {
+export function renderBoxScore(box, leadState = {}) {
   const isLive = box.state === "live";
   const teams = { away: box.away.team, home: box.home.team };
   return html`${renderSheetPart("By quarter", renderLineScore(box))}
-    ${lead && lead.scores.length > 1 && renderSheetPart("Lead through the game", renderLeadChart(lead, teams))}
+    ${renderLeadPart(teams, leadState)}
     ${renderSheetPart("Team stats", renderTeamStats(box), isLive && "So far")}
     ${renderSheetPart(
       "Top scorers",
@@ -266,11 +281,13 @@ export function renderBoxScore(box, lead = null) {
 }
 
 /**
- * The box score's parts, in their shape, while it loads.
+ * The box score's parts, in their shape, while it loads, with the lead as far as it has loaded.
  * @param {Record<"away" | "home", string>} teams
+ * @param {LeadState} [leadState]
  */
-export const renderPendingBoxScore = (teams) =>
+export const renderPendingBoxScore = (teams, leadState = {}) =>
   html`${renderSheetPart("By quarter", renderPendingLineScore(teams))}
+    ${renderLeadPart(teams, leadState)}
     ${renderSheetPart("Team stats", renderPendingTeamStats(teams))}
     ${renderSheetPart(
       "Top scorers",

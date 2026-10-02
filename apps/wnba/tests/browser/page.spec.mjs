@@ -3,6 +3,9 @@ import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/t
 import { serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
+// The least room between one standings row's team name and the next row's.
+const STANDINGS_NAME_GAP_PX = 20;
+
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
 }) => {
@@ -159,6 +162,21 @@ test.describe("on a phone, the Games lists", () => {
     expect(box.x).toBe(0);
     expect(box.width).toBe(390);
   });
+});
+
+test("the standings leave room between each team's name and the next one's", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const names = page.locator("#standings-league tbody td.team");
+  await expect(names.first()).toBeVisible();
+  const gaps = await names.evaluateAll((cells) =>
+    cells.slice(1, 4).map((cell, index) => {
+      const above = cells[index].querySelector(".team-name") ?? cells[index];
+      const below = cell.querySelector(".team-name") ?? cell;
+      return below.getBoundingClientRect().top - above.getBoundingClientRect().bottom;
+    }),
+  );
+  for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(STANDINGS_NAME_GAP_PX);
 });
 
 test("a standings conference tag's letter is trimmed to its capital, with even room around it", async ({
