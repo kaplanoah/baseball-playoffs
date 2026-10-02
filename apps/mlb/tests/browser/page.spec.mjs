@@ -480,6 +480,7 @@ test("a postseason game today names its round and the series, away wins first, o
 test("with starters named, each sits under its club with his arm, clear of the row's edges", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
   const row = page.locator("#games-today .game-row:has(.starter:not(.pending))");
@@ -503,6 +504,7 @@ test("on the narrowest phone, a club's race letter stays on its record's line, c
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 640 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const row = page.locator("#games-today .game-row:has(.game-side.home .race)").first();
@@ -517,6 +519,7 @@ test("on the narrowest phone, a club's race letter stays on its record's line, c
 });
 
 test("a clinched club's race letter is gold at the facts' own weight", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   const race = page.locator("#games-today .race.clinched").first();

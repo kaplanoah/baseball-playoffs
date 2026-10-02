@@ -127,6 +127,7 @@ test("the sheet's title names it in capitals, a step larger on a desktop than on
 });
 
 test("the sheet's parts and lists leave room between their rows", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const sheet = await openMatchup(page);
   const blubaugh = sheet.locator(".scout").first();
   await expect(blubaugh.locator(".pitch-name")).toHaveCount(3);
@@ -139,9 +140,11 @@ test("the sheet's parts and lists leave room between their rows", async ({ page 
     );
   expect(await readGaps(blubaugh.locator(".pitch-name"))).toEqual([10, 10]);
   expect(await readGaps(blubaugh.locator(".recent-starts li"))).toEqual([8]);
-  const tape = await sheet.locator(".tape").boundingBox();
-  const scout = await blubaugh.boundingBox();
-  expect(Math.round(scout.y - (tape.y + tape.height))).toBe(22);
+  const tapeToScout = await sheet.locator(".matchup-body").evaluate((body) => {
+    const tape = body.querySelector(".tape").getBoundingClientRect();
+    return body.querySelector(".scout").getBoundingClientRect().top - tape.bottom;
+  });
+  expect(Math.round(tapeToScout)).toBe(22);
 });
 
 test("on a phone, the matchup rises as a sheet that a swipe down closes", async ({ page }) => {
@@ -308,10 +311,11 @@ test("a game later today without a starter says Still TBD, and opens to who star
   await expect(starters.nth(1)).toHaveText(/Soriano\s*R\s*5 IP, 101 pitches\s*4 days' rest/);
   await expect(starters.nth(1)).toHaveClass("rested");
   await expect(starters.first()).not.toHaveClass("rested");
-  const [above, below] = await Promise.all(
-    [starters.first(), starters.nth(1)].map((starter) => starter.boundingBox()),
-  );
-  expect(Math.round(below.y - (above.y + above.height))).toBe(5);
+  const rotationGap = await angels.locator(".rotation").evaluate((list) => {
+    const [above, below] = [...list.children].map((item) => item.getBoundingClientRect());
+    return below.top - above.bottom;
+  });
+  expect(Math.round(rotationGap)).toBe(5);
   await expect(sheet.locator(".scout").nth(1).locator(".scout-note")).toHaveText(
     "Couldn't load who started lately. Close and try again in a minute.",
   );
@@ -528,6 +532,7 @@ for (const viewport of [
     page,
   }) => {
     await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const sheet = await openMatchup(page);
     const chart = sheet.locator(".pitch-mix").first();
     const labels = chart.locator(".speed-label");
@@ -544,9 +549,11 @@ for (const viewport of [
     const centers = await readCenters();
     expect(centers[0]).toBeCloseTo(lineStart, 0);
     expect(centers.at(-1)).toBeCloseTo(lineEnd, 0);
-    const scale = await chart.locator(".speed-labels").boundingBox();
-    const rows = await chart.locator(".pitch-rows").boundingBox();
-    expect(Math.round(rows.y - (scale.y + scale.height))).toBe(12);
+    const labelsToRows = await chart.evaluate((element) => {
+      const scale = element.querySelector(".speed-labels").getBoundingClientRect();
+      return element.querySelector(".pitch-rows").getBoundingClientRect().top - scale.bottom;
+    });
+    expect(Math.round(labelsToRows)).toBe(12);
   });
 }
 
