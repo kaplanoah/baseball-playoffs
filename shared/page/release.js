@@ -1,4 +1,4 @@
-/** @typedef {{ version: string | null, commit: string, builtAt: string }} Release */
+/** @typedef {{ version: string | null, commit: string, builtAt: string | null }} Release */
 
 // A phone waking a page can hold its first requests until they time out, so a read gives up
 // rather than keep every later check waiting on it.
@@ -24,10 +24,6 @@ async function readRelease(url) {
 }
 
 export const fetchRelease = () => readRelease(new URL("version.json", location.href));
-
-// A deploy's page loads its modules from its release's folder; a local server's page doesn't.
-const RELEASE_FOLDER_PATH = /\/release\/[^/]+\//;
-export const isFromReleaseFolder = () => RELEASE_FOLDER_PATH.test(import.meta.url);
 
 // The release this page's files came from, read from their own folder, since the Worker may
 // already serve a newer one, and a server still on another release has no such folder. A read

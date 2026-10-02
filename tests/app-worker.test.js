@@ -56,6 +56,21 @@ test("a release's own folder serves its files for good, and another release's fo
   assert.equal(otherRelease.headers.get("cache-control"), "no-cache");
 });
 
+test("another release's version file names that release, so a page still running it reloads", async () => {
+  const release = { version: "1.2.3", commit: "abc1234", builtAt: "2026-10-01T20:00:00Z" };
+  const worker = createPageWorker({
+    "version.json": { contentType: "application/json", text: JSON.stringify(release) },
+  });
+
+  const replaced = await requestPageFile(worker, "release/def5678/version.json");
+  assert.equal(replaced.status, 200);
+  assert.deepEqual(await replaced.json(), { version: null, commit: "def5678", builtAt: null });
+  assert.equal(replaced.headers.get("cache-control"), "no-store");
+
+  const own = await requestPageFile(worker, "release/abc1234/version.json");
+  assert.deepEqual(await own.json(), release);
+});
+
 test("a Worker built without a release has no release folder", async () => {
   const worker = createPageWorker({
     "styles.css": { contentType: "text/css; charset=utf-8", text: "body {}" },
