@@ -12,8 +12,13 @@ const VALKYRIES_AT_WINGS = "Game details: Valkyries at Wings, First Round Game 2
 const POLL_LIVE_MS = 15 * 1000;
 // The type scale's smallest size, which the lead chart's words show at with no room above or below.
 const SMALLEST_TEXT_PX = 13;
-// The room the team stats keep from the parts around them, beyond the usual gap between parts.
-const TAPE_ROOM_PX = 8;
+// The room between the line under the teams and the first part's title, above each later title,
+// below each title, below By quarter's, and between a tape's rows.
+const FIRST_TITLE_SPACE_PX = 15;
+const TITLE_SPACE_ABOVE_PX = 24;
+const TITLE_SPACE_BELOW_PX = 14;
+const QUARTER_TITLE_SPACE_BELOW_PX = 6;
+const TAPE_ROW_SPACE_PX = 12;
 // The least room between a team's name, as its font draws it, and the edge of the lead chart's tile.
 const NAME_GAP_PX = 4;
 // How far, in degrees, the paler bar of the side behind may turn from its team's own hue.
@@ -246,26 +251,43 @@ for (const { screen, viewport } of [
   });
 }
 
-test("the team stats stand further from the parts above and below them than the other parts do from each other", async ({
+test("a final's sheet spaces its parts' titles evenly, with By quarter's closer and the stat rows apart", async ({
   page,
 }) => {
   const app = await openApp(page);
   await app.changeSeason(finishValkyriesAtWings);
   const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
   await expect(sheet.locator(".lead-peak-label")).toHaveCount(2);
-  const parts = await sheet.locator(".game-sheet-body > .sheet-part").evaluateAll((sections) =>
-    sections.map((section) => {
-      const { top, bottom } = section.getBoundingClientRect();
-      return { title: section.querySelector("h3")?.textContent, top, bottom };
-    }),
-  );
-  const gapBefore = (/** @type {string} */ title) => {
-    const index = parts.findIndex((part) => part.title === title);
-    return parts[index].top - parts[index - 1].bottom;
-  };
-  const usual = gapBefore("Lead through the game");
-  expect(gapBefore("Team stats")).toBeGreaterThanOrEqual(usual + TAPE_ROOM_PX);
-  expect(gapBefore("Top scorers")).toBeGreaterThanOrEqual(usual + TAPE_ROOM_PX);
+  const layout = await sheet.locator(".game-sheet-body").evaluate((body) => {
+    const measure = (/** @type {Element} */ element) => element.getBoundingClientRect();
+    const faceoff = measure(/** @type {Element} */ (body.querySelector(".faceoff")));
+    const parts = [...body.querySelectorAll(":scope > .sheet-part")].map((part) => {
+      const head = measure(/** @type {Element} */ (part.querySelector(".sheet-part-head")));
+      const content = measure(/** @type {Element} */ (part.children[1]));
+      return {
+        title: part.querySelector("h3")?.textContent,
+        top: measure(part).top,
+        bottom: measure(part).bottom,
+        spaceBelow: content.top - head.bottom,
+      };
+    });
+    const rows = [...body.querySelectorAll(".tape-row")].map(measure);
+    return {
+      firstSpace: parts[0].top - faceoff.bottom,
+      parts,
+      rowSpaces: rows.slice(1).map((row, index) => row.top - rows[index].bottom),
+    };
+  });
+
+  expect(layout.firstSpace).toBeCloseTo(FIRST_TITLE_SPACE_PX, 0);
+  for (const [index, part] of layout.parts.entries()) {
+    if (index > 0)
+      expect(part.top - layout.parts[index - 1].bottom).toBeCloseTo(TITLE_SPACE_ABOVE_PX, 0);
+    const spaceBelow =
+      part.title === "By quarter" ? QUARTER_TITLE_SPACE_BELOW_PX : TITLE_SPACE_BELOW_PX;
+    expect(part.spaceBelow).toBeCloseTo(spaceBelow, 0);
+  }
+  for (const space of layout.rowSpaces) expect(space).toBeCloseTo(TAPE_ROW_SPACE_PX, 0);
 });
 
 test("while the lead loads after the box score, the sheet holds the chart's place, so nothing below it moves as it arrives", async ({

@@ -574,30 +574,39 @@ header.top h1 {
 }
 
 /* The game sheet: the two teams across the score, then the game's parts, each under a teal
-   title, with --part-space-above that title and --part-space-below it. Each team's side of a chart
-   or bar is in its color for the theme, which js/sheet-colors.js hands the sheet, and the side
+   title, with --part-space-first between the line under the teams and the first title,
+   --part-space-above each later title, and --part-space-below it. Each team's side of a chart or
+   bar is in its color for the theme, which js/sheet-colors.js hands the sheet, and the side
    behind on a measure gets a paler bar of the same hue, faded toward a gray as light as the
    sheet, since fading it toward the tan track or the cream sheet would turn blue gray and green
    olive. */
 .game-sheet-body {
   --away: var(--away-light, var(--ink-dim));
   --home: var(--home-light, var(--ink-dim));
-  --part-space-above: 20px;
-  --part-space-below: 8px;
+  --part-space-first: 15px;
+  --part-space-above: 24px;
+  --part-space-below: 14px;
   display: grid;
   gap: var(--part-space-above);
   padding-top: 4px;
 }
+.game-sheet-body > .faceoff {
+  margin-bottom: calc(var(--part-space-first) - var(--part-space-above));
+}
 .game-sheet-body > .sheet-part {
   gap: var(--part-space-below);
+}
+/* By quarter's first row is its small, light quarter numbers, which read as more room under its
+   title than the same gap does under the others. */
+.game-sheet-body > .sheet-part:has(> .line-score) {
+  gap: 6px;
+}
+.game-sheet-body .tape {
+  gap: 12px;
 }
 :root[data-theme="dark"] .game-sheet-body {
   --away: var(--away-dark, var(--ink-dim));
   --home: var(--home-dark, var(--ink-dim));
-}
-/* A tape of stats is the sheet's densest part, so it gets more room from the parts around it. */
-.game-sheet-body > .sheet-part:has(> .tape) {
-  margin-block: 8px;
 }
 .game-sheet-body :is(.tape-side, .lead-chart *).away {
   --side: var(--away);
@@ -606,7 +615,7 @@ header.top h1 {
   --side: var(--home);
 }
 .game-sheet-body .tape-bar i {
-  background: color-mix(in oklch, var(--side) 45%, oklch(from var(--card) l 0 none));
+  background: color-mix(in oklch, var(--side) 47%, oklch(from var(--card) l 0 none));
 }
 .game-sheet-body .tape-bar i.lead {
   background: var(--side);
