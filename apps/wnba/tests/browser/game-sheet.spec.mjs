@@ -290,6 +290,38 @@ test("a final's sheet spaces its parts' titles evenly, with By quarter's closer 
   for (const space of layout.rowSpaces) expect(space).toBeCloseTo(TAPE_ROW_SPACE_PX, 0);
 });
 
+for (const [device, viewport] of Object.entries({
+  "a computer": { width: 1280, height: 720 },
+  "a phone": { width: 390, height: 844 },
+})) {
+  test(`on ${device}, a sheet's title and teams share one tinted band to its edges, with no line under the teams`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await openApp(page);
+    const sheet = await openSheet(page, ACES_AT_FEVER);
+    await expect(sheet.locator(".faceoff .score")).toHaveText(/89\s*99/);
+    const band = await sheet.evaluate((dialog) => {
+      const find = (/** @type {string} */ selector) =>
+        /** @type {Element} */ (dialog.querySelector(selector));
+      const read = (/** @type {string} */ selector) => getComputedStyle(find(selector));
+      const faceoff = find(".faceoff").getBoundingClientRect();
+      const content = find(".sheet-content").getBoundingClientRect();
+      return {
+        top: read(".sheet-top").backgroundColor,
+        teams: read(".faceoff").backgroundColor,
+        sheet: getComputedStyle(dialog).backgroundColor,
+        line: read(".faceoff").borderBottomWidth,
+        edges: [faceoff.left - content.left, content.right - faceoff.right],
+      };
+    });
+    expect(band.teams).toBe(band.top);
+    expect(band.teams).not.toBe(band.sheet);
+    expect(band.line).toBe("0px");
+    expect(band.edges).toEqual([0, 0]);
+  });
+}
+
 test("while the lead loads after the box score, the sheet holds the chart's place, so nothing below it moves as it arrives", async ({
   page,
 }) => {

@@ -588,7 +588,6 @@ header.top h1 {
   --part-space-below: 14px;
   display: grid;
   gap: var(--part-space-above);
-  padding-top: 4px;
 }
 .game-sheet-body > .faceoff {
   margin-bottom: calc(var(--part-space-first) - var(--part-space-above));
@@ -620,13 +619,19 @@ header.top h1 {
 .game-sheet-body .tape-bar i.lead {
   background: var(--side);
 }
+/* The game's title and its teams share one tinted band across the top of the sheet, which sets
+   them apart from the parts below without a line like the ones between the parts' rows. */
+#gameDialog .sheet-top {
+  background: var(--tile);
+}
 .faceoff {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   column-gap: 10px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--divider);
+  margin-inline: -22px;
+  padding: 6px 22px 14px;
+  background: var(--tile);
 }
 .faceoff-side {
   display: flex;
@@ -671,7 +676,7 @@ header.top h1 {
   white-space: nowrap;
 }
 .faceoff:has(.networks) {
-  padding-bottom: 7px;
+  padding-bottom: 10px;
 }
 .faceoff .networks {
   grid-column: 1 / -1;
@@ -1587,6 +1592,11 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
     flex-basis: 100%;
     align-items: flex-start;
     text-align: left;
+  }
+  /* The band reaches the sheet's edges, which sit closer on a phone. */
+  .faceoff {
+    margin-inline: -18px;
+    padding-inline: 18px;
   }
 }
 
