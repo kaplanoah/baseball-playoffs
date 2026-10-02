@@ -56,6 +56,17 @@ const respondText = (body, status, headers = {}) =>
 
 const serveNotFound = () => respondText("Not found\n", 404, PAGE_HEADERS);
 
+// A Worker serves only its own release's folder, so a page still running an earlier release finds
+// that folder gone. Its version.json still names the release it asks about, so the page learns
+// it has been replaced and reloads, whatever release its own code is from.
+const REPLACED_RELEASE_PATH = /^release\/([^/]+)\/version\.json$/;
+
+/** @param {string} commit */
+const serveReplacedRelease = (commit) =>
+  new Response(JSON.stringify({ version: null, commit, builtAt: null }), {
+    headers: { "content-type": "application/json", ...PAGE_HEADERS, "cache-control": "no-store" },
+  });
+
 // Relative links in the page need the address to end in a slash.
 const redirectToFolder = (url) =>
   new Response(null, { status: 301, headers: { location: `${url.pathname}/${url.search}` } });
@@ -85,6 +96,8 @@ function createPageServer(pageFiles, releaseCommit) {
     if (request.method !== "GET" && request.method !== "HEAD")
       return respondText("GET only.\n", 405, { allow: "GET, HEAD" });
     const { path, headers: cacheHeaders } = findPageFile(pagePath, releaseFolder);
+    const replaced = REPLACED_RELEASE_PATH.exec(path);
+    if (replaced) return serveReplacedRelease(replaced[1]);
     const file = files.get(path);
     if (!file) return serveNotFound();
     file.etag ??= hashBody(file.body);

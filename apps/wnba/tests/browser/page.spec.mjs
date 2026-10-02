@@ -5,6 +5,8 @@ import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
 // The least room between one standings row's team name and the next row's.
 const STANDINGS_NAME_GAP_PX = 20;
+// The least room between a standings group's name, like Playoffs, and its columns' names under it.
+const STANDINGS_HEADING_GAP_PX = 6;
 
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
@@ -177,6 +179,26 @@ test("the standings leave room between each team's name and the next one's", asy
     }),
   );
   for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(STANDINGS_NAME_GAP_PX);
+});
+
+test("the standings leave room between each group's name and its columns' names", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const heads = page.locator("#standings-league thead");
+  await expect(heads.locator("tr.groups th.recent-start")).toHaveText("Playoffs");
+  await expect(heads.locator("th.recent-start").last()).toHaveText("Rd 1");
+  const gap = await heads.evaluate((head) => {
+    const measureText = (cell) => {
+      const range = document.createRange();
+      range.selectNodeContents(cell);
+      return range.getBoundingClientRect();
+    };
+    const [group, column] = [...head.querySelectorAll("th.recent-start")].map(measureText);
+    return column.top - group.bottom;
+  });
+  expect(gap).toBeGreaterThanOrEqual(STANDINGS_HEADING_GAP_PX);
 });
 
 test("a standings conference tag's letter is trimmed to its capital, with even room around it", async ({
@@ -1267,12 +1289,16 @@ test.describe("on a phone", () => {
     expect(await readGlass(".tab-pill")).toContain("saturate(1.6)");
   });
 
-  test("the standings show every column, with a winning streak below the line paler than one above it", async ({
+  test("the standings show every column, in the playoffs and before them, with a winning streak below the line paler than one above it", async ({
     page,
   }) => {
-    await openApp(page);
+    const app = await openApp(page);
     await page.getByRole("tab", { name: "Standings" }).click();
     const table = page.getByRole("table", { name: "League standings" });
+    for (const heading of ["W-L", "GB", "Rd 1", "Now"]) {
+      await expect(table.getByRole("columnheader", { name: heading, exact: true })).toBeVisible();
+    }
+    await app.changeSeason((season) => ({ ...season, series: [] }));
     for (const heading of ["W-L", "GB", "L10", "Strk"]) {
       await expect(table.getByRole("columnheader", { name: heading, exact: true })).toBeVisible();
     }
