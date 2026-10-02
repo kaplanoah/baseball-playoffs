@@ -30,7 +30,7 @@ const LEAD = JSON.parse(
   readFileSync(new URL("../fixtures/2026-10-01-espn-lead.json", import.meta.url), "utf8"),
 );
 
-export { test, expect, GAMES, LEAD };
+export { test, expect, GAMES };
 
 /**
  * The league's answers to the game sheet's routes, from the recorded box scores and schedule, with

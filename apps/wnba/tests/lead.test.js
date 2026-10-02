@@ -121,6 +121,7 @@ test("the chart marks each side's biggest lead and names each period, overtime t
 });
 
 test("a live game's line stops at its latest basket, and a side that never led has no mark", () => {
+  /** @type {import("../page/js/lead-chart.js").Lead} */
   const lead = {
     periods: 4,
     isOver: false,
