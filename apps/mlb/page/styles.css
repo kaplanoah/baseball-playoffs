@@ -1471,13 +1471,34 @@ body.kbd .rank-item .grip:focus {
 .rotation li.rested > :last-child {
   color: var(--gold);
 }
-/* The speed line's labels are sized in its own units, so they scale with its width, which on the
-   narrowest phone is still about 320px. */
+/* The chart scales with its width, which on the narrowest phone is still about 320px. pitch-mix.js
+   hands it the line's edge and dot as shares of that width, so the bar above the line ends where it
+   does and the rows' dots match its dots. */
+.pitch-mix {
+  container-type: inline-size;
+}
+.pitch-usage {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  margin: 4px calc(100cqi * var(--line-edge)) 0;
+  overflow: hidden;
+  border-radius: 3px;
+}
+.pitch-usage i {
+  flex: 0 1 0;
+  min-width: 2px;
+  background: var(--pitch, var(--pitch-other));
+}
+.pitch-usage.pending i {
+  flex-grow: 1;
+  background: var(--card-border);
+}
 .speed-line {
   display: block;
   width: 100%;
   height: auto;
-  margin-top: 4px;
+  margin-top: 8px;
   overflow: visible;
 }
 .speed-label {
@@ -1499,12 +1520,11 @@ body.kbd .rank-item .grip:focus {
 .pitch-dot {
   fill: var(--pitch, var(--pitch-other));
   stroke: var(--card);
-  stroke-width: 1.5;
 }
-/* One row a pitch, its name, bar, share, and speed each in a column shared by every row. */
+/* One row a pitch, its dot, name, share, and speed each in a column shared by every row. */
 .pitch-rows {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px 10px;
   margin: 2px 0 0;
@@ -1515,25 +1535,17 @@ body.kbd .rank-item .grip:focus {
 .pitch-rows li {
   display: contents;
 }
-.pitch-name {
-  color: var(--ink);
-}
-.pitch-bar {
-  position: relative;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 3px;
-  background: var(--divider);
-}
-.pitch-bar i {
-  position: absolute;
-  inset-block: 0;
-  left: 0;
-  border-radius: 3px;
+.pitch-key {
+  width: max(10px, calc(100cqi * var(--line-dot)));
+  aspect-ratio: 1;
+  border-radius: 50%;
   background: var(--pitch, var(--pitch-other));
 }
-.pitch-bar.pending i {
+.pitch-key.pending {
   background: var(--card-border);
+}
+.pitch-name {
+  color: var(--ink);
 }
 .pitch-share {
   text-align: right;

@@ -65,23 +65,39 @@ test("the speed line is labeled every 10 mph, with the unit on the slowest", () 
   ]);
 });
 
-test("each pitch gets a row with its name, a bar for how often he throws it, its share, and its speed", () => {
+test("each pitch gets a row with its dot, name, share, and speed", () => {
   const markup = String(renderPitchMix([pitch("KC", 0.31, 81.6), pitch("FF", 0.5, 94.2)]));
   const rows = [...markup.matchAll(/<li class="pitch-(\w+)">([\s\S]*?)<\/li>/g)].map(
     ([, code, row]) => ({
       code,
+      hasDot: row.includes('class="pitch-key"'),
       text: row
         .replace(/<[^>]+>/g, " ")
         .replace(/\s+/g, " ")
         .trim(),
-      bar: /width: (\d+)%/.exec(row)?.[1],
     }),
   );
   assert.deepEqual(rows, [
-    { code: "KC", text: "Knuckle curve 31% 82 mph", bar: "62" },
-    { code: "FF", text: "Four-seam 50% 94 mph", bar: "100" },
+    { code: "KC", hasDot: true, text: "Knuckle curve 31% 82 mph" },
+    { code: "FF", hasDot: true, text: "Four-seam 50% 94 mph" },
   ]);
-  assert.doesNotMatch(markup, /<text class="pitch-/);
+  assert.doesNotMatch(markup, /pitch-bar/);
+});
+
+test("the bar over the line splits by how often he throws each pitch, slowest first", () => {
+  const markup = String(
+    renderPitchMix([pitch("FF", 0.44, 98.0), pitch("CU", 0.1, 86.3), pitch("FC", 0.26, 94.6)]),
+  );
+  const [usage] = /<div class="pitch-usage"[\s\S]*?<\/div>/.exec(markup) ?? [""];
+  const slices = [...usage.matchAll(/class="pitch-(\w+)" style="flex-grow: ([\d.]+)"/g)].map(
+    ([, code, share]) => [code, Number(share)],
+  );
+  assert.deepEqual(slices, [
+    ["CU", 0.1],
+    ["FC", 0.26],
+    ["FF", 0.44],
+  ]);
+  assert.ok(markup.indexOf("pitch-usage") < markup.indexOf("speed-line"));
 });
 
 test("a pitcher with no pitches tracked shows no chart", () => {

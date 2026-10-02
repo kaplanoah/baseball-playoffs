@@ -436,13 +436,74 @@ for (const { screen, viewport } of [
   });
 }
 
-test("each pitch is a row with its name, a bar for how often he throws it, its share, and its speed", async ({
-  page,
-}) => {
+test("each pitch is a row with its dot, name, share, and speed", async ({ page }) => {
   const sheet = await openMatchup(page);
   const rows = sheet.locator(".pitch-mix").first().locator(".pitch-rows li");
+  await expect(rows.locator(".pitch-key")).toHaveCount(3);
   await expect(rows.locator(".pitch-name")).toHaveText(["Slider", "Changeup", "Four-seam"]);
   await expect(rows.locator(".pitch-share")).toHaveText(["30%", "17%", "52%"]);
   await expect(rows.locator(".pitch-speed")).toHaveText(["86 mph", "87 mph", "95 mph"]);
-  await expect(rows.locator(".pitch-bar i").last()).toHaveAttribute("style", "width: 100%");
 });
+
+/** @param {import("@playwright/test").Locator} chart */
+function measurePitchMix(chart) {
+  return chart.evaluate((element) => {
+    const readNumber = (selector, attribute) =>
+      Number(element.querySelector(selector).getAttribute(attribute));
+    const lineBox = element.querySelector(".speed-line").getBoundingClientRect();
+    const [, , viewWidth] = element.querySelector(".speed-line").getAttribute("viewBox").split(" ");
+    const scale = lineBox.width / Number(viewWidth);
+    const usage = element.querySelector(".pitch-usage").getBoundingClientRect();
+    return {
+      lineStart: lineBox.left + readNumber(".speed-axis", "x1") * scale,
+      lineEnd: lineBox.left + readNumber(".speed-axis", "x2") * scale,
+      usageStart: usage.left,
+      usageEnd: usage.right,
+      lineDot:
+        (2 * readNumber(".pitch-dot", "r") - readNumber(".pitch-dot", "stroke-width")) * scale,
+      rowDots: [...element.querySelectorAll(".pitch-key")].map((key) => {
+        const box = key.getBoundingClientRect();
+        return { width: box.width, height: box.height };
+      }),
+      slices: [...element.querySelectorAll(".pitch-usage i")].map(
+        (slice) => slice.getBoundingClientRect().width,
+      ),
+    };
+  });
+}
+
+test("the bar over the line ends where the line does, split by how often he throws each", async ({
+  page,
+}) => {
+  const sheet = await openMatchup(page);
+  const chart = sheet.locator(".pitch-mix").first();
+  await expect(chart.locator(".pitch-usage i")).toHaveCount(3);
+  const { lineStart, lineEnd, usageStart, usageEnd, slices } = await measurePitchMix(chart);
+  expect(usageStart).toBeCloseTo(lineStart, 0);
+  expect(usageEnd).toBeCloseTo(lineEnd, 0);
+  const [slider, changeup, fourSeam] = slices;
+  expect(fourSeam / slider).toBeCloseTo(0.52 / 0.3, 1);
+  expect(changeup / slider).toBeCloseTo(0.17 / 0.3, 1);
+});
+
+for (const { screen, viewport, smallest } of [
+  { screen: "a phone", viewport: { width: 390, height: 844 }, smallest: false },
+  { screen: "the narrowest phone", viewport: { width: 320, height: 640 }, smallest: true },
+]) {
+  test.describe(`on ${screen}`, () => {
+    test.use({ viewport });
+
+    test("each row's dot is the speed line's dot, and never under 10px", async ({ page }) => {
+      const sheet = await openMatchup(page);
+      const chart = sheet.locator(".pitch-mix").first();
+      await expect(chart.locator(".pitch-key")).toHaveCount(3);
+      const { lineDot, rowDots } = await measurePitchMix(chart);
+      const expected = Math.max(10, lineDot);
+      expect(lineDot < 10).toBe(smallest);
+      for (const { width, height } of rowDots) {
+        expect(width).toBeCloseTo(expected, 1);
+        expect(height).toBeCloseTo(expected, 1);
+      }
+    });
+  });
+}
