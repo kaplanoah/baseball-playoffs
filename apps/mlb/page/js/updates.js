@@ -1,7 +1,8 @@
 import { renderClub, renderRankTag } from "./clubs.js";
 import { describeEntry, describeUpdate } from "./entry-text.js";
 import { html } from "#shared/html.js";
-import { showUpdates } from "#shared/updates.js";
+import { listFreshNotes, showUpdates } from "#shared/updates.js";
+import { RELEASE_NOTES } from "./release-notes.js";
 import { saveSeenAt } from "./season-store.js";
 import { session, readSeasonYear } from "./session.js";
 import { showSaveResult } from "./stamp-view.js";
@@ -30,8 +31,14 @@ const findHappenedAt = (group) =>
 
 const readNoticedAt = (entry) => Date.parse(entry.at);
 
+const readSeenAt = () => (session.state.seenAt ? Date.parse(session.state.seenAt) : 0);
+
+const isCurrentSeason = () => session.activeYear === readSeasonYear();
+
+const listFreshReleaseNotes = () => listFreshNotes(RELEASE_NOTES, readSeenAt());
+
 function listFreshUpdates() {
-  const seen = session.state.seenAt ? Date.parse(session.state.seenAt) : 0;
+  const seen = readSeenAt();
   const fresh = (session.state.log || []).filter(
     (entry) => entry && (!seen || readNoticedAt(entry) > seen) && renderEntryText(entry),
   );
@@ -41,20 +48,24 @@ function listFreshUpdates() {
 }
 
 export function renderUpdates() {
-  const fresh = session.activeYear === readSeasonYear() ? listFreshUpdates() : [];
+  const fresh = isCurrentSeason() ? listFreshUpdates() : [];
   const updates = fresh.map((group) => ({
     at: findHappenedAt(group),
     text: renderUpdateText(group),
   }));
   showUpdates(/** @type {HTMLElement} */ (document.getElementById("updates")), updates, {
     dismiss: dismissUpdates,
+    notes: isCurrentSeason() ? listFreshReleaseNotes() : [],
   });
 }
 
-// Updates are stamped by the Worker's clock, so the dismissal goes by the newest one, not by
-// this device's clock, which can be off.
+// Updates are stamped by the Worker's clock, and a note by the time it was given, so the dismissal
+// goes by the newest of them, not by this device's clock, which can be off.
 function dismissUpdates() {
-  const newest = Math.max(...listFreshUpdates().flatMap((group) => group.map(readNoticedAt)));
+  const newest = Math.max(
+    ...listFreshUpdates().flatMap((group) => group.map(readNoticedAt)),
+    ...listFreshReleaseNotes().map((note) => note.at),
+  );
   const saving = saveSeenAt(new Date(newest).toISOString());
   renderUpdates();
   return showSaveResult(saving);

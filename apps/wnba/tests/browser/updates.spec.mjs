@@ -14,6 +14,18 @@ function finishDreamAtMystics(season) {
   return season;
 }
 
+/**
+ * Serves the page a release note in place of the app's own, out an hour before the harness's now.
+ * @param {import("@playwright/test").Page} page
+ */
+const serveReleaseNote = (page) =>
+  page.route("**/js/release-notes.js", (route) =>
+    route.fulfill({
+      contentType: "text/javascript",
+      body: 'export const RELEASE_NOTES = [{ at: "2026-09-30T20:55:00Z", text: "Game details now include channels." }];',
+    }),
+  );
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
@@ -41,6 +53,35 @@ test.describe("on a phone", () => {
     await expect(updates.locator(".what")).toHaveText([
       "Dream beat the Mystics 88-80 to win the First Round 2\u20130",
     ]);
+  });
+});
+
+test.describe("on a phone, with a release note out", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("the note sits under the finals, headed New in the app, and closes with them", async ({
+    page,
+  }) => {
+    await serveReleaseNote(page);
+    await openApp(page, { isShowingUpdates: true });
+    const updates = page.locator("#updates");
+
+    await expect(updates.locator(".updates-count")).toHaveText([
+      "2 updates since yesterday",
+      "New in the app",
+    ]);
+    await expect(updates.locator(".updates-notes .what")).toHaveText(
+      "Game details now include channels.",
+    );
+    const finals = await updates.locator(".updates-list").first().boundingBox();
+    const notes = await updates.locator(".updates-notes").boundingBox();
+    expect(notes.y).toBeGreaterThan(finals.y + finals.height);
+
+    await page.getByRole("button", { name: "Dismiss updates" }).click();
+    await expect(updates).toBeHidden();
+    await page.reload();
+    await expect(page.locator(".series").first()).toBeVisible();
+    await expect(updates).toBeHidden();
   });
 });
 

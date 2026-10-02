@@ -1,6 +1,7 @@
 /*
- * The box under the tabs that lists what's new, as updates.js draws it. Apps link it after
- * chrome.css, before their own styles.css, which may refine these rules.
+ * The box under the tabs that lists what's new, and under that what's new in the app, as
+ * updates.js draws it. Apps link it after chrome.css, before their own styles.css, which may
+ * refine these rules.
  *
  * Beside chrome.css's --card, --card-border, --divider, --ink, and --ink-dim, an app's :root
  * defines this token:
@@ -89,6 +90,14 @@
   color: var(--ink);
   min-width: 0;
   line-height: 1.45;
+}
+/* Release notes sit under the updates, apart from them by space alone, and close under their
+   heading. */
+.updates-section {
+  margin-top: 18px;
+}
+.updates-notes .updates-list {
+  margin-top: 5px;
 }
 /* The .when column's 80px plus the row's 12px gap. */
 .updates-list .more {
