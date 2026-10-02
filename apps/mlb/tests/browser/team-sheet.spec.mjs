@@ -34,6 +34,25 @@ test("a club's name in a game's row opens its sheet, and the rest of the row ope
   await expect(teamSheet).toBeHidden();
 });
 
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("a tap on a club's name in a game's row opens the matchup, since a thumb lands on a name easily", async ({
+    page,
+  }) => {
+    const gameButton = await showGames(page);
+    const astros = gameButton
+      .locator("xpath=..")
+      .getByRole("button", { name: "Team details: Astros" });
+    await astros.scrollIntoViewIfNeeded();
+    const box = await astros.boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+
+    await expect(page.locator("#matchupDialog")).toBeVisible();
+    await expect(page.locator("#teamDialog")).toBeHidden();
+  });
+});
+
 test("a club's name in the matchup opens its sheet over it, and Done goes back to the matchup", async ({
   page,
 }) => {

@@ -863,6 +863,25 @@ test("a team's name in a game's row opens its sheet, set like the row's other na
   await expect(page.locator("#gameTitle")).toHaveText("First Round Game 2");
 });
 
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("a tap on a team's name in a game's row opens the game, since a thumb lands on a name easily", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const fever = (await findGameButton(page, ACES_AT_FEVER))
+      .locator("xpath=..")
+      .getByRole("button", { name: "Team details: Indiana Fever" });
+    await fever.scrollIntoViewIfNeeded();
+    const box = await fever.boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+
+    await expect(page.locator("#gameTitle")).toHaveText("First Round Game 2");
+    await expect(page.locator("#teamDialog")).toBeHidden();
+  });
+});
+
 test("a team's name in a game's sheet opens its sheet over the game's, and Done goes back to the game", async ({
   page,
 }) => {

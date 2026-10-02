@@ -1480,6 +1480,9 @@ table.standings tr.playoff-line + tr td {
   --form-space-above: 20px;
   --form-space-between: 14px;
   --side-name-size: 16px;
+  --game-row-height: 25px;
+  --field-space-above: 12px;
+  --field-space-below: 0px;
   gap: var(--part-space-above);
   padding-top: var(--part-space-first);
 }
@@ -1501,9 +1504,15 @@ table.standings tr.playoff-line + tr td {
   box-shadow: inset 0 0 0 1px var(--divider);
   color: var(--ink-dim);
 }
+/* Each playoff game takes the same --game-row-height, whatever its row holds, and the numbers
+   under them start --field-space-above the games. Over each part's numbers, the team and the
+   league are named --field-space-below above the first row. */
 .team-playoffs {
   display: grid;
-  gap: 4px;
+  grid-auto-rows: var(--game-row-height);
+}
+.team-playoffs + .team-tape {
+  margin-top: calc(var(--field-space-above) - 12px);
 }
 .team-game {
   display: grid;
@@ -1566,7 +1575,9 @@ table.standings tr.playoff-line + tr td {
 .team-tape {
   --team: var(--team-light, var(--ink-dim));
   display: grid;
-  gap: 10px;
+}
+.team-tape .tape-teams {
+  margin-bottom: var(--field-space-below);
 }
 :root[data-theme="dark"] .team-tape {
   --team: var(--team-dark, var(--ink-dim));

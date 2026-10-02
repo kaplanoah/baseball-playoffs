@@ -880,6 +880,30 @@ test.describe("a team's sheet", () => {
     await expect(icon).toHaveCSS("color", when);
   });
 
+  test("a team's playoff games sit 25px apart, a final's score or not, with the team and field names 12px under them and right over their first measure", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    const rows = await sheet
+      .locator(".team-game")
+      .evaluateAll((games) => games.map((game) => game.getBoundingClientRect().toJSON()));
+    const names = await sheet.locator(".team-playoffs + .team-tape .tape-teams").boundingBox();
+    const firstMeasure = await sheet
+      .locator(".team-playoffs + .team-tape .tape-row")
+      .first()
+      .boundingBox();
+
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map((row, index) => Math.round(row.top - rows[index].top))).toEqual([
+      25, 25,
+    ]);
+    expect(Math.round(names.y - rows[2].bottom)).toBe(12);
+    expect(Math.round(firstMeasure.y - (names.y + names.height))).toBe(0);
+  });
+
   test("Last 10 sits 20px under the regular season's numbers, and Streak 14px under Last 10", async ({
     page,
   }) => {
