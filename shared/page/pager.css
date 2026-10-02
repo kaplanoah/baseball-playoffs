@@ -67,7 +67,7 @@
 .pager-tabs button {
   position: relative;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: var(--size-small);
   text-transform: uppercase;
   letter-spacing: 0.09em;
   background: none;

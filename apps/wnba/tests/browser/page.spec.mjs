@@ -1,7 +1,7 @@
 import { test, expect, openApp } from "./harness.mjs";
 import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 import { serveReleases } from "../../../../tests/browser/serve-releases.mjs";
-import { listHeavyText } from "./text-weights.mjs";
+import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
@@ -48,27 +48,26 @@ test("a losing score is lit at three quarters, without the winner's glow", async
   await expect(winner).not.toHaveCSS("filter", "none");
 });
 
-test("no text is heavier than 600 but the calendar's day numbers", async ({ page }) => {
+test("every piece of text keeps to the type scale, in every view", async ({ page }) => {
   await openApp(page);
-  expect(await listHeavyText(page)).toEqual([]);
+  expect(await listOffScaleText(page)).toEqual([]);
   await page.getByRole("tab", { name: "Games" }).click();
   for (const list of ["Previous", "Today", "Next"]) {
     await page.getByRole("tab", { name: list }).click();
     await expect(page.locator(`#games-${list.toLowerCase()} .game-row`).first()).toBeVisible();
-    expect(await listHeavyText(page)).toEqual([]);
+    expect(await listOffScaleText(page)).toEqual([]);
   }
-  await expect(page.locator(".day-number").first()).toHaveCSS("font-weight", "700");
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standings-league tr").nth(2)).toBeVisible();
-  expect(await listHeavyText(page)).toEqual([]);
+  expect(await listOffScaleText(page)).toEqual([]);
   await page.getByRole("button", { name: "Team details: Minnesota Lynx" }).first().click();
   await expect(page.locator("#teamDialog .team-scorer")).toBeVisible();
-  expect(await listHeavyText(page)).toEqual([]);
+  expect(await listOffScaleText(page)).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(page.locator("#teamDialog")).toBeHidden();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settingsDialog")).toBeVisible();
-  expect(await listHeavyText(page)).toEqual([]);
+  expect(await listOffScaleText(page)).toEqual([]);
 });
 
 test("a score the Worker saves shows up without a reload", async ({ page }) => {
@@ -431,6 +430,28 @@ test("the home screen names the app WNBA", async ({ page }) => {
   expect(manifest.short_name).toBe("WNBA");
 });
 
+test("Barlow Condensed draws 8% larger than its size, so it looks as big as Barlow", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.evaluate(() => document.fonts.ready);
+  const faces = await page.evaluate(() =>
+    [...document.fonts].map((font) => ({
+      family: font.family,
+      weight: font.weight,
+      // TypeScript's DOM types don't list FontFace's sizeAdjust yet.
+      sizeAdjust: /** @type {FontFace & { sizeAdjust: string }} */ (font).sizeAdjust,
+    })),
+  );
+  const listFaces = (/** @type {string} */ family) =>
+    faces
+      .filter((face) => face.family === family)
+      .map((face) => `${face.weight} ${face.sizeAdjust}`)
+      .sort();
+  expect(listFaces("Barlow Condensed")).toEqual(["300 108%", "400 108%", "500 108%", "600 108%"]);
+  expect(listFaces("Barlow").every((face) => face.endsWith(" 100%"))).toBe(true);
+});
+
 test("the page uses its own fonts, served with it", async ({ page }) => {
   await openApp(page);
   // The bracket's wins are the first text in Barlow Condensed, so its font loads once they show.
@@ -561,7 +582,7 @@ test("the title and the round names are in Barlow Condensed, and each card's not
     expect(await readFirstFont(selector)).toBe("Barlow Condensed");
   expect(await readFirstFont(".card-note")).toBe("Barlow");
   await expect(page.locator(".card-note").first()).toHaveCSS("font-style", "italic");
-  await expect(page.locator(".card-note").first()).toHaveCSS("font-size", "13px");
+  await expect(page.locator(".card-note").first()).toHaveCSS("font-size", "14px");
   await page.getByRole("tab", { name: "Games" }).click();
   expect(await readFirstFont("#gamePager .day-month")).toBe("Barlow Condensed");
 });
@@ -593,21 +614,6 @@ test("hovering the settings button shades a rounded square around its icon", asy
   await expect(button).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 });
 
-/**
- * The size of the smallest text an element holds, in pixels.
- * @param {import("@playwright/test").Locator} area
- */
-const readSmallestText = (area) =>
-  area.evaluate((root) =>
-    Math.min(
-      ...[...root.querySelectorAll("*")]
-        .filter((element) =>
-          [...element.childNodes].some((node) => node.nodeType === 3 && node.textContent?.trim()),
-        )
-        .map((element) => parseFloat(getComputedStyle(element).fontSize)),
-    ),
-  );
-
 test.describe("on a phone, the text", () => {
   test.use({
     viewport: { width: 390, height: 844 },
@@ -616,31 +622,52 @@ test.describe("on a phone, the text", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("of the header's lines, the games, the standings, and a team's sheet is never tiny, with the ranks in a narrow column", async ({
+  test("keeps to the type scale in the header, the Updates box, the games, the standings, a team's sheet, and settings, with the ranks in a narrow column", async ({
     page,
   }) => {
-    await openApp(page);
-    await expect(page.locator("#stamp")).toBeVisible();
-    expect(
-      parseFloat(
-        await page.locator("#stamp").evaluate((stamp) => getComputedStyle(stamp).fontSize),
-      ),
-    ).toBeGreaterThanOrEqual(13);
+    await openApp(page, { isShowingUpdates: true });
+    await expect(page.locator("#updates .what").first()).toBeVisible();
+    expect(await listOffScaleText(page)).toEqual([]);
 
     await page.getByRole("tab", { name: "Games" }).click();
-    await expect(page.locator("#games-today .series-label").first()).toBeVisible();
-    expect(await readSmallestText(page.locator("#games-today"))).toBeGreaterThanOrEqual(10.5);
+    for (const list of ["Previous", "Today", "Next"]) {
+      await page.getByRole("tab", { name: list }).click();
+      await expect(page.locator(`#games-${list.toLowerCase()} .game-row`).first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+    }
 
     await page.getByRole("tab", { name: "Standings" }).click();
     const standings = page.locator("#standings-league");
     await expect(standings.locator("tbody tr").first()).toBeVisible();
-    expect(await readSmallestText(standings)).toBeGreaterThanOrEqual(10.5);
+    expect(await listOffScaleText(page)).toEqual([]);
     await expect(standings.locator("td.place").first()).toHaveCSS("width", "28px");
 
     await standings.locator('tr[data-team="NYL"] td.season').first().click();
     const sheet = page.locator("#teamDialog");
     await expect(sheet.locator(".team-game")).toHaveCount(3);
-    expect(await readSmallestText(sheet)).toBeGreaterThanOrEqual(10.5);
+    expect(await listOffScaleText(page)).toEqual([]);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page.locator("#settingsDialog")).toBeVisible();
+    expect(await listOffScaleText(page)).toEqual([]);
+  });
+
+  test("of the Updates box reads at 16px, its days at 14px, and its count at 13px, and a series' standing stays on one line", async ({
+    page,
+  }) => {
+    await openApp(page, { isShowingUpdates: true });
+    const updates = page.locator("#updates");
+    await expect(updates.locator(".what").first()).toBeVisible();
+    await expect(updates.locator(".what").first()).toHaveCSS("font-size", "16px");
+    await expect(updates.locator(".when").first()).toHaveCSS("font-size", "14px");
+    await expect(updates.locator(".updates-count")).toHaveCSS("font-size", "13px");
+    const lineCounts = await updates
+      .locator(".series-score")
+      .evaluateAll((scores) => scores.map((score) => score.getClientRects().length));
+    expect(lineCounts.length).toBeGreaterThan(0);
+    expect(lineCounts.every((count) => count === 1)).toBe(true);
   });
 });
 
@@ -652,7 +679,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name a size up in semibold, its stats in the wider Barlow, its text in medium, and its first part 8px under the record", async ({
+  test("sets its name like every team's at 20px, its stats in the wider Barlow, its text in medium, and its first part 8px under the record", async ({
     page,
   }) => {
     await openApp(page);
@@ -662,7 +689,7 @@ test.describe("on a phone, a team's sheet", () => {
     await expect(sheet.locator(".team-scorer")).toBeVisible();
 
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-weight", "600");
-    await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "16px");
+    await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "20px");
     await expect(sheet.locator("#teamNote")).toHaveCSS("font-weight", "500");
     await expect(sheet.locator(".team-stat b").first()).toHaveCSS("font-family", /^"?Barlow"?,/);
     await expect(sheet.locator(".team-detail").first()).toHaveCSS("font-weight", "500");
@@ -710,6 +737,18 @@ test.describe("a team's sheet", () => {
 
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toBeHidden();
+  });
+
+  test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {
+    await openApp(page);
+    await page.locator('#bracketWrap .team-line[data-team="NYL"]').first().click();
+    const title = page.locator("#teamDialog #teamTitle");
+
+    await expect(title).toHaveText("New York Liberty");
+    await expect(title).toHaveCSS("font-family", /^"Barlow Condensed"/);
+    await expect(title).toHaveCSS("font-weight", "600");
+    await expect(title).toHaveCSS("text-transform", "none");
+    await expect(title).toHaveCSS("font-size", "20px");
   });
 
   test("a team in the bracket opens its sheet", async ({ page }) => {
