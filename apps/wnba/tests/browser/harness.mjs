@@ -1,10 +1,22 @@
 import { readFileSync } from "node:fs";
-import { test as base, expect } from "@playwright/test";
-import { buildSnapshot } from "../../page/js/snapshot.js";
+import { buildSnapshot, REQUESTS } from "../../page/js/snapshot.js";
 import { createBoxScoreServer, nameBoxScoreRequest } from "../../worker/src/box-score.js";
-import { createPreviewServer, listPreviewRequests } from "../../worker/src/preview.js";
+import {
+  createLeadServer,
+  nameScoreboardRequest,
+  nameSummaryRequest,
+} from "../../worker/src/lead.js";
+import { createPreviewServer } from "../../worker/src/preview.js";
 import { SeasonStore } from "../../worker/src/store.js";
-import { createDurableObjectContext } from "../../../../tests/durable-object-context.js";
+import worker from "../../worker/src/index.js";
+import {
+  test,
+  expect,
+  createTestStore,
+  connectToStore,
+  loadPageAt,
+  openLockedPage,
+} from "../../../../tests/browser/harness.mjs";
 import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
 const AFTERNOON = JSON.parse(
@@ -18,54 +30,32 @@ const ESPN_SCOREBOARD = JSON.parse(
 const GAMES = JSON.parse(
   readFileSync(new URL("../fixtures/2026-10-01-games.json", import.meta.url), "utf8"),
 );
+const LEAD = JSON.parse(
+  readFileSync(new URL("../fixtures/2026-10-01-espn-lead.json", import.meta.url), "utf8"),
+);
 
-/** @type {import("@playwright/test").Fixtures<{ pageErrors: string[] }, {}, import("@playwright/test").PlaywrightTestArgs>} */
-const pageErrorsFixture = {
-  pageErrors: [
-    async ({ page }, use) => {
-      const errors = [];
-      page.on("pageerror", (error) => errors.push(error.message));
-      await use(errors);
-      expect(errors).toEqual([]);
-    },
-    { auto: true },
-  ],
-};
-
-export const test = base.extend(pageErrorsFixture);
-export { expect, GAMES };
-
-async function answerFromStore(route, store) {
-  const request = route.request();
-  const answer = await store.fetch(
-    new Request(request.url(), {
-      method: request.method(),
-      headers: request.headers(),
-      body: request.postData() ?? undefined,
-    }),
-  );
-  await route.fulfill({
-    status: answer.status,
-    headers: Object.fromEntries(answer.headers),
-    body: Buffer.from(await answer.arrayBuffer()),
-  });
-}
+export { test, expect, GAMES };
 
 /**
- * The league's answers to the game sheet's routes, from the recorded box scores and preview feeds,
- * with any of them changed or refused. A game without a box score is one that hasn't started.
- * @param {{ boxScores?: Record<string, any>, refused?: string[] }} league
+ * The league's answers to the game sheet's routes, from the recorded box scores and schedule, with
+ * any box score changed, or the schedule refused. A game without a box score is one that hasn't
+ * started.
+ * ESPN answers for the one game its lead was recorded for, Valkyries at Wings, Game 2.
+ * @param {{ boxScores?: Record<string, any>, isScheduleRefused?: boolean, leadSummary?: any }} league
  */
-function createLeagueFetch({ boxScores = {}, refused = [] }) {
-  const previewRequests = listPreviewRequests(GAMES.season);
+function createLeagueFetch({
+  boxScores = {},
+  isScheduleRefused = false,
+  leadSummary = LEAD.summary,
+}) {
   const answers = new Map([
     ...Object.entries({ ...GAMES.boxScores, ...boxScores }).map(
       ([id, box]) => /** @type {[string, any]} */ ([nameBoxScoreRequest(id), box]),
     ),
-    ...Object.entries(previewRequests)
-      .filter(([name]) => !refused.includes(name))
-      .map(([name, url]) => /** @type {[string, any]} */ ([url, GAMES.preview[name]])),
+    [nameScoreboardRequest(LEAD.game.start), LEAD.scoreboard],
+    [nameSummaryRequest(LEAD.eventId), leadSummary],
   ]);
+  if (!isScheduleRefused) answers.set(REQUESTS.schedule, GAMES.preview.schedule);
   return async (url) =>
     answers.has(url)
       ? new Response(JSON.stringify(answers.get(url)))
@@ -81,14 +71,8 @@ async function answerFromWorker(route, serve) {
   await route.fulfill({ status: answer.status, json: await answer.json() });
 }
 
-/**
- * The page as the Worker serves it, with the Worker's store behind it, already updated once from
- * the afternoon's feeds, and the game sheet's routes reading the league's recorded answers.
- * @param {import("@playwright/test").Page} page
- * @param {{ league?: Parameters<typeof createLeagueFetch>[0] }} [options]
- */
-export async function openApp(page, { league = {} } = {}) {
-  const context = createDurableObjectContext();
+/** The Worker's store, already updated once from the afternoon's feeds. */
+async function createAfternoonStore() {
   const loadSnapshot = async (season) =>
     buildSnapshot(
       {
@@ -98,28 +82,33 @@ export async function openApp(page, { league = {} } = {}) {
       },
       { season, now: Date.parse(NOW) },
     );
-  const store = new SeasonStore(
-    context.ctx,
-    {},
-    {
-      loadSnapshot,
-      now: () => Date.parse(NOW),
-      fetchImpl: async () => new Response(null, { status: 201 }),
-    },
-  );
-  await store.alarm();
+  const testStore = createTestStore(SeasonStore, { loadSnapshot, now: NOW });
+  await testStore.store.alarm();
+  return testStore;
+}
 
-  await page.route(
-    (url) => url.hostname !== "127.0.0.1",
-    (route) => route.abort(),
-  );
-  await page.route(
-    (url) => url.pathname.startsWith("/store/") || url.pathname.startsWith("/push/"),
-    (route) => answerFromStore(route, store),
-  );
+/**
+ * The page as the Worker serves it, with the Worker's store behind it, already updated once from
+ * the afternoon's feeds, and the game sheet's routes reading the league's recorded answers. On a
+ * phone, the afternoon's finals would fill the Updates box above every view, so it starts
+ * dismissed unless a test is about it.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ league?: Parameters<typeof createLeagueFetch>[0], isShowingUpdates?: boolean }} [options]
+ */
+export async function openApp(page, { league = {}, isShowingUpdates = false } = {}) {
+  if (!isShowingUpdates)
+    await page.addInitScript(() => localStorage.setItem("updatesSeenAt", String(Date.now() * 2)));
+  const testStore = await createAfternoonStore();
+  const { context, store } = testStore;
+  await connectToStore(page, testStore);
   const fetchImpl = createLeagueFetch(league);
   const boxScores = createBoxScoreServer({ fetchImpl });
   const previews = createPreviewServer({ fetchImpl, now: () => Date.parse(NOW) });
+  const leads = createLeadServer({ fetchImpl });
+  await page.route(
+    (url) => url.pathname === "/lead",
+    (route) => answerFromWorker(route, leads.serveLead),
+  );
   await page.route(
     (url) => url.pathname === "/box-score",
     (route) => answerFromWorker(route, boxScores.serveBoxScore),
@@ -128,12 +117,7 @@ export async function openApp(page, { league = {} } = {}) {
     (url) => url.pathname === "/preview",
     (route) => answerFromWorker(route, previews.servePreview),
   );
-  await page.routeWebSocket(
-    (url) => url.pathname === "/watch",
-    (socket) => context.ctx.acceptWebSocket({ send: (message) => socket.send(message) }),
-  );
-  await page.clock.install({ time: new Date(NOW) });
-  await page.goto("/");
+  await loadPageAt(page, NOW);
 
   const readSeason = async () => structuredClone(await context.ctx.storage.get("seasons/2026"));
 
@@ -150,5 +134,24 @@ export async function openApp(page, { league = {} } = {}) {
       await context.ctx.storage.put("seasons/2026", change(await readSeason()));
     },
     holdStore: () => holdStore(page),
+    /**
+     * The saved season as the store would hold it in the next year's off-season.
+     * @param {number} year
+     */
+    moveSeasonTo: async (year) => {
+      await context.ctx.storage.put(`seasons/${year}`, await readSeason());
+      await context.ctx.storage.delete("seasons/2026");
+    },
   };
+}
+
+/**
+ * The page at its key's address behind an access code, as the Worker serves it, with the
+ * afternoon's store behind it.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ accessCode: string }} options
+ */
+export async function openLockedApp(page, { accessCode }) {
+  const testStore = await createAfternoonStore();
+  return openLockedPage(page, { worker, testStore, accessCode, now: NOW });
 }

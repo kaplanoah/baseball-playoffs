@@ -1,14 +1,10 @@
 import { findSeriesBetween, isEliminated, nameSeries } from "./bracket.js";
-import { html, setHtml } from "#shared/html.js";
+import { nameDay } from "#shared/days.js";
+import { html } from "#shared/html.js";
+import { fillStamp, renderStampLine, renderStampWhen } from "#shared/stamp.js";
 import { findStandingsRow } from "./race.js";
 import { session } from "./session.js";
-import {
-  formatStampName,
-  describeLastStamp,
-  describeUpNextGame,
-  renderStampWhen,
-  formatStampDay,
-} from "./stamp.js";
+import { formatStampName, describeLastStamp, describeUpNextGame } from "./stamp.js";
 
 function isAliveInStandings(id) {
   const row = findStandingsRow(id);
@@ -39,26 +35,18 @@ function buildStampContext() {
   };
 }
 
-function renderStampLine(label, when, why) {
-  return html`<span>${label} <b>${when}</b>${why && html` &mdash; ${why}`}</span>`;
-}
-
 function renderLiveLines() {
   if (!session.state.slate) return [];
   const context = buildStampContext();
   const latest = describeLastStamp(session.state.slate, context);
-  const lines = latest
-    ? [
-        html`<span><b class="lead">${renderStampWhen(new Date(session.live.asOf))}</b>${latest}</span>`,
-      ]
-    : [];
+  const lines = latest ? [html`<span>${latest}</span>`] : [];
   const next = describeUpNextGame(session.state.slate, context);
   if (next) {
     const at = new Date(next.at);
     lines.push(
       renderStampLine(
         "Next first pitch",
-        next.tbd ? formatStampDay(at) : renderStampWhen(at),
+        next.tbd ? nameDay(at, context.now) : renderStampWhen(at, context.now),
         next.text,
       ),
     );
@@ -81,14 +69,8 @@ function renderStampLines() {
 }
 
 export function renderStamp() {
-  const stamp = document.getElementById("stamp");
   const problems = [session.liveProblem, session.saveProblem].filter(Boolean);
-  const lines = [
-    ...renderStampLines(),
-    ...problems.map((problem) => html`<span class="stamp-err">${problem}</span>`),
-  ];
-  stamp.hidden = !lines.length;
-  setHtml(stamp, html`${lines}`);
+  fillStamp(document.getElementById("stamp"), renderStampLines(), problems);
 }
 
 // The failure is already on the stamp, so a rejected save needs nothing more here.

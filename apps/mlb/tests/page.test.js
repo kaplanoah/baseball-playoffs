@@ -690,7 +690,7 @@ test("each series keeps whichever of the saved and live records has counted more
   try {
     Object.assign(session, { activeYear: 2026, readings: null });
     session.seasonDoc = { year: 2026, teams, series: savedSeries, ranking: [], log: [] };
-    session.live = { ...live, projected: false, standings: null, teams, series: liveSeries };
+    session.live = { ...live, projected: false, standings: {}, teams, series: liveSeries };
     composeState();
     assert.deepEqual(session.state.series, {
       AL_WC1: savedSeries.AL_WC1,
@@ -825,6 +825,103 @@ test("games list: live halves, a doubleheader in game order, a postponement, an 
   ]);
   assert.deepEqual(describeGameList(slate, "next"), ["Sat, Oct 3", "TBD 1:08 PM Rays"]);
   assert.deepEqual(describeGameList(slate, "previous"), ["No earlier games this season"]);
+});
+
+const eveningFixture = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-09-24-evening.json`, "utf8"),
+);
+const eveningSnapshot = buildSnapshot(eveningFixture.responses, {
+  season: eveningFixture.season,
+  now: Date.parse(eveningFixture.now),
+});
+const WILD_CARDS_WON_BY_HIGHER_SEEDS = {
+  AL_WC1: { winsA: 2, winsB: 0 },
+  AL_WC2: { winsA: 2, winsB: 0 },
+  NL_WC1: { winsA: 2, winsB: 0 },
+  NL_WC2: { winsA: 2, winsB: 0 },
+};
+
+/**
+ * Each series label in one of the Games lists, with the evening's field and these series counts.
+ * @param {Record<string, { winsA: number, winsB: number }>} series
+ * @param {object} slate
+ * @param {string} list
+ */
+function readSeriesLabels(series, slate, list) {
+  session.state = {
+    teams: eveningSnapshot.teams,
+    series: { ...eveningSnapshot.series, ...series },
+  };
+  const labels = String(renderGameList(slate, list)).match(
+    /<span class="series-label.*?<\/span><\/span>/g,
+  );
+  return (labels || []).map((label) => normalizeSpaces(stripTags(label)));
+}
+
+/** @param {{ away: string, home: string }[]} games */
+const buildPostseasonToday = (games) => ({
+  today: {
+    date: "2026-09-24",
+    games: games.map((game) => ({
+      state: "pre",
+      start: "2026-09-24T18:08:00Z",
+      postseason: true,
+      ...game,
+    })),
+  },
+});
+
+test("games list: a later round's label names it DS, CS, or WS, away wins first", () => {
+  const leagueSeries = buildPostseasonToday([
+    { away: "NYY", home: "TB" },
+    { away: "LAD", home: "MIL" },
+  ]);
+  assert.deepEqual(
+    readSeriesLabels(
+      {
+        ...WILD_CARDS_WON_BY_HIGHER_SEEDS,
+        AL_DS1: { winsA: 1, winsB: 0 },
+        NL_DS1: { winsA: 3, winsB: 0 },
+        NL_DS2: { winsA: 3, winsB: 1 },
+        NL_CS: { winsA: 2, winsB: 1 },
+      },
+      leagueSeries,
+      "today",
+    ),
+    ["ALDS 0-1", "NLCS 1-2"],
+  );
+
+  const worldSeries = buildPostseasonToday([{ away: "MIL", home: "TB" }]);
+  assert.deepEqual(
+    readSeriesLabels(
+      {
+        ...WILD_CARDS_WON_BY_HIGHER_SEEDS,
+        AL_DS1: { winsA: 3, winsB: 0 },
+        AL_DS2: { winsA: 3, winsB: 0 },
+        AL_CS: { winsA: 4, winsB: 2 },
+        NL_DS1: { winsA: 3, winsB: 0 },
+        NL_DS2: { winsA: 3, winsB: 0 },
+        NL_CS: { winsA: 4, winsB: 1 },
+        WS: { winsA: 2, winsB: 2 },
+      },
+      worldSeries,
+      "today",
+    ),
+    ["WS 2-2"],
+  );
+});
+
+test("games list: only today's postseason games carry a series label", () => {
+  const wildCards = { NL_WC1: { winsA: 1, winsB: 0 } };
+  const game = { away: "PHI", home: "ATL", state: "final", score: [3, 1], postseason: true };
+  const slate = {
+    ...buildPostseasonToday([{ away: "PHI", home: "ATL" }]),
+    previous: [{ ...game, date: "2026-09-23", start: "2026-09-23T18:08:00Z" }],
+    next: [{ ...game, date: "2026-09-25", start: "2026-09-25T18:08:00Z", state: "pre" }],
+  };
+  assert.deepEqual(readSeriesLabels(wildCards, slate, "today"), ["NL WC 0-1"]);
+  assert.deepEqual(readSeriesLabels(wildCards, slate, "previous"), []);
+  assert.deepEqual(readSeriesLabels(wildCards, slate, "next"), []);
 });
 
 test("games list: a game still to play names its starters, with their arm and ERA", () => {

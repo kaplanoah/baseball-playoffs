@@ -1,19 +1,12 @@
-import { DAYS, countDaysBetween, formatWeekdayAndDate, readPlayingDay } from "#shared/days.js";
-
-const EASTERN = new Intl.DateTimeFormat("en-US", {
-  timeZone: "America/New_York",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-/** @param {number} ms */
-export function readEasternDate(ms) {
-  const parts = Object.fromEntries(
-    EASTERN.formatToParts(new Date(ms)).map(({ type, value }) => [type, value]),
-  );
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
+import {
+  countDaysBetween,
+  formatShortWeekday,
+  formatWeekday,
+  formatWeekdayAndDate,
+  nameDay,
+  readEasternDay,
+  readPlayingDay,
+} from "#shared/days.js";
 
 /**
  * Midnight on the viewer's calendar of the day a game is played, or null without a start. A game
@@ -22,26 +15,46 @@ export function readEasternDate(ms) {
  */
 export function readGameDay({ start, isTimeSet }) {
   const startMs = Date.parse(start ?? "");
-  const leagueDate = Number.isFinite(startMs) ? readEasternDate(startMs) : null;
+  const leagueDate = Number.isFinite(startMs) ? readEasternDay(startMs).date : null;
   return readPlayingDay({ start, isTimeSet, leagueDate });
 }
-
-const NEAR_DAYS = { "-1": "Yesterday", 0: "Today", 1: "Tomorrow" };
 
 /**
  * @param {Date} day
  * @param {number} now
  */
-export function describeDay(day, now) {
-  return NEAR_DAYS[countDaysBetween(new Date(now), day)] ?? formatWeekdayAndDate(day);
-}
+export const describeDay = (day, now) =>
+  nameDay(day, new Date(now), { nameOtherDay: formatWeekdayAndDate, isCapitalized: true });
+
+/**
+ * describeDay's name for the middle of a sentence, as in "Next game tomorrow".
+ * @param {Date} day
+ * @param {number} now
+ */
+export const describeDayInSentence = (day, now) =>
+  nameDay(day, new Date(now), { nameOtherDay: formatWeekdayAndDate });
 
 /**
  * A day's name beside its date, which doesn't need "Today": the Games list it heads already says so.
  * @param {Date} day
  * @param {number} now
  */
-export function nameDay(day, now) {
-  const offset = countDaysBetween(new Date(now), day);
-  return (offset !== 0 && NEAR_DAYS[offset]) || DAYS[day.getDay()];
-}
+export const nameListDay = (day, now) =>
+  nameDay(day, new Date(now), {
+    nearDays: [-1, 1],
+    nameOtherDay: formatWeekday,
+    isCapitalized: true,
+  });
+
+const NEAR_DAY_ABBREVIATIONS = new Map([
+  [-1, "Yest"],
+  [1, "Tmrw"],
+]);
+
+/**
+ * nameListDay's short form, for the narrow column beside a day's games.
+ * @param {Date} day
+ * @param {number} now
+ */
+export const abbreviateDay = (day, now) =>
+  NEAR_DAY_ABBREVIATIONS.get(countDaysBetween(new Date(now), day)) ?? formatShortWeekday(day);

@@ -1,5 +1,5 @@
 // The settings panel's appearance choice: Maple, Walnut, or System to follow the phone. Each
-// device keeps its own, since the page saves nothing to the store. The page's head sets the theme
+// device keeps its own, since the page saves nothing to the store. js/pick-theme.js sets the theme
 // before the first paint; this keeps it, and the icons and bar color that go with it, current.
 
 const STORAGE_KEY = "appearance";
@@ -54,6 +54,23 @@ function showTheme(theme) {
   findElement("homeScreenIcon").setAttribute("href", homeScreenIcon);
 }
 
+/**
+ * Shows the theme the viewer picked, or the phone's for System, now and whenever the phone's
+ * changes.
+ * @param {() => string} readPicked
+ */
+function followTheme(readPicked) {
+  const showChosenTheme = () =>
+    showTheme(/** @type {"light" | "dark"} */ (resolveTheme(readPicked())));
+  showChosenTheme();
+  darkScheme.addEventListener("change", showChosenTheme);
+  return showChosenTheme;
+}
+
+export function followSavedTheme() {
+  followTheme(readChoice);
+}
+
 export function startAppearance() {
   const choices = /** @type {NodeListOf<HTMLInputElement>} */ (
     document.querySelectorAll('input[name="appearance"]')
@@ -61,9 +78,7 @@ export function startAppearance() {
   const readPicked = () => [...choices].find((choice) => choice.checked)?.value ?? "auto";
   const saved = readChoice();
   for (const choice of choices) choice.checked = choice.value === saved;
-  const showChosenTheme = () =>
-    showTheme(/** @type {"light" | "dark"} */ (resolveTheme(readPicked())));
-  showChosenTheme();
+  const showChosenTheme = followTheme(readPicked);
   for (const choice of choices) {
     choice.addEventListener("change", () => {
       saveChoice(readPicked());
@@ -71,5 +86,4 @@ export function startAppearance() {
       findElement("appearanceNote").textContent = HOME_SCREEN_NOTE;
     });
   }
-  darkScheme.addEventListener("change", showChosenTheme);
 }

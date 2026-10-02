@@ -10,6 +10,8 @@ import {
   EVENING_FIXTURE,
 } from "./harness.mjs";
 import { createReading } from "../../page/js/readings.js";
+import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
+import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 
 const PLAYOFF_FIELD_2026 = [
   "Rays",
@@ -26,12 +28,35 @@ const PLAYOFF_FIELD_2026 = [
   "Phillies",
 ];
 
+test("the page's font comes from its own server, in every weight from one file", async ({
+  page,
+}) => {
+  const fontRequests = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "font") fontRequests.push(new URL(request.url()).pathname);
+  });
+  await openApp(page);
+
+  const loadedWeights = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts]
+      .filter(
+        (font) => font.family.replaceAll('"', "") === "Chivo Mono" && font.status === "loaded",
+      )
+      .map((font) => font.weight);
+  });
+  expect(loadedWeights).toContain("100 900");
+  expect(fontRequests).toEqual(["/fonts/chivo-mono-latin.woff2"]);
+});
+
 test("the Games tab lists today's games and every game on each club's previous and next date", async ({
   page,
 }) => {
+  // The lists, not the scrolling between them, are what this test reads.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
-  const shownGames = page.locator(".game-page:not([inert])");
+  const shownGames = page.locator(".pager-page:not([inert])");
   await expect(shownGames).toHaveId("games-today");
   await expect(shownGames.locator(".game-row")).toHaveCount(12);
   await expect(shownGames.locator(".game-row.live").first()).toContainText("Top 9th");
@@ -62,11 +87,11 @@ test("a game under way shows its outs as two lights beside the inning", async ({
 
 const readPagesPosition = (page) =>
   page
-    .locator("#gamePages")
+    .locator("#games-pages")
     .evaluate((pages) => Math.round((pages.scrollLeft / pages.clientWidth) * 100) / 100);
 
 async function readThumbOffset(page, tabName) {
-  const thumb = await page.locator(".game-tabs-thumb").boundingBox();
+  const thumb = await page.locator(".pager-thumb").boundingBox();
   const tab = await page.getByRole("tab", { name: tabName }).boundingBox();
   return Math.abs(thumb.x + thumb.width / 2 - (tab.x + tab.width / 2));
 }
@@ -79,7 +104,9 @@ test("on a phone, swiping the games sideways moves between the lists and slides 
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
 
-  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth / 4));
+  await page
+    .locator("#games-pages")
+    .evaluate((pages) => (pages.scrollLeft = pages.clientWidth / 4));
   await expect.poll(() => readPagesPosition(page)).toBe(0);
   await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
     "aria-selected",
@@ -101,7 +128,7 @@ test("the Games lists are as tall as the shown one when it runs past the screen"
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
-  const pages = page.locator("#gamePages");
+  const pages = page.locator("#games-pages");
   const readHeight = async (locator) => (await locator.boundingBox()).height;
 
   await page.getByRole("tab", { name: "Previous" }).click();
@@ -121,8 +148,8 @@ const openShortToday = async (page) => {
 
 const readListsTop = (page) =>
   page.evaluate(() => {
-    const bar = document.getElementById("gameTabsBar");
-    return document.getElementById("gamePages").getBoundingClientRect().top - bar.offsetHeight;
+    const bar = document.getElementById("games-bar");
+    return document.getElementById("games-pages").getBoundingClientRect().top - bar.offsetHeight;
   });
 
 test("on a phone, the space below a short list of games swipes too, and scrolls only as far as the pill", async ({
@@ -134,7 +161,7 @@ test("on a phone, the space below a short list of games swipes too, and scrolls 
 
   const lastRow = await page.locator("#games-today .game-row").last().boundingBox();
   const isSwipedBelowGames = await page.evaluate(
-    (y) => Boolean(document.elementFromPoint(195, y)?.closest("#gamePages")),
+    (y) => Boolean(document.elementFromPoint(195, y)?.closest("#games-pages")),
     lastRow.y + lastRow.height + 200,
   );
   expect(isSwipedBelowGames).toBe(true);
@@ -156,12 +183,12 @@ test("on a phone, the Games pill stays at the top while the games scroll under i
   await page.evaluate(() => scrollTo({ top: 600, behavior: "instant" }));
 
   await expect.poll(async () => (await pill.boundingBox()).y).toBe(10);
-  await expect(page.locator("#gameTabsBar")).toHaveClass(/stuck/);
+  await expect(page.locator("#games-bar")).toHaveClass(/stuck/);
   const coveringPillCenter = await page.evaluate(() => {
-    const box = document.querySelector(".game-tabs").getBoundingClientRect();
+    const box = document.querySelector(".pager-tabs").getBoundingClientRect();
     return document
       .elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
-      ?.closest(".game-tabs");
+      ?.closest(".pager-tabs");
   });
   expect(coveringPillCenter).not.toBeNull();
 });
@@ -178,15 +205,15 @@ test("on a phone, a list swiped in from far down another starts just under the p
   const readFirstDateY = async () =>
     (await page.locator("#games-today .game-day").first().boundingBox()).y;
   const pillBottom = await page.evaluate(
-    () => document.getElementById("gameTabsBar").getBoundingClientRect().bottom,
+    () => document.getElementById("games-bar").getBoundingClientRect().bottom,
   );
 
   await expect.poll(readFirstDateY).toBeCloseTo(pillBottom, 0);
   await page
-    .locator("#gamePages")
+    .locator("#games-pages")
     .evaluate((pages) => (pages.scrollLeft = pages.clientWidth * 0.5));
   expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
-  await page.locator("#gamePages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth));
+  await page.locator("#games-pages").evaluate((pages) => (pages.scrollLeft = pages.clientWidth));
 
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
   expect(await readFirstDateY()).toBeCloseTo(pillBottom, 0);
@@ -201,14 +228,20 @@ test("on a phone, a swipe that comes to rest between two lists goes on to the ne
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
-  const pages = page.locator("#gamePages");
+  const pages = page.locator("#games-pages");
   await pages.evaluate((element) => (element.style.scrollSnapType = "none"));
 
   await pages.dispatchEvent("touchstart", {
     touches: [{ identifier: 0, clientX: 195, clientY: 400 }],
   });
-  await pages.evaluate((element) => (element.scrollLeft = element.clientWidth * 0.3));
-  await page.waitForTimeout(400);
+  await pages.evaluate(
+    (element) =>
+      new Promise((resolve) => {
+        element.addEventListener("scroll", resolve, { once: true });
+        element.scrollLeft = element.clientWidth * 0.3;
+      }),
+  );
+  await page.clock.runFor(400);
   expect(await readPagesPosition(page)).toBe(0.3);
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 
@@ -236,12 +269,11 @@ test("a tapped Games tab keeps its list while the lists are still on their way",
   await page.getByRole("tab", { name: "Games" }).click();
   await expect.poll(() => readPagesPosition(page)).toBe(1);
 
-  await page.locator("#gamePages").evaluate((pages) => {
-    pages.scrollTo = () => {};
-    pages.dispatchEvent(new Event("scroll"));
-  });
+  const pages = page.locator("#games-pages");
+  await pages.evaluate((element) => (element.scrollTo = () => {}));
   await page.getByRole("tab", { name: "Previous" }).click();
-  await page.waitForTimeout(400);
+  await pages.dispatchEvent("scroll");
+  await page.clock.runFor(400);
 
   await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
     "aria-selected",
@@ -250,32 +282,93 @@ test("a tapped Games tab keeps its list while the lists are still on their way",
   await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
 });
 
-test("the Games tab opens on today's list after another tab was shown", async ({ page }) => {
+/** @param {import("@playwright/test").Page} page @param {boolean} hidden */
+const setHidden = (page, hidden) =>
+  page.evaluate((isHidden) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => isHidden });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
+
+/** @param {import("@playwright/test").Page} page @param {number} minutes */
+async function comeBackAfter(page, minutes) {
+  await setHidden(page, true);
+  const now = await page.evaluate(() => Date.now());
+  await page.clock.setSystemTime(now + minutes * 60 * 1000);
+  await setHidden(page, false);
+}
+
+/** @param {import("@playwright/test").Page} page @param {string} name @param {number} position */
+async function expectGameList(page, name, position) {
+  await expect.poll(() => readPagesPosition(page)).toBe(position);
+  await expect(page.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(`#games-${name.toLowerCase()}`)).not.toHaveAttribute("inert");
+}
+
+test("the Games tab keeps its list after another tab was shown", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Next" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(2);
+  await expectGameList(page, "Next", 2);
 
   await page.getByRole("tab", { name: "Bracket" }).click();
   await page.getByRole("tab", { name: "Games" }).click();
 
-  await expect.poll(() => readPagesPosition(page)).toBe(1);
-  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+  await expectGameList(page, "Next", 2);
 });
 
-test("the Games tab goes back to today's list when the page is opened again", async ({ page }) => {
+test("the Games tab keeps its list when the page comes back within the hour", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
   await page.getByRole("tab", { name: "Previous" }).click();
-  await expect.poll(() => readPagesPosition(page)).toBe(0);
+  await expectGameList(page, "Previous", 0);
 
-  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await comeBackAfter(page, 59);
 
-  await expect.poll(() => readPagesPosition(page)).toBe(1);
-  await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#games-today")).not.toHaveAttribute("inert");
+  await expectGameList(page, "Previous", 0);
+});
+
+test("the Games tab goes back to today's list when the page comes back after an hour away", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  await expectGameList(page, "Previous", 0);
+
+  await comeBackAfter(page, 60);
+
+  await expectGameList(page, "Today", 1);
+});
+
+test("the Games tab opens on today's list after an hour away spent on another tab", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expectGameList(page, "Next", 2);
+  await page.getByRole("tab", { name: "Bracket" }).click();
+
+  await comeBackAfter(page, 60);
+  await page.getByRole("tab", { name: "Games" }).click();
+
+  await expectGameList(page, "Today", 1);
+});
+
+test("the page reopens on the Games list it was last on", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Next" }).click();
+  await expectGameList(page, "Next", 2);
+
+  await page.reload();
+
+  await expectGameList(page, "Next", 2);
 });
 
 test("a doubleheader shows as two games on its date, with no game number", async ({ page }) => {
@@ -305,7 +398,7 @@ test("each day of games is closed by lines, with its date in open space above it
   const dates = shownGames.locator(".game-day");
   await expect(days).toHaveCount(2);
 
-  await expect(dates.first()).toHaveCSS("font-size", "10.24px");
+  await expect(dates.first()).toHaveCSS("font-size", "13px");
   await expect(days.first()).toHaveCSS("border-top-width", "1px");
   await expect(days.first().locator(".game-row").last()).toHaveCSS("border-bottom-width", "1px");
   const firstDay = await days.first().boundingBox();
@@ -392,13 +485,6 @@ const openWildCardDay = (page) =>
     ],
   );
 
-const WILD_CARDS_WON_BY_HIGHER_SEEDS = {
-  AL_WC1: { winsA: 2, winsB: 0 },
-  AL_WC2: { winsA: 2, winsB: 0 },
-  NL_WC1: { winsA: 2, winsB: 0 },
-  NL_WC2: { winsA: 2, winsB: 0 },
-};
-
 test("a postseason game today names its round and the series, away wins first, over its time or score", async ({
   page,
 }) => {
@@ -418,47 +504,6 @@ test("a postseason game today names its round and the series, away wins first, o
   const row = await page.locator("#games-today .game-row").first().boundingBox();
   const time = await page.locator("#games-today .game-time").boundingBox();
   expect(Math.abs(time.x + time.width / 2 - (row.x + row.width / 2))).toBeLessThan(1);
-});
-
-test("later rounds read DS, CS and WS in the series label", async ({ page }) => {
-  await openPostseasonDay(
-    page,
-    {
-      ...WILD_CARDS_WON_BY_HIGHER_SEEDS,
-      AL_DS1: { winsA: 1, winsB: 0 },
-      NL_DS1: { winsA: 3, winsB: 0 },
-      NL_DS2: { winsA: 3, winsB: 1 },
-      NL_CS: { winsA: 2, winsB: 1 },
-    },
-    [
-      { away: "NYY", home: "TB" },
-      { away: "LAD", home: "MIL" },
-    ],
-  );
-  await expect(page.locator("#games-today .series-label")).toHaveText(["ALDS 0-1", "NLCS 1-2"]);
-
-  await openPostseasonDay(
-    page,
-    {
-      ...WILD_CARDS_WON_BY_HIGHER_SEEDS,
-      AL_DS1: { winsA: 3, winsB: 0 },
-      AL_DS2: { winsA: 3, winsB: 0 },
-      AL_CS: { winsA: 4, winsB: 2 },
-      NL_DS1: { winsA: 3, winsB: 0 },
-      NL_DS2: { winsA: 3, winsB: 0 },
-      NL_CS: { winsA: 4, winsB: 1 },
-      WS: { winsA: 2, winsB: 2 },
-    },
-    [{ away: "MIL", home: "TB" }],
-  );
-  await expect(page.locator("#games-today .series-label")).toHaveText(["WS 2-2"]);
-});
-
-test("only today's postseason games carry a series label", async ({ page }) => {
-  await openWildCardDay(page);
-  await expect(page.locator("#games-today .series-label")).toHaveCount(4);
-  await expect(page.locator("#games-previous .series-label")).toHaveCount(0);
-  await expect(page.locator("#games-next .series-label")).toHaveCount(0);
 });
 
 test("with starters named, each sits under its club, its arm and ERA on its name's baseline", async ({
@@ -581,7 +626,7 @@ test("without a series line, a time centers in its row, and a score and its stat
 });
 
 const PHONE = { width: 390, height: 844 };
-const WIDE_SCREEN = { width: 1700, height: 900 };
+const WIDE_SCREEN = { width: 1800, height: 900 };
 const LAPTOP = { width: 1280, height: 800 };
 
 const CREAM = "rgb(241, 234, 212)";
@@ -605,11 +650,11 @@ test("the Games tab bolds each winner and dims only the clubs that are out", asy
   const winnerOut = findSide("Nationals", "Tigers", "away").locator(".team-name");
   const loserOut = findSide("Nationals", "Tigers", "home");
 
-  await expect(winnerStillIn).toHaveCSS("font-weight", "700");
+  await expect(winnerStillIn).toHaveCSS("font-weight", "550");
   await expect(winnerStillIn).toHaveCSS("color", CREAM);
-  await expect(loserStillIn).toHaveCSS("font-weight", "500");
+  await expect(loserStillIn).toHaveCSS("font-weight", "400");
   await expect(loserStillIn).toHaveCSS("color", CREAM);
-  await expect(winnerOut).toHaveCSS("font-weight", "700");
+  await expect(winnerOut).toHaveCSS("font-weight", "550");
   await expect(winnerOut).toHaveCSS("color", GREEN);
   await expect(loserOut.locator(".team-name")).toHaveCSS("color", GREEN);
   await expect(loserOut.locator(".dot")).toHaveCSS("opacity", "0.55");
@@ -629,6 +674,35 @@ test("the bracket shows an eliminated club in taupe, without a line through its 
     .first();
   await expect(eliminated).toHaveCSS("color", TAUPE);
   await expect(eliminated).toHaveCSS("text-decoration-line", "none");
+});
+
+test("a club's seed is labeled beside its card only where it enters the bracket: its Wild Card slot or its bye's Division Series slot", async ({
+  page,
+}) => {
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+  const bracket = page.locator("#bracketWrap");
+  const readLabels = (round, club) =>
+    bracket.locator(`.box[data-round="${round}"]`).filter({ hasText: club }).locator(".seed-label");
+
+  await expect(readLabels("WC", "Yankees")).toHaveText(["5 seed", "4 seed"]);
+  await expect(readLabels("DS", "Blue Jays")).toHaveText(["1 seed"]);
+  await expect(readLabels("CS", "Blue Jays")).toHaveCount(0);
+  await expect(readLabels("WS", "Dodgers")).toHaveCount(0);
+  await expect(bracket.locator(".seed-label")).toHaveCount(12);
+  await expect(bracket.locator(".matchup-row .seed-label")).toHaveCount(0);
+
+  const division = bracket.locator('.box[data-round="DS"]').filter({ hasText: "Blue Jays" });
+  const byeRow = await division
+    .locator(".matchup-row")
+    .filter({ hasText: "Blue Jays" })
+    .boundingBox();
+  const label = await division.locator(".seed-label").boundingBox();
+  const card = await division.locator(".series").boundingBox();
+  expect(label.x + label.width).toBeLessThanOrEqual(card.x);
+  expect(Math.abs(label.y + label.height / 2 - (byeRow.y + byeRow.height / 2))).toBeLessThan(1);
 });
 
 test("the bracket leaves a score empty until its series' first game starts, and gives each TBD row one too", async ({
@@ -704,6 +778,54 @@ test("a series saved without being marked started still shows 0 beside a club's 
   await expect(started.locator(".nscore")).toHaveText(["0", "1"]);
 });
 
+test("on a phone, the bracket's round dots sit just above the tab bar and follow its scroll", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const dots = page.locator("#bracketWrap .round-dots");
+  await expect(dots.locator("[data-round]")).toHaveCount(4);
+  await expect(dots.locator(".on")).toHaveCount(1);
+  const dotsBox = await dots.boundingBox();
+  const bar = await page.locator("#tabBar").boundingBox();
+  expect(bar.y - (dotsBox.y + dotsBox.height)).toBeGreaterThan(0);
+  expect(bar.y - (dotsBox.y + dotsBox.height)).toBeLessThanOrEqual(8);
+
+  const scroller = page.locator("#bracketWrap .tree-scroll");
+  await scroller.evaluate((tree) => tree.scrollTo({ left: 0, behavior: "instant" }));
+  await expect(dots.locator('[data-round="WC"]')).toHaveClass("on");
+  await scroller.evaluate((tree) => tree.scrollTo({ left: tree.scrollWidth, behavior: "instant" }));
+  await expect(dots.locator('[data-round="WS"]')).toHaveClass("on");
+});
+
+test("on a wide screen, the whole bracket shows without round dots", async ({ page }) => {
+  await page.setViewportSize(WIDE_SCREEN);
+  await openApp(page);
+  await expect(page.locator("#bracketWrap .tree-scroll")).not.toHaveClass(/stacked/);
+  await expect(page.locator("#bracketWrap .round-dots")).toHaveCount(0);
+});
+
+test("a stacked bracket that fits the screen's width has no round dots and nothing to scroll", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openApp(page);
+  const scroller = page.locator("#bracketWrap .tree-scroll");
+  const dots = page.locator("#bracketWrap .round-dots");
+  const canScroll = () => scroller.evaluate((tree) => tree.scrollWidth > tree.clientWidth);
+  await expect(scroller).toHaveClass(/stacked/);
+  await expect(dots).toHaveCount(0);
+  expect(await canScroll()).toBe(false);
+
+  await page.setViewportSize({ width: 900, height: 900 });
+  await expect(dots).toHaveCount(1);
+  expect(await canScroll()).toBe(true);
+
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await expect(dots).toHaveCount(0);
+  expect(await canScroll()).toBe(false);
+});
+
 test("on a phone, the bracket stacks the AL above the NL, each running left to right into the World Series", async ({
   page,
 }) => {
@@ -770,12 +892,12 @@ test("under each card, the next game shows its day, as today or tomorrow when it
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   const notes = page.locator("#bracketWrap .card-note");
 
-  await expect(notes.filter({ hasText: /^Next game today\u20229:10\sPM$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game tomorrow\u20227:08\sPM$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game tomorrow\u2022time TBD$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game Sat Oct 3\u20224:08\sPM$/ })).toHaveCount(1);
-  await expect(notes.filter({ hasText: /^Next game Sat Oct 3\u2022time TBD$/ })).toHaveCount(3);
-  await expect(notes.filter({ hasText: /^Next game Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Today\u20229:10\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Tomorrow\u20227:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Tomorrow\u2022time TBD$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Sat Oct 3\u20224:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Sat Oct 3\u2022time TBD$/ })).toHaveCount(3);
+  await expect(notes.filter({ hasText: /^Tue Sep 29\u2022time TBD$/ })).toHaveCount(1);
 });
 
 // The page's clock reads 8:44 PM Eastern, which is already the next morning in London.
@@ -793,14 +915,33 @@ test.describe("in Europe/London", () => {
     await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
 
     await expect(
-      page
-        .locator("#bracketWrap .card-note")
-        .filter({ hasText: /^Next game today\u20226:10\sPM$/ }),
+      page.locator("#bracketWrap .card-note").filter({ hasText: /^Today\u20226:10\sPM$/ }),
     ).toHaveCount(1);
   });
 });
 
 const WILD_CARD_SERIES = ["AL_WC1", "AL_WC2", "NL_WC1", "NL_WC2"];
+
+for (const width of [360, 390]) {
+  test.describe(`on a ${width}px phone`, () => {
+    test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("every card's next game fits on one line under it", async ({ page }) => {
+      await openApp(page);
+      const notes = page.locator("#bracketWrap .card-note");
+      await expect(notes.first()).toBeVisible();
+      const lineCounts = await notes.evaluateAll((elements) =>
+        elements.map((note) => {
+          const range = document.createRange();
+          range.selectNodeContents(note);
+          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.bottom))).size;
+        }),
+      );
+      expect(lineCounts.length).toBeGreaterThan(0);
+      expect(lineCounts.filter((count) => count !== 1)).toEqual([]);
+    });
+  });
+}
 
 test("under a card whose game is under way, the score, inning, and outs show instead of the next game", async ({
   page,
@@ -860,7 +1001,7 @@ test("under a card whose game is under way, the score, inning, and outs show ins
   await expect(delayed).toHaveCount(1);
   await expect(delayed).toHaveCSS("color", await readColor(page, "--gold"));
   await expect(delayed.locator(".out-light")).toHaveCount(0);
-  await expect(notes.filter({ hasText: /^Next game today\u20227:08\sPM$/ })).toHaveCount(1);
+  await expect(notes.filter({ hasText: /^Today\u20227:08\sPM$/ })).toHaveCount(1);
 });
 
 test("under a card whose series already counts the game, the next game shows even while the slate reads it as under way", async ({
@@ -886,7 +1027,7 @@ test("under a card whose series already counts the game, the next game shows eve
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
   const notes = page.locator("#bracketWrap .card-note");
 
-  await expect(notes.filter({ hasText: /^Next game tomorrow\u20227:08\sPM$/ })).toHaveCount(4);
+  await expect(notes.filter({ hasText: /^Tomorrow\u20227:08\sPM$/ })).toHaveCount(4);
   await expect(page.locator("#bracketWrap .card-note.live")).toHaveCount(0);
 });
 
@@ -909,7 +1050,7 @@ test("in the half hour before first pitch, a card counts down the minutes on the
   const countdown = notes.filter({ hasText: /^First pitch in 18 min$/ });
   await expect(countdown).toHaveCount(1);
   await expect(countdown).toHaveCSS("color", await readColor(page, "--copper-ink"));
-  await expect(notes.filter({ hasText: /^Next game today\u20229:02\sPM$/ })).toHaveCount(3);
+  await expect(notes.filter({ hasText: /^Today\u20229:02\sPM$/ })).toHaveCount(3);
 
   await page.clock.runFor(60 * 1000);
   await expect(notes.filter({ hasText: /^First pitch in 17 min$/ })).toHaveCount(1);
@@ -920,7 +1061,7 @@ test("more than a half hour before first pitch, a card shows its next game", asy
   await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
 
   await expect(
-    page.locator("#bracketWrap .card-note").filter({ hasText: /^Next game today\u20229:20\sPM$/ }),
+    page.locator("#bracketWrap .card-note").filter({ hasText: /^Today\u20229:20\sPM$/ }),
   ).toHaveCount(4);
 });
 
@@ -968,8 +1109,13 @@ test("on a phone, the World Series card scrolls all the way to the middle of the
   await openApp(page);
   const scroller = page.locator(".tree-scroll");
   await expect(scroller).toBeVisible();
-  await scroller.evaluate((element) => (element.scrollLeft = element.scrollWidth));
-  await page.waitForTimeout(300);
+  await scroller.evaluate(
+    (element) =>
+      new Promise((resolve) => {
+        element.addEventListener("scrollend", resolve, { once: true });
+        element.scrollLeft = element.scrollWidth;
+      }),
+  );
 
   const worldSeries = await page
     .locator("#bracketWrap .box")
@@ -1004,6 +1150,61 @@ test("on a phone, the bracket opens on the earliest round still playing, and swi
   await expect(worldSeries).toBeInViewport({ ratio: 1 });
 });
 
+test("on a phone, a bracket opening on the Division Series keeps its byes' seed labels in view", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  for (const id of ["AL_WC1", "AL_WC2", "NL_WC1", "NL_WC2"])
+    snapshot.series[id] = { winsA: 2, winsB: 0, started: true };
+  await openApp(page, { snapshots: { [EVENING_FIXTURE.season]: snapshot } });
+
+  const division = page.locator('.box[data-round="DS"]').first();
+  await expect(division.locator(".series")).toBeInViewport({ ratio: 1 });
+  await expect(division.locator(".seed-label")).toBeInViewport({ ratio: 1 });
+  await expect(page.locator('.box[data-round="WC"] .series').first()).not.toBeInViewport({
+    ratio: 1,
+  });
+});
+
+test("on a small tablet, which the app treats as a phone, the bracket opens on the round still playing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 760, height: 900 });
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  await chooseSeason(page, "2025");
+
+  await expect(page.locator('.box[data-round="WS"]')).toBeInViewport({ ratio: 1 });
+  expect(
+    await page.locator(".tree-scroll").evaluate((scroller) => scroller.scrollLeft),
+  ).toBeGreaterThan(0);
+});
+
+test("wider than a phone, the stacked bracket starts at the Wild Card with every seed in view, whatever round is still playing", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await openApp(page, {
+    store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
+  });
+  const scroller = page.locator(".tree-scroll");
+  const readScroll = () => scroller.evaluate((element) => element.scrollLeft);
+  const expectSeedsInView = async () => {
+    await expect(page.locator(".seed-label")).toHaveCount(12);
+    for (const label of await page.locator(".seed-label").all())
+      await expect(label).toBeInViewport();
+  };
+  await expectSeedsInView();
+  expect(await readScroll()).toBe(0);
+
+  await chooseSeason(page, "2025");
+  await expect(page.locator('.box[data-round="WS"]').filter({ hasText: "Dodgers" })).toHaveCount(1);
+  await expectSeedsInView();
+  expect(await readScroll()).toBe(0);
+});
+
 const readStackedSpaces = (page) =>
   page.evaluate(() => {
     const readBox = (element) => element.getBoundingClientRect();
@@ -1013,7 +1214,7 @@ const readStackedSpaces = (page) =>
     return {
       aboveLeague: line.top - banner.bottom,
       belowLine: upperCard.top - line.bottom,
-      betweenRows: lowerCard.top - upperCard.bottom - 20,
+      betweenRows: lowerCard.top - upperCard.bottom - 22,
     };
   });
 
@@ -1024,8 +1225,8 @@ test("on a phone too short for the bracket, its spaces are at their tightest", a
 
   expect(await readStackedSpaces(page)).toEqual({
     aboveLeague: 18,
-    belowLine: 11,
-    betweenRows: 13,
+    belowLine: 5,
+    betweenRows: 6,
   });
 });
 
@@ -1120,7 +1321,26 @@ test("on a wide screen, the AL and NL face each other across the World Series", 
   expect(noteAndGap).toBe(80);
 });
 
-test("on a wide screen, a centered league bar spans each league's three columns", async ({
+test("on a wide screen, each league's seed labels sit on its outer side", async ({ page }) => {
+  await page.setViewportSize(WIDE_SCREEN);
+  await openApp(page);
+  const bracket = page.locator("#bracketWrap");
+  const findOuterGap = async (index) => {
+    const wildCard = bracket.locator('.box[data-round="WC"]').nth(index);
+    const card = await wildCard.locator(".series").boundingBox();
+    const label = await wildCard.locator(".seed-label").first().boundingBox();
+    return { before: card.x - (label.x + label.width), after: label.x - (card.x + card.width) };
+  };
+
+  expect((await findOuterGap(0)).before).toBeGreaterThan(0);
+  expect((await findOuterGap(2)).after).toBeGreaterThan(0);
+  const pageOverflow = await page.evaluate(
+    () => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
+  );
+  expect(pageOverflow).toBe(0);
+});
+
+test("on a wide screen, a centered league bar spans each league's three columns and its seeds' labels", async ({
   page,
 }) => {
   await page.setViewportSize(WIDE_SCREEN);
@@ -1137,15 +1357,19 @@ test("on a wide screen, a centered league bar spans each league's three columns"
 
   const alBar = await al.boundingBox();
   const nlBar = await nl.boundingBox();
+  const stage = await bracket.locator(".bracket-stage").boundingBox();
   const alWildCard = await findBox("Wild Card", 0);
   const alcs = await findBox("Championship Series", 0);
   const nlcs = await findBox("Championship Series", 1);
-  const nlWildCard = await findBox("Wild Card", 2);
+  const alLabel = await bracket.locator(".seed-labels.left").first().boundingBox();
+  const nlLabel = await bracket.locator(".seed-labels.right").last().boundingBox();
   expect(alBar.y).toBe(nlBar.y);
-  expect(alBar.x).toBe(alWildCard.x);
+  expect(alBar.x).toBe(stage.x);
+  expect(alBar.x).toBeLessThan(alLabel.x);
   expect(alBar.x + alBar.width).toBe(alcs.x + alcs.width);
   expect(nlBar.x).toBe(nlcs.x);
-  expect(nlBar.x + nlBar.width).toBe(nlWildCard.x + nlWildCard.width);
+  expect(nlBar.x + nlBar.width).toBe(stage.x + stage.width);
+  expect(nlBar.x + nlBar.width).toBeGreaterThan(nlLabel.x + nlLabel.width);
   expect(alWildCard.y - (alBar.y + alBar.height)).toBe(18);
 });
 
@@ -1191,7 +1415,9 @@ test("renders the bracket, standings and stamp from the Worker's snapshot", asyn
   const bracket = page.locator("#bracketWrap");
   for (const club of PLAYOFF_FIELD_2026) await expect(bracket).toContainText(club);
   await expect(page.locator("#banner")).toContainText("Highest still in");
-  await expect(page.locator("#stamp")).toContainText("Reds @ Braves 5-5 in the 5th");
+  const stampLines = page.locator("#stamp > span");
+  await expect(stampLines.first()).toHaveText(/^NOW\s*Reds @ Braves 5-5 in the 5th/);
+  await expect(stampLines.nth(1)).toHaveText(/^Next first pitch /);
 
   await page.getByRole("tab", { name: "Standings" }).click();
   await expect(page.locator("#standingsWrap .div-block")).toHaveCount(8);
@@ -1312,6 +1538,7 @@ test("rebuilds updates from the saved readings as the Worker adds to them", asyn
 
   await expect(updates).toContainText(/Mets .*Phillies/);
   expect((await app.readDocument(`readings-2026/${part}`)).changes).toHaveLength(2);
+  expect(await listOffScaleText(page)).toEqual([]);
 });
 
 test("switching to 2025 shows the finished bracket and its champion, and stops polling", async ({
@@ -1715,7 +1942,7 @@ test("on a phone, dragging back to the tab that's showing leaves the page where 
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 8 });
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2, { steps: 8 });
   await page.mouse.up();
-  await page.waitForTimeout(700);
+  await page.clock.runFor(700);
 
   expect(await page.evaluate(() => scrollY)).toBe(scrolled);
 });
@@ -1731,7 +1958,7 @@ const readBracketFit = (page) =>
           (note) => note.getBoundingClientRect().bottom + scrollY,
         ),
       ),
-      tabBarTop: document.getElementById("tabBar").getBoundingClientRect().top,
+      dotsTop: document.querySelector(".round-dots").getBoundingClientRect().top + scrollY,
       scrollLeft: scroller.scrollLeft,
       bracketOverflow: scroller.scrollWidth - scroller.clientWidth,
       pageOverflow: document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth,
@@ -1741,12 +1968,12 @@ const readBracketFit = (page) =>
 const expectBracketToFillHeight = async (page) => {
   await expect
     .poll(async () => {
-      const { stageBottom, tabBarTop } = await readBracketFit(page);
-      return tabBarTop - stageBottom;
+      const { stageBottom, dotsTop } = await readBracketFit(page);
+      return dotsTop - stageBottom;
     })
-    .toBeGreaterThanOrEqual(14);
-  const { stageBottom, lowestNoteBottom, tabBarTop } = await readBracketFit(page);
-  expect(tabBarTop - stageBottom).toBeLessThan(22);
+    .toBeGreaterThanOrEqual(8);
+  const { stageBottom, lowestNoteBottom, dotsTop } = await readBracketFit(page);
+  expect(dotsTop - stageBottom).toBeLessThan(18);
   expect(stageBottom - lowestNoteBottom).toBeLessThan(4);
 };
 
@@ -1762,14 +1989,34 @@ test("on a phone, the bracket fills the height above the tab bar and swipes side
   expect(pageOverflow).toBe(0);
 });
 
+test("on a phone a little short of room, the bracket's spaces shrink so it fits above the round dots", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 840 });
+  await openApp(page);
+  await expect(page.locator(".bracket-stage")).toBeVisible();
+  await expectBracketToFillHeight(page);
+  const { belowLine, betweenRows } = await readStackedSpaces(page);
+  expect(belowLine).toBeLessThan(11);
+  expect(betweenRows).toBeLessThan(13);
+  expect(
+    await page.evaluate(() => document.scrollingElement.scrollHeight - innerHeight),
+  ).toBeLessThanOrEqual(1);
+});
+
 test("on a phone, the bracket redraws for a new screen height and keeps its sideways scroll", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 960 });
   await openApp(page);
   await expect(page.locator(".bracket-stage")).toBeVisible();
-  await page.locator(".tree-scroll").evaluate((scroller) => (scroller.scrollLeft = 300));
-  await page.waitForTimeout(300);
+  await page.locator(".tree-scroll").evaluate(
+    (scroller) =>
+      new Promise((resolve) => {
+        scroller.addEventListener("scrollend", resolve, { once: true });
+        scroller.scrollLeft = 300;
+      }),
+  );
   const { scrollLeft } = await readBracketFit(page);
   expect(scrollLeft).toBeGreaterThan(0);
 
@@ -1835,4 +2082,56 @@ test("the page shows the tab it was last on before its modules have loaded", asy
   await expect(tab).toHaveClass(/\bactive\b/);
   await expect(page.locator("#view-games")).toHaveCSS("display", "block");
   await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
+});
+
+test("a tap shows only the page's own states: no gray flash, and no hover left behind", async ({
+  page,
+}) => {
+  await openApp(page);
+  expect(await listTapFlashes(page)).toEqual([]);
+  expect(await listTouchHoverRules(page)).toEqual([]);
+});
+
+for (const { screen, viewport } of [
+  { screen: "a wide screen", viewport: { width: 1280, height: 900 } },
+  { screen: "a phone", viewport: { width: 390, height: 844 } },
+]) {
+  test.describe(`on ${screen}`, () => {
+    test.use({ viewport, contextOptions: { reducedMotion: "reduce" } });
+
+    test("every piece of text keeps to the type scale, in every view", async ({ page }) => {
+      await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
+      await expect(page.locator("#bracketWrap .card-note").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await page.getByRole("tab", { name: "Games" }).click();
+      for (const list of ["Previous", "Today", "Next"]) {
+        await page.getByRole("tab", { name: list }).click();
+        await expect(page.locator(`#games-${list.toLowerCase()} .game-row`).first()).toBeVisible();
+        expect(await listOffScaleText(page)).toEqual([]);
+      }
+      await page.getByRole("tab", { name: "Standings" }).click();
+      await expect(page.locator("table.st tbody tr").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await page.getByRole("tab", { name: "Teams" }).click();
+      await expect(page.locator("table.ref tbody tr").first()).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+      await openSettings(page);
+      await expect(page.locator("#settingsDialog")).toBeVisible();
+      expect(await listOffScaleText(page)).toEqual([]);
+    });
+  });
+}
+
+test("Chivo Mono draws 6% smaller than its size, so it looks as big as Barlow", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.evaluate(() => document.fonts.ready);
+  const sizeAdjusts = await page.evaluate(() =>
+    [...document.fonts]
+      .filter((font) => font.family.replaceAll('"', "") === "Chivo Mono")
+      // TypeScript's DOM types don't list FontFace's sizeAdjust yet.
+      .map((font) => /** @type {FontFace & { sizeAdjust: string }} */ (font).sizeAdjust),
+  );
+  expect(sizeAdjusts).toEqual(["94%", "94%"]);
 });

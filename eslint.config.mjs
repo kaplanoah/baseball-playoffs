@@ -44,6 +44,11 @@ export default [
     rules: { "no-unused-vars": ["error", { vars: "local" }] },
   },
   {
+    // A plain script the build writes into the page's head.
+    files: ["shared/page/release-guard.js"],
+    languageOptions: { sourceType: "script" },
+  },
+  {
     files: ["apps/*/page/sw.js", "shared/page/push-worker.js"],
     languageOptions: { globals: globals.serviceworker },
   },
@@ -53,7 +58,23 @@ export default [
   },
   {
     // Callbacks passed to page.evaluate run in the page.
-    files: ["apps/*/tests/browser/*.mjs"],
+    files: ["apps/*/tests/browser/*.mjs", "tests/browser/*.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: {
+      // A fixed wait is too short on a slow machine and wasted time on a fast one.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='waitForTimeout']",
+          message:
+            "Wait for what the page shows with expect, or move the page's clock with page.clock.",
+        },
+        {
+          selector: "CallExpression[callee.name='setTimeout']",
+          message:
+            "Wait for what the page shows with expect, or move the page's clock with page.clock.",
+        },
+      ],
+    },
   },
 ];

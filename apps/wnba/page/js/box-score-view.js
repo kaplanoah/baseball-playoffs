@@ -2,6 +2,7 @@ import { html, joinWithSeparator } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderPendingTapeRow, renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
+import { renderLeadChart } from "./lead-chart.js";
 import {
   findLeader,
   measureAgainst,
@@ -11,8 +12,8 @@ import {
 } from "./sheet-parts.js";
 import { nameTeam } from "./series.js";
 
-// The game sheet's box score for a game that has started: points by quarter, the teams' stats
-// side by side, and each team's top scorers. Until it loads, each part holds its shape with
+// The game sheet's box score for a game that has started: points by quarter, the lead through the
+// game once it loads, the teams' stats side by side, and each team's top scorers. Until it loads, each part holds its shape with
 // placeholders.
 
 /** @typedef {{ id: number, firstName: string, lastName: string, minutes: number, points: number, rebounds: number, assists: number, fouls: number }} BoxPlayer */
@@ -248,10 +249,15 @@ const renderScorersTable = (team, rows) =>
 /** @param {import("#shared/html.js").Markup[]} tables */
 const renderPlayerTables = (tables) => html`<div class="player-tables">${tables}</div>`;
 
-/** @param {BoxScore} box */
-export function renderBoxScore(box) {
+/**
+ * @param {BoxScore} box
+ * @param {import("./lead-chart.js").Lead | null} [lead]
+ */
+export function renderBoxScore(box, lead = null) {
   const isLive = box.state === "live";
+  const teams = { away: box.away.team, home: box.home.team };
   return html`${renderSheetPart("By quarter", renderLineScore(box))}
+    ${lead && lead.scores.length > 1 && renderSheetPart("Lead through the game", renderLeadChart(lead, teams))}
     ${renderSheetPart("Team stats", renderTeamStats(box), isLive && "So far")}
     ${renderSheetPart(
       "Top scorers",

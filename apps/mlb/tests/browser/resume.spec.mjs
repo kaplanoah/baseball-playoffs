@@ -1,28 +1,7 @@
+import { NEXT_RELEASE, serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 import { test, expect, openApp, openSettings, EVENING_FIXTURE } from "./harness.mjs";
 
-const RELEASE = { version: "2.13.0", commit: "abc1234", builtAt: "2026-09-28T00:10:41Z" };
-const NEXT_RELEASE = { version: "2.13.1", commit: "def5678", builtAt: "2026-09-28T02:00:00Z" };
 const MINUTE_MS = 60 * 1000;
-
-/**
- * Serves version.json, and lets a test deploy a newer release.
- * @param {import("@playwright/test").Page} page
- */
-async function serveReleases(page) {
-  const served = { release: RELEASE, requests: 0, failures: 0 };
-  await page.route(
-    (url) => url.pathname === "/version.json",
-    (route) => {
-      served.requests++;
-      if (served.failures > 0) {
-        served.failures--;
-        return route.fulfill({ status: 503, body: "" });
-      }
-      return route.fulfill({ json: served.release });
-    },
-  );
-  return served;
-}
 
 // A reload clears whatever the test left on the window.
 /** @param {import("@playwright/test").Page} page */
@@ -206,22 +185,15 @@ test("live scores the page can't read reload it once a newer release is out", as
   const served = await serveReleases(page);
   const app = await openApp(page);
   await expect.poll(() => served.requests).toBe(1);
-  const requestsBefore = app.countSnapshotRequests();
+  // The page plans its next read only once it has shown the last one's scores.
+  await expect(page.locator("#stamp")).toContainText("Next first pitch");
   await markPage(page);
 
   served.release = NEXT_RELEASE;
   app.changeSnapshots((snapshot) => ({ ...snapshot, version: 2 }));
 
-  // The page schedules its next read only once the last one answers, which on a slow machine can
-  // come after a single jump of the clock, so the clock moves until the next read goes out.
-  await expectReload(page, () =>
-    expect
-      .poll(async () => {
-        await page.clock.runFor(30 * 1000);
-        return app.countSnapshotRequests();
-      })
-      .toBeGreaterThan(requestsBefore),
-  );
+  // Coming back online reads the scores at once.
+  await expectReload(page, () => page.evaluate(() => dispatchEvent(new Event("online"))));
 });
 
 /**

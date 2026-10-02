@@ -2,7 +2,8 @@ import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 import { listApps } from "./worker/apps.mjs";
 
-const FIRST_PORT = 4173;
+// Another checkout's browser tests can run alongside on other ports.
+const FIRST_PORT = Number(process.env.BROWSER_TEST_PORT) || 4173;
 const executablePath = process.env.CHROMIUM_PATH;
 
 // Each app with browser tests gets its own project, served from its own port.
@@ -15,6 +16,8 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5_000 },
   retries: 0,
+  // Each test stands alone, so CI's shards split the tests evenly rather than file by file.
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
@@ -35,6 +38,7 @@ export default defineConfig({
   webServer: appsWithBrowserTests.map((app, index) => ({
     command: `node tests/browser/serve.mjs ${findPort(index)} apps/${app}/page`,
     url: `http://127.0.0.1:${findPort(index)}/index.html`,
-    reuseExistingServer: !process.env.CI,
+    // A server already on the port may be serving another checkout, so a busy port fails the run.
+    reuseExistingServer: false,
   })),
 });

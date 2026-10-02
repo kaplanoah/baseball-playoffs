@@ -19,9 +19,7 @@ export const SeasonStore = createSeasonStore({
   readUpdates: SeasonUpdater.readUpdates,
   saveSnapshot: SeasonUpdater.saveSnapshot,
   describeSnapshotStatus: SeasonUpdater.describeSnapshotStatus,
-  saveStatus: SeasonUpdater.saveStatus,
   choosePollDelay: (snapshot, now) => choosePollDelay(snapshot, now) ?? POLL_CHECK_MS,
-  retryMs: SeasonUpdater.RETRY_MS,
   listNotifications: ({ before, after, snapshot, now }) => {
     const updates = findNotableUpdates({ before, after, state: snapshot, now });
     const context = { teams: snapshot.teams, standings: snapshot.standings };

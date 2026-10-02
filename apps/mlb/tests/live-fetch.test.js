@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fetchLive } from "../page/js/live-fetch.js";
-import { UPSTREAM_TIMEOUT_MS } from "../worker/src/mlb.js";
+import { UPSTREAM_TIMEOUT_MS } from "../../../shared/worker/upstream.js";
 
 const SNAPSHOT = { version: 1, season: 2026 };
 

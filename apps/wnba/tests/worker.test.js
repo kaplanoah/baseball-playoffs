@@ -29,6 +29,9 @@ const FEEDS = {
   [REQUESTS.bracket(2026)]: "bracket",
   [REQUESTS.standings(2026)]: "standings",
   [REQUESTS.players(2026)]: "players",
+  [REQUESTS.bracket(2025)]: "bracket",
+  [REQUESTS.standings(2025)]: "standings",
+  [REQUESTS.players(2025)]: "players",
 };
 
 const isNetworksRequest = (url) => url.startsWith(NETWORKS_REQUEST(""));
@@ -85,6 +88,7 @@ test("the Worker reads every feed as the league's own site would", async () => {
     assert.match(headers["user-agent"], /Chrome/);
     assert.equal(headers.referer, "https://www.wnba.com/");
     assert.equal(headers["sec-fetch-mode"], "cors");
+    assert.equal(headers["accept-encoding"], "gzip");
   }
   assert.equal(snapshot.games.length, 28);
   assert.deepEqual(snapshot.missing, []);
@@ -287,6 +291,17 @@ test("a scoreboard that misses a read doesn't look like a game ending once it's 
   assert.deepEqual(countSlowReads(league), [1, 1]);
 });
 
+test("each season's slow feeds are kept apart", async () => {
+  const league = createLeague();
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => NOW });
+
+  await server.loadSnapshot(2026);
+  await server.loadSnapshot(2025);
+
+  for (const feed of ["bracket", "standings", "players"]) assert.equal(league.countReads(feed), 2);
+  assert.equal(league.countReads("schedule"), 1);
+});
+
 test("a slow feed that stops answering keeps its last good answer", async () => {
   /** @type {Record<string, "page" | "error">} */
   const refuse = {};
@@ -301,6 +316,26 @@ test("a slow feed that stops answering keeps its last good answer", async () => 
 
   assert.deepEqual(snapshot.missing, []);
   assert.equal(snapshot.series.find((series) => series.id === "1-0").winner, "NYL");
+});
+
+test("a slow feed that didn't answer waits five minutes before it's asked again", async () => {
+  const refuse = /** @type {Record<string, "page" | "error">} */ ({ standings: "error" });
+  const league = createLeague({ refuse });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+
+  await server.loadSnapshot(2026);
+  now += 11 * 1000;
+  const waiting = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("standings"), 1);
+  assert.deepEqual(waiting.missing, ["standings"]);
+  assert.equal(league.countReads("scoreboard"), 2);
+
+  delete refuse.standings;
+  now += 5 * 60 * 1000;
+  const answered = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("standings"), 2);
+  assert.deepEqual(answered.missing, []);
 });
 
 test("the page's snapshot says why it couldn't be read when no feed answers", async () => {
@@ -333,5 +368,5 @@ test("the Worker bundles with its page, and exports its store", async () => {
     APP_KEY: "k3y",
   });
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /<title>WNBA Playoffs<\/title>/);
+  assert.match(await page.text(), /<title>WNBA<\/title>/);
 });

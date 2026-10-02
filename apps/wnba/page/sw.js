@@ -1,2 +1,2 @@
-self.pageName = "WNBA Playoffs";
+self.pageName = "WNBA";
 importScripts("shared/push-worker.js");

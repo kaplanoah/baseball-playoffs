@@ -85,12 +85,18 @@ const countWinsNeeded = (round) => Math.ceil(ROUNDS[round].bestOf / 2);
 
 // A playoff game's ID spells out where it sits: 104, the season's last two digits, 00, then its
 // round, its series in that round from 0, and its game in the series.
-const PLAYOFF_GAME_ID = /^104\d{2}00([1-3])(\d)(\d)$/;
+const PLAYOFF_GAME_ID = /^104(\d{2})00([1-3])(\d)(\d)$/;
 
 /** @param {string} id */
 export function readPlayoffGameId(id) {
-  const [, round, series, game] = String(id).match(PLAYOFF_GAME_ID) ?? [];
-  return round ? { round: Number(round), series: Number(series), game: Number(game) } : null;
+  const [, season, round, series, game] = String(id).match(PLAYOFF_GAME_ID) ?? [];
+  if (!round) return null;
+  return {
+    season: 2000 + Number(season),
+    round: Number(round),
+    series: Number(series),
+    game: Number(game),
+  };
 }
 
 const nameSeries = (round, series) => `${round}-${series}`;
@@ -164,7 +170,7 @@ function readBracketSeries(series) {
  * @param {any} response
  * @returns {Record<string, any>[]}
  */
-export function readStatsTable(response) {
+function readStatsTable(response) {
   const table = response?.resultSets?.[0];
   if (!table) return [];
   return table.rowSet.map((row) =>
@@ -210,7 +216,7 @@ function splitName(name) {
  * @param {string} team
  * @param {number} count
  */
-export function listTeamLeaders(players, team, count) {
+function listTeamLeaders(players, team, count) {
   const rows = readStatsTable(players).filter((row) => findTeamCode(row.TEAM_ID) === team);
   const most = Math.max(0, ...rows.map((row) => row.GP));
   return rows
@@ -227,19 +233,25 @@ export function listTeamLeaders(players, team, count) {
     }));
 }
 
-const listTopScorers = (players) =>
+// A team's sheet and a game's preview each show a team's leading three.
+const LEADERS_PER_TEAM = 3;
+
+const listLeaders = (players) =>
   Object.keys(TEAMS).flatMap((team) =>
-    listTeamLeaders(players, team, 1).map((leader) => ({ team, ...leader })),
+    listTeamLeaders(players, team, LEADERS_PER_TEAM).map((leader) => ({ team, ...leader })),
   );
 
-const listPlayoffGames = (games) => games.filter((game) => readPlayoffGameId(game.gameId));
+// The schedule and the scoreboard hold the last season's games until the league starts the next.
+const listPlayoffGames = (games, season) =>
+  games.filter((game) => readPlayoffGameId(game.gameId)?.season === season);
 
 // The scoreboard is the freshest word on today's games, so it replaces the schedule's copy.
-function mergeGames(schedule, scoreboard) {
+function mergeGames(schedule, scoreboard, season) {
   const scheduled = listPlayoffGames(
     (schedule?.leagueSchedule?.gameDates ?? []).flatMap((day) => day.games),
+    season,
   ).map(normalizeGame);
-  const today = listPlayoffGames(scoreboard?.scoreboard?.games ?? []).map(normalizeGame);
+  const today = listPlayoffGames(scoreboard?.scoreboard?.games ?? [], season).map(normalizeGame);
   const byId = new Map(scheduled.map((game) => [game.id, game]));
   for (const game of today) byId.set(game.id, game);
   return [...byId.values()].sort(
@@ -419,7 +431,7 @@ const addNetworks = (games, networkGames) =>
 export function buildSnapshot(responses, { season, now = Date.now() }) {
   const backupGames =
     !responses.scoreboard && responses.backup ? responses.backup.games.map(readBackupGame) : [];
-  const leagueGames = mergeGames(responses.schedule, responses.scoreboard);
+  const leagueGames = mergeGames(responses.schedule, responses.scoreboard, season);
   const standIns = matchBackupGames(leagueGames, backupGames);
   const games = addNetworks(
     leagueGames.map((game) =>
@@ -439,7 +451,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     games,
     series,
     standings: readStandingsRows(responses.standings),
-    leaders: listTopScorers(responses.players),
+    leaders: listLeaders(responses.players),
     missing: LEAGUE_FEEDS.filter((name) => !responses[name]),
     standIn: standIns.size ? "espn" : null,
   };
@@ -448,15 +460,18 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
 export const POLL_LIVE_MS = 15 * 1000;
 const POLL_LEAD_MS = 15 * 60 * 1000;
 const POLL_CHECK_MS = 60 * 60 * 1000;
+const LATE_START_LIMIT_MS = 3 * 60 * 60 * 1000;
 
-// A start time passed with the game not under way is a late start, so it keeps the fast rate.
+// A start time passed with the game not under way is a late start, so it keeps the fast rate. A
+// game still waiting hours after its start was put off, or isn't needed and the schedule hasn't
+// dropped it yet.
 export function choosePollDelay(snapshot, now = Date.now()) {
   const games = snapshot?.games ?? [];
   if (games.some((game) => game.state === "live")) return POLL_LIVE_MS;
   const starts = games
     .filter((game) => game.state === "pre" && game.isTimeSet)
     .map((game) => Date.parse(game.start))
-    .filter(Number.isFinite);
+    .filter((start) => start > now - LATE_START_LIMIT_MS);
   const untilLead = Math.min(...starts) - POLL_LEAD_MS - now;
   return Math.min(Math.max(untilLead, POLL_LIVE_MS), POLL_CHECK_MS);
 }

@@ -1,3 +1,4 @@
+import { startHomeScreen } from "#shared/home-screen.js";
 import { setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fillGameLists, startGamePager } from "#shared/game-pager.js";
@@ -6,6 +7,7 @@ import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
 import { startSettingsSheet } from "#shared/settings-sheet.js";
+import { fillStamp } from "#shared/stamp.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { startAppearance } from "./appearance.js";
 import { placeBracket, readBracketScroll, startBracket } from "./bracket-tree.js";
@@ -14,59 +16,33 @@ import { refreshGameSheet, startGameSheet } from "./game-sheet.js";
 import { renderGames } from "./games-view.js";
 import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
-import { describeStamp } from "./stamp.js";
-import { renderStandings } from "./standings-view.js";
-import { drawTeams } from "./teams-view.js";
+import { describeStampProblem, renderStampLines } from "./stamp.js";
+import { drawStandings, startStandings } from "./standings-view.js";
+import { refreshTeamSheet, startTeamSheet } from "./team-sheet.js";
+import { drawUpdates } from "./updates.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
 
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
 
 function renderStamp() {
-  const { text, isProblem } = describeStamp({ ...session, now: Date.now() });
-  const stamp = findElement("stamp");
-  stamp.textContent = text;
-  stamp.classList.toggle("problem", isProblem);
-  stamp.hidden = !text;
-}
-
-function drawStandings() {
-  setHtml(findElement("standingsWrap"), renderStandings(session.season, session.standingsView));
-}
-
-// The pill's buttons are drawn again with the table, so the chosen one takes the focus back.
-function focusChosenStandingsView() {
-  const selector = `[data-standings-view="${session.standingsView}"]`;
-  const chosen = /** @type {HTMLElement | null} */ (
-    findElement("standingsWrap").querySelector(selector)
-  );
-  chosen?.focus();
-}
-
-function chooseStandingsView(/** @type {MouseEvent} */ event) {
-  const button = /** @type {HTMLElement | null} */ (
-    /** @type {Element} */ (event.target).closest("[data-standings-view]")
-  );
-  if (!button) return;
-  session.standingsView = /** @type {typeof session.standingsView} */ (
-    button.dataset.standingsView
-  );
-  drawStandings();
-  focusChosenStandingsView();
+  const problem = describeStampProblem(session);
+  const lines = renderStampLines(session.season, Date.now());
+  fillStamp(findElement("stamp"), lines, problem ? [problem] : []);
 }
 
 function renderAll() {
   const now = Date.now();
-  findElement("yearTag").textContent = String(session.year);
   const keptLeft = readBracketScroll();
   setHtml(findElement("bracketWrap"), renderBracket(session.season, now));
-  placeBracket(session.season?.series ?? [], keptLeft);
+  placeBracket(keptLeft);
   const gameLists = renderGames(session.season, now);
   fillGameLists((list) => gameLists[list]);
-  drawStandings();
-  drawTeams(findElement("teamsWrap"), session.season, { year: session.year, now });
+  drawStandings(session.season);
+  drawUpdates();
   renderStamp();
   refreshGameSheet();
+  refreshTeamSheet();
 }
 
 // Times read as today or tomorrow, so they're redrawn as the clock moves on.
@@ -90,9 +66,19 @@ function drawLastSeen() {
 
 const readShown = () => session.season && { year: session.year, season: session.season };
 
+// A page whose first load failed may be watching a season the store doesn't have yet, so it
+// loads the season again.
+async function reloadSeason() {
+  const watchedYear = session.year;
+  await loadSeason();
+  if (session.year !== watchedYear) watchSeason(renderAll);
+  renderAll();
+}
+
 function catchUp() {
   session.db.catchUp();
-  renderAll();
+  if (session.problem) reloadSeason();
+  else renderAll();
 }
 
 async function boot() {
@@ -102,9 +88,11 @@ async function boot() {
   startPageTabs();
   startGamePager();
   startGameSheet();
+  startTeamSheet();
   startSettingsSheet();
+  startHomeScreen();
   startBracket();
-  findElement("standingsWrap").addEventListener("click", chooseStandingsView);
+  startStandings();
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);

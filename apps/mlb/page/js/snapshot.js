@@ -1,5 +1,7 @@
 // Runs in both the browser page and the Worker, so it uses no DOM and no globals.
 
+import { addDays, readEasternDay } from "#shared/days.js";
+
 export const MLB_API = "https://statsapi.mlb.com";
 
 // Postseason placeholders ("AL #3 Seed") have made-up ids, so a miss means no real club yet.
@@ -357,29 +359,6 @@ export const POLL_LIVE_MS = 30 * 1000;
 const POLL_LEAD_MS = 15 * 60 * 1000;
 export const POLL_CHECK_MS = 60 * 60 * 1000;
 
-// Baseball's day is Eastern: a game ending after midnight belongs to the night before.
-const EASTERN = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/New_York",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  hourCycle: "h23",
-});
-export function readEasternDay(ms) {
-  const parts = {};
-  for (const { type, value } of EASTERN.formatToParts(new Date(ms))) parts[type] = value;
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    hour: Number(parts.hour),
-    year: Number(parts.year),
-  };
-}
-export function addDays(date, days) {
-  const [year, month, day] = date.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
-
 export function listMlbRequests(season, now, regularSeasonEnd = null) {
   const today = readEasternDay(now);
   // Four days back spans a postseason off day; after the regular season, its last days hold
@@ -434,13 +413,17 @@ async function fetchPitchers(getJson, season, ids) {
   }
 }
 
+const readUnlessFailed = (promise) => promise.catch(() => null);
+
 // The season's dates come first because they decide how far back the schedule reaches, and the
-// games come before their starters.
+// games come before their starters. The bracket and the games can't do without the postseason and
+// the schedule, but they can without the season's dates or the standings, which the snapshot then
+// lists as missing.
 export async function fetchResponses(getJson, season, now = Date.now()) {
-  const seasonDates = await getJson(listMlbRequests(season, now).season);
+  const seasonDates = await readUnlessFailed(getJson(listMlbRequests(season, now).season));
   const requests = listMlbRequests(season, now, readRegularSeasonEnd(seasonDates));
   const [standings, postseason, schedule] = await Promise.all([
-    getJson(requests.standings),
+    readUnlessFailed(getJson(requests.standings)),
     getJson(requests.postseason),
     requests.schedule ? getJson(requests.schedule) : null,
   ]);
@@ -804,8 +787,9 @@ function hasEveryDivision(response) {
   return Object.values(MLB_DIVISION).every((division) => divisions.has(division));
 }
 
-// A projected field is known only from the standings it is projected from.
-export const hasKnownField = (snapshot) => !snapshot.projected || !!snapshot.standings;
+// A field is known only with the standings: a projected one comes from them, and a set one takes
+// its clubs' records, and which series each game belongs to, from them.
+export const hasKnownField = (snapshot) => !!snapshot.standings;
 
 // League rank breaks ties on record because it already carries MLB's tiebreakers.
 function projectField(response) {

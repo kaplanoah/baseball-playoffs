@@ -35,10 +35,13 @@ test("the sliders button opens settings, and Done, Escape, or the backdrop close
 test("the sliders icon takes the stamp's time color and brightens on hover", async ({ page }) => {
   await openApp(page);
   const button = page.getByRole("button", { name: "Settings", exact: true });
-  const timeColor = await page
-    .locator("#stamp b")
-    .first()
-    .evaluate((time) => getComputedStyle(time).color);
+  const timeColor = await page.locator("#stamp").evaluate((stamp) => {
+    const time = document.createElement("b");
+    stamp.append(time);
+    const color = getComputedStyle(time).color;
+    time.remove();
+    return color;
+  });
 
   await expect(button).toHaveCSS("color", timeColor);
   await button.hover();
@@ -154,9 +157,9 @@ test("on a phone, settings rise from the bottom as a sheet with a wide grabber a
   await expect(done).toHaveCount(1);
   expect((await done.boundingBox()).width).toBeLessThanOrEqual(1);
   const grabber = await settings.locator(".sheet-grabber").boundingBox();
-  const head = await settings.locator(".sheet-head").boundingBox();
+  const title = await settings.getByRole("heading", { name: "Settings" }).boundingBox();
   expect(grabber.width).toBe(48);
-  expect(head.y - (grabber.y + grabber.height)).toBe(6);
+  expect(title.y - (grabber.y + grabber.height)).toBe(12);
   await expect
     .poll(async () => {
       const box = await settings.boundingBox();
@@ -401,6 +404,18 @@ test("on a wide screen, the settings and the whole ranking show side by side wit
   const controls = await page.locator(".settings-controls").boundingBox();
   const list = await page.locator("#rankList").boundingBox();
   expect(controls.x + controls.width).toBeLessThan(list.x);
+});
+
+test("on a wide screen, settings run the screen's height, short of its top and bottom", async ({
+  page,
+}) => {
+  await page.setViewportSize(LAPTOP);
+  await openApp(page);
+  await openSettings(page);
+
+  const box = await page.locator("#settingsDialog").boundingBox();
+  expect(box.y).toBe(24);
+  expect(box.y + box.height).toBe(LAPTOP.height - 24);
 });
 
 test("on a wide screen, the settings start right under the header, level with the ranking's heading", async ({

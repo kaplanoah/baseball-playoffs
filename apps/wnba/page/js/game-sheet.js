@@ -5,20 +5,21 @@
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { watchGameOpens } from "#shared/game-row.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
-import { closeOnSwipeDown } from "#shared/sheet-swipe.js";
+import { openSheet, wireSheet } from "#shared/sheet.js";
 import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
-import { fetchBoxScore, fetchPreview } from "./game-details-fetch.js";
+import { fetchBoxScore, fetchLead, fetchPreview } from "./game-details-fetch.js";
 import { findLoser, nameGame, renderHeadline, renderStatus } from "./games-view.js";
-import { renderPendingPreview, renderPreview } from "./preview-view.js";
+import { renderPreview } from "./preview-view.js";
 import { describeSeriesStanding } from "./series.js";
 import { session } from "./session.js";
+import { formatSheetColors } from "./sheet-colors.js";
 import { renderSheetMessage } from "./sheet-parts.js";
 import { POLL_LIVE_MS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
-/** @typedef {{ id: string, kind: "box" | "preview", details: any, problem: string }} ShownGame */
+/** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any, lead: any }} ShownGame */
 
 // The game the sheet shows. Each opening, and each switch to a box score, is a new one, so an
 // answer that arrives after it changed is dropped.
@@ -76,18 +77,22 @@ const renderFaceOff = (game) =>
   </div>`;
 
 /** @param {ShownGame} opened */
-const isLoading = (opened) => !opened.details && !opened.problem;
+const isLoading = (opened) => !opened.details && !opened.error;
 
 /**
  * @param {ShownGame} opened
  * @param {Game} game
  */
 function renderDetails(opened, game) {
-  if (opened.problem) return renderSheetMessage(opened.problem);
   const teams = { away: game.away.team, home: game.home.team };
-  if (opened.kind === "box")
-    return opened.details ? renderBoxScore(opened.details) : renderPendingBoxScore(teams);
-  return opened.details ? renderPreview(opened.details) : renderPendingPreview(teams);
+  if (opened.kind === "preview") {
+    const meetings = opened.details?.meetings ?? null;
+    return renderPreview({ teams, season: session.season, meetings, isLoading: isLoading(opened) });
+  }
+  if (opened.error) return renderSheetMessage(describeProblem(opened.error));
+  return opened.details
+    ? renderBoxScore(opened.details, opened.lead)
+    : renderPendingBoxScore(teams);
 }
 
 function renderSheet() {
@@ -97,20 +102,16 @@ function renderSheet() {
   redrawSheet(findDialog(), () => {
     findElement("gameTitle").textContent = nameGame(game);
     setHtml(findElement("gameWhen"), renderWhen(game));
+    body.setAttribute("style", formatSheetColors(game.away.team, game.home.team));
     setHtml(body, html`${renderFaceOff(game)}${renderDetails(shown, game)}`);
     body.setAttribute("aria-busy", String(isLoading(shown)));
   });
 }
 
-/**
- * @param {ShownGame["kind"]} kind
- * @param {any} error
- */
-function describeProblem(kind, error) {
-  if (kind === "box" && error?.status === 404)
-    return "The league hasn't posted a box score for this game yet.";
-  const part = kind === "box" ? "box score" : "preview";
-  return `Couldn't load the ${part}. Close and try again in a minute.`;
+/** @param {any} error why the box score didn't load */
+function describeProblem(error) {
+  if (error?.status === 404) return "The league hasn't posted a box score for this game yet.";
+  return "Couldn't load the box score. Close and try again in a minute.";
 }
 
 /** @param {Game} game */
@@ -122,6 +123,32 @@ const loadDetails = (game) =>
 /** @param {ShownGame} opened */
 const isLiveBoxScore = (opened) => opened.kind === "box" && findGame(opened.id)?.state === "live";
 
+/** @param {Game} game */
+const loadLead = (game) =>
+  fetchLead({
+    away: /** @type {string} */ (game.away.team),
+    home: /** @type {string} */ (game.home.team),
+    start: /** @type {string} */ (game.start),
+  });
+
+// The lead comes from ESPN, beside the league's box score, so the box score never waits on it, and
+// a read that fails keeps the chart already showing, or none.
+/**
+ * @param {ShownGame} opened
+ * @param {Game} game
+ */
+async function refreshLead(opened, game) {
+  if (opened.kind !== "box" || !game.start) return;
+  try {
+    const lead = await loadLead(game);
+    if (shown !== opened) return;
+    opened.lead = lead;
+    renderSheet();
+  } catch {
+    // ESPN didn't answer, so the sheet goes on without the chart.
+  }
+}
+
 // A live game's box score is read again as often as its score, until the sheet closes. A read
 // that fails keeps the box score already showing.
 async function refreshDetails() {
@@ -129,14 +156,15 @@ async function refreshDetails() {
   const game = findGame(opened.id);
   clearTimeout(refreshTimer);
   if (!game) return;
+  refreshLead(opened, game);
   try {
     const details = await loadDetails(game);
     if (shown !== opened) return;
     opened.details = details;
-    opened.problem = "";
+    opened.error = null;
   } catch (error) {
     if (shown !== opened) return;
-    if (!opened.details) opened.problem = describeProblem(opened.kind, error);
+    if (!opened.details) opened.error = error;
   }
   renderSheet();
   if (isLiveBoxScore(opened)) refreshTimer = window.setTimeout(refreshDetails, POLL_LIVE_MS);
@@ -145,25 +173,16 @@ async function refreshDetails() {
 /** @param {string} id */
 function showGame(id) {
   const game = findGame(id);
-  shown = { id, kind: chooseKind(game), details: null, problem: "" };
+  shown = { id, kind: chooseKind(game), details: null, error: null, lead: null };
   renderSheet();
   refreshDetails();
-}
-
-// A line under the pinned header shows once the sheet has scrolled under it.
-function markScrolled() {
-  const dialog = findDialog();
-  dialog.querySelector(".sheet-top").classList.toggle("scrolled", dialog.scrollTop > 0);
 }
 
 /** @param {string} id */
 function openGameSheet(id) {
   if (!findGame(id)) return;
   showGame(id);
-  const dialog = findDialog();
-  if (!dialog.open) dialog.showModal();
-  dialog.scrollTop = 0;
-  markScrolled();
+  openSheet(findDialog());
 }
 
 /**
@@ -198,11 +217,6 @@ function forgetGame() {
 export function startGameSheet() {
   const dialog = findDialog();
   watchGameOpens(findElement("gamePager"), { open: openFromRow, prepare: prepareFromRow });
-  findElement("gameDoneBtn").addEventListener("click", () => dialog.close());
-  dialog.addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) dialog.close();
-  });
+  wireSheet(dialog, { doneButton: findElement("gameDoneBtn") });
   dialog.addEventListener("close", forgetGame);
-  dialog.addEventListener("scroll", markScrolled);
-  closeOnSwipeDown(dialog);
 }

@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { buildSnapshot } from "../page/js/snapshot.js";
-import { listNotifications, readUpdates, saveSnapshot } from "../worker/src/season-updater.js";
+import {
+  listNotifications,
+  loadCurrentSnapshot,
+  readUpdates,
+  saveSnapshot,
+} from "../worker/src/season-updater.js";
 
 const AFTERNOON = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-afternoon.json`, "utf8"),
@@ -61,7 +66,38 @@ test("the season saves its games, series, standings, and top scorers, and only w
   assert.equal(saved.games.length, 28);
   assert.equal(saved.series.length, 7);
   assert.equal(saved.standings.length, 15);
-  assert.equal(saved.leaders.length, 15);
+  assert.equal(saved.leaders.length, 45);
+});
+
+/**
+ * @param {any} snapshot
+ * @param {string} state
+ */
+const setTonightsState = (snapshot, state) => ({
+  ...snapshot,
+  games: snapshot.games.map((game) => (game.id === "1042600132" ? { ...game, state } : game)),
+});
+
+const findTonight = (season) => season.games.find((game) => game.id === "1042600132");
+
+test("a game ends when it's first found final after being seen live, and keeps that end", async () => {
+  const docs = createDocs();
+  await saveSnapshot(docs, setTonightsState(SNAPSHOT, "live"));
+  const ending = { ...finishTonight(SNAPSHOT, [80, 70]), asOf: "2026-10-01T01:12:00Z" };
+  await saveSnapshot(docs, ending);
+  await saveSnapshot(docs, { ...ending, asOf: "2026-10-01T01:40:00Z" });
+  const saved = await readUpdates(docs, 2026);
+  assert.equal(findTonight(saved).end, "2026-10-01T01:12:00Z");
+});
+
+test("a game found final without being seen live has no end", async () => {
+  const docs = createDocs();
+  await saveSnapshot(docs, SNAPSHOT);
+  await saveSnapshot(docs, { ...finishTonight(SNAPSHOT, [80, 70]), asOf: "2026-10-01T04:00:00Z" });
+  const saved = await readUpdates(docs, 2026);
+  assert.equal(findTonight(saved).end, undefined);
+  const earlier = saved.games.find((game) => game.id === "1042600102");
+  assert.equal(earlier.end, undefined);
 });
 
 test("a feed that didn't answer leaves its saved field as it was", async () => {
@@ -77,7 +113,7 @@ test("the top scorers stay as they were when the players' averages didn't answer
   await saveSnapshot(docs, SNAPSHOT);
   await saveSnapshot(docs, buildWithout(["players"]));
 
-  assert.equal((await readUpdates(docs, 2026)).leaders.length, 15);
+  assert.equal((await readUpdates(docs, 2026)).leaders.length, 45);
 });
 
 // The afternoon's feeds, with some that didn't answer.
@@ -183,4 +219,19 @@ test("games already finished, or found finished long after, aren't news", () => 
     listNotifications({ before: null, after, now: Date.parse("2026-10-02T12:00:00Z") }),
     [],
   );
+});
+
+test("the new year's season is followed only once it has games or standings with games played", async () => {
+  const newYear = Date.parse("2027-01-01T00:30:00Z");
+  const unplayed = SNAPSHOT.standings.map((row) => ({ ...row, wins: 0, losses: 0 }));
+  const seasons = {
+    2026: SNAPSHOT,
+    2027: { ...SNAPSHOT, season: 2027, games: [], series: [], standings: unplayed },
+  };
+  const loadSnapshot = async (season) => seasons[season];
+
+  assert.equal((await loadCurrentSnapshot(loadSnapshot, newYear)).season, 2026);
+
+  seasons[2027] = { ...seasons[2027], standings: SNAPSHOT.standings };
+  assert.equal((await loadCurrentSnapshot(loadSnapshot, newYear)).season, 2027);
 });

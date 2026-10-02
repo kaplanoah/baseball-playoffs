@@ -6,7 +6,7 @@
     "#page-files/*": "./apps/*/worker/page-files.mjs",
     "#shared/*": "./shared/page/*"
   },
-  "description": "Postseason tracker pages for sports leagues, and the Cloudflare Workers that serve them. No runtime dependencies; dev tools only.",
+  "description": "Year-round tracker pages for sports leagues, and the Cloudflare Workers that serve them. No runtime dependencies; dev tools only.",
   "license": "MIT",
   "engines": {
     "node": ">=22.21"
@@ -22,7 +22,8 @@
     "test:browser": "playwright test",
     "build": "node worker/build.mjs",
     "deploy:api": "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs",
-    "set-app-key": "NODE_USE_ENV_PROXY=1 node worker/set-app-key.mjs"
+    "set-app-key": "NODE_USE_ENV_PROXY=1 node worker/set-app-key.mjs",
+    "set-access-code": "NODE_USE_ENV_PROXY=1 node worker/set-access-code.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -136,7 +136,6 @@
   border: 0;
   background: none;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 .game-row:has(> .game-open) {
   transition: background 0.15s;

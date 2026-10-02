@@ -1,6 +1,8 @@
 // Keyed by the league's own three-letter codes. `id` is the league's team ID, which its
 // standings name teams by, and `espnId` is ESPN's, which the backup scores name teams by. Colors
-// are the team's primary and secondary. `titles` are the seasons the franchise won the WNBA
+// are the team's primary and secondary. `chartColors` are what the game sheet draws the team's
+// side of its charts and bars in, on each theme, first choice then other, each dark or light
+// enough for the team's name to read in it. `titles` are the seasons the franchise won the WNBA
 // Finals before the current one, which the page counts from its bracket, and `titlesAs` names the
 // team the franchise was when it won them, if it has since moved.
 export const TEAMS = {
@@ -11,6 +13,7 @@ export const TEAMS = {
     name: "Dream",
     color: "#e31837",
     color2: "#5091cc",
+    chartColors: { light: ["#bb0023", "#225e96"], dark: ["#f2546a", "#6aa6dc"] },
     titles: [],
   },
   CHI: {
@@ -20,6 +23,7 @@ export const TEAMS = {
     name: "Sky",
     color: "#5091cd",
     color2: "#ffd520",
+    chartColors: { light: ["#225e96", "#775800"], dark: ["#6aa6dc", "#ffd520"] },
     titles: [2021],
   },
   CON: {
@@ -29,6 +33,7 @@ export const TEAMS = {
     name: "Sun",
     color: "#f05023",
     color2: "#0a2240",
+    chartColors: { light: ["#b12800", "#0a2240"], dark: ["#f26a3f", "#8ea6cc"] },
     titles: [],
   },
   DAL: {
@@ -38,6 +43,7 @@ export const TEAMS = {
     name: "Wings",
     color: "#002b5c",
     color2: "#c4d600",
+    chartColors: { light: ["#002b5c", "#556200"], dark: ["#c4d600", "#7f9fcc"] },
     titles: [2003, 2006, 2008],
     titlesAs: "Detroit Shock",
   },
@@ -48,6 +54,7 @@ export const TEAMS = {
     name: "Valkyries",
     color: "#b38fcf",
     color2: "#000000",
+    chartColors: { light: ["#6b4a99", "#111111"], dark: ["#b38fcf", "#d9d9d9"] },
     titles: [],
   },
   IND: {
@@ -57,6 +64,7 @@ export const TEAMS = {
     name: "Fever",
     color: "#002d62",
     color2: "#e03a3e",
+    chartColors: { light: ["#002d62", "#bb0023"], dark: ["#f05356", "#7f9fd6"] },
     titles: [2012],
   },
   LAS: {
@@ -66,6 +74,7 @@ export const TEAMS = {
     name: "Sparks",
     color: "#552583",
     color2: "#fdb927",
+    chartColors: { light: ["#552583", "#815300"], dark: ["#fdb927", "#b393d9"] },
     titles: [2001, 2002, 2016],
   },
   LVA: {
@@ -75,6 +84,7 @@ export const TEAMS = {
     name: "Aces",
     color: "#a7a8aa",
     color2: "#000000",
+    chartColors: { light: ["#1c1c1c", "#5c5d5f"], dark: ["#a7a8aa", "#e4e4e4"] },
     titles: [2022, 2023, 2025],
   },
   MIN: {
@@ -84,6 +94,7 @@ export const TEAMS = {
     name: "Lynx",
     color: "#266092",
     color2: "#79bc43",
+    chartColors: { light: ["#266092", "#2f6a01"], dark: ["#6aa2d6", "#79bc43"] },
     titles: [2011, 2013, 2015, 2017],
   },
   NYL: {
@@ -93,6 +104,7 @@ export const TEAMS = {
     name: "Liberty",
     color: "#86cebc",
     color2: "#000000",
+    chartColors: { light: ["#006953", "#111111"], dark: ["#86cebc", "#e4e4e4"] },
     titles: [2024],
   },
   PDX: {
@@ -102,6 +114,7 @@ export const TEAMS = {
     name: "Fire",
     color: "#cee5eb",
     color2: "#000000",
+    chartColors: { light: ["#3a616d", "#111111"], dark: ["#cee5eb", "#8fa9b8"] },
     titles: [],
   },
   PHX: {
@@ -111,6 +124,7 @@ export const TEAMS = {
     name: "Mercury",
     color: "#3c286e",
     color2: "#fa4b0a",
+    chartColors: { light: ["#3c286e", "#b12800"], dark: ["#fa6a33", "#a493d6"] },
     titles: [2007, 2009, 2014],
   },
   SEA: {
@@ -120,6 +134,7 @@ export const TEAMS = {
     name: "Storm",
     color: "#2c5235",
     color2: "#fee11a",
+    chartColors: { light: ["#2c5235", "#715a00"], dark: ["#fee11a", "#6fb07e"] },
     titles: [2004, 2010, 2018, 2020],
   },
   TOR: {
@@ -129,6 +144,7 @@ export const TEAMS = {
     name: "Tempo",
     color: "#33476d",
     color2: "#7b1b38",
+    chartColors: { light: ["#33476d", "#7b1b38"], dark: ["#8ea3cc", "#d36a8a"] },
     titles: [],
   },
   WAS: {
@@ -138,6 +154,7 @@ export const TEAMS = {
     name: "Mystics",
     color: "#e03a3e",
     color2: "#002b5c",
+    chartColors: { light: ["#bb0023", "#002b5c"], dark: ["#f05356", "#7f9fcc"] },
     titles: [2019],
   },
 };

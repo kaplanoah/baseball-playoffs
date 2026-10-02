@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderBoxScore, renderPendingBoxScore } from "../page/js/box-score-view.js";
 import { renderGames } from "../page/js/games-view.js";
-import { renderPendingPreview, renderPreview } from "../page/js/preview-view.js";
+import { renderPreview } from "../page/js/preview-view.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { describeBoxScore } from "../worker/src/box-score.js";
 import { describePreview } from "../worker/src/preview.js";
@@ -17,7 +17,12 @@ const GAMES = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
 );
 const NOW = Date.parse(AFTERNOON.now);
-const SEASON = buildSnapshot(AFTERNOON.responses, { season: 2026, now: NOW });
+// The afternoon's recording has no players' averages, so the next day's stand in for them.
+const SEASON = buildSnapshot(
+  { ...AFTERNOON.responses, players: GAMES.preview.players },
+  { season: 2026, now: NOW },
+);
+const FEVER_AT_ACES = { away: "IND", home: "LVA" };
 
 // Each tag reads as a space, and the page's separator as a bar.
 const readText = (markup) =>
@@ -54,7 +59,7 @@ const listRows = (markup, table) =>
 function readTapeBars(markup, label) {
   const row = markup.text
     .split('<div class="tape-row">')
-    .find((chunk) => chunk.includes(`<span class="tape-label">${label}</span>`));
+    .find((chunk) => readText({ text: chunk }).includes(` ${label} `));
   return [...row.matchAll(/<i class="(lead)?" style="width: (\d+)%">/g)].map(([, lead, width]) =>
     lead ? `lead ${width}` : width,
   );
@@ -73,6 +78,22 @@ test("every game with both teams known opens its sheet, named for the game", () 
   const withTeams = SEASON.games.filter((game) => game.away.team && game.home.team).length;
   assert.equal(labels.length, withTeams);
   assert.ok(SEASON.games.some((game) => !game.home.team));
+});
+
+/** @param {{ text: string }} markup */
+const listTeamButtons = (markup) =>
+  [...markup.text.matchAll(/<button type="button" class="club team-open" data-team="(\w+)"/g)].map(
+    ([, team]) => team,
+  );
+
+test("each team in a box score opens its sheet: its line score row, its team stats, and its scorers", () => {
+  const box = readBoxScore("1042600122");
+  const teams = [box.away.team, box.home.team];
+  assert.deepEqual(listTeamButtons(renderBoxScore(box)), [...teams, ...teams, ...teams]);
+  assert.deepEqual(
+    listTeamButtons(renderPendingBoxScore({ away: box.away.team, home: box.home.team })),
+    [...teams, ...teams, ...teams],
+  );
 });
 
 test("a final's line score gives every quarter, and dims the loser's total", () => {
@@ -140,45 +161,71 @@ test("each team's top three scorers show, and a live game flags a player in foul
   assert.ok(!finalWings.some((row) => /fouls/.test(row)));
 });
 
-test("a preview lists the meetings, each by its winner, with the regular season's series", () =>
+/**
+ * The preview of the Fever at the Aces, with the season and meetings it would have.
+ * @param {Partial<Parameters<typeof renderPreview>[0]>} [parts]
+ */
+const renderFeverAtAces = (parts = {}) =>
+  renderPreview({
+    teams: FEVER_AT_ACES,
+    season: SEASON,
+    meetings: describePreview(GAMES.preview.schedule, { season: 2026, ...FEVER_AT_ACES }).meetings,
+    isLoading: false,
+    ...parts,
+  });
+
+test("each team in a preview opens its sheet: each meeting's winner, the season stats, and the leading scorers", () =>
   checkInTimeZone(EASTERN, () => {
-    const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
-    const text = readText(renderPreview(preview));
-    assert.match(text, /Meetings Fever won the season series 2-1/);
-    assert.match(text, /Sep 29 Fever 99-89 1st Rd G2/);
-    assert.match(text, /Sep 27 Aces 102-85 1st Rd G1/);
-    assert.match(text, /Aug 6 Aces 86-84 on the road/);
-    assert.match(text, /Jul 12 Fever 109-75 on the road/);
+    const buttons = listTeamButtons(renderFeverAtAces());
+    assert.deepEqual(buttons.slice(-4), ["IND", "LVA", "IND", "LVA"]);
+    assert.deepEqual([...new Set(buttons)].sort(), ["IND", "LVA"]);
+    assert.equal(buttons.length, 7);
   }));
 
-test("a preview compares the seasons, the visitors on the road and the hosts at home", () => {
-  const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
-  const markup = renderPreview(preview);
+test("a preview lists the regular season's meetings, each by its winner, with the season series", () =>
+  checkInTimeZone(EASTERN, () => {
+    const text = readText(renderFeverAtAces());
+    assert.match(text, /Meetings Fever won the season series 2-1/);
+    assert.match(text, /Aug 6 Aces 86-84 on the road/);
+    assert.match(text, /Jul 12 Fever 109-75 on the road/);
+    assert.doesNotMatch(text, /Sep 2\d|1st Rd/);
+  }));
+
+test("a preview compares the season stats from the saved standings, the visitors on the road and the hosts at home", () => {
+  const markup = renderFeverAtAces();
   const text = readText(markup);
-  assert.match(text, /28-16 Record 31-13/);
-  assert.match(text, /96\.0 Points 91\.5/);
-  assert.match(text, /90\.4 Allowed 85\.8/);
+  assert.match(text, /Season stats Fever Aces 28-16 Record 31-13/);
+  assert.match(text, /96\.0 PPG 91\.5/);
+  assert.match(text, /90\.4 Opp PPG 85\.8/);
   assert.match(text, /\+5\.5 Margin \+5\.7/);
-  assert.match(text, /13-9 Road \/ Home 15-7/);
-  assert.deepEqual(readTapeBars(markup, "Allowed"), ["100", "lead 95"]);
-  assert.deepEqual(readTapeBars(markup, "Road / Home"), ["59", "lead 68"]);
-  const [fever] = listRows(markup, "players");
-  assert.deepEqual(fever.slice(0, 2), ["Fever Pts Reb Ast", "Kelsey Mitchell 24.7 1.7 2.8"]);
+  assert.match(text, /13-9 Road Home 15-7/);
+  assert.match(text, /8-2 Leading scorers/);
+  assert.deepEqual(readTapeBars(markup, "Opp PPG"), ["100", "lead 95"]);
+  assert.deepEqual(readTapeBars(markup, "Road Home"), ["59", "lead 68"]);
+});
+
+test("a preview lists each team's three saved leading scorers, best first", () => {
+  const [fever, aces] = listRows(renderFeverAtAces(), "players");
+  assert.deepEqual(fever, [
+    "Fever Pts Reb Ast",
+    "Kelsey Mitchell 24.7 1.7 2.8",
+    "Caitlin Clark 22.3 4.0 8.3",
+    "Aliyah Boston 16.1 8.0 3.0",
+  ]);
+  assert.equal(aces[1], "A'ja Wilson 26.2 9.4 3.2");
 });
 
 test("a preview missing a part says so, and a split season series says that", () => {
-  const preview = describePreview(
-    { schedule: null, standings: null, players: null },
-    { season: 2026, away: "IND", home: "LVA" },
+  const text = readText(
+    renderFeverAtAces({ season: { ...SEASON, standings: [], leaders: [] }, meetings: null }),
   );
-  const text = readText(renderPreview(preview));
   assert.match(text, /Couldn't load this season's meetings\./);
   assert.match(text, /Couldn't load the standings\./);
   assert.match(text, /Couldn't load the players' averages\./);
 
-  const split = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
-  split.meetings = split.meetings.filter((meeting) => meeting.id !== "1022600153");
-  assert.match(readText(renderPreview(split)), /Season series split 1-1/);
+  const { meetings } = describePreview(GAMES.preview.schedule, { season: 2026, ...FEVER_AT_ACES });
+  const split = meetings.filter((meeting) => meeting.id !== "1022600153");
+  assert.match(readText(renderFeverAtAces({ meetings: split })), /Season series split 1-1/);
 });
 
 /**
@@ -206,13 +253,14 @@ test("a box score still loading has the loaded one's parts and measures, with pl
   assert.ok(countPlaceholders(pending) > 0);
 });
 
-test("a preview still loading has the loaded one's parts and measures, with placeholders for its numbers", () => {
-  const pending = renderPendingPreview({ away: "IND", home: "LVA" });
-  const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
-  assert.deepEqual(readShape(pending), readShape(renderPreview(preview)));
-  assert.deepEqual(
-    listRows(pending, "players").map((rows) => rows.length),
-    [4, 4],
-  );
+test("a preview still loading holds the meetings' shape with placeholders, and shows the rest at once", () => {
+  const pending = renderFeverAtAces({ meetings: null, isLoading: true });
+  const loaded = renderFeverAtAces();
+  assert.deepEqual(readShape(pending), readShape(loaded));
+  assert.equal(pending.text.split("<li>").length - 1, 3);
   assert.ok(countPlaceholders(pending) > 0);
+  assert.equal(
+    pending.text.slice(pending.text.indexOf("Season stats")),
+    loaded.text.slice(loaded.text.indexOf("Season stats")),
+  );
 });

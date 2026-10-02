@@ -2,11 +2,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readGameDay } from "../page/js/dates.js";
-import { readEasternDay } from "../page/js/snapshot.js";
 import { describeLastStamp } from "../page/js/stamp.js";
 import { renderNextCell } from "../page/js/standings.js";
-import { normalizeSpaces } from "../../../tests/text.js";
+import { normalizeSpaces, readStampText } from "../../../tests/text.js";
 import { checkInTimeZone } from "../../../tests/time-zone.js";
+import { readEasternDay } from "#shared/days.js";
 
 const MARINERS_WIN = {
   away: "HOU",
@@ -20,7 +20,7 @@ const MARINERS_WIN = {
 const AFTERNOON_AFTER = new Date("2026-09-24T17:17:00Z");
 
 const describeLastFinal = () =>
-  normalizeSpaces(
+  readStampText(
     describeLastStamp(
       { today: { games: [] }, lastFinal: MARINERS_WIN },
       { ranking: [], alive: () => true, now: AFTERNOON_AFTER },

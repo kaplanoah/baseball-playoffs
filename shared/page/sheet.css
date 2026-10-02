@@ -34,7 +34,7 @@
 }
 .sheet-note {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: var(--size-small);
   color: var(--ink-dim);
   white-space: nowrap;
 }
@@ -50,12 +50,14 @@
   column-gap: 8px;
 }
 .tape-label {
-  font-size: 0.55rem;
+  font-size: var(--size-small);
   line-height: 1.25;
+  text-wrap: balance;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: var(--ink-dim);
+  font-weight: 500;
 }
 .tape-side {
   display: grid;
@@ -69,7 +71,7 @@
   display: flex;
   align-items: baseline;
   gap: 5px;
-  font-size: 0.72rem;
+  font-size: var(--size-glance);
   font-weight: 500;
 }
 .tape-side.away .tape-value {
@@ -105,10 +107,14 @@
 }
 .tape-note {
   margin: 0;
-  font-size: 0.56rem;
+  font-size: var(--size-small);
   text-align: center;
   color: var(--ink-dim);
   text-wrap: balance;
+}
+/* A fact that doesn't fit moves to the next line whole, so the line breaks only after a dot. */
+.tape-note .fact {
+  display: inline-block;
 }
 
 @media (max-width: 779px) {
@@ -124,6 +130,9 @@
   @media (prefers-reduced-motion: no-preference) {
     .sheet-panel[open] {
       animation: sheet-rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .sheet-panel[open]::backdrop {
+      animation: backdrop-fade-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
   }
   .sheet-content {

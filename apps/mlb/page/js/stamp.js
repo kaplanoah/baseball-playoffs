@@ -1,6 +1,6 @@
-import { DAYS, countDaysBetween, formatClockTime, formatShortDate } from "#shared/days.js";
 import { html } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
+import { describeFinishedDay, renderStampNow, renderStampTime } from "#shared/stamp.js";
 import { TEAMS } from "./teams.js";
 
 export function formatStampName(id) {
@@ -12,15 +12,16 @@ function describeFinal(game, day) {
     awayScore > homeScore
       ? [game.away, awayScore, game.home, homeScore]
       : [game.home, homeScore, game.away, awayScore];
-  const when = `final at ${formatClockTime(new Date(game.end))}${day ? " " + day : ""}`;
-  return `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore} ${when}`;
+  const score = `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore}`;
+  return html`${score} final at ${renderStampTime(new Date(game.end))}${day ? ` ${day}` : ""}`;
 }
 function describeLive(game) {
   const [awayScore, homeScore] = game.score || [0, 0];
   return `${formatStampName(game.away)} @ ${formatStampName(game.home)} ${awayScore}-${homeScore} in the ${formatOrdinal(game.inning || 1)}`;
 }
 function describeFirstPitch(game) {
-  return `${formatStampName(game.away)} @ ${formatStampName(game.home)} first pitch at ${formatClockTime(new Date(game.start))}`;
+  const matchup = `${formatStampName(game.away)} @ ${formatStampName(game.home)}`;
+  return html`${matchup} first pitch at ${renderStampTime(new Date(game.start))}`;
 }
 function describeGame(game) {
   if (game.state === "final") return describeFinal(game);
@@ -34,7 +35,7 @@ function describeSlate(games) {
     ? `slate of ${games.length} over`
     : `slate of ${games.length} under way`;
 }
-const joinClause = (phrase, clause) => (clause ? `${phrase}, ${clause}` : phrase);
+const joinClause = (phrase, clause) => (clause ? html`${phrase}, ${clause}` : phrase);
 
 function rankGame(game, context) {
   const ranks = [game.away, game.home]
@@ -65,33 +66,12 @@ const PICK_ENDED = ["latestEnd", "rank", "alive"];
 const PICK_UNDER_WAY = ["rank", "alive", "latestStart"];
 const PICK_STARTS = ["earliest", "rank", "alive"];
 
-const NIGHT_BEGINS_HOUR = 18;
-const NIGHT_ENDS_HOUR = 6;
-
-const isAfterDark = (date) =>
-  date.getHours() >= NIGHT_BEGINS_HOUR || date.getHours() < NIGHT_ENDS_HOUR;
-
-// A final in the small hours belongs to the evening before it, as the viewer's clock tells it.
-function findEveningOf(date) {
-  const evening = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (date.getHours() < NIGHT_ENDS_HOUR) evening.setDate(evening.getDate() - 1);
-  return evening;
-}
-
-function describeFinalDay(final, now) {
-  const end = new Date(final.end);
-  if (isAfterDark(end) && countDaysBetween(findEveningOf(end), now) === 1) return "last night";
-  const days = countDaysBetween(end, now);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  const played = new Date(final.start || final.end);
-  if (days < 7) return DAYS[played.getDay()];
-  return formatShortDate(played);
-}
+const describeFinalDay = (final, now) =>
+  describeFinishedDay(new Date(final.end), new Date(final.start || final.end), now);
 
 function describeLastFinal(lastFinal, now) {
   if (!lastFinal || !lastFinal.end) return "";
-  return `No games since ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
+  return html`No games since ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
 }
 
 // With three or more games, one leads the line: a fresh final, else a live game, else the latest final.
@@ -105,25 +85,32 @@ function pickLeadGame(slate, started, context) {
   return pickGame(finals, context, PICK_ENDED);
 }
 
+const isLive = (game) => game.state === "live";
+const markLive = (line, isOn) => (isOn ? html`${renderStampNow()} ${line}` : line);
+
+// On a day of one or two games, each game under way is named, or once none is, each final.
+function describeFewGames(started, describeWithNote) {
+  const live = started.filter(isLive);
+  const inOrder = (live.length ? live : started)
+    .slice()
+    .sort((first, second) => parseTime(first.start) - parseTime(second.start));
+  const line = html`${inOrder.map((game, index) => html`${index ? ", " : ""}${describeWithNote(game)}`)}`;
+  return markLive(line, live.length > 0);
+}
+
 export function describeLastStamp(slate, context) {
   const games = (slate.today && slate.today.games) || [];
   const started = games.filter((game) => game.state !== "pre");
   if (!started.length) return describeLastFinal(slate.lastFinal, context.now);
   const describeWithNote = (game) =>
-    describeGame(game) + ((game.state === "final" && context.seriesNote?.(game)) || "");
-  if (games.length <= 2) {
-    return started
-      .slice()
-      .sort((first, second) => parseTime(first.start) - parseTime(second.start))
-      .map(describeWithNote)
-      .join(", ");
-  }
-  return joinClause(describeWithNote(pickLeadGame(slate, started, context)), describeSlate(games));
+    html`${describeGame(game)}${(game.state === "final" && context.seriesNote?.(game)) || ""}`;
+  if (games.length <= 2) return describeFewGames(started, describeWithNote);
+  const lead = pickLeadGame(slate, started, context);
+  return markLive(joinClause(describeWithNote(lead), describeSlate(games)), isLive(lead));
 }
 
 export function describeUpNextGame(slate, context) {
   const days = [slate.today, slate.nextDay].filter(Boolean);
-  if (days.some((day) => (day.games || []).some((game) => game.state === "live"))) return null;
   for (const day of days) {
     const games = day.games || [];
     const ahead = games.filter((game) => game.state === "pre");
@@ -139,24 +126,4 @@ export function describeUpNextGame(slate, context) {
     };
   }
   return null;
-}
-
-export function formatStampWhen(date, now = new Date()) {
-  const time = formatClockTime(date);
-  const day = formatStampDay(date, now);
-  return day === "today" ? time : `${day} ${time}`;
-}
-// Sets AM/PM apart so it can be styled smaller.
-export function renderStampWhen(date, now = new Date()) {
-  const when = formatStampWhen(date, now);
-  const parts = /^(.*\d)\s*(\D+)$/.exec(when);
-  return parts ? html`${parts[1]}<span class="ap">${parts[2]}</span>` : html`${when}`;
-}
-export function formatStampDay(date, now = new Date()) {
-  const days = countDaysBetween(date, now);
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days === -1) return "tomorrow";
-  if (Math.abs(days) < 7) return DAYS[date.getDay()];
-  return formatShortDate(date);
 }

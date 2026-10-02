@@ -10,9 +10,15 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request stops the checks still running on the one before it.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -24,6 +30,7 @@ jobs:
 
   format:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -35,6 +42,7 @@ jobs:
 
   typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -46,6 +54,7 @@ jobs:
 
   deadcode:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -57,6 +66,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -69,8 +79,14 @@ jobs:
       - name: Test in another time zone
         run: TZ=Pacific/Honolulu npm test
 
+  # The browser tests take most of CI's time, so they run split across machines.
   browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -78,12 +94,14 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      # The tests run on Chromium's headless shell, so the full browser isn't needed, and GitHub's
+      # Ubuntu runners already have the system libraries it needs.
+      - run: npx playwright install --only-shell chromium
+      - run: npm run test:browser -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
@@ -92,6 +110,7 @@ jobs:
   # title comes from GitHub rather than the event, so a re-run checks an edited title.
   title:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -220,7 +239,24 @@ jobs:
     if: always()
     needs: [lint, format, typecheck, deadcode, test, browser, title, review]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Require every job to pass
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
         run: exit 1
+      # Records the code this pull request's checks passed on, so that once it merges, main deploys
+      # at once if it has exactly that code (worker/find-passed-ci.mjs).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: github.event_name == 'pull_request'
+      - name: Record the code the checks passed on
+        id: passed
+        if: github.event_name == 'pull_request'
+        run: |
+          git rev-parse HEAD > passed-commit.txt
+          echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: github.event_name == 'pull_request'
+        with:
+          name: ci-passed-${{ steps.passed.outputs.tree }}
+          path: passed-commit.txt
+          retention-days: 14

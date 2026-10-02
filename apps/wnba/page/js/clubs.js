@@ -14,9 +14,44 @@ export function renderDot(code) {
 const renderSeed = (seed) => (seed ? html`<span class="seed">${seed}</span>` : "");
 
 /**
- * A team's dot, seed, and name, or TBD while it isn't known.
+ * @param {string | null} code
+ * @param {number | null | undefined} seed
+ */
+const renderClubParts = (code, seed) =>
+  html`${renderDot(code)}${renderSeed(seed)}<span class="team-name">${nameTeam(code)}</span>`;
+
+/** @param {string} code */
+const describeTeamButton = (code) => `Team details: ${TEAMS[code].city} ${TEAMS[code].name}`;
+
+/**
+ * A team's dot, seed, and name, that opens its sheet, or TBD while it isn't known.
  * @param {string | null} code
  * @param {{ seed?: number | null }} [options]
  */
-export const renderClub = (code, { seed } = {}) =>
-  html`<span class="club${code ? "" : " tbd"}">${renderDot(code)}${renderSeed(seed)}<span class="team-name">${nameTeam(code)}</span></span>`;
+export function renderClub(code, { seed } = {}) {
+  if (!code || !TEAMS[code])
+    return html`<span class="club tbd">${renderClubParts(code, seed)}</span>`;
+  return html`<button type="button" class="club team-open" data-team="${code}" aria-label="${describeTeamButton(code)}">${renderClubParts(code, seed)}</button>`;
+}
+
+/**
+ * A team's dot and name, for inside a button of its own.
+ * @param {string} code
+ */
+export const renderPlainClub = (code) =>
+  html`<span class="club">${renderClubParts(code, null)}</span>`;
+
+/**
+ * A button around a team's name that opens its sheet.
+ * @param {string} code
+ * @param {import("#shared/html.js").Markup | string} content
+ */
+export const renderTeamButton = (code, content) =>
+  html`<button type="button" class="team-open" data-team="${code}" aria-label="${describeTeamButton(code)}">${content}</button>`;
+
+/**
+ * A team's name in a line of text, that opens its sheet once the team is known.
+ * @param {string | null} code
+ */
+export const renderTeamName = (code) =>
+  code && TEAMS[code] ? renderTeamButton(code, nameTeam(code)) : nameTeam(code);

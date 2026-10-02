@@ -1,83 +1,85 @@
 /*
- * The Games view's pill and its three lists, as game-pager.js builds them. Apps link it after
- * chrome.css, before their own styles.css, which styles what the lists hold.
+ * A pill over lists side by side, like the Games view's, as pager.js builds them. Apps link it
+ * after chrome.css, before their own styles.css, which styles what the lists hold.
  *
- * Beside chrome.css's --bg, --ink, and --ink-dim, an app's :root defines these tokens:
+ * Beside chrome.css's --bg and --ink, an app's :root defines these tokens:
  *   --page-gutter          the body's side padding, which the lists reach past to the screen's edges
  *   --pager-track          the pill's fill
  *   --pager-track-edge     the pill's inner outline
  *   --pager-thumb          the fill of the thumb under the shown list's name
  *   --pager-thumb-edge     the thumb's lit top edge
+ *   --pager-label          the names of the lists not showing
  */
 
 /* The pill and the lists keep to a phone's width, centered on a wider screen. Their bar and the
    lists reach past the body's gutter to the screen's edges, and on the left past the 1px chrome.css
    pads each view with too. */
-#gamePager {
+.pager {
   max-width: 560px;
   margin-inline: auto;
   --reach-left: calc(var(--page-gutter) + 1px);
   --reach-right: var(--page-gutter);
 }
 
-/* The pill stays at the top of the screen while the games scroll under it. Its bar reaches up
-   under the status bar and fills with the page's color once the pill is held in place, and lets
+/* The pill stays at the top of the screen while the lists scroll under it, under the Home Screen
+   bar while chrome.css shows one. Its bar reaches up under the status bar and fills with the page's color once the pill is held in place, and lets
    touches through to whatever it overlaps. */
-.game-tabs-bar {
+.pager-bar {
   --bar-top: calc(env(safe-area-inset-top) + 10px);
   position: sticky;
   z-index: 5;
-  top: 0;
+  top: var(--home-screen-bar-height, 0px);
   margin: calc(-1 * var(--bar-top)) calc(-1 * var(--reach-right)) 0 calc(-1 * var(--reach-left));
   padding: var(--bar-top) var(--reach-right) 18px var(--reach-left);
   pointer-events: none;
 }
-.game-tabs-bar.stuck {
+.pager-bar.stuck {
   background: linear-gradient(to bottom, var(--bg) calc(100% - 18px), transparent);
 }
-/* The lists sit side by side on a pill like the tab bar's. Its thumb follows --swipe, set from
-   the lists' scroll position: 0 at the first list, 2 at the last, in between mid-swipe. */
-.game-tabs {
+/* The lists sit side by side on a pill like the tab bar's, one slot for each of --list-count. Its
+   thumb follows --swipe, set from the lists' scroll position: 0 at the first list, the last's
+   index at the last, in between mid-swipe. */
+.pager-tabs {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(var(--list-count), 1fr);
   padding: 3px;
   pointer-events: auto;
   border-radius: 999px;
   background: var(--pager-track);
   box-shadow: inset 0 0 0 1px var(--pager-track-edge);
 }
-.game-tabs-thumb {
+.pager-thumb {
   position: absolute;
   top: 3px;
   bottom: 3px;
   left: 3px;
-  width: calc((100% - 6px) / 3);
+  width: calc((100% - 6px) / var(--list-count));
   border-radius: 999px;
   background: var(--pager-thumb);
   box-shadow:
     inset 0 1px 0 var(--pager-thumb-edge),
     0 2px 6px -2px rgba(0, 0, 0, 0.5);
-  transform: translateX(calc(var(--swipe, 1) * 100%));
+  transform: translateX(calc(var(--swipe, 0) * 100%));
   pointer-events: none;
 }
 /* --nearness runs from 0 to 1 as the thumb reaches a label, which brightens with it. */
-.game-tabs button {
+.pager-tabs button {
   position: relative;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: var(--size-small);
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   background: none;
   border: 0;
   border-radius: 999px;
-  color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--ink-dim));
+  color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--pager-label));
   padding: 7px 0;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 /* A swiped list slides off the screen, not off the gutter. */
-.game-pages {
+.pager-pages {
   display: flex;
   align-items: flex-start;
   margin-inline: calc(-1 * var(--reach-left)) calc(-1 * var(--reach-right));
@@ -87,10 +89,10 @@
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
 }
-.game-pages::-webkit-scrollbar {
+.pager-pages::-webkit-scrollbar {
   display: none;
 }
-.game-page {
+.pager-page {
   flex: 0 0 100%;
   min-width: 0;
   padding-inline: var(--reach-left) var(--reach-right);

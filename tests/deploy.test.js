@@ -9,13 +9,18 @@ const API = "https://api.cloudflare.com/client/v4";
 const WORKER_URL = "https://mlb-live.example-subdomain.workers.dev/";
 const ROBOTS_URL = `${WORKER_URL}robots.txt`;
 const LIVE_VERSIONS = [{ version_id: "v-live", percentage: 100 }];
-const LIVE_COMMIT = "1".repeat(40);
-const NEW_COMMIT = "2".repeat(40);
 const LIVE_DEPLOYMENTS = [
   { created_on: "2026-09-24T10:00:00Z", versions: [{ version_id: "v-older", percentage: 100 }] },
   { created_on: "2026-09-25T10:00:00Z", versions: LIVE_VERSIONS },
 ];
-const ANSWER_ROBOTS = () => new Response("User-agent: *\nDisallow: /\n");
+const LIVE_COMMIT = "1".repeat(40);
+const NEW_COMMIT = "2".repeat(40);
+// The Worker names the commit it was built from, as the build writes it: in short form.
+const answerRobotsFrom = (commit) => () =>
+  new Response("User-agent: *\nDisallow: /\n", {
+    headers: { "x-release-commit": commit.slice(0, 7) },
+  });
+const ANSWER_ROBOTS = answerRobotsFrom(NEW_COMMIT);
 const skipPause = async () => {};
 
 /**
@@ -102,13 +107,24 @@ test("upload, route, and the Worker URL", async () => {
     `GET ${ROBOTS_URL}`,
   ]);
 
+  const apiCalls = cloudflare.calls.filter((request) => request.url.startsWith(API));
+  assert.ok(apiCalls.every((request) => request.init.signal instanceof AbortSignal));
+
   const form = cloudflare.calls[3].init.body;
   const metadata = JSON.parse(await form.get("metadata").text());
   assert.deepEqual(metadata, {
     main_module: "worker.mjs",
     compatibility_date: "2026-09-01",
-    observability: { enabled: true },
-    bindings: [{ type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" }],
+    observability: { enabled: true, traces: { enabled: true } },
+    bindings: [
+      { type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" },
+      {
+        type: "ratelimit",
+        name: "ACCESS_LIMIT",
+        namespace_id: "2701",
+        simple: { limit: 10, period: 60 },
+      },
+    ],
     keep_bindings: ["secret_text"],
     annotations: { "workers/message": NEW_COMMIT },
     migrations: { new_tag: "v1", steps: [{ new_sqlite_classes: ["SeasonStore"] }] },
@@ -205,16 +221,22 @@ test("a migration already applied isn't sent again", async () => {
   assert.equal(metadata.migrations, undefined);
 });
 
-test("wrangler.toml declares the same store binding and migrations", async () => {
+test("each app's wrangler.toml declares the same bindings and migrations", async () => {
   const { MIGRATIONS } = await loadDeployModule();
-  const toml = readFileSync(`${import.meta.dirname}/../apps/mlb/worker/wrangler.toml`, "utf8");
-  assert.match(
-    toml,
-    /\[\[durable_objects\.bindings\]\]\nname = "STORE"\nclass_name = "SeasonStore"/,
-  );
-  for (const { tag, new_sqlite_classes: classes } of MIGRATIONS) {
-    const declared = `[[migrations]]\ntag = "${tag}"\nnew_sqlite_classes = ${JSON.stringify(classes)}`;
-    assert.ok(toml.includes(declared), declared);
+  for (const app of ["mlb", "wnba"]) {
+    const toml = readFileSync(`${import.meta.dirname}/../apps/${app}/worker/wrangler.toml`, "utf8");
+    assert.match(
+      toml,
+      /\[\[durable_objects\.bindings\]\]\nname = "STORE"\nclass_name = "SeasonStore"/,
+    );
+    assert.match(
+      toml,
+      /\[\[ratelimits\]\]\nname = "ACCESS_LIMIT"\nnamespace_id = "2701"\n\n\[ratelimits\.simple\]\nlimit = 10\nperiod = 60/,
+    );
+    for (const { tag, new_sqlite_classes: classes } of MIGRATIONS) {
+      const declared = `[[migrations]]\ntag = "${tag}"\nnew_sqlite_classes = ${JSON.stringify(classes)}`;
+      assert.ok(toml.includes(declared), declared);
+    }
   }
 });
 
@@ -416,15 +438,39 @@ test("a Worker that doesn't answer puts the live version back", async () => {
       log: () => {},
       pause: skipPause,
     }),
-    /didn't answer, so the earlier version is live again/,
+    /didn't answer as the new version, so the earlier version is live again/,
   );
   const calls = describeCalls(cloudflare.calls);
-  assert.equal(calls.filter((call) => call === `GET ${ROBOTS_URL}`).length, 6);
+  assert.equal(calls.filter((call) => call === `GET ${ROBOTS_URL}`).length, 12);
   assert.equal(calls.at(-1), "POST /accounts/acct123/workers/scripts/mlb-live/deployments");
   assert.deepEqual(JSON.parse(cloudflare.calls.at(-1).init.body), {
     strategy: "percentage",
     versions: LIVE_VERSIONS,
   });
+});
+
+test("a Worker still answering as the version before isn't the new one, and is put back", async () => {
+  const { deploy } = await loadDeployModule();
+  const deployWhileAnswering = (answerWorker) =>
+    deploy({
+      app: "mlb",
+      fetchImpl: createFakeCloudflare({ liveCommit: LIVE_COMMIT, answerWorker }).fetchImpl,
+      env: ENV,
+      script: "",
+      commit: NEW_COMMIT,
+      findChanges: () => ["apps/mlb/page/js/app.js"],
+      log: () => {},
+      pause: skipPause,
+    });
+
+  await assert.rejects(
+    deployWhileAnswering(answerRobotsFrom(LIVE_COMMIT)),
+    /didn't answer as the new version, so the earlier version is live again/,
+  );
+  let checks = 0;
+  const catchingUp = () => (++checks < 3 ? answerRobotsFrom(LIVE_COMMIT) : ANSWER_ROBOTS)();
+  assert.equal(await deployWhileAnswering(catchingUp), WORKER_URL);
+  assert.equal(checks, 3);
 });
 
 test("a failed check says so when there's nothing to go back to, or going back fails", async () => {
@@ -440,7 +486,7 @@ test("a failed check says so when there's nothing to go back to, or going back f
       log: () => {},
       pause: skipPause,
     }),
-    /didn't answer, and no earlier version exists/,
+    /didn't answer as the new version, and no earlier version exists/,
   );
   assert.ok(
     !describeCalls(brandNew.calls).some((call) =>
@@ -548,15 +594,19 @@ test("deploy:api runs the tests before it deploys, and sends its calls through a
   assert.equal(scripts["deploy:api"], "npm test && NODE_USE_ENV_PROXY=1 node worker/deploy.mjs");
 });
 
-test("project settings allow only the checked scripts, and deny running them any other way", () => {
+test("the deploy job runs no package's install scripts or tests while it holds the token", () => {
+  const workflow = readFileSync(`${import.meta.dirname}/../.github/workflows/deploy.yml`, "utf8");
+  assert.match(workflow, /- run: npm ci --ignore-scripts\n/);
+  assert.match(workflow, /\n {10}node worker\/deploy\.mjs\n/);
+  assert.doesNotMatch(workflow, /npm run deploy:api|npm test/);
+  assert.match(workflow, /timeout-minutes: \d+/);
+});
+
+test("project settings ask before a deploy or a key change, and deny running them any other way", () => {
   const { permissions } = JSON.parse(
     readFileSync(`${import.meta.dirname}/../.claude/settings.json`, "utf8"),
   );
-  assert.deepEqual(permissions.allow, [
-    "Bash(npm run deploy:api)",
-    "Bash(npm run deploy:api -- *)",
-    "Bash(npm run set-app-key -- *)",
-  ]);
+  assert.equal(permissions.allow, undefined);
   for (const rule of [
     "Bash(npm run deploy)",
     "Bash(npx wrangler *)",
@@ -567,3 +617,33 @@ test("project settings allow only the checked scripts, and deny running them any
     assert.ok(permissions.deny.includes(rule), rule);
   }
 });
+
+test(
+  "every app deploys at once, and one that fails doesn't hold back the others",
+  {
+    timeout: 2000,
+  },
+  async () => {
+    const { deployApps } = await loadDeployModule();
+    const started = [];
+    const errors = [];
+    /** @type {(value?: unknown) => void} */
+    let releaseMlb = () => {};
+    const mlbHeld = new Promise((resolve) => (releaseMlb = resolve));
+    const isDeployed = await deployApps(
+      ["mlb", "wnba"],
+      async (app) => {
+        started.push(app);
+        if (app === "mlb") {
+          await mlbHeld;
+          throw new Error("upload refused");
+        }
+        releaseMlb();
+      },
+      (line) => errors.push(line),
+    );
+    assert.deepEqual(started, ["mlb", "wnba"]);
+    assert.equal(isDeployed, false);
+    assert.deepEqual(errors, ["mlb: upload refused"]);
+  },
+);

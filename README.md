@@ -2,20 +2,22 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/kaplanoah/sports-apps/ci.yml?branch=main&label=CI&logo=github&logoColor=white)](https://github.com/kaplanoah/sports-apps/actions/workflows/ci.yml)
 
-Private web pages that track a league's postseason, one app per league. Each
+Private web pages that follow a league all year, one app per league. Each
 app is its own page and Cloudflare Worker, in its own folder under `apps/`, and
 they share code in `shared/` and the tooling that builds, tests, and deploys
 them.
 
-| App            | Folder       | Worker     |
-| -------------- | ------------ | ---------- |
-| MLB Postseason | `apps/mlb/`  | `mlb-live` |
-| WNBA Playoffs  | `apps/wnba/` | `wnba-app` |
+| App  | Folder       | Worker     |
+| ---- | ------------ | ---------- |
+| MLB  | `apps/mlb/`  | `mlb-live` |
+| WNBA | `apps/wnba/` | `wnba-app` |
 
-### MLB Postseason
+### MLB
 
-A private web page that tracks the MLB postseason. It shows the bracket, your
-ranking of who you want to win the World Series, the standings, each team's
+A private web page that follows the MLB season, from spring training through the
+World Series. It shows the standings, the postseason bracket (projected from the
+standings until the field is set), your ranking of who you want to win the World
+Series, each team's
 previous, current and next game with its starting pitchers, and scores that update
 automatically. Today's games say which channels they're on. Tap a game to compare its starters: how they rank among the season's starters,
 what they throw, and how their last starts went. A game later today whose club hasn't named
@@ -28,17 +30,20 @@ current even with the page closed. Saved to an iPhone's home screen, the page
 opens full screen like an app, and can send a notification when something
 happens to a team in your ranking.
 
-### WNBA Playoffs
+### WNBA
 
-A private web page that tracks the WNBA playoffs. It shows the bracket, every
-game with live scores and clocks, the league and conference standings with the
-playoff line, and every team with its conference, seed, record, last title, and
-how far it got. Tap a team for its season: its scoring, home and road records,
-top scorer, titles, and playoff games. Tap a game for its details: once it
-starts, its points by quarter, the two teams' stats side by side, and each team's
-top scorers; before it does, the two teams' meetings this season, how their
-seasons compare, and each team's leading scorers. It follows the phone's dark or
-light setting, or the one you pick in its settings. Added to the home screen, it keeps
+A private web page that follows the WNBA season. It shows the playoff bracket,
+every playoff game with live scores and clocks, and the league and conference standings with
+the playoff line. Tap a team's name or dot anywhere, even inside a game, for its season: its
+conference, seed, and record, its scoring, home and road records, top scorer,
+titles, and how far it got in the playoffs. Tap a game for its details: once it
+starts, its points by quarter, a chart of the lead through the game, the two
+teams' stats side by side, and each team's top scorers; before it does, the two
+teams' meetings this season, how their seasons compare, and each team's leading
+scorers. On a phone or tablet, an Updates box under the tabs lists each playoff
+game that ended since you last dismissed it, and where its series stands; each
+device keeps its own dismissal. It follows the phone's dark or light setting, or
+the one you pick in its settings. Added to the home screen, it keeps
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
@@ -47,13 +52,18 @@ stops sending scores, ESPN's stand in.
 Saved to an iPhone's home screen, the page opens full screen like an app, and
 can send a notification with the score when any playoff game ends.
 
+### Sharing a page
+
+To share either page, give it an access code. Anyone who opens the link types
+the code once, and the phone remembers it.
+
 ## Setup (for humans)
 
 Open [Claude Code on the web](https://claude.ai/code), paste this prompt, and
 follow Claude's instructions.
 
 ```
-Set up the MLB postseason tracker from https://github.com/kaplanoah/sports-apps
+Set up the MLB tracker from https://github.com/kaplanoah/sports-apps
 for me. Clone it (branch main), read the "Setup (for Claude Code)"
 section of its README, and guide me through it one step at a time.
 ```
@@ -76,7 +86,7 @@ until they say it's done, then go on. Don't ask them to make choices you can
 make for them. Never ask for the Cloudflare token in the chat.
 
 Set up the app they asked for, by its folder under `apps/`: `mlb` for the MLB
-postseason tracker, `wnba` for the WNBA playoffs tracker. Below, `<app>` is that folder, and `<worker>` is the `name`
+tracker, `wnba` for the WNBA tracker. Below, `<app>` is that folder, and `<worker>` is the `name`
 in its `apps/<app>/worker/wrangler.toml`.
 
 **1. Get this session ready to deploy.** If `CLOUDFLARE_ACCOUNT_ID` is set
@@ -113,7 +123,7 @@ themselves, see "If they deploy it themselves" below.
 5. Environment settings only apply to new sessions. Start one in the same
    environment on this repo's `main` with this prompt. Use the
    `create_session` tool if you have it. Otherwise have the user start it.
-   `Continue setting up the MLB postseason tracker: README "Setup (for Claude Code)", step 2.`
+   `Continue setting up the MLB tracker: README "Setup (for Claude Code)", step 2.`
 
 **2. Deploy the Worker.** Run `npm ci`, then `npm run deploy:api -- <app>`. It
 runs the tests, deploys the app from `main` exactly as it is on GitHub, and
@@ -121,8 +131,8 @@ checks that the Worker answers. It keeps the Worker's address out of its output,
 deploy logs are public; step 3 prints it. It refuses uncommitted changes and anything that isn't `main`'s latest commit.
 The session's own branch works once it matches `main`. It sets
 `NODE_USE_ENV_PROXY=1` so Node sends its requests through the session's
-proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` lets you run that command without
-asking and blocks the other ways to deploy.
+proxy, which adds the token. That needs Node 22.21 or later. The repo's `.claude/settings.json` has
+the user approve that command, and `set-app-key` below, and blocks the other ways to deploy.
 
 **3. Give the page its address.** Run `npm run set-app-key -- <app>`. It gives
 the Worker a long random `APP_KEY` secret and prints the page's address,
@@ -131,6 +141,12 @@ data answer only there. Give the user the address and tell them to keep it
 private: anyone who has it can see and change the page. Never pass
 `--rotate` unless they ask. It replaces the key, which changes the address.
 
+To share the page beyond the user, have them pick an access code and run
+`npm run set-access-code -- <app> <code>`. The page then asks for it before it
+opens, and each phone types it once. Case, spaces, and hyphens don't count.
+Running it again with a new code signs every phone out until it types the new
+one, and `--remove` stops asking. Never commit or post the code.
+
 **4. Check the page.** Have the user open the address. The first visit also
 starts the Worker's own updates. Then read `<address>store/live/status` with
 `curl`. If `data.error` and `data.write` are empty, it works. If not, `error`
@@ -138,7 +154,9 @@ says why the Worker couldn't read the league, and `write` names the save that fa
 
 **5. Save it to the home screen.** On an iPhone, have them open the address
 in Safari and choose **Share > Add to Home Screen**. It then opens full
-screen with its own icon.
+screen with its own icon. On a phone, the page shows these steps itself, in a
+bar across the top until it's closed and at the bottom of settings, and on
+Android its **Install** button opens Chrome's own install dialog.
 
 **6. Turn on notifications.** From the home screen icon, have them tap the
 sliders at the top right to open settings, turn on **Notifications**, and allow
@@ -190,8 +208,10 @@ app's bundle to its `apps/<app>/worker/dist/`, which git ignores, if you want to
 look at it. The bundle records its version, the commit it was built from, and
 when, and the page's settings show them.
 
-Code every app uses lives in `shared/`: the page's tab bar and settings sheet
-(their styles in `chrome.css`), the sheet a tap on a game opens (`sheet.css`),
+Code every app uses lives in `shared/`: the type scale every page's text keeps
+to (`type.css`), the page's tab bar and settings sheet
+and the bar that asks a phone to add the page to the Home Screen (their styles
+in `chrome.css`), the sheet a tap on a game opens (`sheet.css`),
 catching up on return, showing what the page last showed while it loads, and
 store client in
 `shared/page/`, and the Worker's routing and push
@@ -203,11 +223,12 @@ and setting the page's key. Tests for shared code and tooling are in the root
 Versions follow [semantic versioning](https://semver.org). Each pull request's
 title starts with a type: `feat:` for a new feature, `fix:`, `refactor:`, or
 `build:` for a patch, and `docs:`, `test:`, `ci:`, or `chore:` for changes that
-don't deploy. A `!` after the type, as in `feat!:`, marks a major change. The
-build works out each app's version from these titles on `main`, so there are no
-tags to keep. A merge that changes only other apps' folders leaves an app's
-version alone. Baseball counts from 2.12.2; a new app starts at 1.0.0 with the
-merge that adds its folder.
+don't deploy. A `!` after a type that deploys, as in `feat!:`, marks a major
+change. The build works out each app's version from these titles on `main`, so
+there are no tags to keep. A merge that changes nothing an app's deploy counts,
+like only its tests, docs, or other apps' folders, leaves that app's version
+alone. Each app counts on from a baseline version in `worker/release.mjs`; a new
+app starts at 1.0.0 with the merge that adds its folder.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page reloads itself
@@ -218,7 +239,9 @@ flash empty while it waits for its data.
 
 ### Deploying on merge
 
-GitHub can deploy each app's Worker, page included, after each merge once the
+GitHub can deploy each app's Worker, page included, after each merge: at once
+when the pull request's checks passed on exactly the code `main` now has, which
+is when it was up to date with `main` as it merged, and otherwise once the
 checks pass on `main`. In the repo's **Settings > Environments**, create an
 environment named `production`, limit its deployment branches to `main`, and
 add:
@@ -239,5 +262,5 @@ one app.
 
 [MIT](LICENSE)
 
-The tab bar icons, and the WNBA Teams list's caret, are from [Phosphor Icons](https://phosphoricons.com), used
+The tab bar icons are from [Phosphor Icons](https://phosphoricons.com), used
 under the MIT license, copyright (c) 2023 Phosphor Icons.

@@ -22,9 +22,28 @@ const buildAfternoon = (responses = RESPONSES) =>
   });
 
 test("a playoff game's ID names its round, series, and game", () => {
-  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042600132"), { round: 1, series: 3, game: 2 });
-  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042600307"), { round: 3, series: 0, game: 7 });
+  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042600132"), {
+    season: 2026,
+    round: 1,
+    series: 3,
+    game: 2,
+  });
+  assert.deepEqual(WNBASnapshot.readPlayoffGameId("1042500307"), {
+    season: 2025,
+    round: 3,
+    series: 0,
+    game: 7,
+  });
   assert.equal(WNBASnapshot.readPlayoffGameId("1022600097"), null);
+});
+
+test("a new year's snapshot leaves out the last season's games, which the feeds still hold", () => {
+  const nextYear = WNBASnapshot.buildSnapshot(
+    { ...RESPONSES, bracket: null },
+    { season: 2027, now: Date.parse(AFTERNOON.now) },
+  );
+  assert.deepEqual([nextYear.games, nextYear.series], [[], []]);
+  assert.equal(buildAfternoon().games.length, 28);
 });
 
 test("the clock reads as minutes and seconds, and tenths in the last minute", () => {
@@ -200,14 +219,36 @@ test("each team's standing has its points a game, for and against, and its home 
   );
 });
 
-test("each team's top scorer is the one with the most points a game who played most of its games", () => {
+test("each team's three leading scorers are those with the most points a game who played most of its games", () => {
   const { leaders } = buildAfternoon();
-  assert.equal(leaders.length, 15);
-  const lasVegas = leaders.find((leader) => leader.team === "LVA");
+  assert.equal(leaders.length, 45);
+  const indiana = leaders.filter((leader) => leader.team === "IND");
   assert.deepEqual(
-    [lasVegas.firstName, lasVegas.lastName, lasVegas.points, lasVegas.rebounds],
-    ["A'ja", "Wilson", 26.2, 9.4],
+    indiana.map((leader) => `${leader.firstName} ${leader.lastName}`),
+    ["Kelsey Mitchell", "Caitlin Clark", "Aliyah Boston"],
   );
+  assert.deepEqual(
+    leaders.find((leader) => leader.team === "LVA"),
+    {
+      team: "LVA",
+      id: 1628932,
+      firstName: "A'ja",
+      lastName: "Wilson",
+      games: 41,
+      points: 26.2,
+      rebounds: 9.4,
+      assists: 3.2,
+    },
+  );
+
+  const players = structuredClone(RESPONSES.players);
+  const table = players.resultSets[0];
+  const column = Object.fromEntries(table.headers.map((header, index) => [header, index]));
+  const mitchell = table.rowSet.find((row) => row[column.PLAYER_NAME] === "Kelsey Mitchell");
+  mitchell[column.GP] = 10;
+  const fewGames = buildAfternoon({ ...RESPONSES, players }).leaders;
+  assert.ok(!fewGames.some((leader) => leader.lastName === "Mitchell"));
+  assert.equal(fewGames.filter((leader) => leader.team === "IND").length, 3);
 });
 
 test("without the players' averages, there are no top scorers, and the feed is missing", () => {
@@ -228,4 +269,12 @@ test("polling waits until 15 minutes before the next set start, and runs every 1
     ),
   };
   assert.equal(WNBASnapshot.choosePollDelay(live, now), 15 * 1000);
+});
+
+test("a game that hasn't started an hour late keeps polling fast, and one hours late doesn't", () => {
+  const lateGame = buildAfternoon().games.find((game) => game.id === "1042600132");
+  const start = Date.parse(lateGame.start);
+  const snapshot = { games: [lateGame] };
+  assert.equal(WNBASnapshot.choosePollDelay(snapshot, start + 60 * 60 * 1000), 15 * 1000);
+  assert.equal(WNBASnapshot.choosePollDelay(snapshot, start + 4 * 60 * 60 * 1000), 60 * 60 * 1000);
 });

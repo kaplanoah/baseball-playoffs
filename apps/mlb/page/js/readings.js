@@ -1,6 +1,6 @@
 import * as LogChanges from "./changes.js";
 import { isSameJson } from "#shared/compare.js";
-import { readEasternDay } from "./snapshot.js";
+import { addDays, readEasternDay } from "#shared/days.js";
 
 // Updates are rebuilt from these readings every time, so a fix to how changes.js finds them
 // reaches every update a kept reading covers. Readings are saved in parts, each one day's or
@@ -150,13 +150,8 @@ export function addReading(parts, dayName, reading) {
   return createPart(dayName, latest.number + 1, last, [change]);
 }
 
-function shiftDay(dayName, days) {
-  const [year, month, day] = dayName.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
-
 // The newest part stays whatever its age, as the start for the next one.
 export function findExpiredParts(parts, dayName) {
-  const cutoff = shiftDay(dayName, -KEPT_DAYS);
+  const cutoff = addDays(dayName, -KEPT_DAYS);
   return parts.slice(0, -1).filter((part) => part.day < cutoff);
 }

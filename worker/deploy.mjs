@@ -62,6 +62,14 @@ const STORE_BINDING = {
   name: "STORE",
   class_name: "SeasonStore",
 };
+// Counts each phone's tries at the access code. The namespace is the account's own number for
+// these counts, and each Worker keys its counts by its own address.
+const ACCESS_LIMIT_BINDING = {
+  type: "ratelimit",
+  name: "ACCESS_LIMIT",
+  namespace_id: "2701",
+  simple: { limit: 10, period: 60 },
+};
 // Cloudflare records the last tag applied and rejects an upload that repeats one.
 export const MIGRATIONS = [{ tag: "v1", new_sqlite_classes: ["SeasonStore"] }];
 
@@ -85,6 +93,9 @@ export function readAccount(env) {
 
 export const findWorkersApi = (account) => `${API}/accounts/${account}/workers`;
 
+// A call Cloudflare never answers would otherwise hold the deploy, and every deploy after it.
+const CLOUDFLARE_TIMEOUT_MS = 60 * 1000;
+
 export function createCloudflareCaller({ fetchImpl, env, log }) {
   const auth = env.CLOUDFLARE_API_TOKEN
     ? { authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` }
@@ -94,6 +105,7 @@ export function createCloudflareCaller({ fetchImpl, env, log }) {
     const response = await fetchImpl(url, {
       ...init,
       headers: { ...auth, ...(init.headers || {}) },
+      signal: AbortSignal.timeout(CLOUDFLARE_TIMEOUT_MS),
     });
     if (isMissingAllowed && response.status === 404) {
       log(`${what}: none`);
@@ -203,8 +215,8 @@ export async function deploy({
           JSON.stringify({
             main_module: "worker.mjs",
             compatibility_date: compatibilityDate,
-            observability: { enabled: true },
-            bindings: [STORE_BINDING],
+            observability: { enabled: true, traces: { enabled: true } },
+            bindings: [STORE_BINDING, ACCESS_LIMIT_BINDING],
             keep_bindings: ["secret_text"],
             ...(commit && { annotations: { "workers/message": commit } }),
             ...(migrations && { migrations }),
@@ -257,11 +269,11 @@ export async function deploy({
 
   // Deploy logs are public, and the address names the account's workers.dev subdomain.
   async function confirmWorkerAnswers(url, previousVersions) {
-    if (await isWorkerAnswering(url, { fetchImpl, pause })) {
+    if (await isWorkerAnswering(url, { fetchImpl, pause, commit })) {
       log("worker check: ok");
       return;
     }
-    await restoreAfter("The Worker didn't answer", previousVersions);
+    await restoreAfter("The Worker didn't answer as the new version", previousVersions);
   }
 
   async function findNewVersionUrl(previousVersions) {
@@ -282,30 +294,42 @@ export async function deploy({
   return url;
 }
 
-const CHECK_ATTEMPTS = 6;
+const CHECK_ATTEMPTS = 12;
 const CHECK_INTERVAL_MS = 5000;
 const CHECK_TIMEOUT_MS = 10000;
 
 const waitFor = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+// The build names its commit in short form, and a version built from no known commit names none.
+/**
+ * @param {Response} response
+ * @param {string} [commit]
+ */
+function isFromCommit(response, commit) {
+  if (!commit) return true;
+  const served = response.headers.get("x-release-commit");
+  return !!served && commit.startsWith(served);
+}
+
 // robots.txt is the one path that answers without the page's key.
-async function isRobotsAnswered(url, fetchImpl) {
+async function isRobotsAnswered(url, fetchImpl, commit) {
   try {
     const response = await fetchImpl(new URL("robots.txt", url).href, {
       method: "GET",
       signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
     });
-    return response.ok;
+    return response.ok && isFromCommit(response, commit);
   } catch {
     return false;
   }
 }
 
-async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor } = {}) {
+// A new version takes a few seconds to reach every Cloudflare location, and until then the one
+// before it answers.
+async function isWorkerAnswering(url, { fetchImpl = fetch, pause = waitFor, commit = undefined }) {
   for (let attempt = 0; attempt < CHECK_ATTEMPTS; attempt += 1) {
-    // A new version takes a few seconds to reach every Cloudflare location.
     await pause(CHECK_INTERVAL_MS);
-    if (await isRobotsAnswered(url, fetchImpl)) return true;
+    if (await isRobotsAnswered(url, fetchImpl, commit)) return true;
   }
   return false;
 }
@@ -316,6 +340,24 @@ const createAppLog = (app) => (message) => {
   const [, annotation = "", text] = message.match(/^(::\w+::)?(.*)$/s);
   console.log(`${annotation}${app}: ${text}`);
 };
+
+/**
+ * Deploys every app at once. One app's failed deploy doesn't hold back the others; each puts its
+ * own earlier version back.
+ * @param {string[]} apps
+ * @param {(app: string) => Promise<unknown>} deployApp
+ * @param {(line: string) => void} [logError]
+ * @returns {Promise<boolean>} whether every app deployed
+ */
+export async function deployApps(apps, deployApp, logError = console.error) {
+  const results = await Promise.allSettled(apps.map((app) => deployApp(app)));
+  for (const [index, result] of results.entries()) {
+    if (result.status === "fulfilled") continue;
+    const { reason } = result;
+    logError(`${apps[index]}: ${reason instanceof Error ? reason.message : reason}`);
+  }
+  return results.every((result) => result.status === "fulfilled");
+}
 
 function readReleaseOrExit() {
   try {
@@ -336,15 +378,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     process.exit(0);
   }
   console.log(`Deploying ${RELEASE_BRANCH} at ${commit.slice(0, 7)}`);
-  let hasFailed = false;
-  // One app's failed deploy doesn't hold back the others; each puts its own earlier version back.
-  for (const app of apps) {
-    try {
-      await deploy({ app, script: await buildWorker(app), commit, log: createAppLog(app) });
-    } catch (error) {
-      console.error(`${app}: ${error instanceof Error ? error.message : error}`);
-      hasFailed = true;
-    }
-  }
-  if (hasFailed) process.exit(1);
+  const isDeployed = await deployApps(apps, async (app) =>
+    deploy({ app, script: await buildWorker(app), commit, log: createAppLog(app) }),
+  );
+  if (!isDeployed) process.exit(1);
 }

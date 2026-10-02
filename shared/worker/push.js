@@ -137,7 +137,12 @@ export function createPushService({ storage, now, fetchImpl }) {
   async function sendTest(request) {
     const { key, subscription } = await readSubscriptionFor(request);
     if (!subscription) return respondError(404, "not_found", "This device isn't subscribed.");
-    const status = await deliver(key, subscription, TEST_MESSAGE);
+    let status;
+    try {
+      status = await deliver(key, subscription, TEST_MESSAGE);
+    } catch {
+      return respondError(502, "push_failed", "The push service didn't answer.");
+    }
     if (status >= 200 && status < 300) return new Response(null, { status: 204 });
     return respondError(502, "push_failed", `The push service answered ${status}.`);
   }

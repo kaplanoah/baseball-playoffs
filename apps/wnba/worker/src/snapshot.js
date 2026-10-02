@@ -1,13 +1,8 @@
 import * as WNBASnapshot from "../../page/js/snapshot.js";
-import { readEasternDate } from "../../page/js/days.js";
-import { describeError, respondJson } from "../../../../shared/worker/responses.js";
-import {
-  FEED_HEADERS,
-  fetchWnbaJson,
-  readSeasonParam,
-  SEASON_RULE,
-  UPSTREAM_TIMEOUT_MS,
-} from "./wnba.js";
+import { readEasternDay } from "#shared/days.js";
+import { serveSeasonSnapshot } from "../../../../shared/worker/seasons.js";
+import { createReusedLoader, fetchUpstream } from "../../../../shared/worker/upstream.js";
+import { ESPN_HEADERS, fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
 
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
@@ -20,6 +15,9 @@ const SLOW_FEED_MS = {
   players: 60 * 60 * 1000,
   bracket: 10 * 60 * 1000,
 };
+// A slow feed that didn't answer isn't asked again for a while, since a hung read holds up each
+// update until it times out.
+const FAILED_FEED_WAIT_MS = 5 * 60 * 1000;
 
 // Where each feed's answer keeps its data.
 const FEED_DATA = {
@@ -32,12 +30,11 @@ const FEED_DATA = {
 
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
 
-const ESPN_HEADERS = { accept: "application/json", "user-agent": FEED_HEADERS["user-agent"] };
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Where a game is on rarely changes on its day, so ESPN's scoreboard is read at most this often.
 const NETWORKS_MS = 10 * 60 * 1000;
 
-const formatEspnDay = (ms) => readEasternDate(ms).replaceAll("-", "");
+const formatEspnDay = (ms) => readEasternDay(ms).date.replaceAll("-", "");
 
 // ESPN's own links are plain http, so they're read over https instead.
 const upgradeLink = (link) => String(link).replace(/^http:/, "https:");
@@ -52,8 +49,8 @@ export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
 } = {}) {
-  const recentSnapshots = new Map();
   const slowFeeds = new Map();
+  const failedFeeds = new Map();
   let lastFinals = null;
   let keptNetworks = null;
 
@@ -64,25 +61,42 @@ export function createSnapshotServer({
   const fetchFeed = (name, url) =>
     fetchWnbaJson(fetchImpl, url, EDGE_CACHE_SECONDS, (answer) => hasFeedData(name, answer));
 
-  // A slow feed's last good answer stands in when a read fails.
+  /**
+   * @param {keyof typeof SLOW_FEED_MS} name
+   * @param {string} url
+   * @param {boolean} isStale
+   */
+  function isDueForRead(name, url, isStale) {
+    const failedAt = failedFeeds.get(url);
+    if (failedAt !== undefined && now() - failedAt < FAILED_FEED_WAIT_MS) return false;
+    const kept = slowFeeds.get(url);
+    return !kept || isStale || now() - kept.at >= SLOW_FEED_MS[name];
+  }
+
+  // A slow feed's last good answer stands in when a read fails or waits. Each season's are kept
+  // apart.
   async function readSlowFeed(name, url, isStale) {
-    const kept = slowFeeds.get(name);
-    if (kept && !isStale && now() - kept.at < SLOW_FEED_MS[name]) return kept.data;
+    const kept = slowFeeds.get(url);
+    if (!isDueForRead(name, url, isStale)) {
+      if (kept) return kept.data;
+      throw new Error(`The WNBA didn't answer ${name} a moment ago`);
+    }
     try {
       const data = await fetchFeed(name, url);
-      slowFeeds.set(name, { at: now(), data });
+      slowFeeds.set(url, { at: now(), data });
+      failedFeeds.delete(url);
       return data;
     } catch (error) {
+      failedFeeds.set(url, now());
       if (kept) return kept.data;
       throw error;
     }
   }
 
   async function fetchEspnJson(url) {
-    const response = await fetchImpl(url, {
+    const response = await fetchUpstream(fetchImpl, url, {
       headers: ESPN_HEADERS,
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      cf: { cacheTtl: EDGE_CACHE_SECONDS, cacheEverything: true },
+      cacheSeconds: EDGE_CACHE_SECONDS,
     });
     if (!response.ok) throw new Error(`ESPN answered ${response.status}`);
     return response.json();
@@ -149,30 +163,23 @@ export function createSnapshotServer({
     return { scoreboard, schedule, bracket, standings, players, backup, networks };
   }
 
-  function loadSnapshot(season) {
-    const requestedAt = now();
-    const cached = recentSnapshots.get(season);
-    if (cached && requestedAt - cached.at < SNAPSHOT_REUSE_MS) return cached.promise;
-    const promise = fetchResponses(season).then((responses) =>
-      WNBASnapshot.buildSnapshot(responses, { season, now: requestedAt }),
-    );
-    recentSnapshots.set(season, { at: requestedAt, promise });
-    promise.catch(() => {
-      if (recentSnapshots.get(season)?.promise === promise) recentSnapshots.delete(season);
-    });
-    return promise;
-  }
+  const loadSnapshot = createReusedLoader(
+    (season, requestedAt) =>
+      fetchResponses(season).then((responses) =>
+        WNBASnapshot.buildSnapshot(responses, { season, now: requestedAt }),
+      ),
+    SNAPSHOT_REUSE_MS,
+    now,
+  );
 
   /** @param {URL} url */
-  async function serveSnapshot(url) {
-    const season = readSeasonParam(url.searchParams, now());
-    if (season == null) return respondJson({ error: SEASON_RULE }, 400);
-    try {
-      return respondJson(await loadSnapshot(season));
-    } catch (error) {
-      return respondJson({ error: `Couldn't read the WNBA: ${describeError(error)}` }, 502);
-    }
-  }
+  const serveSnapshot = (url) =>
+    serveSeasonSnapshot(url, {
+      seasonParam: SEASON_PARAM,
+      loadSnapshot,
+      leagueName: "the WNBA",
+      now,
+    });
 
   return { loadSnapshot, serveSnapshot };
 }

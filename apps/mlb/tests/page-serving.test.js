@@ -27,6 +27,13 @@ test("the page is a whole document with what an iPhone needs to save it as an ap
   assert.ok(page.includes('<script type="module" src="js/app.js"></script>'));
 });
 
+test("the page asks nothing of other sites before it draws, and serves its own font", async () => {
+  const page = await (await requestPage("/k3y/")).text();
+  assert.doesNotMatch(page, /https:\/\//);
+  const font = await requestPage("/k3y/fonts/chivo-mono-latin.woff2");
+  assert.equal(font.headers.get("content-type"), "font/woff2");
+});
+
 test("the page links the shared chrome before its own styles, so its own rules win ties", async () => {
   const page = await (await requestPage("/k3y/")).text();
   const chromeAt = page.indexOf('<link rel="stylesheet" href="shared/chrome.css" />');
@@ -79,6 +86,30 @@ test("the page's files are served with their types, and the icon as PNG bytes", 
   assert.equal(manifest.short_name, "MLB");
   for (const { src } of manifest.icons)
     assert.equal((await requestPage(`/k3y/${src}`)).status, 200, src);
+});
+
+test("a browser that already has a file gets a 304 instead of the file again", async () => {
+  const first = await requestPage("/k3y/js/app.js");
+  const etag = first.headers.get("etag");
+  assert.match(etag ?? "", /^"[0-9a-f]{32}"$/);
+  assert.equal(first.headers.get("cache-control"), "no-cache");
+
+  for (const sent of [etag, `W/${etag}`, `"other", ${etag}`]) {
+    const again = await worker.fetch(
+      new Request(`${ORIGIN}/k3y/js/app.js`, { headers: { "if-none-match": sent } }),
+      ENV,
+    );
+    assert.equal(again.status, 304, sent);
+    assert.equal(await again.text(), "", sent);
+  }
+
+  const changed = await worker.fetch(
+    new Request(`${ORIGIN}/k3y/js/app.js`, { headers: { "if-none-match": '"other"' } }),
+    ENV,
+  );
+  assert.equal(changed.status, 200);
+  const icon = await requestPage("/k3y/icon-180.png");
+  assert.notEqual(icon.headers.get("etag"), etag);
 });
 
 test("the key without a slash redirects, so the page's relative links work", async () => {

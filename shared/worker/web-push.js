@@ -1,9 +1,13 @@
 // Sends Web Push messages: signed for the push service (RFC 8292, VAPID) and encrypted for the
 // browser (RFC 8291). Uses only Web Crypto, which Workers and Node both have.
 
+import { abortAfter } from "./timeout.js";
+
 const RECORD_SIZE = 4096;
 const TOKEN_LIFETIME_S = 12 * 60 * 60;
 const MESSAGE_TTL_S = 6 * 60 * 60;
+// A push service that doesn't answer would otherwise hold up the season's update.
+const SEND_TIMEOUT_MS = 10 * 1000;
 const ECDSA = { name: "ECDSA", namedCurve: "P-256" };
 const ECDH = { name: "ECDH", namedCurve: "P-256" };
 
@@ -152,7 +156,7 @@ export async function encryptPayload({
 
 /**
  * Delivers one message, and resolves to the push service's status: 201 when accepted, 404 or 410
- * when the subscription is gone.
+ * when the subscription is gone. It rejects when the push service doesn't answer in time.
  * @param {object} options
  * @param {{ endpoint: string, keys: { p256dh: string, auth: string } }} options.subscription
  * @param {object} options.message sent as JSON
@@ -187,6 +191,13 @@ export async function sendPush({
     ttl: String(MESSAGE_TTL_S),
     urgency: "normal",
   };
-  const response = await fetchImpl(subscription.endpoint, { method: "POST", headers, body });
-  return response.status;
+  return abortAfter(SEND_TIMEOUT_MS, async (signal) => {
+    const response = await fetchImpl(subscription.endpoint, {
+      method: "POST",
+      headers,
+      body,
+      signal,
+    });
+    return response.status;
+  });
 }

@@ -1,0 +1,133 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { listApps } from "../worker/apps.mjs";
+import { listModules, pinPageFiles } from "../worker/page-files.mjs";
+
+const IMPORTS = { "#shared/": "./shared/" };
+
+test("the modules an entry loads are found through every kind of import, once each", () => {
+  const files = {
+    "js/app.js": {
+      text: [
+        'import { html } from "#shared/html.js";',
+        "import {",
+        "  renderGames,",
+        "  renderTable,",
+        '} from "./views/games.js";',
+        'import "./side-effect.js";',
+      ].join("\n"),
+    },
+    "js/views/games.js": {
+      text: 'export { html } from "#shared/html.js";\nexport * from "../clubs.js";\n',
+    },
+    "js/clubs.js": { text: '/** @typedef {import("./types.js").Club} Club */\n' },
+    "js/side-effect.js": { text: "" },
+    "shared/html.js": { text: 'import "https://example.com/elsewhere.js";\n' },
+    "js/unused.js": { text: "" },
+  };
+  assert.deepEqual(listModules(files, "js/app.js", IMPORTS), [
+    "js/app.js",
+    "shared/html.js",
+    "js/views/games.js",
+    "js/side-effect.js",
+    "js/clubs.js",
+  ]);
+});
+
+for (const app of listApps()) {
+  test(`${app}: the page names its modules after the import map and before its entry`, async () => {
+    const { default: files } = await import(`#page-files/${app}`);
+    const page = files["index.html"].text;
+    const preloads = [...page.matchAll(/<link rel="modulepreload" href="([^"]+)" \/>/g)];
+    const paths = preloads.map(([, path]) => path);
+    assert.equal(paths[0], "js/app.js");
+    assert.ok(paths.includes("shared/html.js"));
+    assert.ok(
+      paths.every((path) => files[path]),
+      "every named module is served",
+    );
+    assert.ok(page.indexOf('<script type="importmap">') < preloads[0].index);
+    assert.ok(preloads.at(-1).index < page.indexOf('<script type="module" src="js/app.js">'));
+  });
+}
+
+const PAGE = `<!doctype html>
+  <script src="shared/release-guard.js"></script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link
+    rel="preload"
+    href="fonts/text.woff2"
+    as="font"
+    crossorigin
+  />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://fonts.example/text.css" />
+  <script src="shared/open-last-tab.js"></script>
+  <script type="importmap">
+    { "imports": { "#shared/": "./shared/" } }
+  </script>
+  <link rel="modulepreload" href="js/app.js" />
+  <img src="icon-180.png" alt="" />
+  <script type="module" src="js/app.js"></script>
+`;
+
+test("the page reads its code and styles from its release's folder, with its release guard written in", () => {
+  const files = {
+    "index.html": { contentType: "text/html", text: PAGE },
+    "shared/release-guard.js": { contentType: "text/javascript", text: "guardPage();\n" },
+  };
+
+  const pinned = pinPageFiles(files, "abc1234");
+
+  assert.equal(
+    pinned["index.html"].text,
+    `<!doctype html>
+  <script>
+guardPage();
+</script>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link
+    rel="preload"
+    href="release/abc1234/fonts/text.woff2"
+    as="font"
+    crossorigin
+  />
+  <link rel="stylesheet" href="release/abc1234/styles.css" />
+  <link rel="stylesheet" href="https://fonts.example/text.css" />
+  <script src="release/abc1234/shared/open-last-tab.js"></script>
+  <script type="importmap">
+    {"imports":{"#shared/":"./release/abc1234/shared/"}}
+  </script>
+  <link rel="modulepreload" href="release/abc1234/js/app.js" />
+  <img src="icon-180.png" alt="" />
+  <script type="module" src="release/abc1234/js/app.js"></script>
+`,
+  );
+  assert.equal(pinned["shared/release-guard.js"], files["shared/release-guard.js"]);
+});
+
+test("a page whose head doesn't load the release guard isn't built", () => {
+  const files = { "index.html": { contentType: "text/html", text: "<!doctype html>\n" } };
+
+  assert.throws(() => pinPageFiles(files, "abc1234"), /release-guard\.js/);
+});
+
+for (const app of listApps()) {
+  test(`${app}: every file the built page loads is in its release's folder and served`, async () => {
+    const { default: files } = await import(`#page-files/${app}`);
+    const page = pinPageFiles(files, "abc1234")["index.html"].text;
+    const loaded = [...page.matchAll(/<(?:script|link)\b[^>]*>/g)]
+      .map(([tag]) => tag)
+      .filter(
+        (tag) =>
+          tag.startsWith("<script") || /rel="(?:stylesheet|preload|modulepreload)"/.test(tag),
+      )
+      .flatMap((tag) => tag.match(/\b(?:src|href)="([^"]+)"/)?.[1] ?? []);
+    assert.ok(loaded.length > 0);
+    for (const path of loaded) {
+      assert.ok(path.startsWith("release/abc1234/"), path);
+      assert.ok(files[path.slice("release/abc1234/".length)], `${path} is served`);
+    }
+    assert.ok(!page.includes("release-guard.js"), "the guard is written in");
+  });
+}

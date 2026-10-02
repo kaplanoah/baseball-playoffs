@@ -1,15 +1,15 @@
 import { countDaysBetween, formatClockTime, formatShortMonth } from "#shared/days.js";
 import { renderGameRow } from "#shared/game-row.js";
-import { html, joinWithSeparator } from "#shared/html.js";
+import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
-import { nameDay, readGameDay } from "./days.js";
+import { abbreviateDay, nameListDay, readGameDay } from "./days.js";
 import { renderScoreboard } from "./scoreboard.js";
 import { nameTeam } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
 /** @typedef {{ team: string | null, seed: number | null, score: number | null, isInBonus: boolean }} GameSide */
-/** @typedef {{ id: string, round: number | null, series: string | null, number: number | null, start: string | null, state: string, status: string, isTimeSet: boolean, period: number | null, clock: string | null, isIfNeeded: boolean, away: GameSide, home: GameSide, networks?: string[] }} Game */
+/** @typedef {{ id: string, round: number | null, series: string | null, number: number | null, start: string | null, state: string, status: string, isTimeSet: boolean, period: number | null, clock: string | null, isIfNeeded: boolean, away: GameSide, home: GameSide, end?: string, networks?: string[] }} Game */
 
 /** @param {Game} game */
 const hasATeam = (game) => !!(game.away.team || game.home.team);
@@ -19,7 +19,7 @@ const hasATeam = (game) => !!(game.away.team || game.home.team);
  * @param {Game} game
  * @param {Map<string, Series>} seriesById
  */
-const isCalledOff = (game, seriesById) =>
+export const isCalledOff = (game, seriesById) =>
   game.state === "pre" && game.isIfNeeded && !!seriesById.get(game.series ?? "")?.winner;
 
 /** @param {Game} game */
@@ -33,17 +33,14 @@ const findWinningTeam = (game) =>
   game.away.score > game.home.score ? game.away.team : game.home.team;
 
 /** @param {number} period */
-function describePeriod(period) {
+export function describePeriod(period) {
   if (period <= 4) return `Q${period}`;
   return period === 5 ? "OT" : `${period - 4}OT`;
 }
 
 // Between periods the clock stops at zero, and the league's own status says which break it is.
 /** @param {Game} game */
-function describeLiveClock(game) {
-  const isRunning = game.clock && game.clock !== "0.0" && game.period;
-  return isRunning ? `${describePeriod(game.period)} ${game.clock}` : game.status;
-}
+const isClockRunning = (game) => !!(game.clock && game.clock !== "0.0" && game.period);
 
 /** @param {Game} game */
 export function renderHeadline(game) {
@@ -62,8 +59,9 @@ export function renderHeadline(game) {
 
 /** @param {Game} game */
 export function renderStatus(game) {
-  if (game.state === "live")
-    return html`<span class="clock tabular">${describeLiveClock(game)}</span>`;
+  if (game.state === "live" && isClockRunning(game))
+    return html`<span class="clock tabular">${describePeriod(game.period ?? 0)} ${game.clock}</span>`;
+  if (game.state === "live") return html`<span class="break">${game.status}</span>`;
   if (game.state === "final") return html`${game.status || "Final"}`;
   return game.isIfNeeded && html`If needed`;
 }
@@ -158,23 +156,8 @@ const renderGameList = (games, allGames, isToday) =>
     ${games.map((game) => renderGame(game, allGames, isToday))}
   </ul>`;
 
-// Each round the day's games belong to, with its game number when every game of it shares one.
-/** @param {Game[]} games */
-function describeRounds(games) {
-  const numbersByRound = new Map();
-  for (const game of games) {
-    if (!game.round) continue;
-    if (!numbersByRound.has(game.round)) numbersByRound.set(game.round, new Set());
-    numbersByRound.get(game.round).add(game.number);
-  }
-  return [...numbersByRound].map(([round, numbers]) => {
-    const { name } = ROUNDS[round];
-    return numbers.size === 1 ? `${name}, Game ${[...numbers][0]}` : name;
-  });
-}
-
 /**
- * A day's games in a box of their own, under the date as a wall calendar shows it.
+ * A day's games in a box of their own, beside its date as a wall calendar shows it.
  * @param {{ day: Date, games: Game[] }} gameDay
  * @param {Game[]} allGames
  * @param {number} now
@@ -182,15 +165,10 @@ function describeRounds(games) {
  */
 const renderDay = ({ day, games }, allGames, now, isToday = false) =>
   html`<section class="game-day">
-    <h3 class="day-label">
-      <span class="day-date"
-        ><span class="day-month">${formatShortMonth(day)}</span
-        ><span class="day-number tabular">${day.getDate()}</span></span
-      >
-      <span class="day-words"
-        ><span class="day-name">${nameDay(day, now)}</span
-        ><span class="day-rounds">${joinWithSeparator(describeRounds(games))}</span></span
-      >
+    <h3 class="day-label" aria-label="${nameListDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
+      <span class="day-month">${formatShortMonth(day)}</span
+      ><span class="day-number tabular">${day.getDate()}</span
+      ><span class="day-name">${abbreviateDay(day, now)}</span>
     </h3>
     ${renderGameList(games, allGames, isToday)}
   </section>`;

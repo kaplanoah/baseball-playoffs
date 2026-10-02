@@ -2,6 +2,7 @@
 <html lang="en">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <script src="shared/release-guard.js"></script>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icon-180.png" />
@@ -9,26 +10,28 @@
   <meta name="apple-mobile-web-app-title" content="MLB" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#0d1f16" />
-  <title>MLB Postseason</title>
+  <title>MLB</title>
   <meta
     name="description"
-    content="Track the MLB postseason bracket and rank who you want to win the World Series, synced across devices."
+    content="Follow the MLB season: the standings, the games and their starters, the postseason bracket, and your ranking of who you want to win the World Series, synced across devices."
   />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@300;400;500;700&display=swap"
-    rel="stylesheet"
-  />
+  <link rel="preload" href="fonts/chivo-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="shared/type.css" />
   <link rel="stylesheet" href="shared/chrome.css" />
   <link rel="stylesheet" href="shared/game-row.css" />
-  <link rel="stylesheet" href="shared/game-pager.css" />
+  <link rel="stylesheet" href="shared/pager.css" />
   <link rel="stylesheet" href="shared/sheet.css" />
+  <link rel="stylesheet" href="shared/updates.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="shared/open-last-tab.js"></script>
+  <script type="importmap">
+    { "imports": { "#shared/": "./shared/" } }
+  </script>
 
+  <div class="home-screen-bar" id="homeScreenBar" hidden></div>
   <header class="top">
     <div class="title-row">
-      <h1>MLB Postseason</h1>
+      <h1>MLB</h1>
       <span class="year-tag" id="yearTag" hidden></span>
     </div>
     <div class="head-right">
@@ -182,28 +185,31 @@
           </button>
         </div>
       </div>
-      <div class="settings-controls">
-        <label class="control-row">
-          <span>Season</span>
-          <select id="yearSel" class="select-field" aria-label="Season"></select>
-        </label>
-        <div class="control-row" id="notifyRow" hidden>
-          <span class="control-label">
-            <span id="notifyTitle">Notifications</span>
-            <span class="control-note" id="notifyNote" role="status"></span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            class="switch"
-            id="notifySwitch"
-            aria-checked="false"
-            aria-labelledby="notifyTitle"
-            hidden
-          >
-            <span class="switch-knob" aria-hidden="true"></span>
-          </button>
+      <div class="settings-main">
+        <div class="settings-controls">
+          <label class="control-row">
+            <span>Season</span>
+            <select id="yearSel" class="select-field" aria-label="Season"></select>
+          </label>
+          <div class="control-row" id="notifyRow" hidden>
+            <span class="control-label">
+              <span id="notifyTitle">Notifications</span>
+              <span class="control-note" id="notifyNote" role="status"></span>
+            </span>
+            <button
+              type="button"
+              role="switch"
+              class="switch"
+              id="notifySwitch"
+              aria-checked="false"
+              aria-labelledby="notifyTitle"
+              hidden
+            >
+              <span class="switch-knob" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
+        <div class="home-screen-tip" id="homeScreenTip" hidden></div>
       </div>
       <section class="settings-ranking" aria-labelledby="rankingTitle">
         <div class="ranking-heading">
@@ -302,8 +308,5 @@
   </svg>
 
   <script src="js/sortable.min.js"></script>
-  <script type="importmap">
-    { "imports": { "#shared/": "./shared/" } }
-  </script>
   <script type="module" src="js/app.js"></script>
 </html>

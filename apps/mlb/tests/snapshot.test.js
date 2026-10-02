@@ -779,6 +779,50 @@ test("fetchSnapshot still builds the games when MLB can't name their starters", 
   assert.deepEqual(snapshot.missing, []);
 });
 
+// MLB's answers to the evening's requests, with the named ones failing.
+function answerEveningExcept(...failing) {
+  const regularSeasonEnd = EVENING.responses.season.seasons[0].regularSeasonEndDate;
+  const now = Date.parse(EVENING.now);
+  const requests = {
+    ...MLBSnapshot.listMlbRequests(2026, now, regularSeasonEnd),
+    // Without the season's dates, the schedule reaches back only its usual days.
+    fallbackSchedule: MLBSnapshot.listMlbRequests(2026, now).schedule,
+  };
+  const byPath = Object.fromEntries(
+    Object.entries(requests).map(([key, path]) => [
+      path,
+      EVENING.responses[key === "fallbackSchedule" ? "schedule" : key],
+    ]),
+  );
+  return async (path) => {
+    const key = Object.keys(requests).find((name) => requests[name] === path);
+    if (failing.includes(key)) throw new Error("MLB Stats API answered 503");
+    return byPath[path];
+  };
+}
+
+test("fetchSnapshot still builds the games when the standings or the season's dates don't answer", async () => {
+  const full = buildSnapshot(EVENING);
+  for (const failing of ["standings", "season"]) {
+    const snapshot = await MLBSnapshot.fetchSnapshot(
+      answerEveningExcept(failing),
+      2026,
+      Date.parse(EVENING.now),
+    );
+    assert.deepEqual(snapshot.slate.today, full.slate.today, failing);
+    assert.ok(snapshot.missing.length > 0, failing);
+  }
+});
+
+test("fetchSnapshot fails when the postseason or the schedule doesn't answer", async () => {
+  for (const failing of ["postseason", "schedule"]) {
+    await assert.rejects(
+      MLBSnapshot.fetchSnapshot(answerEveningExcept(failing), 2026, Date.parse(EVENING.now)),
+      /503/,
+    );
+  }
+});
+
 test("a snapshot is small enough to poll", () => {
   assert.ok(JSON.stringify(buildSnapshot(EVENING)).length < 20000);
 });
@@ -811,6 +855,12 @@ test("standings missing a division are no standings, and project no field", () =
     assert.equal(snapshot.missing.includes("records"), missing);
   }
   assert.equal(MLBSnapshot.hasKnownField(buildSnapshot(EVENING)), true);
+});
+
+test("a set field read without the standings isn't known, since its records come from them", () => {
+  const snapshot = buildSnapshot(SEASON_2025);
+  assert.equal(MLBSnapshot.hasKnownField(snapshot), true);
+  assert.equal(MLBSnapshot.hasKnownField({ ...snapshot, standings: null }), false);
 });
 
 test("the bracket walk seats seeds and advances winners, 1 against the 4/5 winner", () => {

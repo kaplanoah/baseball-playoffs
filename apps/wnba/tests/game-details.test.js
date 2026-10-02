@@ -6,17 +6,13 @@ import {
   describeBoxScore,
   nameBoxScoreRequest,
 } from "../worker/src/box-score.js";
-import {
-  createPreviewServer,
-  describePreview,
-  listPreviewRequests,
-} from "../worker/src/preview.js";
+import { REQUESTS } from "../page/js/snapshot.js";
+import { createPreviewServer, describePreview } from "../worker/src/preview.js";
 
 const GAMES = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
 );
 const NOW = Date.parse(GAMES.now);
-const PREVIEW_REQUESTS = listPreviewRequests(2026);
 // Aces at Fever, Game 2, and Valkyries at Wings, Game 2, which went to overtime.
 const ACES_AT_FEVER = "1042600122";
 const VALKYRIES_AT_WINGS = "1042600112";
@@ -30,9 +26,7 @@ function createLeague({ refuse = {} } = {}) {
     ...Object.entries(GAMES.boxScores).map(
       ([id, box]) => /** @type {[string, any]} */ ([nameBoxScoreRequest(id), box]),
     ),
-    ...Object.entries(PREVIEW_REQUESTS).map(
-      ([name, url]) => /** @type {[string, any]} */ ([url, GAMES.preview[name]]),
-    ),
+    [REQUESTS.schedule, GAMES.preview.schedule],
   ]);
   const reads = [];
   const fetchImpl = async (url, init) => {
@@ -129,30 +123,37 @@ test("a box score id that isn't a game's is refused before reading the league", 
   assert.equal(league.reads.length, 0);
 });
 
-test("a preview lists the teams' finished meetings this season, newest first, playoffs included", () => {
-  const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
+test("a preview lists the teams' finished regular-season meetings, newest first, without the playoffs", () => {
+  const preview = describePreview(GAMES.preview.schedule, {
+    season: 2026,
+    away: "IND",
+    home: "LVA",
+  });
 
   assert.deepEqual(
-    preview.meetings.map(({ round, number, away, home }) => [
-      round,
-      number,
+    preview.meetings.map(({ id, away, home }) => [
+      id.slice(0, 3),
       `${away.team} ${away.score}`,
       `${home.team} ${home.score}`,
     ]),
     [
-      [1, 2, "LVA 89", "IND 99"],
-      [1, 1, "IND 85", "LVA 102"],
-      [null, null, "LVA 86", "IND 84"],
-      [null, null, "IND 109", "LVA 75"],
-      [null, null, "IND 84", "LVA 68"],
+      ["102", "LVA 86", "IND 84"],
+      ["102", "IND 109", "LVA 75"],
+      ["102", "IND 84", "LVA 68"],
     ],
   );
+  const games = GAMES.preview.schedule.leagueSchedule.gameDates.flatMap((day) => day.games);
+  const playedInPlayoffs = (game) =>
+    game.gameId.startsWith("104") &&
+    game.gameStatus === 3 &&
+    [game.awayTeam.teamTricode, game.homeTeam.teamTricode].sort().join() === "IND,LVA";
+  assert.equal(games.filter(playedInPlayoffs).length, 2);
 });
 
 test("a preview leaves out the preseason, games not yet played, and another season's schedule", () => {
   const schedule = structuredClone(GAMES.preview.schedule);
   const games = schedule.leagueSchedule.gameDates.flatMap((day) => day.games);
-  const meetings = describePreview(GAMES.preview, {
+  const meetings = describePreview(schedule, {
     season: 2026,
     away: "DAL",
     home: "GSV",
@@ -162,80 +163,51 @@ test("a preview leaves out the preseason, games not yet played, and another seas
   assert.ok(games.some((game) => game.gameId === "1042600113" && game.gameStatus === 1));
 
   schedule.leagueSchedule.seasonYear = "2025";
-  const lastSeason = describePreview(
-    { ...GAMES.preview, schedule },
-    { season: 2026, away: "DAL", home: "GSV" },
-  );
+  const lastSeason = describePreview(schedule, { season: 2026, away: "DAL", home: "GSV" });
   assert.equal(lastSeason.meetings, null);
 });
 
-test("a preview compares the two seasons from the standings", () => {
-  const preview = describePreview(GAMES.preview, { season: 2026, away: "GSV", home: "DAL" });
-  assert.deepEqual(preview.away.season, {
-    wins: 32,
-    losses: 12,
-    pointsFor: 82.2,
-    pointsAgainst: 75.1,
-    margin: 7,
-    home: "17-5",
-    road: "15-7",
-    lastTen: "7-3",
-  });
-  assert.equal(preview.home.season.home, "16-6");
-});
-
-test("a preview names each team's three leading scorers among its regulars", () => {
-  const preview = describePreview(GAMES.preview, { season: 2026, away: "IND", home: "LVA" });
-  assert.deepEqual(
-    preview.away.leaders.map((leader) => `${leader.firstName} ${leader.lastName}`),
-    ["Kelsey Mitchell", "Caitlin Clark", "Aliyah Boston"],
-  );
-  assert.deepEqual(preview.home.leaders[0], {
-    id: 1628932,
-    firstName: "A'ja",
-    lastName: "Wilson",
-    games: 41,
-    points: 26.2,
-    rebounds: 9.4,
-    assists: 3.2,
-  });
-
-  const players = structuredClone(GAMES.preview.players);
-  const table = players.resultSets[0];
-  const column = Object.fromEntries(table.headers.map((header, index) => [header, index]));
-  const mitchell = table.rowSet.find((row) => row[column.PLAYER_NAME] === "Kelsey Mitchell");
-  mitchell[column.GP] = 10;
-  const fewGames = describePreview(
-    { ...GAMES.preview, players },
-    { season: 2026, away: "IND", home: "LVA" },
-  );
-  assert.ok(!fewGames.away.leaders.some((leader) => leader.lastName === "Mitchell"));
-});
-
-test("the preview route reads its feeds for an hour at a time, each part on its own", async () => {
-  const league = createLeague({
-    refuse: { [PREVIEW_REQUESTS.players]: 503, [PREVIEW_REQUESTS.standings]: "empty" },
-  });
+test("the preview route reads only the schedule, outside Cloudflare's edge, for the two teams", async () => {
+  const league = createLeague();
   const server = createPreviewServer({ fetchImpl: league.fetchImpl, now: () => NOW });
 
   const response = await askPreview(server, "season=2026&away=IND&home=LVA");
 
   assert.equal(response.status, 200);
   const preview = await response.json();
-  assert.equal(preview.meetings.length, 5);
-  assert.equal(preview.away.season, null);
-  assert.equal(preview.away.leaders, null);
+  assert.deepEqual([preview.season, preview.away, preview.home], [2026, "IND", "LVA"]);
+  assert.equal(preview.meetings.length, 3);
   assert.deepEqual(
-    league.reads.map((read) => read.url).sort(),
-    Object.values(PREVIEW_REQUESTS).sort(),
+    league.reads.map((read) => read.url),
+    [REQUESTS.schedule],
   );
-  assert.ok(league.reads.every((read) => read.init.cf.cacheTtl === 60 * 60));
+  assert.equal(league.reads[0].init.cf, undefined);
+  assert.equal(league.reads[0].init.headers["accept-encoding"], "gzip");
 });
 
-test("a preview with no feed answering is a 502", async () => {
-  const refuse = Object.fromEntries(Object.values(PREVIEW_REQUESTS).map((url) => [url, 503]));
+test("the preview route keeps the schedule it checked for an hour, and never a refusal", async () => {
+  let time = NOW;
+  const refuse = { [REQUESTS.schedule]: /** @type {"page"} */ ("page") };
+  const league = createLeague({ refuse });
+  const server = createPreviewServer({ fetchImpl: league.fetchImpl, now: () => time });
+  const countReads = () => league.reads.filter((read) => read.url === REQUESTS.schedule).length;
+
+  assert.equal((await askPreview(server, "season=2026&away=IND&home=LVA")).status, 502);
+  delete refuse[REQUESTS.schedule];
+  await askPreview(server, "season=2026&away=IND&home=LVA");
+  assert.equal(countReads(), 2);
+
+  time += 59 * 60 * 1000;
+  await askPreview(server, "season=2026&away=ATL&home=NYL");
+  assert.equal(countReads(), 2);
+  time += 2 * 60 * 1000;
+  await askPreview(server, "season=2026&away=IND&home=LVA");
+  assert.equal(countReads(), 3);
+});
+
+test("a preview whose schedule didn't answer is a 502", async () => {
   const server = createPreviewServer({
-    fetchImpl: createLeague({ refuse }).fetchImpl,
+    fetchImpl: createLeague({ refuse: { [REQUESTS.schedule]: 503 } }).fetchImpl,
     now: () => NOW,
   });
   const response = await askPreview(server, "season=2026&away=IND&home=LVA");

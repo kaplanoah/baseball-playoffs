@@ -1,5 +1,6 @@
 import * as LogChanges from "../../page/js/changes.js";
 import { isSameJson } from "#shared/compare.js";
+import { readEasternDay } from "#shared/days.js";
 import * as Readings from "../../page/js/readings.js";
 import { guessSeasonYear, hasSpringStarted } from "../../page/js/session.js";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
@@ -8,13 +9,10 @@ import * as MLBSnapshot from "../../page/js/snapshot.js";
 // `docs` reads and writes the store's documents: read(key), list(collection), write(key, doc),
 // and remove(key).
 
-export const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
-const STATUS_KEY = "live/status";
-
 // Before April the new season starts on the day MLB says spring training does.
 export async function loadCurrentSnapshot(loadSnapshot, now) {
   const guess = guessSeasonYear(now);
-  const { year } = MLBSnapshot.readEasternDay(now);
+  const { year } = readEasternDay(now);
   if (year !== guess) {
     const upcoming = await loadSnapshot(year);
     if (hasSpringStarted(upcoming.springStart, now)) return upcoming;
@@ -93,16 +91,4 @@ export async function readUpdates(docs, year) {
 export function describeSnapshotStatus(snapshot) {
   const missing = snapshot.missing || [];
   return { error: missing.length ? "mlb_fields_missing" : "", detail: missing.join(", ") };
-}
-
-// Stored so updates that stop can be diagnosed without the Worker's logs.
-export async function saveStatus(docs, status, now) {
-  const stored = await docs.read(STATUS_KEY);
-  const current = { error: "", detail: "", write: "", ...status };
-  const isSame =
-    stored &&
-    stored.error === current.error &&
-    stored.detail === current.detail &&
-    stored.write === current.write;
-  if (!isSame) await docs.write(STATUS_KEY, { ...current, at: new Date(now).toISOString() });
 }
