@@ -60,7 +60,8 @@ const readPaintedBackground = (locator) =>
   });
 
 /**
- * Shows the Games list that has the game a button names, and finds the button.
+ * Shows the Games list that has the game a button names, and finds the button once the list has
+ * come to rest, before which a tap on it does nothing.
  * @param {import("@playwright/test").Page} page
  * @param {string} name
  */
@@ -68,8 +69,11 @@ async function findGameButton(page, name) {
   await page.getByRole("tab", { name: "Games" }).click();
   for (const list of ["Today", "Previous", "Next"]) {
     await page.getByRole("tab", { name: list }).click();
-    const button = page.locator(`#games-${list.toLowerCase()}`).getByRole("button", { name });
-    if (await button.count()) return button;
+    const games = page.locator(`#games-${list.toLowerCase()}`);
+    const button = games.getByRole("button", { name });
+    if (!(await button.count())) continue;
+    await expect(games).not.toHaveAttribute("inert");
+    return button;
   }
   throw new Error(`No game is named ${name}`);
 }
