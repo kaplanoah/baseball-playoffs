@@ -1,4 +1,5 @@
 import { test, expect, openApp } from "./harness.mjs";
+import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
@@ -376,6 +377,15 @@ test("the sliders icon keeps the same room from the stamp as MLB's", async ({ pa
   const gap = icon.x - (stamp.x + stamp.width);
   expect(gap).toBeGreaterThanOrEqual(12);
   expect(gap).toBeLessThanOrEqual(18);
+});
+
+test("a tap shows only the page's own states: no gray flash, and no hover left behind", async ({
+  page,
+}) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  expect(await listTapFlashes(page)).toEqual([]);
+  expect(await listTouchHoverRules(page)).toEqual([]);
 });
 
 test("hovering the settings button shades a rounded square around its icon", async ({ page }) => {

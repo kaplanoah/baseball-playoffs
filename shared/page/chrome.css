@@ -32,6 +32,12 @@
  * only while the body has the kbd class, which keyboard-focus.js sets during keyboard navigation.
  */
 
+/* Everything a tap reaches draws its own states, so the phone's gray flash over it reads as a
+   flicker. It's inherited, so this reaches the whole page. */
+:root {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* The icon sits flush with the page's edge, and its tap area runs past it. */
 .settings-btn {
   flex: none;
@@ -242,8 +248,10 @@ section.view.active {
   color: var(--ink-dim);
   cursor: pointer;
 }
-.sheet-done:hover {
-  background: var(--bg);
+@media (hover: hover) {
+  .sheet-done:hover {
+    background: var(--bg);
+  }
 }
 .sheet-done svg {
   width: 20px;
@@ -658,7 +666,6 @@ body:has(> .home-screen-bar:not([hidden])) {
     text-transform: none;
     letter-spacing: 0;
     white-space: nowrap;
-    -webkit-tap-highlight-color: transparent;
   }
   nav.tabs .tab-list button.active {
     background: none;

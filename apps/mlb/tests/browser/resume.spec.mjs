@@ -185,22 +185,15 @@ test("live scores the page can't read reload it once a newer release is out", as
   const served = await serveReleases(page);
   const app = await openApp(page);
   await expect.poll(() => served.requests).toBe(1);
-  const requestsBefore = app.countSnapshotRequests();
+  // The page plans its next read only once it has shown the last one's scores.
+  await expect(page.locator("#stamp")).toContainText("Next first pitch");
   await markPage(page);
 
   served.release = NEXT_RELEASE;
   app.changeSnapshots((snapshot) => ({ ...snapshot, version: 2 }));
 
-  // The page schedules its next read only once the last one answers, which on a slow machine can
-  // come after a single jump of the clock, so the clock moves until the next read goes out.
-  await expectReload(page, () =>
-    expect
-      .poll(async () => {
-        await page.clock.runFor(30 * 1000);
-        return app.countSnapshotRequests();
-      })
-      .toBeGreaterThan(requestsBefore),
-  );
+  // Coming back online reads the scores at once.
+  await expectReload(page, () => page.evaluate(() => dispatchEvent(new Event("online"))));
 });
 
 /**

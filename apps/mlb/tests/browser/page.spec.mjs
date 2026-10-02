@@ -9,6 +9,7 @@ import {
   EVENING_FIXTURE,
 } from "./harness.mjs";
 import { createReading } from "../../page/js/readings.js";
+import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 
 const PLAYOFF_FIELD_2026 = [
   "Rays",
@@ -1965,4 +1966,12 @@ test("the page shows the tab it was last on before its modules have loaded", asy
   await expect(tab).toHaveClass(/\bactive\b/);
   await expect(page.locator("#view-games")).toHaveCSS("display", "block");
   await expect(page.locator("#view-bracket")).toHaveCSS("display", "none");
+});
+
+test("a tap shows only the page's own states: no gray flash, and no hover left behind", async ({
+  page,
+}) => {
+  await openApp(page);
+  expect(await listTapFlashes(page)).toEqual([]);
+  expect(await listTouchHoverRules(page)).toEqual([]);
 });
