@@ -60,5 +60,21 @@ export default [
     // Callbacks passed to page.evaluate run in the page.
     files: ["apps/*/tests/browser/*.mjs", "tests/browser/*.mjs"],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    rules: {
+      // A fixed wait is too short on a slow machine and wasted time on a fast one.
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.property.name='waitForTimeout']",
+          message:
+            "Wait for what the page shows with expect, or move the page's clock with page.clock.",
+        },
+        {
+          selector: "CallExpression[callee.name='setTimeout']",
+          message:
+            "Wait for what the page shows with expect, or move the page's clock with page.clock.",
+        },
+      ],
+    },
   },
 ];
