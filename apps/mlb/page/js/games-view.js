@@ -147,15 +147,25 @@ function renderStatus(game) {
   return Boolean(status) && html`${status}${renderOutLights(game)}`;
 }
 
-// The whole row opens the matchup sheet, which needs only what the row shows.
-function renderMatchupButton(game, [awayStarter, homeStarter]) {
+// The whole row opens the matchup sheet, which needs only what the row shows, and whether the game
+// is today's, when a club yet to name its starter shows who it might be.
+function renderMatchupButton(game, [awayStarter, homeStarter], isToday) {
   const { date, start, state, tbd, doubleheader, away, home, starters } = game;
   const names = [awayStarter, homeStarter].map((starter) => starter?.name || "TBD");
-  const details = JSON.stringify({ date, start, state, tbd, doubleheader, away, home, starters });
+  const details = JSON.stringify({
+    date,
+    start,
+    state,
+    tbd,
+    doubleheader,
+    away,
+    home,
+    starters,
+    today: isToday,
+  });
   return html`<button type="button" class="game-open" aria-label="Pitching matchup: ${names.join(" vs ")}" data-game="${details}"></button>`;
 }
 
-// Today's games still to start open even before a club names its starter, to show who it might be.
 const isAwaitingStarter = (game, id, starter, isToday) =>
   isToday && game.state === "pre" && Boolean(id) && !starter;
 
@@ -171,7 +181,6 @@ function renderGame(game, series, isToday) {
   const [awayStarter, homeStarter] = game.starters || [];
   const isAwayPending = isAwaitingStarter(game, game.away, awayStarter, isToday);
   const isHomePending = isAwaitingStarter(game, game.home, homeStarter, isToday);
-  const canOpen = isNamed(awayStarter) || isNamed(homeStarter) || isAwayPending || isHomePending;
   return renderGameRow({
     classes: [game.state, game.delay && "delayed"],
     away: describeSide(game.away, "away", awayStarter, homeLost, isAwayPending),
@@ -179,7 +188,7 @@ function renderGame(game, series, isToday) {
     label: Boolean(series) && renderSeriesLabel(game, series),
     headline: renderHeadline(game, awayLost, homeLost),
     status: renderStatus(game),
-    action: canOpen && renderMatchupButton(game, [awayStarter, homeStarter]),
+    action: renderMatchupButton(game, [awayStarter, homeStarter], isToday),
   });
 }
 

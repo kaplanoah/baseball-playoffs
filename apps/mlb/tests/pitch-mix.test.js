@@ -93,8 +93,8 @@ test("each pitch gets a row with its dot, name, share, and speed", () => {
     }),
   );
   assert.deepEqual(rows, [
-    { code: "KC", hasDot: true, text: "Knuckle curve 31% 82 mph" },
     { code: "FF", hasDot: true, text: "Four-seam 50% 94 mph" },
+    { code: "KC", hasDot: true, text: "Knuckle curve 31% 82 mph" },
   ]);
   assert.doesNotMatch(markup, /pitch-bar/);
 });
