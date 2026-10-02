@@ -3,6 +3,7 @@
   "entry": [
     "apps/*/page/js/app.js",
     "apps/*/page/js/pick-theme.js",
+    "apps/*/page/js/gate-theme.js",
     "apps/*/worker/src/index.js",
     "worker/*.mjs",
     "tests/*.test.js",

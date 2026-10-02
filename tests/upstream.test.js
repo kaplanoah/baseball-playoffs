@@ -41,17 +41,40 @@ test("a feed read with no edge cache time sends no cache options", async () => {
 });
 
 test("a feed that doesn't answer is given up on after the upstream timeout", async (context) => {
-  const waits = [];
-  const timeout = AbortSignal.timeout;
-  context.mock.method(AbortSignal, "timeout", (milliseconds) => {
-    waits.push(milliseconds);
-    return timeout.call(AbortSignal, milliseconds);
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const fetchImpl = (url, init) =>
+    new Promise((resolve, reject) => {
+      init.signal.addEventListener("abort", () => reject(init.signal.reason));
+    });
+
+  const reading = fetchUpstream(fetchImpl, "https://feed.example/a", {
+    headers: HEADERS,
+    cacheSeconds: 5,
   });
-  const { fetchImpl } = recordFetches();
+  context.mock.timers.tick(UPSTREAM_TIMEOUT_MS);
 
-  await fetchUpstream(fetchImpl, "https://feed.example/a", { headers: HEADERS, cacheSeconds: 5 });
+  await assert.rejects(reading, { name: "TimeoutError" });
+});
 
-  assert.deepEqual(waits, [UPSTREAM_TIMEOUT_MS]);
+test("a feed's whole answer is read before its timer stops", async (context) => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  const { requests } = recordFetches();
+  const fetchImpl = async (url, init) => {
+    requests.push({ url, init });
+    return new Response('{"games":[]}', { status: 203, headers: { "x-feed": "1" } });
+  };
+
+  const response = await fetchUpstream(fetchImpl, "https://feed.example/a", {
+    headers: HEADERS,
+    cacheSeconds: 5,
+  });
+  context.mock.timers.tick(UPSTREAM_TIMEOUT_MS);
+
+  assert.equal(requests[0].init.signal.aborted, false);
+  assert.deepEqual(
+    [response.status, response.headers.get("x-feed"), await response.json()],
+    [203, "1", { games: [] }],
+  );
 });
 
 function createCountingLoad() {
