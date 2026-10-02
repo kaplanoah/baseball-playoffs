@@ -1526,9 +1526,11 @@ table.standings tr.playoff-line + tr td {
 .team-tape .tape-side.home {
   --side: var(--ink-dim);
 }
+/* Last 10 and Streak stand apart from the numbers above them and the scorers below. */
 .team-form {
   display: grid;
   gap: 4px;
+  margin-block: 6px;
 }
 .team-titles {
   margin: 0;

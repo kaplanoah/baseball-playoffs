@@ -627,6 +627,16 @@ test("Last 10 and Streak show only for the regular season, under its numbers, wi
   );
 });
 
+test("over its numbers, a team is named without its dot, which the sheet's title already shows", () => {
+  const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
+  const heads = [...body.text.matchAll(/<div class="tape-teams">([\s\S]*?)<\/div>/g)].map(
+    ([, head]) => head,
+  );
+  assert.equal(heads.length, 2);
+  for (const head of heads) assert.doesNotMatch(head, /class="dot"/);
+  assert.match(readTeam(SEASON, "ATL").body, / Dream Playoff field /);
+});
+
 test("a team's side of its numbers is drawn in its own color on each theme", () => {
   const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
   const [light, dark] = [TEAMS.ATL.chartColors.light[0], TEAMS.ATL.chartColors.dark[0]];

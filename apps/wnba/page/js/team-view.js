@@ -3,9 +3,9 @@ import { html, joinWithSeparator } from "#shared/html.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTapeRow } from "#shared/tape.js";
 import { renderTeamDetail } from "#shared/team-sheet.js";
-import { renderDot, renderPlainClub, renderTeamName } from "./clubs.js";
+import { renderDot, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
-import { readPlayoffRuns } from "./series.js";
+import { nameTeam, readPlayoffRuns } from "./series.js";
 import { formatTeamColors } from "./sheet-colors.js";
 import { describeNumbers, describeRecords } from "./sheet-parts.js";
 import { ROUNDS } from "./snapshot.js";
@@ -291,7 +291,8 @@ function describeStatRows(team, league) {
 
 /**
  * A team's numbers across from the league's, in the game preview's tape: the team on the left in
- * its color, and the league on the right.
+ * its color, named without its dot, which the sheet's title already shows, and the league on the
+ * right.
  * @param {string} code
  * @param {PhaseStats} team
  * @param {PhaseStats | null} league
@@ -299,7 +300,7 @@ function describeStatRows(team, league) {
  */
 const renderAgainstLeague = (code, team, league, leagueName) =>
   html`<div class="team-tape" style="${formatTeamColors(code)}">
-    <div class="tape-teams">${renderPlainClub(code)}<span class="club">${leagueName}</span></div>
+    <div class="tape-teams"><span class="club">${nameTeam(code)}</span><span class="club">${leagueName}</span></div>
     <div class="tape">${describeStatRows(team, league).map(renderTapeRow)}</div>
   </div>`;
 

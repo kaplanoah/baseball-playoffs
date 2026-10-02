@@ -810,6 +810,21 @@ test.describe("a team's sheet", () => {
     ]);
   });
 
+  test("Last 10 and Streak stand 18px apart from the regular season's numbers above and its scorers below", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    const form = await sheet.locator(".team-form").boundingBox();
+    const numbers = await sheet.locator(".team-tape").last().boundingBox();
+    const scorers = await sheet.locator("table.players").boundingBox();
+
+    expect(Math.round(form.y - (numbers.y + numbers.height))).toBe(18);
+    expect(Math.round(scorers.y - (form.y + form.height))).toBe(18);
+  });
+
   test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {
     await openApp(page);
     await page.locator('#bracketWrap .team-line[data-team="NYL"]').first().click();
