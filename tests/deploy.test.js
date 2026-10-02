@@ -115,7 +115,7 @@ test("upload, route, and the Worker URL", async () => {
   assert.deepEqual(metadata, {
     main_module: "worker.mjs",
     compatibility_date: "2026-09-01",
-    observability: { enabled: true },
+    observability: { enabled: true, traces: { enabled: true } },
     bindings: [{ type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" }],
     keep_bindings: ["secret_text"],
     annotations: { "workers/message": NEW_COMMIT },

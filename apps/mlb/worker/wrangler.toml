@@ -7,6 +7,10 @@ no_bundle = true
 [observability]
 enabled = true
 
+# Traces time each fetch the Worker and its store make, which the logs alone can't show.
+[observability.traces]
+enabled = true
+
 # worker/deploy.mjs declares the same binding and migrations for npm run deploy:api.
 [[durable_objects.bindings]]
 name = "STORE"

@@ -207,7 +207,7 @@ export async function deploy({
           JSON.stringify({
             main_module: "worker.mjs",
             compatibility_date: compatibilityDate,
-            observability: { enabled: true },
+            observability: { enabled: true, traces: { enabled: true } },
             bindings: [STORE_BINDING],
             keep_bindings: ["secret_text"],
             ...(commit && { annotations: { "workers/message": commit } }),
