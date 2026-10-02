@@ -120,6 +120,10 @@
   --game-label-offset: -32px;
   --game-headline-offset: 0px;
   --game-status-offset: 32px;
+  --network-logo-height: 13px;
+  --network-gap: 16px;
+  --logos-for-light: inline;
+  --logos-for-dark: none;
   color-scheme: light;
 }
 /* Set by js/appearance.js from the viewer's choice, or the phone's setting. */
@@ -148,6 +152,8 @@
   --pager-track-edge: rgba(255, 255, 255, 0.06);
   --pager-thumb: rgba(255, 255, 255, 0.11);
   --pager-thumb-edge: rgba(255, 255, 255, 0.14);
+  --logos-for-light: none;
+  --logos-for-dark: inline;
   color-scheme: dark;
 }
 
@@ -631,6 +637,13 @@ header.top h1 {
 .faceoff .time {
   font-size: 1.3rem;
   white-space: nowrap;
+}
+.faceoff:has(.networks) {
+  padding-bottom: 7px;
+}
+.faceoff .networks {
+  grid-column: 1 / -1;
+  margin-top: 11px;
 }
 .faceoff-status {
   font-family: var(--display);

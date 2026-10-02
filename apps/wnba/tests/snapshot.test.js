@@ -10,6 +10,10 @@ const AFTERNOON = JSON.parse(
 const GAMES = JSON.parse(
   readFileSync(`${import.meta.dirname}/fixtures/2026-10-01-games.json`, "utf8"),
 );
+// Where ESPN says the afternoon's games, and the day before's, were on.
+const ESPN_SCOREBOARD = JSON.parse(
+  readFileSync(`${import.meta.dirname}/fixtures/2026-09-30-espn-scoreboard.json`, "utf8"),
+);
 const RESPONSES = { ...AFTERNOON.responses, players: GAMES.preview.players };
 const buildAfternoon = (responses = RESPONSES) =>
   WNBASnapshot.buildSnapshot(responses, {
@@ -68,6 +72,37 @@ test("every playoff game is listed in order, with the scoreboard's word on today
   assert.equal(tonight.state, "pre");
   assert.equal(tonight.status, "7:00 pm ET");
   assert.equal(tonight.start, "2026-09-30T23:00:00Z");
+});
+
+test("a game still to come or under way says where it's on, and a finished one doesn't", () => {
+  const { games } = buildAfternoon({
+    ...RESPONSES,
+    networks: Object.values(ESPN_SCOREBOARD.answers),
+  });
+  const watchable = games.filter((game) => game.networks.length);
+  assert.deepEqual(
+    watchable.map((game) => [game.id, game.state, game.networks]),
+    [
+      ["1042600132", "pre", ["ESPN"]],
+      ["1042600112", "pre", ["ESPN"]],
+    ],
+  );
+  const finished = games.filter((game) => game.state === "final");
+  assert.ok(finished.length && finished.every((game) => !game.networks.length));
+  assert.ok(buildAfternoon().games.every((game) => !game.networks.length));
+});
+
+test("a game's national channels come before a team's own", () => {
+  const answers = structuredClone(Object.values(ESPN_SCOREBOARD.answers));
+  const [competition] = answers[1].events[0].competitions;
+  competition.broadcasts = [
+    { market: "home", names: ["Monumental"] },
+    { market: "national", names: ["ESPN", "Disney+"] },
+    { market: "away", names: ["Peachtree TV", "ESPN"] },
+  ];
+  const { games } = buildAfternoon({ ...RESPONSES, networks: answers });
+  const tonight = games.find((game) => game.id === "1042600132");
+  assert.deepEqual(tonight.networks, ["ESPN", "Disney+", "Monumental", "Peachtree TV"]);
 });
 
 test("a game still to be scheduled says its time isn't set, and a game that may not be played says so", () => {
