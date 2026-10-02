@@ -626,7 +626,7 @@ header.top h1 {
    its title the same way. */
 #gameDialog {
   --band-space-top: 12px;
-  --band-space-bottom: 14px;
+  --band-space-bottom: 15px;
 }
 :is(#gameDialog, #teamDialog) {
   --band-edge: color-mix(in srgb, var(--line), var(--tile));
@@ -1465,7 +1465,7 @@ table.standings tr.playoff-line + tr td {
    before them, --form-space-between apart, and the two sides over its numbers are named at
    --side-name-size. */
 #teamDialog {
-  --band-space-top: 11px;
+  --band-space-top: 12px;
   --band-space-bottom: 23px;
 }
 #teamDialog .sheet-top {
