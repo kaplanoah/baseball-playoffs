@@ -2108,9 +2108,11 @@ for (const { screen, viewport } of [
       await page.getByRole("tab", { name: "Standings" }).click();
       await expect(page.locator("table.st tbody tr").first()).toBeVisible();
       expect(await listOffScaleText(page)).toEqual([]);
-      await page.getByRole("tab", { name: "Teams" }).click();
-      await expect(page.locator("table.ref tbody tr").first()).toBeVisible();
+      await page.locator('.div-grid tr[data-team="SEA"] .team-open').click();
+      await expect(page.locator("#teamDialog .team-stats")).toBeVisible();
       expect(await listOffScaleText(page)).toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(page.locator("#teamDialog")).toBeHidden();
       await openSettings(page);
       await expect(page.locator("#settingsDialog")).toBeVisible();
       expect(await listOffScaleText(page)).toEqual([]);

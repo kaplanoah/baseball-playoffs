@@ -1,14 +1,19 @@
 import { TEAMS } from "./teams.js";
 import { buildBracket } from "./bracket.js";
-import { html } from "#shared/html.js";
+import { html, joinWithSeparator } from "#shared/html.js";
+import { renderTeamSheetButton } from "#shared/team-sheet.js";
 import { session, readSeasonYear } from "./session.js";
 
-export function findLastTitle(id) {
-  const seeded = TEAMS[id].lastWS;
-  const tracked = session.trackedTitles[id];
-  if (seeded && tracked) return Math.max(seeded, tracked);
-  return tracked || seeded;
-}
+// A page saved before tracked titles were lists kept only a club's latest one, as a number.
+const listTrackedTitles = (id) => [].concat(session.trackedTitles[id] ?? []);
+
+/** Every season a club won the World Series, oldest first. */
+export const listTitles = (id) =>
+  [...new Set([...TEAMS[id].titles, ...listTrackedTitles(id)])].sort(
+    (first, second) => first - second,
+  );
+
+const findLastTitle = (id) => listTitles(id).at(-1) ?? null;
 
 export function describeDrought(id) {
   const won = findLastTitle(id);
@@ -21,6 +26,27 @@ export function describeDrought(id) {
   if (won === year - 1 && !crowned) return "Defending";
   const years = year - won;
   return years + (years === 1 ? " yr" : " yrs");
+}
+
+/** The last World Series a club won, or that it never has, and how long ago. */
+export function renderTitleSummary(id) {
+  const won = findLastTitle(id);
+  return joinWithSeparator([
+    html`<span>${won ? `Last WS ${won}` : "Never won WS"}</span>`,
+    html`<span>${describeDrought(id)}</span>`,
+  ]);
+}
+
+const STATUS_CHIPS = {
+  champion: { label: "Champs", className: "champ" },
+  alive: { label: "Alive", className: "alive" },
+  out: { label: "Out", className: "out" },
+};
+
+/** @param {"champion" | "alive" | "out"} status */
+export function renderStatusChip(status) {
+  const chip = STATUS_CHIPS[status];
+  return html`<span class="status-chip ${chip.className}">${chip.label}</span>`;
 }
 
 const measureLightness = (hex) => {
@@ -37,7 +63,7 @@ function chooseDotSplit(team) {
   return 50;
 }
 
-function renderTeamDot(id) {
+export function renderTeamDot(id) {
   const team = TEAMS[id];
   if (!team) return html`<span class="dot" style="background:#999"></span>`;
   const split = chooseDotSplit(team);
@@ -48,9 +74,28 @@ export function nameTeam(id) {
   return TEAMS[id] ? TEAMS[id].name : "?";
 }
 
-export function renderTeamTag(id, tag = "span") {
-  return html`<span class="club">${renderTeamDot(id)}<${tag} class="team-name">${nameTeam(id)}</${tag}></span>`;
+const renderClubParts = (id) =>
+  html`${renderTeamDot(id)}<span class="team-name">${nameTeam(id)}</span>`;
+
+/** A club's dot and name, that opens its sheet. */
+export function renderClub(id) {
+  if (!TEAMS[id]) return renderPlainClub(id);
+  return renderTeamSheetButton({
+    team: id,
+    name: nameTeam(id),
+    content: renderClubParts(id),
+    className: "club",
+  });
 }
+
+/** A club's dot and name, where a tap does something else, like dragging it in the ranking. */
+export const renderPlainClub = (id) => html`<span class="club">${renderClubParts(id)}</span>`;
+
+/** A club's name in a line of text, that opens its sheet. */
+export const renderClubName = (id) =>
+  TEAMS[id]
+    ? renderTeamSheetButton({ team: id, name: nameTeam(id), content: nameTeam(id) })
+    : nameTeam(id);
 
 const readLeague = (id) => TEAMS[id]?.league || "";
 const readSeed = (teams, id) => teams[id].seed ?? 99;

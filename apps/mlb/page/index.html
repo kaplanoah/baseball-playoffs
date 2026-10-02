@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="shared/game-row.css" />
   <link rel="stylesheet" href="shared/pager.css" />
   <link rel="stylesheet" href="shared/sheet.css" />
+  <link rel="stylesheet" href="shared/team-sheet.css" />
   <link rel="stylesheet" href="shared/updates.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="shared/open-last-tab.js"></script>
@@ -106,22 +107,6 @@
               /></svg></span
           ><span class="tab-label">Standings</span>
         </button>
-        <button
-          type="button"
-          role="tab"
-          id="tab-reference"
-          data-tab="reference"
-          aria-controls="view-reference"
-          aria-selected="false"
-          tabindex="-1"
-        >
-          <span class="tab-icon" aria-hidden="true"
-            ><svg viewBox="0 0 256 256" fill="currentColor">
-              <path
-                d="M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z"
-              /></svg></span
-          ><span class="tab-label">Teams</span>
-        </button>
       </div>
       <span class="tab-pill" aria-hidden="true"><span class="tab-pill-row"></span></span>
     </div>
@@ -145,22 +130,6 @@
 
   <section id="view-standings" role="tabpanel" aria-labelledby="tab-standings" class="view">
     <div id="standingsWrap"></div>
-  </section>
-
-  <section id="view-reference" role="tabpanel" aria-labelledby="tab-reference" class="view">
-    <table class="ref">
-      <thead>
-        <tr>
-          <th>Rank</th>
-          <th class="seed-col">Seed</th>
-          <th>Team</th>
-          <th class="lg-col">Lg</th>
-          <th class="won-col">Last WS Win</th>
-          <th>Drought</th>
-        </tr>
-      </thead>
-      <tbody id="refBody"></tbody>
-    </table>
   </section>
   <script>
     openLastTab();
@@ -244,6 +213,29 @@
         </div>
       </div>
       <div class="matchup-body" id="matchupBody"></div>
+    </div>
+  </dialog>
+
+  <dialog id="teamDialog" class="sheet-panel" aria-labelledby="teamTitle">
+    <div class="sheet-content">
+      <div class="sheet-top">
+        <span class="sheet-grabber" aria-hidden="true"></span>
+        <div class="sheet-head">
+          <div class="sheet-title">
+            <h2 id="teamTitle">Team</h2>
+            <p class="sheet-note" id="teamNote"></p>
+          </div>
+          <button type="button" class="sheet-done" id="teamDoneBtn">
+            <svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
+              <path
+                d="M204.24,195.76a6,6,0,1,1-8.48,8.48L128,136.49,60.24,204.24a6,6,0,0,1-8.48-8.48L119.51,128,51.76,60.24a6,6,0,0,1,8.48-8.48L128,119.51l67.76-67.75a6,6,0,0,1,8.48,8.48L136.49,128Z"
+              />
+            </svg>
+            <span class="sheet-done-label">Done</span>
+          </button>
+        </div>
+      </div>
+      <div class="team-sheet-body" id="teamBody"></div>
     </div>
   </dialog>
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { session } from "../page/js/session.js";
 import {
   applyDeferredSeason,
+  loadSeasonList,
   saveRanking,
   showUnsavedSeason,
   watchYear,
@@ -48,7 +49,10 @@ function createStore(documents, { failUpdates = false, unreadable = [], isHeld =
       onSnapshot: watch(path, () => readStored(path)),
     }),
     collection: (name) => ({
-      limit: () => ({ onSnapshot: watch(name, () => listStored(name)) }),
+      limit: () => ({
+        onSnapshot: watch(name, () => listStored(name)),
+        get: async () => listStored(name),
+      }),
     }),
   };
   const deliver = (path, data) => {
@@ -289,4 +293,34 @@ test("while a newer ranking is being saved, the echo of an older one doesn't und
   const otherDevice = ["SEA", "TOR", "NYY"];
   deliver("seasons/2026", { ...documents["seasons/2026"], ranking: otherDevice });
   assert.deepEqual(session.seasonDoc.ranking, otherDevice);
+});
+
+// A season whose AL top seed swept through to win the World Series.
+function buildSeasonWonBy(champion) {
+  const AL = [champion, "NYY", "TOR", "SEA", "BOS", "DET"];
+  const NL = ["PHI", "LAD", "MIL", "CHC", "SD", "NYM"];
+  const teams = Object.fromEntries([
+    ...AL.map((id, index) => [id, { league: "AL", seed: index + 1 }]),
+    ...NL.map((id, index) => [id, { league: "NL", seed: index + 1 }]),
+  ]);
+  const won = (winsA) => ({ winsA, winsB: 0, started: true });
+  const leagueSeries = (league) => ({
+    [`${league}_WC1`]: won(2),
+    [`${league}_WC2`]: won(2),
+    [`${league}_DS1`]: won(3),
+    [`${league}_DS2`]: won(3),
+    [`${league}_CS`]: won(4),
+  });
+  return { teams, series: { ...leagueSeries("AL"), ...leagueSeries("NL"), WS: won(4) } };
+}
+
+test("a club that won more than one stored season keeps each title", async () => {
+  session.db = createStore({
+    "seasons/2026": { year: 2026, ...buildSeasonWonBy("CLE") },
+    "seasons/2027": { year: 2027, ...buildSeasonWonBy("HOU") },
+    "seasons/2028": { year: 2028, ...buildSeasonWonBy("CLE") },
+  }).database;
+  await loadSeasonList();
+
+  assert.deepEqual(session.trackedTitles, { CLE: [2026, 2028], HOU: [2027] });
 });

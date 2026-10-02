@@ -42,7 +42,7 @@ function collectTrackedTitles(docs) {
     if (!doc || !doc.teams || !doc.series) continue;
     const year = Number(doc.year ?? stored.id);
     const champion = buildBracket({ ...doc, teams: keepKnownClubs(doc.teams) }).ws?.winner;
-    if (champion && Number.isFinite(year) && !(titles[champion] >= year)) titles[champion] = year;
+    if (champion && Number.isFinite(year)) titles[champion] = [...(titles[champion] ?? []), year];
   }
   return titles;
 }

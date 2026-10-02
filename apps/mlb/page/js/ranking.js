@@ -1,37 +1,19 @@
 import { describeTeamStatus } from "./bracket.js";
 import {
   describeDrought,
-  findLastTitle,
   listRankedOrder,
-  renderRankTag,
   nameTeam,
-  renderTeamTag,
+  renderPlainClub,
+  renderStatusChip,
+  renderTitleSummary,
 } from "./clubs.js";
-import { html, joinWithSeparator, setHtml } from "#shared/html.js";
+import { html, setHtml } from "#shared/html.js";
 import { session } from "./session.js";
 import { TEAMS } from "./teams.js";
 
 export const REORDER_EVENT = "rankingreorder";
 
-const STATUS_CHIPS = {
-  champion: { label: "Champs", className: "champ" },
-  alive: { label: "Alive", className: "alive" },
-  out: { label: "Out", className: "out" },
-};
 const MOVES = { ArrowUp: -1, ArrowDown: 1 };
-
-function renderStatusChip(status) {
-  const chip = STATUS_CHIPS[status];
-  return html`<span class="status-chip ${chip.className}">${chip.label}</span>`;
-}
-
-function renderTitleSummary(id) {
-  const won = findLastTitle(id);
-  return joinWithSeparator([
-    html`<span>${won ? `Last WS ${won}` : "Never won WS"}</span>`,
-    html`<span>${describeDrought(id)}</span>`,
-  ]);
-}
 
 // A club that's out looks like the rest: the ranking says who you're for, not who's still playing.
 function renderRankItem(id, index) {
@@ -39,7 +21,7 @@ function renderRankItem(id, index) {
   return html`<li class="rank-item" data-id="${id}">
       <button type="button" class="grip" aria-label="Move ${nameTeam(id)}, ranked ${index + 1}. Use the up and down arrow keys.">&#8942;&#8942;</button>
       <span class="rank-id">
-        ${renderTeamTag(id)}
+        ${renderPlainClub(id)}
         <span class="league-tag ${league}">${league}</span>
         <span class="rank-drought tabular">${describeDrought(id)}</span>
         <span class="rank-ws tabular">${renderTitleSummary(id)}</span>
@@ -122,24 +104,4 @@ function wireReordering(list) {
       );
     },
   });
-}
-
-export function renderReference() {
-  const body = document.getElementById("refBody");
-  const rows = Object.entries(TEAMS).sort((first, second) =>
-    first[1].name.localeCompare(second[1].name),
-  );
-  const renderedRows = rows.map(([id, team]) => {
-    const won = findLastTitle(id);
-    const seed = session.state.teams[id] && session.state.teams[id].seed;
-    return html`<tr>
-      <td class="rank-col">${renderRankTag(id)}</td>
-      <td class="seed-col">${seed || ""}</td>
-      <td>${renderTeamTag(id)}</td>
-      <td class="lg-col"><span class="league-tag ${team.league}">${team.league}</span></td>
-      <td class="tabular won-col">${won || html`&mdash;`}</td>
-      <td class="tabular">${describeDrought(id)}</td>
-    </tr>`;
-  });
-  setHtml(body, html`${renderedRows}`);
 }

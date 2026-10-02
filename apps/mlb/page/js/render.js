@@ -1,9 +1,10 @@
 import { renderBracket } from "./bracket-view.js";
 import { renderGames } from "./games-view.js";
-import { renderRanking, renderReference } from "./ranking.js";
+import { renderRanking } from "./ranking.js";
 import { renderSeasonLabel } from "./settings.js";
 import { renderStamp } from "./stamp-view.js";
 import { renderStandings } from "./standings.js";
+import { refreshTeamSheet } from "#shared/team-sheet.js";
 import { renderUpdates } from "./updates.js";
 
 export function renderAll() {
@@ -13,6 +14,6 @@ export function renderAll() {
   renderGames();
   renderStandings();
   renderRanking();
-  renderReference();
   renderSeasonLabel();
+  refreshTeamSheet();
 }

@@ -575,7 +575,7 @@ test("playoff field: every live chaser shows, and eliminated clubs fill in to th
   const rendered = String(
     renderFieldBlock("AL", buildAlStandings({ HOU: { wce: "E" }, BAL: { wce: "E" } })),
   );
-  assert.equal(rendered.match(/<tr class="eliminated">/g)?.length, 2);
+  assert.equal(rendered.match(/<tr class="eliminated"/g)?.length, 2);
 });
 
 test("playoff field: each leader's lead over second place and its magic number", () => {
@@ -1236,4 +1236,35 @@ test("games list: a season with no live data says why", () => {
   } finally {
     Object.assign(session, { activeYear, currentSeason });
   }
+});
+
+const listTeamButtons = (rendered) =>
+  [
+    ...String(rendered).matchAll(
+      /<button type="button" class="[^"]*team-open" data-team="(\w+)" aria-label="Team details: ([^"]+)">/g,
+    ),
+  ].map(([, id, name]) => `${id} ${name}`);
+
+test("a club's name in the games list, the standings, and the updates opens its sheet", () => {
+  session.state = { teams: { NYY: { league: "AL", seed: 4 } }, ranking: ["NYY"] };
+  const yankees = { id: "NYY", w: 93, l: 68, gb: "-", elim: "-", lead: true };
+  const orioles = { id: "BAL", w: 79, l: 82, gb: "14.0", elim: "E", wce: "E" };
+  const slate = {
+    today: {
+      date: "2026-09-26",
+      games: [
+        { away: "BAL", home: "NYY", state: "final", start: "2026-09-26T17:05:00Z", score: [3, 7] },
+      ],
+    },
+  };
+  const standings = String(renderDivisionBlock("AL East", [yankees, orioles]));
+  const update = renderEntryText({ kind: "elim", team: "BAL" });
+
+  assert.deepEqual(listTeamButtons(renderGameList(slate, "today")), ["BAL Orioles", "NYY Yankees"]);
+  assert.deepEqual(listTeamButtons(standings), ["NYY Yankees", "BAL Orioles"]);
+  assert.deepEqual(
+    [...standings.matchAll(/<tr class="[^"]*" data-team="(\w+)">/g)].map(([, id]) => id),
+    ["NYY", "BAL"],
+  );
+  assert.deepEqual(listTeamButtons(update), ["BAL Orioles"]);
 });
