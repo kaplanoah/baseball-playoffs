@@ -620,10 +620,30 @@ header.top h1 {
 :is(.game-sheet-body, .team-tape) .tape-bar i.lead {
   background: var(--side);
 }
-/* The game's title and its teams share one tinted band across the top of the sheet, which sets
-   them apart from the parts below without a line like the ones between the parts' rows. */
+/* The game's title and its teams share one tinted band across the top of the sheet, over a
+   hairline like a bracket card's border. The band's title sits --band-space-top under its top, or
+   its grabber on a phone, and its bottom has --band-space-bottom of room. A team's sheet bands
+   its title the same way. */
+#gameDialog {
+  --band-space-top: 12px;
+  --band-space-bottom: 14px;
+}
+:is(#gameDialog, #teamDialog) {
+  --band-edge: color-mix(in srgb, var(--line), var(--tile));
+}
+:is(#gameDialog, #teamDialog) .sheet-top {
+  padding-top: var(--band-space-top);
+}
 #gameDialog .sheet-top {
   background: var(--tile);
+}
+@media (max-width: 779px) {
+  :is(#gameDialog, #teamDialog) .sheet-top {
+    padding-top: 0;
+  }
+  :is(#gameDialog, #teamDialog) .sheet-grabber {
+    margin-bottom: var(--band-space-top);
+  }
 }
 .faceoff {
   display: grid;
@@ -631,7 +651,8 @@ header.top h1 {
   align-items: center;
   column-gap: 10px;
   margin-inline: -18px;
-  padding: 6px 18px 14px;
+  padding: 6px 18px var(--band-space-bottom);
+  border-bottom: 1px solid var(--band-edge);
   background: var(--tile);
 }
 .faceoff-side {
@@ -677,7 +698,7 @@ header.top h1 {
   white-space: nowrap;
 }
 .faceoff:has(.networks) {
-  padding-bottom: 10px;
+  padding-bottom: calc(var(--band-space-bottom) - 4px);
 }
 .faceoff .networks {
   grid-column: 1 / -1;
@@ -1438,36 +1459,26 @@ table.standings tr.playoff-line + tr td {
   font-family: var(--team-name);
   letter-spacing: 0.02em;
 }
-/* Its title shares a tinted band across the top, like a game's, --band-space-top under the band's
-   top, or its grabber on a phone, and --band-space-bottom over its bottom. Its parts are spaced like the game
+/* Its title shares a tinted band across the top, like a game's, over a hairline. Its parts are spaced like the game
    sheet's: --part-space-first under the band, --part-space-above each later title, and
    --part-space-below each title. Last 10 and Streak sit --form-space-above under the numbers
    before them, --form-space-between apart, and the two sides over its numbers are named at
    --side-name-size. */
 #teamDialog {
-  --band-space-top: 12px;
-  --band-space-bottom: 14px;
+  --band-space-top: 11px;
+  --band-space-bottom: 23px;
 }
 #teamDialog .sheet-top {
-  padding-top: var(--band-space-top);
   padding-bottom: var(--band-space-bottom);
+  border-bottom: 1px solid var(--band-edge);
   background: var(--tile);
 }
-/* On a phone the grabber tops the band, and the title sits --band-space-top under it. */
-@media (max-width: 779px) {
-  #teamDialog .sheet-top {
-    padding-top: 0;
-  }
-  #teamDialog .sheet-grabber {
-    margin-bottom: var(--band-space-top);
-  }
-}
 .team-sheet-body {
-  --part-space-first: 12px;
+  --part-space-first: 15px;
   --part-space-above: 29px;
   --part-space-below: 11px;
   --form-space-above: 20px;
-  --form-space-between: 12px;
+  --form-space-between: 14px;
   --side-name-size: 16px;
   gap: var(--part-space-above);
   padding-top: var(--part-space-first);

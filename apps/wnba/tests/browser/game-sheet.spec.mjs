@@ -294,7 +294,7 @@ for (const [device, viewport] of Object.entries({
   "a computer": { width: 1280, height: 720 },
   "a phone": { width: 390, height: 844 },
 })) {
-  test(`on ${device}, a sheet's title and teams share one tinted band to its edges, with no line under the teams`, async ({
+  test(`on ${device}, a sheet's title and teams share one tinted band to its edges, over a hairline like a bracket card's border`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
@@ -312,12 +312,16 @@ for (const [device, viewport] of Object.entries({
         teams: read(".faceoff").backgroundColor,
         sheet: getComputedStyle(dialog).backgroundColor,
         line: read(".faceoff").borderBottomWidth,
+        lineColor: read(".faceoff").borderBottomColor,
+        cardBorder: getComputedStyle(/** @type {Element} */ (document.querySelector(".series")))
+          .borderTopColor,
         edges: [faceoff.left - content.left, content.right - faceoff.right],
       };
     });
     expect(band.teams).toBe(band.top);
     expect(band.teams).not.toBe(band.sheet);
-    expect(band.line).toBe("0px");
+    expect(band.line).toBe("1px");
+    expect(band.lineColor).toBe(band.cardBorder);
     expect(band.edges).toEqual([0, 0]);
   });
 }

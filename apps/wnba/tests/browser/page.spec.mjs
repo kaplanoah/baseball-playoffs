@@ -733,7 +733,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium, and its title in a tinted band like a game's, with its first part 12px under it", async ({
+  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium, and its title in a tinted band like a game's, over a hairline like a bracket card's border, with its first part 15px under it", async ({
     page,
   }) => {
     await openApp(page);
@@ -771,7 +771,16 @@ test.describe("on a phone, a team's sheet", () => {
     expect(band).not.toBe(sheetColor);
     const top = await sheet.locator(".sheet-top").boundingBox();
     const firstPart = await sheet.locator(".sheet-part-head").first().boundingBox();
-    expect(Math.round(firstPart.y - (top.y + top.height))).toBe(12);
+    expect(Math.round(firstPart.y - (top.y + top.height))).toBe(15);
+    const [line, cardBorder] = await page.evaluate(() =>
+      [
+        getComputedStyle(document.querySelector("#teamDialog .sheet-top")),
+        getComputedStyle(document.querySelector(".series")),
+      ].map((style, index) =>
+        index ? style.borderTopColor : `${style.borderBottomWidth} ${style.borderBottomColor}`,
+      ),
+    );
+    expect(line).toBe(`1px ${cardBorder}`);
   });
 });
 
@@ -852,7 +861,7 @@ test.describe("a team's sheet", () => {
     );
   });
 
-  test("Last 10 sits 20px under the regular season's numbers, and Streak 12px under Last 10", async ({
+  test("Last 10 sits 20px under the regular season's numbers, and Streak 14px under Last 10", async ({
     page,
   }) => {
     await openApp(page);
@@ -866,7 +875,7 @@ test.describe("a team's sheet", () => {
       .evaluateAll((values) => values.map((value) => value.getBoundingClientRect().toJSON()));
 
     expect(Math.round(form.y - (numbers.y + numbers.height))).toBe(20);
-    expect(Math.round(streak.top - lastTen.bottom)).toBe(12);
+    expect(Math.round(streak.top - lastTen.bottom)).toBe(14);
   });
 
   test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {
