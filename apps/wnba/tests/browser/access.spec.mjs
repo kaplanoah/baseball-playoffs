@@ -87,3 +87,38 @@ test("too many tries ask the phone to wait, even with the right code", async ({ 
   await expect(findGate(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Open" })).toBeEnabled();
 });
+
+/**
+ * How far the icon sits below the top of the screen, and Open above its bottom.
+ * @param {import("@playwright/test").Page} page
+ */
+async function measureGateMargins(page) {
+  const icon = await page.locator(".gate-icon:visible").boundingBox();
+  const open = await page.getByRole("button", { name: "Open" }).boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  return {
+    above: Math.round(icon?.y ?? 0),
+    below: Math.round(height - (open?.y ?? 0) - (open?.height ?? 0)),
+  };
+}
+
+test("the gate sits in the middle of a short screen, and a message doesn't move it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 500 });
+  await openLockedApp(page, { accessCode: "FASTBREAK" });
+  const margins = await measureGateMargins(page);
+  expect(Math.abs(margins.above - margins.below)).toBeLessThanOrEqual(1);
+
+  await sendCode(page, "fastbrake");
+  await expect(page.getByRole("alert")).toHaveText(
+    "That code isn't right. Check it and try again.",
+  );
+  expect(await measureGateMargins(page)).toEqual(margins);
+});
+
+test("the code field shows it's ready with its cursor, not an outline", async ({ page }) => {
+  await openLockedApp(page, { accessCode: "FASTBREAK" });
+  await findCodeField(page).focus();
+  await expect(findCodeField(page)).toHaveCSS("outline-style", "none");
+});
