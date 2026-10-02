@@ -810,6 +810,42 @@ test.describe("a team's sheet", () => {
     ]);
   });
 
+  test("a team's sheet titles its leading scorers like its parts, names the sides over its numbers at 16px, and sets Last 10 and Streak like its measures", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    await expect(sheet.locator("table.players")).toBeVisible();
+
+    const styles = await sheet.evaluate((dialog) => {
+      const read = (selector) => {
+        const style = getComputedStyle(dialog.querySelector(selector));
+        return {
+          color: style.color,
+          font: `${style.fontFamily} ${style.fontSize} ${style.fontWeight} ${style.letterSpacing} ${style.textTransform}`,
+        };
+      };
+      return {
+        partTitle: read(".sheet-part h3"),
+        scorersTitle: read("table.players thead th"),
+        measure: read(".team-tape .tape-label"),
+        formName: read(".team-form dt"),
+        number: read(".team-tape .tape-value"),
+        formNumber: read(".team-form dd"),
+        side: read(".team-tape .tape-teams .club"),
+      };
+    });
+    expect(styles.scorersTitle.color).toBe(styles.partTitle.color);
+    expect(styles.formName).toEqual(styles.measure);
+    expect(styles.formNumber).toEqual(styles.number);
+    await expect(sheet.locator(".team-tape .tape-teams .club").first()).toHaveCSS(
+      "font-size",
+      "16px",
+    );
+  });
+
   test("Last 10 and Streak stand 18px apart from the regular season's numbers above and its scorers below", async ({
     page,
   }) => {

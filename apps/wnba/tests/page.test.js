@@ -488,11 +488,24 @@ test("a team's sheet names it over its conference, seed, and record", () => {
   );
 });
 
+test("a team's Playoffs chip names its round, the same on a game day as any other", () =>
+  inEastern(() => {
+    assert.match(readTeam(SEASON, "ATL").body, /^Playoffs 1st Rd G1 /);
+    assert.match(
+      renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW }).body.text,
+      /<span class="status-chip alive">1st Rd<\/span>/,
+    );
+    assert.match(
+      readTeam(ATLANTA_SEASON, "ATL").body,
+      /^Playoffs 1st Rd G1 .* G13 &rsaquo; vs Mystics 1st Rd Live /,
+    );
+  }));
+
 test("a team's sheet shows its playoffs, then its regular season, each across from the league's, then its titles", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
-      "Playoffs 1st Rd today G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
+      "Playoffs 1st Rd G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
         "Dream Playoff field 1-0 Record 92.0 PPG 87.7 77.0 Opp PPG 87.7 +15.0 Margin 0.0 " +
         "1-0 Home 5-1 0-0 Road 1-5 " +
         "Regular season Dream League 30-14 Record 91.3 PPG 87.1 84.5 Opp PPG 87.1 +6.9 Margin 0.0 " +
@@ -502,7 +515,7 @@ test("a team's sheet shows its playoffs, then its regular season, each across fr
     );
     assert.match(
       readTeam(SEASON, "DAL").body,
-      /^Playoffs 1st Rd today .* Titles 3 \| 2003, 2006, 2008 \(as Detroit Shock\)$/,
+      /^Playoffs 1st Rd .* Titles 3 \| 2003, 2006, 2008 \(as Detroit Shock\)$/,
     );
     assert.match(
       readTeam(SEASON, "MIN").body,
@@ -613,13 +626,18 @@ test("a record shows without a bar, since the league has none to measure it agai
   for (const record of records) assert.doesNotMatch(record, /tape-bar/);
 });
 
-test("Last 10 and Streak show only for the regular season, under its numbers, with a winning streak marked", () => {
+test("Last 10 and Streak show only for the regular season, under its numbers and set like them, with a winning streak marked", () => {
   const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
   assert.deepEqual(
     [...body.text.matchAll(/<span class="streak-won">(.*?)<\/span>/g)].map(([, streak]) => streak),
     ["W 5"],
   );
-  assert.doesNotMatch(body.text, /tape-label">(Last 10|Streak)</);
+  assert.equal(findTapeRow("Last 10", body.text), "");
+  assert.equal(findTapeRow("Streak", body.text), "");
+  assert.match(
+    body.text,
+    /<dl class="team-form">\s*<dt class="tape-label">Last 10<\/dt><dd class="tape-value tabular">9-1<\/dd><dt class="tape-label">Streak<\/dt>/,
+  );
   assert.match(readTeam(SEASON, "ATL").body, / 152-178 Last 10 9-1 Streak W 5 Leading scorers /);
   assert.doesNotMatch(
     renderTeamSheet(SEASON, "SEA", { year: 2026, now: NOW }).body.text,

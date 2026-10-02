@@ -2,7 +2,6 @@ import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTapeRow } from "#shared/tape.js";
-import { renderTeamDetail } from "#shared/team-sheet.js";
 import { renderDot, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { nameTeam, readPlayoffRuns } from "./series.js";
@@ -109,17 +108,16 @@ function describeWhen(game, now) {
 }
 
 /**
+ * The chip beside a team's Playoffs: its round while it's still in, how far it got once out, or
+ * that it missed them once the field is set.
  * @param {Run | undefined} run
- * @param {Game | null} next
- * @param {{ hasField: boolean, now: number }} context
+ * @param {{ hasField: boolean }} context
  */
-function describeChip(run, next, { hasField, now }) {
+function describeChip(run, { hasField }) {
   if (!run) return hasField ? { label: "Missed", kind: "missed" } : null;
   const round = ROUNDS[run.round].shortName;
   if (run.isChampion) return { label: "Champions", kind: "champion" };
   if (run.isOut) return { label: `Out ${round}`, kind: "out" };
-  if (next?.state === "live") return { label: `${round} live`, kind: "now" };
-  if (next && isToday(next, now)) return { label: `${round} today`, kind: "now" };
   return { label: round, kind: "alive" };
 }
 
@@ -306,16 +304,26 @@ const renderAgainstLeague = (code, team, league, leagueName) =>
 
 /**
  * How the team ended the regular season: its last ten games and its streak, as the standings
- * show them, each on its own line, or nothing while it has neither.
+ * show them, each on its own line with its name and number set like the measures above, or
+ * nothing while it has neither.
  * @param {StandingsRow} row
  */
 function renderRecentForm(row) {
-  const lastTen = row.lastTen && html`<span class="tabular">${row.lastTen}</span>`;
-  const streak = row.streak && html`<span class="tabular">${renderStreak(row.streak)}</span>`;
-  if (!lastTen && !streak) return false;
-  return html`<div class="team-form">
-    ${lastTen && renderTeamDetail("Last 10", lastTen)}${streak && renderTeamDetail("Streak", streak)}
-  </div>`;
+  /** @type {[string, import("#shared/html.js").Markup | string | null][]} */
+  const facts = [
+    ["Last 10", row.lastTen],
+    ["Streak", row.streak && renderStreak(row.streak)],
+  ];
+  const shown = facts.filter(([, value]) => value);
+  return (
+    shown.length > 0 &&
+    html`<dl class="team-form">
+      ${shown.map(
+        ([label, value]) =>
+          html`<dt class="tape-label">${label}</dt><dd class="tape-value tabular">${value}</dd>`,
+      )}
+    </dl>`
+  );
 }
 
 /**
@@ -447,7 +455,7 @@ export function renderTeamSheet(season, code, { year, now }) {
   const run = runs.get(code);
   const games = listTeamGames(season ?? {}, code);
   const isPlaying = !!run && !run.isOut && !run.isChampion;
-  const chip = describeChip(run, isPlaying ? games.next : null, { hasField: runs.size > 0, now });
+  const chip = describeChip(run, { hasField: runs.size > 0 });
   const titles = listTitles(code, run, year);
   const regularSeason = renderRegularSeason(
     code,

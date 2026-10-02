@@ -1438,10 +1438,25 @@ table.standings tr.playoff-line + tr td {
   font-family: var(--team-name);
   letter-spacing: 0.02em;
 }
+/* Its parts are spaced like the game sheet's, --part-space-above each title after the first and
+   --part-space-below it, and Last 10 and Streak sit --form-space-above under the numbers before
+   them, --form-space-between apart. Its players table's title is set like the parts'. */
+.team-sheet-body {
+  --part-space-above: 24px;
+  --part-space-below: 14px;
+  --form-space-above: 18px;
+  --form-space-between: 4px;
+  gap: var(--part-space-above);
+}
+.team-sheet-body > .sheet-part {
+  gap: var(--part-space-below);
+}
+.team-sheet-body table.players thead th:first-child {
+  color: var(--sheet-part-head);
+}
 .status-chip.alive {
   background: color-mix(in srgb, var(--ink) 15%, transparent);
 }
-.status-chip.now,
 .status-chip.champion {
   background: var(--orange);
   color: var(--orange-ink);
@@ -1520,6 +1535,9 @@ table.standings tr.playoff-line + tr td {
 .team-tape .tape {
   gap: 12px;
 }
+.team-tape .tape-teams .club {
+  font-size: 1rem;
+}
 .team-tape .tape-side.away {
   --side: var(--team);
 }
@@ -1529,8 +1547,19 @@ table.standings tr.playoff-line + tr td {
 /* Last 10 and Streak stand apart from the numbers above them and the scorers below. */
 .team-form {
   display: grid;
-  gap: 4px;
-  margin-block: 6px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--form-space-between) 10px;
+  margin: calc(var(--form-space-above) - 12px) 0 6px;
+}
+.team-form .tape-label {
+  text-align: left;
+}
+.team-form dd {
+  margin: 0;
+}
+.team-form .streak-won {
+  color: var(--teal);
 }
 .team-titles {
   margin: 0;
