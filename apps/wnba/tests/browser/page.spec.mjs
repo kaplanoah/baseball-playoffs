@@ -3,6 +3,9 @@ import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/t
 import { serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 
+// The least room between one standings row's team name and the next row's.
+const STANDINGS_NAME_GAP_PX = 20;
+
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
 }) => {
@@ -159,6 +162,21 @@ test.describe("on a phone, the Games lists", () => {
     expect(box.x).toBe(0);
     expect(box.width).toBe(390);
   });
+});
+
+test("the standings leave room between each team's name and the next one's", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Standings" }).click();
+  const names = page.locator("#standings-league tbody td.team");
+  await expect(names.first()).toBeVisible();
+  const gaps = await names.evaluateAll((cells) =>
+    cells.slice(1, 4).map((cell, index) => {
+      const above = cells[index].querySelector(".team-name") ?? cells[index];
+      const below = cell.querySelector(".team-name") ?? cell;
+      return below.getBoundingClientRect().top - above.getBoundingClientRect().bottom;
+    }),
+  );
+  for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(STANDINGS_NAME_GAP_PX);
 });
 
 test("a standings conference tag's letter is trimmed to its capital, with even room around it", async ({
@@ -654,13 +672,14 @@ test.describe("on a phone, the text", () => {
     expect(await listOffScaleText(page)).toEqual([]);
   });
 
-  test("of the Updates box reads at 16px, its days at 14px, and its count at 13px, and a series' standing stays on one line", async ({
+  test("of the Updates box reads at 16px with its team names at Condensed's 16.5px, its days at 14px, and its count at 13px, and a series' standing stays on one line", async ({
     page,
   }) => {
     await openApp(page, { isShowingUpdates: true });
     const updates = page.locator("#updates");
     await expect(updates.locator(".what").first()).toBeVisible();
     await expect(updates.locator(".what").first()).toHaveCSS("font-size", "16px");
+    await expect(updates.locator(".what b").first()).toHaveCSS("font-size", "16.5px");
     await expect(updates.locator(".when").first()).toHaveCSS("font-size", "14px");
     await expect(updates.locator(".updates-count")).toHaveCSS("font-size", "13px");
     const lineCounts = await updates

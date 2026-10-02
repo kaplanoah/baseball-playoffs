@@ -20,7 +20,7 @@ import { renderSheetMessage } from "./sheet-parts.js";
 import { POLL_LIVE_MS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
-/** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any, lead: any }} ShownGame */
+/** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any, lead: any, isLeadLoading: boolean }} ShownGame */
 
 // The game the sheet shows. Each opening, and each switch to a box score, is a new one, so an
 // answer that arrives after it changed is dropped.
@@ -92,8 +92,8 @@ function renderDetails(opened, game) {
   }
   if (opened.error) return renderSheetMessage(describeProblem(opened.error));
   return opened.details
-    ? renderBoxScore(opened.details, opened.lead)
-    : renderPendingBoxScore(teams);
+    ? renderBoxScore(opened.details, opened)
+    : renderPendingBoxScore(teams, opened);
 }
 
 function renderSheet() {
@@ -132,6 +132,12 @@ const loadLead = (game) =>
     start: /** @type {string} */ (game.start),
   });
 
+/**
+ * @param {Game} game
+ * @param {"box" | "preview"} kind
+ */
+const hasLead = (game, kind) => kind === "box" && Boolean(game.start);
+
 // The lead comes from ESPN, beside the league's box score, so the box score never waits on it, and
 // a read that fails keeps the chart already showing, or none.
 /**
@@ -139,15 +145,16 @@ const loadLead = (game) =>
  * @param {Game} game
  */
 async function refreshLead(opened, game) {
-  if (opened.kind !== "box" || !game.start) return;
+  if (!hasLead(game, opened.kind)) return;
   try {
     const lead = await loadLead(game);
     if (shown !== opened) return;
     opened.lead = lead;
-    renderSheet();
   } catch {
-    // ESPN didn't answer, so the sheet goes on without the chart.
+    if (shown !== opened) return;
   }
+  opened.isLeadLoading = false;
+  renderSheet();
 }
 
 // A live game's box score is read again as often as its score, until the sheet closes. A read
@@ -174,7 +181,8 @@ async function refreshDetails() {
 /** @param {string} id */
 function showGame(id) {
   const game = findGame(id);
-  shown = { id, kind: chooseKind(game), details: null, error: null, lead: null };
+  const kind = chooseKind(game);
+  shown = { id, kind, details: null, error: null, lead: null, isLeadLoading: hasLead(game, kind) };
   renderSheet();
   refreshDetails();
 }

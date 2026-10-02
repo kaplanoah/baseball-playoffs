@@ -9,6 +9,10 @@ const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
 const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
 const VALKYRIES_AT_WINGS = "Game details: Valkyries at Wings, First Round Game 2";
 const POLL_LIVE_MS = 15 * 1000;
+// The type scale's smallest size, which the lead chart's words show at with no room above or below.
+const SMALLEST_TEXT_PX = 13;
+// The room the team stats keep from the parts around them, beyond the usual gap between parts.
+const TAPE_ROOM_PX = 8;
 // The least room between a team's name, as its font draws it, and the edge of the lead chart's tile.
 const NAME_GAP_PX = 4;
 
@@ -192,6 +196,70 @@ test("the lead chart keeps each biggest lead's label on its tile and each team's
   }
 });
 
+for (const { screen, viewport } of [
+  { screen: "a phone", viewport: { width: 390, height: 844 } },
+  { screen: "a wide screen", viewport: { width: 1280, height: 900 } },
+]) {
+  test.describe(`on ${screen}`, () => {
+    test.use({ viewport });
+
+    test("the lead chart's words show at the type scale's smallest size", async ({ page }) => {
+      const app = await openApp(page);
+      await app.changeSeason(finishValkyriesAtWings);
+      const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+      const words = sheet.locator(
+        ".lead-chart :is(.lead-side, .lead-reach, .lead-peak-label, .lead-period)",
+      );
+      await expect(words).toHaveCount(11);
+      const heights = await words.evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().height),
+      );
+      for (const height of heights) expect(height).toBeCloseTo(SMALLEST_TEXT_PX, 0);
+    });
+  });
+}
+
+test("the team stats stand further from the parts above and below them than the other parts do from each other", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  await expect(sheet.locator(".lead-peak-label")).toHaveCount(2);
+  const parts = await sheet.locator(".game-sheet-body > .sheet-part").evaluateAll((sections) =>
+    sections.map((section) => {
+      const { top, bottom } = section.getBoundingClientRect();
+      return { title: section.querySelector("h3")?.textContent, top, bottom };
+    }),
+  );
+  const gapBefore = (/** @type {string} */ title) => {
+    const index = parts.findIndex((part) => part.title === title);
+    return parts[index].top - parts[index - 1].bottom;
+  };
+  const usual = gapBefore("Lead through the game");
+  expect(gapBefore("Team stats")).toBeGreaterThanOrEqual(usual + TAPE_ROOM_PX);
+  expect(gapBefore("Top scorers")).toBeGreaterThanOrEqual(usual + TAPE_ROOM_PX);
+});
+
+test("while the lead loads after the box score, the sheet holds the chart's place, so nothing below it moves as it arrives", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const releaseLead = await holdRequests(page, (url) => url.pathname === "/lead");
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  const teamStats = sheet.locator(".sheet-part h3", { hasText: "Team stats" });
+  await expect(sheet.locator(".line-score .total").last()).toHaveText("108");
+  await expect(sheet.locator(".lead-tile.pending")).toBeVisible();
+  const before = await teamStats.boundingBox();
+
+  releaseLead();
+
+  await expect(sheet.locator(".lead-peak-label")).toHaveCount(2);
+  await expect(sheet.locator(".lead-tile.pending")).toHaveCount(0);
+  expect((await teamStats.boundingBox())?.y).toBeCloseTo(before?.y ?? 0, 0);
+});
+
 test("each team's side of the lead chart and the team stats takes its color, on each theme", async ({
   page,
 }) => {
@@ -208,10 +276,10 @@ test("each team's side of the lead chart and the team stats takes its color, on 
     const [awayColor, homeColor] = ["GSV", "DAL"].map((code) =>
       formatRgb(TEAMS[code].chartColors[theme][0]),
     );
-    await expect(chart.locator(".lead-side.home")).toHaveCSS("fill", homeColor);
+    await expect(chart.locator(".lead-side.home")).toHaveCSS("color", homeColor);
     await expect(chart.locator(".lead-peak.home")).toHaveCSS("fill", homeColor);
-    await expect(chart.locator(".lead-side.away")).toHaveCSS("fill", awayColor);
-    await expect(chart.locator(".lead-peak-label.away")).toHaveCSS("fill", awayColor);
+    await expect(chart.locator(".lead-side.away")).toHaveCSS("color", awayColor);
+    await expect(chart.locator(".lead-peak-label.away")).toHaveCSS("color", awayColor);
     await expect(fieldGoals.locator(".home .tape-bar i")).toHaveCSS("background-color", homeColor);
     await expect(fieldGoals.locator(".away .tape-bar i")).not.toHaveCSS(
       "background-color",

@@ -2,7 +2,9 @@
  * The apps' type scale. Pages link it before the other shared stylesheets, and every size under
  * 16px is one of these. Sizes and weights are Barlow's: an app whose font draws larger or smaller
  * than Barlow at the same size gives that font's @font-face a size-adjust, so 14px looks the same
- * in every font, and a font that reads heavier, like Chivo Mono, sets each weight 50 under. Weights
+ * in every font, and a font that reads heavier, like Chivo Mono, sets each weight 50 under. A font
+ * that still looks larger or smaller at some step sets its own value for it, as Chivo Mono and
+ * Barlow Condensed do. Weights
  * are 400 to 600 under 24px, at least 500 for capitals under 16px, and 300 to 700 from 24px;
  * Barlow Condensed stops at 600. tests/browser/type-scale.mjs checks every shown text.
  */
