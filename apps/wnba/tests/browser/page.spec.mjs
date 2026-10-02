@@ -968,28 +968,21 @@ test("a page last left on a tab it no longer has opens on the bracket", async ({
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  test("the tab bar floats at the bottom, and the page doesn't scroll sideways", async ({
+  test("the tab bar floats at the bottom, each view starts just under the header, and the page neither scrolls sideways nor shows a scrollbar", async ({
     page,
   }) => {
+    // The tab bar's pill would ease to each tab, which this test doesn't need to wait out.
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await openApp(page);
     const bar = await page.locator("#tabBar").boundingBox();
     expect(bar.y + bar.height).toBeGreaterThan(844 - 40);
-    for (const tab of ["Bracket", "Games", "Standings", "Teams"]) {
-      await page.getByRole("tab", { name: tab }).click();
-      const width = await page.evaluate(() => document.documentElement.scrollWidth);
-      expect(width, tab).toBeLessThanOrEqual(390);
-    }
-  });
-
-  test("each view starts just under the header, and nothing on the page shows a scrollbar", async ({
-    page,
-  }) => {
-    await openApp(page);
     const headerBottom = await page
       .locator("header.top")
       .evaluate((header) => header.getBoundingClientRect().bottom);
     for (const tab of ["Bracket", "Games", "Standings", "Teams"]) {
       await page.getByRole("tab", { name: tab }).click();
+      const width = await page.evaluate(() => document.documentElement.scrollWidth);
+      expect(width, tab).toBeLessThanOrEqual(390);
       const view = await page.locator(".view.active").boundingBox();
       expect(view.y - headerBottom, tab).toBeLessThanOrEqual(14);
     }
@@ -1002,6 +995,7 @@ test.describe("on a phone", () => {
   });
 
   test("the tab bar's glass keeps Maple's colors, and boosts Walnut's", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await openApp(page);
     const readGlass = (selector) =>
       page.locator(selector).evaluate((glass) => getComputedStyle(glass).backdropFilter);
