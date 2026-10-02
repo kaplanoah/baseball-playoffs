@@ -2,7 +2,9 @@
 // that says how far it moves the version, so main's history alone gives every commit's version:
 // no tags, and nothing written back to the repo. A merge that changes nothing an app's deploy
 // counts, such as only its tests or other apps' folders, leaves that app's version where it was,
-// so the app's version moves only for a merge that would deploy it.
+// so the app's version moves only for a merge that would deploy it. A major change counts for every
+// app the merge deploys, unless its title names the one app it breaks, as in feat(mlb)!:.
+import { listApps } from "./apps.mjs";
 import { findDeployedChanges } from "./deploy-scope.mjs";
 
 // Each app's version at the commit its count starts from, so a change to how merges count never
@@ -29,7 +31,7 @@ const BUMPS = {
   chore: null,
 };
 
-const TITLE_PATTERN = /^([a-z]+)(!?): \S/;
+const TITLE_PATTERN = /^([a-z]+)(?:\(([a-z0-9-]+)\))?(!?): \S/;
 
 /** @param {string} type */
 const isReleasingType = (type) => BUMPS[type] !== null;
@@ -41,27 +43,42 @@ const listTypes = (isReleasing) =>
     .map((type) => `${type}:`)
     .join(", ");
 
+/** @typedef {{ type: string, scope: string | undefined, isBreaking: boolean }} TitleType */
+
 /**
  * @param {string} title
- * @returns {{ type: string, isBreaking: boolean } | null} null when the title has no known type
+ * @returns {TitleType | null} null when the title has no known type
  */
 function readTitleType(title) {
-  const [, type, breakingMark] = title.match(TITLE_PATTERN) ?? [];
+  const [, type, scope, breakingMark] = title.match(TITLE_PATTERN) ?? [];
   if (!type || !Object.hasOwn(BUMPS, type)) return null;
-  return { type, isBreaking: breakingMark === "!" };
+  return { type, scope, isBreaking: breakingMark === "!" };
 }
 
 /**
- * Says what's wrong with a pull request's title, or null when nothing is. A type that doesn't
- * release may only change what the deploy skips, so every deploy carries a new version.
- * @param {string} title
+ * What's wrong with the app a major change names, or null when nothing is.
+ * @param {TitleType} titleType
+ * @param {string[]} changedFiles
+ * @param {string[]} apps
+ */
+function findScopeProblem({ scope, isBreaking }, changedFiles, apps) {
+  if (!scope) return null;
+  if (!isBreaking)
+    return `A scope only names the one app a major change breaks, as in feat(${apps[0]})!:. Drop (${scope}).`;
+  if (!apps.includes(scope))
+    return `There's no app named ${scope}. The apps are: ${apps.join(", ")}.`;
+  if (!findDeployedChanges(changedFiles, scope).length)
+    return `This doesn't change what ${scope}'s deploy runs, so it can't break ${scope}.`;
+  return null;
+}
+
+/**
+ * What's wrong with a type that doesn't release, or null when nothing is. It may only change what
+ * the deploy skips, so every deploy carries a new version.
+ * @param {TitleType} titleType
  * @param {string[]} changedFiles
  */
-export function findTitleProblem(title, changedFiles) {
-  const titleType = readTitleType(title);
-  if (!titleType)
-    return `Start the title with a type: ${listTypes(true)}, ${listTypes(false)}. A ! after the type, as in feat!:, marks a major change.`;
-  const { type, isBreaking } = titleType;
+function findTypeProblem({ type, isBreaking }, changedFiles) {
   if (isReleasingType(type)) return null;
   if (isBreaking)
     return `${type}: doesn't release, so it can't mark a major change. Drop the !, or use ${listTypes(true)}.`;
@@ -69,6 +86,21 @@ export function findTitleProblem(title, changedFiles) {
   if (deployed.length)
     return `${type}: doesn't release, but this changes what the Worker runs: ${deployed.join(", ")}. Use ${listTypes(true)}.`;
   return null;
+}
+
+/**
+ * Says what's wrong with a pull request's title, or null when nothing is.
+ * @param {string} title
+ * @param {string[]} changedFiles
+ * @param {string[]} [apps]
+ */
+export function findTitleProblem(title, changedFiles, apps = listApps()) {
+  const titleType = readTitleType(title);
+  if (!titleType)
+    return `Start the title with a type: ${listTypes(true)}, ${listTypes(false)}. A ! after the type, as in feat!:, marks a major change.`;
+  return (
+    findTypeProblem(titleType, changedFiles) ?? findScopeProblem(titleType, changedFiles, apps)
+  );
 }
 
 /**
@@ -84,11 +116,18 @@ function bumpVersion(version, bump) {
 }
 
 // A title without a known type still shipped something, so it counts as a fix.
-const readBump = (subject) => {
+/**
+ * @param {string} subject
+ * @param {string} app
+ * @returns {Bump}
+ */
+function readBump(subject, app) {
   const titleType = readTitleType(subject);
   if (!titleType) return "patch";
-  return titleType.isBreaking ? "major" : BUMPS[titleType.type];
-};
+  const { type, scope, isBreaking } = titleType;
+  const isBreakingApp = isBreaking && (!scope || scope === app);
+  return isBreakingApp ? "major" : BUMPS[type];
+}
 
 /**
  * @param {string} app
@@ -143,5 +182,8 @@ export function readVersion(app, git) {
   }
   return readMerges(log)
     .filter(({ files }) => findDeployedChanges(files, app).length > 0)
-    .reduce((version, { subject }) => bumpVersion(version, readBump(subject)), baseline.version);
+    .reduce(
+      (version, { subject }) => bumpVersion(version, readBump(subject, app)),
+      baseline.version,
+    );
 }

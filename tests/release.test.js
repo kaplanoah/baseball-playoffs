@@ -6,6 +6,7 @@ const BASELINE = "3cf716ccf7c056c3e598a7e4ce82c0c591ac210c";
 const NEW_APP_FIRST = "d".repeat(40);
 
 const MLB_PAGE_FILE = "apps/mlb/page/js/app.js";
+const APPS = ["mlb", "wnba"];
 
 /**
  * main's squash merges since the app's baseline, oldest first, each a subject, which changes
@@ -57,6 +58,32 @@ test("each merge's type moves the version from the one before it", () => {
   ];
   for (const { version, merges } of cases) {
     assert.equal(readVersion("mlb", createGit(merges)), version, merges.join(" / "));
+  }
+});
+
+test("a major change moves every app the merge deploys, through shared code too", () => {
+  const merge = {
+    subject: "feat!: Move the pages to a new address (#113)",
+    files: ["shared/page/days.js"],
+  };
+  assert.equal(readVersion("mlb", createGit([merge])), "3.0.0");
+  assert.equal(readVersion("wnba", createGit([merge])), "2.0.0");
+});
+
+test("a major change that names its app moves only that app's major version", () => {
+  const files = ["apps/mlb/page/js/app.js", "shared/page/team-sheet.js"];
+  const cases = [
+    { subject: "feat(mlb)!: Drop the old saved rankings (#113)", mlb: "3.0.0", wnba: "1.15.0" },
+    { subject: "fix(mlb)!: Drop the old saved rankings (#113)", mlb: "3.0.0", wnba: "1.14.2" },
+    { subject: "feat(wnba)!: Move the page to a new address (#113)", mlb: "2.33.0", wnba: "2.0.0" },
+  ];
+  for (const { subject, mlb, wnba } of cases) {
+    const git = createGit([{ subject, files }]);
+    assert.deepEqual(
+      { mlb: readVersion("mlb", git), wnba: readVersion("wnba", git) },
+      { mlb, wnba },
+      subject,
+    );
   }
 });
 
@@ -162,7 +189,6 @@ test("a title without a known type, a colon, and a description is refused", () =
     "Show outs on live games",
     "feature: Show outs on live games",
     "Feat: Show outs on live games",
-    "feat(games): Show outs on live games",
     "feat:Show outs on live games",
     "feat: ",
   ]) {
@@ -198,6 +224,39 @@ test("a type that doesn't release can't mark a major change", () => {
       title,
     );
   }
+});
+
+test("a major change may name the one app it breaks, among those it changes", () => {
+  const files = ["apps/mlb/page/js/app.js", "shared/page/team-sheet.js"];
+  for (const title of ["feat(mlb)!: Drop the old saved rankings", "fix(wnba)!: Drop a view"]) {
+    assert.equal(findTitleProblem(title, files, APPS), null, title);
+  }
+  assert.equal(
+    findTitleProblem("feat(nhl)!: Drop the old saved rankings", files, APPS),
+    "There's no app named nhl. The apps are: mlb, wnba.",
+  );
+  assert.equal(
+    findTitleProblem("feat(wnba)!: Drop the old saved rankings", ["apps/mlb/page/js/app.js"], APPS),
+    "This doesn't change what wnba's deploy runs, so it can't break wnba.",
+  );
+});
+
+test("a scope is only for a major change", () => {
+  const cases = [
+    { title: "feat(mlb): Show outs on live games", files: ["apps/mlb/page/js/app.js"] },
+    { title: "docs(mlb): Explain versions", files: ["README.md"] },
+  ];
+  for (const { title, files } of cases) {
+    assert.equal(
+      findTitleProblem(title, files, APPS),
+      "A scope only names the one app a major change breaks, as in feat(mlb)!:. Drop (mlb).",
+      title,
+    );
+  }
+  assert.equal(
+    findTitleProblem("docs(mlb)!: Explain versions", ["README.md"], APPS),
+    "docs: doesn't release, so it can't mark a major change. Drop the !, or use feat:, fix:, refactor:, build:.",
+  );
 });
 
 test("a type that releases may also change only what the deploy skips", () => {
