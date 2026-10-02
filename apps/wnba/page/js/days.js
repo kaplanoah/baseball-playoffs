@@ -44,13 +44,6 @@ const NEAR_DAY_ABBREVIATIONS = new Map([
 ]);
 
 /**
- * Whether a day is yesterday or tomorrow, which its name says instead of its weekday.
- * @param {Date} day
- * @param {number} now
- */
-export const isNearDay = (day, now) => Math.abs(countDaysBetween(new Date(now), day)) === 1;
-
-/**
  * nameListDay's short form, for the narrow column beside a day's games.
  * @param {Date} day
  * @param {number} now

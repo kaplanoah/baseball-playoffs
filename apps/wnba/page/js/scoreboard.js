@@ -39,9 +39,6 @@ const LIT = [
   "abcdefg",
   "abcdfg",
 ];
-// Every panel holds a basketball score's three places, so all panels are one width, and the places
-// a score doesn't reach stay dark, as on an arena's board.
-const PLACES = 3;
 
 /** @param {number | null} digit null for a place the score doesn't reach */
 function renderDigit(digit) {
@@ -55,11 +52,12 @@ function renderDigit(digit) {
 
 /**
  * A score in lit digits on a dark panel, which still reads as text to a screen reader and a search.
+ * The places a score doesn't reach stay dark, as on an arena's board.
  * @param {number | null} score
- * @param {{ isLoser?: boolean }} [options]
+ * @param {{ places: number, isLoser?: boolean }} options
  */
-export function renderScoreboard(score, { isLoser = false } = {}) {
-  const places = [...String(score ?? "").padStart(PLACES)];
+export function renderScoreboard(score, { places: placeCount, isLoser = false }) {
+  const places = [...String(score ?? "").padStart(placeCount)];
   return html`<span class="scoreboard${isLoser ? " lost" : ""}"
     ><span class="scoreboard-text">${score}</span>${places.map((place) =>
       renderDigit(place === " " ? null : Number(place)),
