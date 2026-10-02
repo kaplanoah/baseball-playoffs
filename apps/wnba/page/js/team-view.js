@@ -1,9 +1,10 @@
 import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
+import { renderSheetPart } from "#shared/sheet-part.js";
+import { renderTeamDetail, renderTeamStats } from "#shared/team-sheet.js";
 import { renderDot, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { readPlayoffRuns } from "./series.js";
-import { renderSheetPart } from "./sheet-parts.js";
 import { ROUNDS } from "./snapshot.js";
 import { TEAMS } from "./teams.js";
 
@@ -136,26 +137,16 @@ function listTitles(code, run, year) {
 const formatMargin = (margin) => (margin > 0 ? `+${margin.toFixed(1)}` : margin.toFixed(1));
 
 /** @param {StandingsRow | undefined} row */
-function renderStats(row) {
-  if (!row) return false;
-  const stats = [
+const renderStats = (row) =>
+  !!row &&
+  renderTeamStats([
     ["PPG", row.pointsFor?.toFixed(1)],
     ["Opp PPG", row.pointsAgainst?.toFixed(1)],
     ["Margin", row.margin == null ? null : formatMargin(row.margin)],
     ["Home", row.home],
     ["Road", row.road],
     ["Last 10", row.lastTen],
-  ].filter(([, value]) => value != null);
-  if (!stats.length) return false;
-  return html`<div class="team-stats">
-    ${stats.map(
-      ([label, value]) =>
-        html`<div class="team-stat">
-          <span class="team-label">${label}</span><b class="tabular">${value}</b>
-        </div>`,
-    )}
-  </div>`;
-}
+  ]);
 
 /**
  * @param {string} code
@@ -163,17 +154,14 @@ function renderStats(row) {
  */
 function renderTitles(code, titles) {
   const count = titles.before.length + titles.now.length;
-  if (!count)
-    return html`<p class="team-detail"><span class="team-label">Titles</span>None yet</p>`;
+  if (!count) return renderTeamDetail("Titles", "None yet");
   const formerTeam = TEAMS[code].titlesAs;
   const before = titles.before.join(", ") + (formerTeam ? ` (as ${formerTeam})` : "");
   const years = [titles.before.length ? before : "", ...titles.now].filter(Boolean).join(", ");
-  return html`<p class="team-detail">
-    <span class="team-label">Titles</span>${joinWithSeparator([
-      html`<b>${count}</b>`,
-      html`<span class="tabular">${years}</span>`,
-    ])}
-  </p>`;
+  return renderTeamDetail(
+    "Titles",
+    joinWithSeparator([html`<b>${count}</b>`, html`<span class="tabular">${years}</span>`]),
+  );
 }
 
 /**

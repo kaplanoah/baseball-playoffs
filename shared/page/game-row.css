@@ -112,3 +112,15 @@
     background: color-mix(in srgb, var(--ink) 5%, transparent);
   }
 }
+/* The sides sit above the action and let taps through to it, but on a team's name, which opens
+   the team's sheet while the rest of the row opens the game. */
+.game-row .game-side {
+  z-index: 1;
+  pointer-events: none;
+}
+.game-row .team-open {
+  pointer-events: auto;
+}
+.game-side.away .team-open {
+  align-self: flex-start;
+}

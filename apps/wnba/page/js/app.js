@@ -7,6 +7,7 @@ import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
 import { startSettingsSheet } from "#shared/settings-sheet.js";
+import { refreshTeamSheet, startTeamSheet } from "#shared/team-sheet.js";
 import { fillStamp } from "#shared/stamp.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 import { startAppearance } from "./appearance.js";
@@ -18,7 +19,8 @@ import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStampProblem, renderStampLines } from "./stamp.js";
 import { drawStandings, startStandings } from "./standings-view.js";
-import { refreshTeamSheet, startTeamSheet } from "./team-sheet.js";
+import { renderTeamSheet } from "./team-view.js";
+import { TEAMS } from "./teams.js";
 import { drawUpdates } from "./updates.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
@@ -64,6 +66,10 @@ function drawLastSeen() {
   }
 }
 
+/** @param {string} team */
+const renderShownTeam = (team) =>
+  renderTeamSheet(session.season, team, { year: session.year, now: Date.now() });
+
 const readShown = () => session.season && { year: session.year, season: session.season };
 
 // A page whose first load failed may be watching a season the store doesn't have yet, so it
@@ -88,7 +94,7 @@ async function boot() {
   startPageTabs();
   startGamePager();
   startGameSheet();
-  startTeamSheet();
+  startTeamSheet({ isTeam: (team) => team in TEAMS, renderSheet: renderShownTeam });
   startSettingsSheet();
   startHomeScreen();
   startBracket();
