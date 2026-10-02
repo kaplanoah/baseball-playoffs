@@ -48,6 +48,28 @@ function finishSemifinals(season) {
 
 const readRoundName = (page, round) => page.locator(`.round-name[data-round="${round}"]`);
 
+const TIGHTEST_CARD_GAP = 34;
+
+/**
+ * The room above the first round's cards, between them, and from the last one's note to the round
+ * dots, once the cards have spread.
+ * @param {import("@playwright/test").Page} page
+ */
+async function readCardGaps(page) {
+  await expect(page.locator('[data-series="1-2"] .card-note')).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  return page.evaluate(() => {
+    const readBox = (selector) =>
+      /** @type {Element} */ (document.querySelector(selector)).getBoundingClientRect();
+    const cards = ["1-0", "1-3", "1-1", "1-2"].map((id) => readBox(`[data-series="${id}"]`));
+    return {
+      aboveCards: cards[0].top - readBox(".round-name").bottom,
+      between: cards.slice(1).map((card, index) => card.top - cards[index].bottom),
+      lastNoteToDots: readBox(".round-dots").top - readBox('[data-series="1-2"] .card-note').bottom,
+    };
+  });
+}
+
 test.describe("on a phone, the bracket", () => {
   test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
 
@@ -114,6 +136,35 @@ test.describe("on a phone, the bracket", () => {
     await expect(dots.locator('[data-round="3"]')).toHaveClass("on");
   });
 
+  test("spreads its cards alike to reach the round dots, with each round's name just above them", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const gaps = await readCardGaps(page);
+    expect(gaps.aboveCards).toBeCloseTo(14, 0);
+    expect(gaps.between[0]).toBeGreaterThan(TIGHTEST_CARD_GAP);
+    for (const gap of gaps.between) expect(gap).toBeCloseTo(gaps.between[0], 0);
+    expect(gaps.lastNoteToDots).toBeGreaterThanOrEqual(12);
+    expect(gaps.lastNoteToDots).toBeLessThan(12 + 4);
+  });
+
+  test("spreads its cards no more than three times their tightest gap on a very tall screen", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: PHONE.width, height: 2000 });
+    await openApp(page);
+    const gaps = await readCardGaps(page);
+    for (const gap of gaps.between) expect(gap).toBeCloseTo(3 * TIGHTEST_CARD_GAP, 0);
+    expect(gaps.lastNoteToDots).toBeGreaterThan(100);
+  });
+
+  test("keeps its tightest gaps on a short screen, where the page scrolls", async ({ page }) => {
+    await page.setViewportSize({ width: PHONE.width, height: 568 });
+    await openApp(page);
+    const gaps = await readCardGaps(page);
+    for (const gap of gaps.between) expect(gap).toBeCloseTo(TIGHTEST_CARD_GAP, 0);
+  });
+
   test("shows the next round's edge beside the one it opens on", async ({ page }) => {
     await openApp(page);
     await expect(page.locator('[data-series="2-0"]')).toBeVisible();
@@ -177,13 +228,22 @@ test("every round's cards are one width, and each round's name starts where its 
   }
 });
 
-test("every card's header is in one plain color and weight, whether its series is over, on today, or waiting", async ({
+test("a card has no header, and its note hangs just under it, in one plain color", async ({
   page,
 }) => {
   await openApp(page);
-  const notes = page.locator(".series-note");
-  await expect(notes.filter({ hasText: "Liberty win 2-0" })).toBeVisible();
-  await expect(notes.filter({ hasText: "Today" }).first()).toBeVisible();
+  await expect(page.locator(".series-head")).toHaveCount(0);
+  const notes = page.locator(".card-note");
+  await expect(notes).toHaveCount(6);
+  await expect(page.locator('[data-series="1-0"] .card-note')).toHaveCount(0);
+  await expect(page.locator('[data-series="2-0"] .card-note')).toHaveText("Next game TBD");
+  for (const id of ["1-3", "1-1", "1-2", "2-0", "2-1", "3-0"]) {
+    const card = await page.locator(`[data-series="${id}"]`).boundingBox();
+    const note = await page.locator(`[data-series="${id}"] .card-note`).boundingBox();
+    expect(note.y - (card.y + card.height)).toBeCloseTo(5, 0);
+    expect(note.x).toBeGreaterThanOrEqual(card.x);
+    expect(note.x + note.width).toBeLessThanOrEqual(card.x + card.width);
+  }
   const styles = await notes.evaluateAll((elements) =>
     elements.map((note) => {
       const { color, fontWeight } = getComputedStyle(note);
@@ -191,6 +251,29 @@ test("every card's header is in one plain color and weight, whether its series i
     }),
   );
   expect(new Set(styles).size).toBe(1);
+});
+
+test("a live game's note shows its score and clock in orange", async ({ page }) => {
+  const app = await openApp(page);
+  await app.changeSeason((season) => {
+    const game = season.games.find((each) => each.id === "1042600132");
+    Object.assign(game, { state: "live", status: "Q2 5:10", period: 2, clock: "5:10" });
+    game.away.score = 30;
+    game.home.score = 28;
+    return season;
+  });
+  const note = page.locator('[data-series="1-3"] .card-note');
+  await expect(note).toHaveText(/^30-28.Q2 5:10$/);
+  expect(await note.evaluate((element) => getComputedStyle(element).color)).toBe(
+    await page.evaluate(() => {
+      const probe = document.createElement("span");
+      probe.style.color = "var(--orange)";
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }),
+  );
 });
 
 test("every round's name is one color, even the round the bracket opens on", async ({ page }) => {
@@ -208,16 +291,16 @@ test("every round's name is one color, even the round the bracket opens on", asy
 });
 
 /**
- * Each bracket's corners, and the middle of each card's two rows, in the page's coordinates.
+ * Each bracket's ends, and the middle of the line between each card's two teams, in the page's
+ * coordinates.
  * @param {import("@playwright/test").Page} page
  */
 const readBrackets = (page) =>
   page.evaluate(() => {
     const svg = document.querySelector(".bracket-lines").getBoundingClientRect();
-    const readMiddle = (id) => {
-      const rows = [...document.querySelectorAll(`.series[data-series="${id}"] .team-line`)];
-      const [top, bottom] = rows.map((row) => row.getBoundingClientRect());
-      return (top.top + bottom.bottom) / 2;
+    const readDivider = (id) => {
+      const bottom = document.querySelectorAll(`.series[data-series="${id}"] .team-line`)[1];
+      return bottom.getBoundingClientRect().top + bottom.clientTop / 2;
     };
     const paths = /** @type {SVGPathElement[]} */ ([
       ...document.querySelectorAll(".bracket-lines path"),
@@ -234,25 +317,26 @@ const readBrackets = (page) =>
           end: svg.top + end.y,
         };
       }),
-      middles: Object.fromEntries(
-        ["1-0", "1-3", "1-1", "1-2", "2-0", "2-1", "3-0"].map((id) => [id, readMiddle(id)]),
+      dividers: Object.fromEntries(
+        ["1-0", "1-3", "1-1", "1-2", "2-0", "2-1", "3-0"].map((id) => [id, readDivider(id)]),
       ),
     };
   });
 
-test("square bracket lines join each pair of series into the middle of the one they feed", async ({
+test("thin square bracket lines run from the line between each pair's teams into the one they feed", async ({
   page,
 }) => {
   const app = await openApp(page);
   await expect(page.locator(".bracket-lines path")).toHaveCount(3);
+  await expect(page.locator(".bracket-lines path").first()).toHaveCSS("stroke-width", "1px");
   const expectJoins = async () => {
-    const { brackets, middles } = await readBrackets(page);
+    const { brackets, dividers } = await readBrackets(page);
     const feeders = { "2-0": "1-0", "2-1": "1-1", "3-0": "2-0" };
     expect(brackets.map((bracket) => bracket.next)).toEqual(["2-0", "2-1", "3-0"]);
     for (const bracket of brackets) {
       expect(bracket.shape).toMatch(/^M[\d. ]+( [HV][\d.]+| M[\d. ]+)+$/);
-      expect(bracket.start).toBeCloseTo(middles[feeders[bracket.next]], 0);
-      expect(bracket.end).toBeCloseTo(middles[bracket.next], 0);
+      expect(Math.abs(bracket.start - dividers[feeders[bracket.next]])).toBeLessThan(0.1);
+      expect(Math.abs(bracket.end - dividers[bracket.next])).toBeLessThan(0.1);
     }
   };
   await expect.poll(async () => (await readBrackets(page)).brackets[0].end).toBeGreaterThan(0);
@@ -301,6 +385,14 @@ test("a round's name and its Best of, in the text face, center on each other", a
   await expect.poll(async () => (await readParts())[1].font).toBe("Barlow");
   const [name, bestOf] = await readParts();
   expect(Math.abs(name.middle - bestOf.middle)).toBeLessThanOrEqual(0.5);
+});
+
+test("a round's Best of sits just after its name", async ({ page }) => {
+  await openApp(page);
+  const [name, bestOf] = await readRoundName(page, 1)
+    .locator(":scope > span")
+    .evaluateAll((parts) => parts.map((part) => part.getBoundingClientRect().toJSON()));
+  expect(bestOf.left - name.right).toBeCloseTo(10, 0);
 });
 
 test("each team's wins sit on a block that casts a shadow on the card", async ({ page }) => {

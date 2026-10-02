@@ -220,23 +220,54 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     const text = readText(renderBracket(SEASON, NOW));
     assert.match(
       text,
-      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 Liberty win 2-0 1 seed Lynx 0 8 seed Liberty 2 Game 2 \| Today 7:00 PM 4 seed Dream 1 5 seed Mystics 0 /,
+      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 1 seed Lynx 0 8 seed Liberty 2 4 seed Dream 1 5 seed Mystics 0 Next game Today \| 7:00 PM 2 seed Valkyries 1 7 seed Wings 0 /,
     );
     assert.match(
       text,
-      /Waits on 4-5 Liberty 0 TBD Waits on 2-7 and 3-6 TBD TBD Starts after the Semifinals TBD TBD$/,
+      / 6 seed Fever 1 Next game Tomorrow \| 9:00 PM Liberty 0 TBD Next game TBD TBD TBD Next game TBD TBD TBD Next game TBD$/,
     );
     assert.match(markup, /class="team-line out"[\s\S]*?Lynx/);
-    assert.match(markup, /class="series-note">Liberty win 2-0/);
-    assert.match(markup, /class="series-note">Game 2/);
   }));
 
-test("a series with a game under way says so", () =>
+test("every series still to finish has a note under its card, which leaves out the game's number", () =>
   inEastern(() => {
-    assert.match(
-      readText(renderBracket(LIVE_TONIGHT, NOW)),
-      /Live, Game 2 4 seed Dream 1 5 seed Mystics 0/,
+    const markup = renderBracket(SEASON, NOW).text;
+    const notes = [
+      ...markup.matchAll(/data-series="([\d-]+)"(?:(?!data-series)[\s\S])*?class="card-note"/g),
+    ];
+    assert.deepEqual(
+      notes.map((note) => note[1]),
+      ["1-3", "1-1", "1-2", "2-0", "2-1", "3-0"],
     );
+    assert.doesNotMatch(markup, /Game \d|win 2-0|Waits on|Starts after/);
+  }));
+
+test("a series still waiting on a team says its next game is TBD", () =>
+  inEastern(() => {
+    const text = readText(renderBracket(SEASON, NOW));
+    assert.match(text, / Liberty 0 TBD Next game TBD /);
+    assert.match(readText(renderBracket(finishFirstRound(), NOW)), / TBD TBD Next game TBD$/);
+  }));
+
+test("a next game without a set time says TBD in its place, and without a day says only TBD", () =>
+  inEastern(() => {
+    const nextId = SEASON.series.find((series) => series.id === "1-3")?.nextGame?.id;
+    const untimed = replaceGame(SEASON, nextId, { isTimeSet: false });
+    assert.match(readText(renderBracket(untimed, NOW)), /Mystics 0 Next game Today \| TBD /);
+    const undated = replaceGame(SEASON, nextId, { isTimeSet: false, start: null });
+    assert.match(readText(renderBracket(undated, NOW)), /Mystics 0 Next game TBD /);
+  }));
+
+test("a series with a game under way shows its score, top team first, and its clock", () =>
+  inEastern(() => {
+    const text = readText(renderBracket(LIVE_TONIGHT, NOW));
+    assert.match(text, /4 seed Dream 1 5 seed Mystics 0 71-68 \| Q4 3:48 /);
+    assert.match(renderBracket(LIVE_TONIGHT, NOW).text, /class="card-note live"/);
+    const dreamAtHome = replaceGame(LIVE_TONIGHT, "1042600132", {
+      away: { team: "WAS", seed: 5, score: 68, seriesWins: 0, isInBonus: false, timeouts: 1 },
+      home: { team: "ATL", seed: 4, score: 71, seriesWins: 1, isInBonus: true, timeouts: 2 },
+    });
+    assert.match(readText(renderBracket(dreamAtHome, NOW)), /Mystics 0 71-68 \| Q4 3:48 /);
   }));
 
 /**
@@ -267,8 +298,11 @@ function finishFirstRound() {
 test("a seed is labeled only in the first round, where its team enters the bracket", () =>
   inEastern(() => {
     const text = readText(renderBracket(finishFirstRound(), NOW));
-    assert.match(text, /Dream win 2-0 4 seed Dream 2 5 seed Mystics 0 /);
-    assert.match(text, /Oct 4 Dream 0 Liberty 0 Game 1 \| Sun, Oct 4 Valkyries 0 Fever 0 /);
+    assert.match(text, / 4 seed Dream 2 5 seed Mystics 0 /);
+    assert.match(
+      text,
+      / Fever 2 Dream 0 Liberty 0 Next game Sun, Oct 4 \| TBD Valkyries 0 Fever 0 /,
+    );
   }));
 
 test("the bracket opens on the earliest round with a series still to finish", () =>

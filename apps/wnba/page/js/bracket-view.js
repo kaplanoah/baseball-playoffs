@@ -4,7 +4,8 @@ import { findOpeningRound } from "#shared/opening-round.js";
 import { renderRoundDots } from "#shared/round-dots.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
-import { BRACKET_FEEDERS, BRACKET_ORDER, describeSeriesStanding } from "./series.js";
+import { describeLiveClock } from "./games-view.js";
+import { BRACKET_ORDER } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
@@ -37,53 +38,64 @@ function renderTeamLine(side, series) {
 }
 
 /**
- * What a series still without both teams waits on: the series that feed it, by their seeds.
+ * A live game's score, in the card's order: its top team's first.
  * @param {Series} series
- * @param {Map<string, Series>} seriesById
+ * @param {Game} game
  */
-function describeWait(series, seriesById) {
-  if (series.round === 3) return "Starts after the Semifinals";
-  const feeders = (BRACKET_FEEDERS[series.id] ?? [])
-    .map((id) => seriesById.get(id))
-    .filter((feeder) => feeder && !feeder.winner && feeder.top?.seed && feeder.bottom?.seed)
-    .map((feeder) => `${feeder?.top?.seed}-${feeder?.bottom?.seed}`);
-  return feeders.length ? `Waits on ${feeders.join(" and ")}` : "";
+function describeLiveScore(series, game) {
+  const readScore = (/** @type {SeriesSide | null} */ side) =>
+    [game.away, game.home].find((gameSide) => gameSide.team === side?.team)?.score;
+  const scores = [readScore(series.top), readScore(series.bottom)];
+  return scores.every((score) => score != null) ? scores.join("-") : "";
 }
 
 /**
- * When the series next plays, that it's playing now, how it ended, or what it waits on.
+ * @param {Series} series
+ * @param {Game} game
+ */
+function describeLiveGame(series, game) {
+  const parts = [describeLiveScore(series, game), describeLiveClock(game)].filter(Boolean);
+  return joinWithSeparator(parts.length ? parts : ["Live"]);
+}
+
+/**
+ * When a series next plays, with TBD for what the league hasn't set yet.
+ * @param {Game} game
+ * @param {number} now
+ */
+function describeNextGame(game, now) {
+  const day = readGameDay(game);
+  if (!day) return "Next game TBD";
+  const time = game.isTimeSet && game.start ? formatClockTime(new Date(game.start)) : "TBD";
+  return joinWithSeparator([`Next game ${describeDay(day, now)}`, time]);
+}
+
+/**
+ * A card's note, as on MLB's bracket, says only when its series next plays or how the game on now
+ * stands, and a finished series has none. The card's wins already say how the series stands, and
+ * so which game is next.
  * @param {Series} series
  * @param {Game[]} games
  * @param {number} now
- * @param {Map<string, Series>} seriesById
  */
-function renderSeriesNote(series, games, now, seriesById) {
+function renderCardNote(series, games, now) {
   const live = games.find((game) => game.series === series.id && game.state === "live");
-  if (live) return html`<span class="series-note">Live, Game ${live.number}</span>`;
-  if (series.winner)
-    return html`<span class="series-note">${describeSeriesStanding(series)}</span>`;
-  const next = games.find((game) => game.id === series.nextGame?.id);
-  if (!next || !series.top || !series.bottom)
-    return html`<span class="series-note">${describeWait(series, seriesById)}</span>`;
-  const day = readGameDay(next);
-  const time = next.isTimeSet && next.start ? formatClockTime(new Date(next.start)) : "";
-  const when = [day && describeDay(day, now), time].filter(Boolean).join(" ");
-  return html`<span class="series-note">${joinWithSeparator(
-    [`Game ${next.number}`, when].filter(Boolean),
-  )}</span>`;
+  if (live) return html`<p class="card-note live">${describeLiveGame(series, live)}</p>`;
+  if (series.winner) return "";
+  const next = series.top && series.bottom && games.find((game) => game.id === series.nextGame?.id);
+  return html`<p class="card-note">${next ? describeNextGame(next, now) : "Next game TBD"}</p>`;
 }
 
 /**
  * @param {Series} series
  * @param {Game[]} games
  * @param {number} now
- * @param {Map<string, Series>} seriesById
  */
-function renderSeries(series, games, now, seriesById) {
+function renderSeries(series, games, now) {
+  const teams = [renderTeamLine(series.top, series), renderTeamLine(series.bottom, series)];
   return html`<div class="bracket-cell cell-${series.id}">
     <div class="series" data-series="${series.id}">
-      <div class="series-head">${renderSeriesNote(series, games, now, seriesById)}</div>
-      ${renderTeamLine(series.top, series)}${renderTeamLine(series.bottom, series)}
+      ${teams}${renderCardNote(series, games, now)}
     </div>
   </div>`;
 }
@@ -125,7 +137,7 @@ export function renderBracket(season, now) {
         <span>${ROUNDS[round].name}</span><span class="best-of">Best of ${ROUNDS[round].bestOf}</span>
       </h2>`,
   );
-  const cells = rounds.flat().map((series) => renderSeries(series, games, now, seriesById));
+  const cells = rounds.flat().map((series) => renderSeries(series, games, now));
   return html`<div class="bracket" data-opening-round="${openingRound}">
       <svg class="bracket-lines" aria-hidden="true"></svg>${names}${cells}
     </div>

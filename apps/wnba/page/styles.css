@@ -43,8 +43,9 @@
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
- * Orange marks what's happening now: live games and today's. Teal marks structure: section labels, the playoff line, Bonus, and how a finished
- * series ended in the Games list. The bracket's card headers keep to the plain ink.
+ * Orange marks what's happening now: live games and today's. Teal marks structure: section
+ * labels, the playoff line, Bonus, and how a finished series ended in the Games list. A bracket
+ * card's note keeps to the plain ink unless its game is live.
  */
 :root {
   --bg: #ead5b2;
@@ -289,10 +290,6 @@ header.top h1 {
   background: var(--tile);
   border: 1px solid color-mix(in srgb, var(--line), var(--tile));
   border-radius: var(--radius);
-}
-.series-head {
-  border-bottom: 1px solid var(--divider);
-  background: color-mix(in srgb, var(--divider) 28%, var(--tile));
 }
 .team-line .club,
 .game-side .club {
@@ -820,8 +817,10 @@ table.players td.minutes {
    the next. The first round's seed labels sit in room of their own to its left. On a phone each
    round takes most of the screen's width and the bracket swipes sideways, with the next round
    showing at the edge, and ends with room for the Finals to stop in the screen's middle. Bracket
-   lines join each pair of series into the one they feed
-   (js/bracket-tree.js). */
+   lines join each pair of series into the one they feed at the line between its teams
+   (js/bracket-tree.js). Each card's note hangs below it, in the gap to the next card. On a phone
+   the three gaps between the first round's cards grow alike to reach the round dots, and each later
+   card spans its pair's rows and the gap between them, so it stays midway. */
 #bracketWrap {
   container-type: inline-size;
 }
@@ -829,14 +828,17 @@ table.players td.minutes {
   --seed-room: 52px;
   --round-width: calc(82cqw - var(--seed-room));
   --round-gap: 30px;
+  --tightest-card-gap: 34px;
+  --card-gap: var(--tightest-card-gap);
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, var(--round-width));
-  grid-template-rows: auto repeat(4, auto);
+  grid-template-rows:
+    auto 14px auto var(--card-gap) auto var(--card-gap) auto var(--card-gap)
+    auto;
   column-gap: var(--round-gap);
-  row-gap: 16px;
   margin-inline: calc(-1 * var(--page-gutter));
-  padding: 2px calc((100cqw - var(--round-width)) / 2 + var(--page-gutter)) 2px
+  padding: 2px calc((100cqw - var(--round-width)) / 2 + var(--page-gutter)) 20px
     calc(var(--page-gutter) + var(--seed-room));
   scroll-padding-inline: var(--page-gutter);
   overflow-x: auto;
@@ -853,15 +855,14 @@ table.players td.minutes {
 .bracket-lines path {
   fill: none;
   stroke: var(--line);
-  stroke-width: 1.5;
+  stroke-width: 1;
 }
-/* A round's name, with Best of in the text face beside it, the two centered on each other. */
+/* A round's name, with Best of in the text face just after it, the two centered on each other. */
 .round-name {
   grid-row: 1;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding-inline: 2px;
   font-family: var(--heading);
   font-size: 1rem;
@@ -898,36 +899,38 @@ table.players td.minutes {
   min-width: 0;
 }
 .cell-1-0 {
-  grid-area: 2 / 1;
-}
-.cell-1-3 {
   grid-area: 3 / 1;
 }
-.cell-1-1 {
-  grid-area: 4 / 1;
-}
-.cell-1-2 {
+.cell-1-3 {
   grid-area: 5 / 1;
 }
+.cell-1-1 {
+  grid-area: 7 / 1;
+}
+.cell-1-2 {
+  grid-area: 9 / 1;
+}
 .cell-2-0 {
-  grid-area: 2 / 2 / span 2;
+  grid-area: 3 / 2 / 6;
 }
 .cell-2-1 {
-  grid-area: 4 / 2 / span 2;
+  grid-area: 7 / 2 / 10;
 }
 .cell-3-0 {
-  grid-area: 2 / 3 / span 4;
+  grid-area: 3 / 3 / 10;
 }
 .series {
+  position: relative;
   width: 100%;
   min-width: 0;
 }
-.series-head {
-  min-height: 25px;
-  padding: 4px 10px;
-}
-.series-note {
-  display: block;
+.card-note {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin: 6px 0 0;
+  padding-left: 1px;
   overflow: hidden;
   font-family: var(--heading);
   font-size: 0.734rem;
@@ -937,6 +940,9 @@ table.players td.minutes {
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--ink-dim);
+}
+.card-note.live {
+  color: var(--orange);
 }
 .team-line {
   position: relative;
@@ -1044,7 +1050,6 @@ table.players td.minutes {
   .bracket {
     --round-width: minmax(0, 1fr);
     --round-gap: 56px;
-    row-gap: 20px;
     margin-inline: 0;
     padding-inline: var(--seed-room) 0;
     overflow: visible;
