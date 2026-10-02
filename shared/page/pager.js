@@ -13,8 +13,6 @@ import { selectTab, wireTabs } from "./tabs.js";
  * @property {string} idPrefix starts the id of each element the pager builds
  * @property {PagerList[]} lists
  * @property {string} openOn the list shown first
- * @property {boolean} [opensFirstOnReturn] whether the pager goes back to `openOn` each time it
- *   comes back into view, rather than keeping the list it showed
  */
 
 const SETTLE_DELAY_MS = 150;
@@ -27,9 +25,13 @@ const chooseScrollBehavior = () => (prefersReducedMotion() ? "instant" : "smooth
  * Builds the pill and the lists inside `root`, and wires them.
  * @param {HTMLElement} root
  * @param {PagerOptions} options
- * @returns {{ fill: (renderList: (key: string) => Markup) => void }}
+ * @returns {{
+ *   fill: (renderList: (key: string) => Markup) => void,
+ *   readShownList: () => string,
+ *   switchToList: (key: string) => void,
+ * }}
  */
-export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOnReturn = false }) {
+export function createPager(root, { label, idPrefix, lists, openOn }) {
   const keys = lists.map((list) => list.key);
   let shownList = openOn;
   // The list a tapped tab is scrolling to, which the lists settle on even when they come to rest early.
@@ -209,17 +211,19 @@ export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOn
   }
 
   // A hidden view's pages lose their scroll position, so the pager jumps back to its list each time
-  // it comes into view, and keeps the shown list when only the screen's width changes.
+  // it comes into view or the screen's width changes.
   function realignPages() {
     const { clientWidth } = findPages();
     if (clientWidth === pagesWidth) return;
-    const wasHidden = !pagesWidth;
     pagesWidth = clientWidth;
-    if (clientWidth) jumpToList(wasHidden && opensFirstOnReturn ? openOn : shownList);
+    if (clientWidth) jumpToList(shownList);
   }
 
-  function showFirstOnReturn() {
-    if (!document.hidden && findPages().clientWidth) jumpToList(openOn);
+  // Lists in a hidden view have no width to scroll, so one chosen there waits for realignPages.
+  /** @param {string} key */
+  function switchToList(key) {
+    if (findPages().clientWidth) jumpToList(key);
+    else shownList = key;
   }
 
   /** @param {TouchEvent} event */
@@ -247,7 +251,6 @@ export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOn
     for (const key of keys) fitObserver.observe(findPage(key));
     addEventListener("resize", fitPagesToShownList);
     addEventListener("scroll", alignHiddenLists, { passive: true });
-    if (opensFirstOnReturn) document.addEventListener("visibilitychange", showFirstOnReturn);
   }
 
   root.classList.add("pager");
@@ -262,5 +265,7 @@ export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOn
     fill(renderList) {
       for (const key of keys) setHtml(findPage(key), renderList(key));
     },
+    readShownList: () => shownList,
+    switchToList,
   };
 }
