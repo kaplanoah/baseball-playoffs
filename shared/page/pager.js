@@ -84,11 +84,14 @@ export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOn
       </div>
       <div id="${idPrefix}-pages" class="pager-pages">${lists.map(renderPage)}</div>`;
 
+  // How far down the screen the pill holds, which is under anything else held to the top.
+  const readBarTop = () => parseFloat(getComputedStyle(findBar()).top) || 0;
+
   // A list is never shorter than the space under the pill, so the lists can always rise to just
   // under it: the list a swipe brings in then starts there, even from far down a longer one.
   function measureRoomUnderBar() {
     const bottomPadding = parseFloat(getComputedStyle(document.body).paddingBottom);
-    return Math.floor(innerHeight - bottomPadding - findBar().offsetHeight);
+    return Math.floor(innerHeight - bottomPadding - readBarTop() - findBar().offsetHeight);
   }
 
   function fitPagesToShownList() {
@@ -98,7 +101,7 @@ export function createPager(root, { label, idPrefix, lists, openOn, opensFirstOn
 
   // The page's scroll position that puts the top of the lists just under the pill.
   const measureListsTopScroll = () =>
-    findPages().getBoundingClientRect().top + scrollY - findBar().offsetHeight;
+    findPages().getBoundingClientRect().top + scrollY - readBarTop() - findBar().offsetHeight;
 
   // The lists share the page's scroll, so once it has carried the shown list up under the pill,
   // the others move down by as much, and a swipe brings each in from its top.

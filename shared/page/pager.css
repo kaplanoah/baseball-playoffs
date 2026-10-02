@@ -20,14 +20,14 @@
   --reach-right: var(--page-gutter);
 }
 
-/* The pill stays at the top of the screen while the lists scroll under it. Its bar reaches up
-   under the status bar and fills with the page's color once the pill is held in place, and lets
+/* The pill stays at the top of the screen while the lists scroll under it, under the Home Screen
+   bar while chrome.css shows one. Its bar reaches up under the status bar and fills with the page's color once the pill is held in place, and lets
    touches through to whatever it overlaps. */
 .pager-bar {
   --bar-top: calc(env(safe-area-inset-top) + 10px);
   position: sticky;
   z-index: 5;
-  top: 0;
+  top: var(--home-screen-bar-height, 0px);
   margin: calc(-1 * var(--bar-top)) calc(-1 * var(--reach-right)) 0 calc(-1 * var(--reach-left));
   padding: var(--bar-top) var(--reach-right) 18px var(--reach-left);
   pointer-events: none;

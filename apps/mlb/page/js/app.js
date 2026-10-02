@@ -1,6 +1,7 @@
 import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { readEasternDay } from "#shared/days.js";
+import { startHomeScreen } from "#shared/home-screen.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fetchLive, isReadableLive } from "./live-fetch.js";
@@ -133,6 +134,7 @@ function wireControls() {
   startGamePager();
   startMatchups();
   startSettings();
+  startHomeScreen();
   const picker = findYearPicker();
   picker.addEventListener("change", () => switchYear(Number(picker.value)));
   document

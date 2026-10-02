@@ -38,6 +38,7 @@
   --accent: var(--gold);
   --accent-ink: var(--gold-ink);
   --focus-ring: var(--copper-ink);
+  --radius: 6px;
   --select-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%237fa88f' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --tab-bar-ink: #fff;
   --glass-light: 255, 255, 255;
@@ -1263,6 +1264,26 @@ body.kbd .rank-item .grip:focus {
   background: var(--gold);
   color: var(--gold-ink);
 }
+.home-screen-icon {
+  background-image: url(icon-180.png);
+}
+/* The mono face runs heavy, so the Home Screen bar and box take lighter weights than the shared
+   ones. */
+.home-screen-title,
+.home-screen-steps b {
+  font-weight: 500;
+}
+.home-screen-install {
+  font-weight: 400;
+}
+
+/* The settings and, on a phone, the box under them that says how to add the page to the Home
+   Screen. */
+.settings-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
 /* The ranking section is exactly one sheet tall, less the pinned header, the gap above it, and
    the bottom padding, so scrolling down to it shows all twelve rows at once. */
 .settings-ranking {
@@ -1324,11 +1345,13 @@ body.kbd .rank-item .grip:focus {
     position: static;
     box-shadow: 0 1px 0 var(--divider);
   }
-  .settings-controls {
+  .settings-main {
     grid-column: 1;
     grid-row: 2 / 4;
     align-self: start;
     margin-right: 24px;
+  }
+  .settings-controls {
     border-top: 0;
   }
   .settings-ranking {
