@@ -54,6 +54,7 @@
   --pager-track-edge: rgba(255, 255, 255, 0.06);
   --pager-thumb: rgba(255, 255, 255, 0.11);
   --pager-thumb-edge: rgba(255, 255, 255, 0.14);
+  --pager-label: var(--ink-dim);
   --game-row-height: 63.5px;
   --game-side-offset: 1px;
   --game-label-offset: -21px;

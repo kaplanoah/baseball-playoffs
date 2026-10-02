@@ -107,6 +107,7 @@
   --pager-track-edge: rgba(42, 28, 16, 0.08);
   --pager-thumb: var(--card);
   --pager-thumb-edge: rgba(255, 255, 255, 0.6);
+  --pager-label: var(--ink-mid);
   --game-row-height: 88px;
   --game-side-offset: 9px;
   --game-label-offset: -31px;
@@ -292,13 +293,6 @@ header.top h1 {
   font-size: 0.7em;
   font-weight: 400;
   color: var(--ink-dim);
-}
-
-/* The Teams list keeps to a phone's width, centered on a wide screen, so each name stays near its
-   score, as pager.css keeps the Games and Standings lists. */
-#teamsWrap {
-  max-width: 560px;
-  margin-inline: auto;
 }
 
 /* A bracket's series and a day's games are one kind of card. */
@@ -1102,6 +1096,13 @@ table.players td.minutes {
   }
 }
 
+/* Barlow reads lighter than baseball's monospace, so the names in a pill are a little larger and
+   heavier. */
+.pager-tabs button {
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
 /* Standings: one table at a phone's width for the league and each conference, side by side under
    a pill like the Games view's. W-L and GB lead as the season; L10 and Strk follow, smaller, as
    recent form. */
@@ -1163,8 +1164,9 @@ table.standings td.season {
   font-weight: 500;
 }
 table.standings td.recent {
-  font-size: 0.74rem;
-  color: var(--ink-dim);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-mid);
 }
 table.standings th.recent {
   font-size: 0.62rem;
@@ -1230,114 +1232,48 @@ table.standings tr.playoff-line + tr td {
   border-top: 0;
 }
 
-/* Teams: every team in the league's order, each row opening to its season. Conference and seed
-   stand in a column of their own. On a phone the dividers run edge to edge, and the rows keep the
-   page's gutter inside them. */
-/* The view pads its left side by a pixel, which the list reaches past too. On a phone the header's
-   line tops the list, so the first team sits as far below it as each team below its divider. */
-.team-list {
-  --team-gutter: var(--page-gutter);
-  margin: calc(-1 * var(--header-gap)) calc(-1 * var(--team-gutter)) 0
-    calc(-1 * var(--team-gutter) - 1px);
-}
-@media (min-width: 780px) {
-  .team-list {
-    --team-gutter: 0px;
-    margin: 0;
-  }
-}
-.team-list .team {
-  border-bottom: 1px solid var(--divider);
-}
-.team summary {
-  display: grid;
-  grid-template-columns: 54px minmax(0, 1fr) auto auto;
-  align-items: center;
-  column-gap: 10px;
-  padding: 12px var(--team-gutter);
-  list-style: none;
+/* A team's sheet: its dot and full name over its conference, seed, and record, then its season and
+   its playoff games, each under a teal title. A team's name opens it from the standings and the
+   bracket, and so does the rest of its row. */
+.team-open {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: inherit;
   cursor: pointer;
 }
-.team summary::-webkit-details-marker {
-  display: none;
-}
-body.kbd .team summary:focus {
+body.kbd .team-open:focus {
   outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+  outline-offset: 2px;
 }
-.team-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
+[data-team] {
+  cursor: pointer;
 }
-.conference-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 17px;
-  padding: 0 5px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font-family: var(--display);
-  font-size: 0.62rem;
-  font-weight: 600;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
+@media (hover: hover) {
+  table.standings tr[data-team]:hover td,
+  .team-line[data-team]:hover {
+    background: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
 }
-.conference-chip.east {
-  color: var(--teal);
-}
-.conference-chip.west {
-  color: var(--orange);
-}
-.team-seed {
-  font-size: 0.74rem;
-  font-weight: 500;
-  color: var(--ink-mid);
-  white-space: nowrap;
-}
-.team-lines {
+.team-sheet-body {
   display: grid;
-  gap: 4px;
-  min-width: 0;
+  gap: 20px;
+  padding-top: 4px;
 }
-.team-heading {
+#teamTitle {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
 }
-.team-heading .dot {
+#teamTitle .dot {
   width: 14px;
   height: 14px;
-  margin-top: 3px;
-}
-.team-full-name {
-  min-width: 0;
-  font-family: var(--team-name);
-  font-size: 1.06rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.15;
-}
-.team.done .team-full-name {
-  color: var(--ink-mid);
-}
-.team-record {
-  padding-left: 2px;
-  font-family: var(--numbers);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-.team-last-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 6px;
-  margin-top: -2px;
-  padding-left: 2px;
-  font-size: 0.8rem;
-  color: var(--ink-dim);
 }
 .team-label {
   font-family: var(--display);
@@ -1346,13 +1282,6 @@ body.kbd .team summary:focus {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--ink-dim);
-}
-.team-title-year {
-  font-weight: 500;
-  color: var(--ink-mid);
-}
-.team-former {
-  font-weight: 400;
 }
 /* Shaped like baseball's chips. */
 .status-chip {
@@ -1385,25 +1314,9 @@ body.kbd .team summary:focus {
   box-shadow: inset 0 0 0 1px var(--divider);
   color: var(--ink-dim);
 }
-.team-caret {
-  width: 15px;
-  height: 15px;
-  color: var(--ink-dim);
-}
-.team[open]:not(.closing) .team-caret {
-  transform: rotate(180deg);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .team-caret {
-    transition: transform 0.15s ease;
-  }
-}
-
-/* A team's season, under its row. */
 .team-season {
   display: grid;
   gap: 12px;
-  padding: 0 var(--team-gutter) 14px calc(var(--team-gutter) + 64px);
 }
 .team-stats {
   display: grid;

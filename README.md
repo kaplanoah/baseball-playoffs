@@ -33,10 +33,10 @@ happens to a team in your ranking.
 ### WNBA
 
 A private web page that follows the WNBA season. It shows the playoff bracket,
-every playoff game with live scores and clocks, the league and conference standings with the
-playoff line, and every team with its conference, seed, record, last title, and
-how far it got. Tap a team for its season: its scoring, home and road records,
-top scorer, titles, and playoff games. Tap a game for its details: once it
+every playoff game with live scores and clocks, and the league and conference standings with
+the playoff line. Tap a team in the standings or the bracket for its season: its
+conference, seed, and record, its scoring, home and road records, top scorer,
+titles, and how far it got in the playoffs. Tap a game for its details: once it
 starts, its points by quarter, the two teams' stats side by side, and each team's
 top scorers; before it does, the two teams' meetings this season, how their
 seasons compare, and each team's leading scorers. It follows the phone's dark or
@@ -257,5 +257,5 @@ one app.
 
 [MIT](LICENSE)
 
-The tab bar icons, and the WNBA Teams list's caret, are from [Phosphor Icons](https://phosphoricons.com), used
+The tab bar icons are from [Phosphor Icons](https://phosphoricons.com), used
 under the MIT license, copyright (c) 2023 Phosphor Icons.

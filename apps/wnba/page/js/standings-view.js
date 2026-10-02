@@ -1,6 +1,6 @@
 import { html } from "#shared/html.js";
 import { createPager } from "#shared/pager.js";
-import { renderClub } from "./clubs.js";
+import { renderClub, renderTeamButton } from "./clubs.js";
 
 /** @typedef {{ team: string, conference: string, wins: number, losses: number, place: number, conferencePlace: number, gamesBack: number | null, conferenceGamesBack: number | null, clinch: string | null, streak: string | null, lastTen: string | null, pointsFor?: number | null, pointsAgainst?: number | null, margin?: number | null, home?: string | null, road?: string | null }} StandingsRow */
 /** @typedef {"League" | "East" | "West"} StandingsView */
@@ -47,9 +47,9 @@ const renderStreak = (streak) =>
  */
 function renderRow(row, view) {
   const isLeague = view === "League";
-  return html`<tr class="${isAboveLine(row) ? "" : "below"}">
+  return html`<tr class="${isAboveLine(row) ? "" : "below"}" data-team="${row.team}">
     <td class="place tabular">${isLeague ? row.place : row.conferencePlace}</td>
-    <td class="team"><span class="team-cell">${renderClub(row.team)}${renderTeamTag(row, view)}</span></td>
+    <td class="team">${renderTeamButton(row.team, html`<span class="team-cell">${renderClub(row.team)}${renderTeamTag(row, view)}</span>`)}</td>
     <td class="tabular season">${row.wins}-${row.losses}</td>
     <td class="tabular season pair-end">${formatGamesBack(isLeague ? row.gamesBack : row.conferenceGamesBack)}</td>
     <td class="tabular recent recent-start">${row.lastTen ?? ""}</td>

@@ -12,7 +12,7 @@ import {
   renderSheetPart,
   renderTapeTeams,
 } from "./sheet-parts.js";
-import { findTeamLeaders } from "./teams-view.js";
+import { findTeamLeaders } from "./team-view.js";
 
 // The game sheet's preview for a game that hasn't started: the two teams' meetings this regular
 // season, from the Worker, then their seasons side by side and each team's leading scorers, from
@@ -21,8 +21,8 @@ import { findTeamLeaders } from "./teams-view.js";
 /** @typedef {{ team: string, score: number }} MeetingSide */
 /** @typedef {{ id: string, start: string, away: MeetingSide, home: MeetingSide }} Meeting */
 /** @typedef {{ wins: number, losses: number, pointsFor: number, pointsAgainst: number, margin: number, home: string, road: string, lastTen: string }} TeamSeason */
-/** @typedef {import("./teams-view.js").Leader} Leader */
-/** @typedef {import("./teams-view.js").Season} Season */
+/** @typedef {import("./team-view.js").Leader} Leader */
+/** @typedef {import("./team-view.js").Season} Season */
 /** @typedef {Record<"away" | "home", string>} Teams */
 
 /** @type {("away" | "home")[]} */

@@ -468,6 +468,7 @@ test("a series' winner has its wins on an orange block, cut through to the floor
     });
   for (const colorScheme of /** @type {const} */ (["light", "dark"])) {
     await page.emulateMedia({ colorScheme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", colorScheme);
     const { orange, floor } = await readColors();
     expect(await readBlock(won)).toEqual({ face: orange, number: floor });
     expect((await readBlock(out)).face).not.toBe(orange);

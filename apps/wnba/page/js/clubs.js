@@ -20,3 +20,11 @@ const renderSeed = (seed) => (seed ? html`<span class="seed">${seed}</span>` : "
  */
 export const renderClub = (code, { seed } = {}) =>
   html`<span class="club${code ? "" : " tbd"}">${renderDot(code)}${renderSeed(seed)}<span class="team-name">${nameTeam(code)}</span></span>`;
+
+/**
+ * A button around a team's name that opens its sheet, which reads where its row says data-team.
+ * @param {string} code
+ * @param {import("#shared/html.js").Markup} content
+ */
+export const renderTeamButton = (code, content) =>
+  html`<button type="button" class="team-open" aria-label="Team details: ${TEAMS[code].city} ${TEAMS[code].name}">${content}</button>`;
