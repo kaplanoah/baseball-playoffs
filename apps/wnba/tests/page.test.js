@@ -16,7 +16,6 @@ import { buildSnapshot } from "../page/js/snapshot.js";
 import { describeStampProblem, renderStampLines } from "../page/js/stamp.js";
 import { renderStandings } from "../page/js/standings-view.js";
 import { renderTeamSheet } from "../page/js/team-view.js";
-import { TEAMS } from "../page/js/teams.js";
 import { normalizeSpaces } from "../../../tests/text.js";
 import { checkInTimeZone, EASTERN } from "../../../tests/time-zone.js";
 
@@ -488,15 +487,16 @@ test("a team's sheet names it over its conference, seed, and record", () => {
   );
 });
 
-test("a team's sheet shows its playoff games, then its regular season across from its playoffs, its three leading scorers, and its titles", () =>
+test("a team's sheet shows its playoffs, then its regular season, each with its numbers, then its titles", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
-      "Playoffs 1st Rd today G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
-        "Season Regular season Playoffs 30-14 Record 1-0 91.3 PPG 92.0 84.5 Opp PPG 77.0 " +
-        "+6.9 Margin +15.0 15-7 Home 1-0 15-7 Road 0-0 9-1 Last 10 1-0 W 5 Streak W 1 " +
-        "Leading scorers Pts Reb Ast Allisha Gray 19.0 3.5 2.6 Rhyne Howard 17.7 3.8 3.7 " +
-        "Angel Reese 16.4 12.1 2.8 Titles None yet",
+      "Playoffs 1st Rd today Record 1-0 PPG 92.0 Opp PPG 77.0 Margin +15.0 Home 1-0 Road 0-0 " +
+        "Last 10 1-0 Streak W 1 G1 W vs Mystics 1st Rd 92-77 " +
+        "G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
+        "Regular season Record 30-14 PPG 91.3 Opp PPG 84.5 Margin +6.9 Home 15-7 Road 15-7 " +
+        "Last 10 9-1 Streak W 5 Leading scorers Pts Reb Ast Allisha Gray 19.0 3.5 2.6 " +
+        "Rhyne Howard 17.7 3.8 3.7 Angel Reese 16.4 12.1 2.8 Titles None yet",
     );
     assert.match(
       readTeam(SEASON, "DAL").body,
@@ -504,9 +504,9 @@ test("a team's sheet shows its playoff games, then its regular season across fro
     );
     assert.match(
       readTeam(SEASON, "MIN").body,
-      /^Playoffs Out 1st Rd G1 L vs Liberty 1st Rd 75-91 G2 L at Liberty 1st Rd 71-87 Season /,
+      /^Playoffs Out 1st Rd Record 0-2 .* G1 L vs Liberty 1st Rd 75-91 G2 L at Liberty 1st Rd 71-87 Regular season /,
     );
-    assert.match(readTeam(SEASON, "SEA").body, /^Season .* Playoffs Missed$/);
+    assert.match(readTeam(SEASON, "SEA").body, /^Regular season .* Playoffs Missed Titles /);
   }));
 
 /**
@@ -567,55 +567,33 @@ const ATLANTA_SEASON = {
   ],
 };
 
-/** @param {string} label @param {string} body markup */
-const findTapeRow = (label, body) =>
-  body.split('<div class="tape-row">').find((row) => row.includes(`>${label}</span>`)) ?? "";
-
-test("a team's playoff side counts its finished playoff games: its averages, its records at home, on the road, and over its last ten, and its streak", () => {
+test("a team's playoff numbers count its finished playoff games: its averages, its records at home, on the road, and over its last ten, and its streak", () => {
   assert.match(
     readTeam(ATLANTA_SEASON, "ATL").body,
-    / Regular season Playoffs 30-14 Record 8-4 91\.3 PPG 86\.7 84\.5 Opp PPG 83\.3 \+6\.9 Margin \+3\.3 15-7 Home 3-3 15-7 Road 5-1 9-1 Last 10 6-4 W 5 Streak L 2 /,
+    /^Playoffs 1st Rd live Record 8-4 PPG 86\.7 Opp PPG 83\.3 Margin \+3\.3 Home 3-3 Road 5-1 Last 10 6-4 Streak L 2 G12 /,
   );
 });
 
-test("on each measure of a team's stats, the better side has the lead bar, and fewer points allowed is better", () => {
-  const { body } = renderTeamSheet(ATLANTA_SEASON, "ATL", { year: 2026, now: NOW });
-  const findLead = (label) =>
-    findTapeRow(label, body.text)
-      .split('class="tape-side ')
-      .find((side) => side.includes('<i class="lead"'))
-      ?.slice(0, 4);
-  assert.equal(findLead("PPG"), "away");
-  assert.equal(findLead("Opp PPG"), "home");
-  assert.equal(findLead("Road"), "home");
-  assert.equal(findLead("Home"), "away");
-});
-
-test("a streak has no bar, and a winning one is marked", () => {
+test("a winning streak is marked, in each part", () => {
   const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
-  const streak = findTapeRow("Streak", body.text);
-  assert.match(
-    streak,
-    /<span class="streak-won">W 5<\/span>[^]*<span class="streak-won">W 1<\/span>/,
+  const streaks = [
+    ...body.text.matchAll(/<dt class="team-label">Streak<\/dt><dd class="tabular">(.*?)<\/dd>/g),
+  ];
+  assert.deepEqual(
+    streaks.map(([, streak]) => streak),
+    ['<span class="streak-won">W 1</span>', '<span class="streak-won">W 5</span>'],
   );
-  assert.doesNotMatch(streak, /tape-bar/);
   assert.doesNotMatch(
-    findTapeRow("Streak", renderTeamSheet(SEASON, "SEA", { year: 2026, now: NOW }).body.text),
+    renderTeamSheet(SEASON, "SEA", { year: 2026, now: NOW }).body.text,
     /streak-won/,
   );
-});
-
-test("a team's stats are drawn in its own color on each theme", () => {
-  const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
-  const [light, dark] = [TEAMS.ATL.chartColors.light[0], TEAMS.ATL.chartColors.dark[0]];
-  assert.ok(body.text.includes(`style="--team-light: ${light}; --team-dark: ${dark};"`));
 });
 
 test("a team's next game is in the round it's playing, not one left over from a round it won", () =>
   inEastern(() => {
     assert.match(
       readTeam(SEASON, "NYL").body,
-      /^Playoffs Semis .* G1 &rsaquo; at TBD Semis Sun, Oct 4 Season /,
+      /^Playoffs Semis .* G1 &rsaquo; at TBD Semis Sun, Oct 4 Regular season /,
     );
   }));
 
@@ -650,16 +628,11 @@ test("before the playoffs, a team has no seed or playoff run, and its season sho
     place,
     lastTen,
   }));
-  const season = /** @type {any} */ ({ standings, series: [], games: [] });
-  const minnesota = readTeam(season, "MIN");
+  const minnesota = readTeam({ standings, series: [], games: [] }, "MIN");
   assert.equal(minnesota.note, "West | 33-11");
   assert.equal(
     minnesota.body,
-    "Season Regular season 33-11 Record 6-4 Last 10 Titles 4 | 2011, 2013, 2015, 2017",
-  );
-  assert.match(
-    renderTeamSheet(season, "MIN", { year: 2026, now: NOW }).body.text,
-    /<div class="team-tape solo"/,
+    "Regular season Record 33-11 Last 10 6-4 Titles 4 | 2011, 2013, 2015, 2017",
   );
 });
 

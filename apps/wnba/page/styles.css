@@ -613,11 +613,10 @@ header.top h1 {
 .game-sheet-body :is(.tape-side, .lead-chart *).home {
   --side: var(--home);
 }
-/* A team's sheet draws its stats' bars the same way, both sides in the team's color. */
-:is(.game-sheet-body, .team-tape) .tape-bar i {
+.game-sheet-body .tape-bar i {
   background: color-mix(in oklch, var(--side) 47%, oklch(from var(--card) l 0 none));
 }
-:is(.game-sheet-body, .team-tape) .tape-bar i.lead {
+.game-sheet-body .tape-bar i.lead {
   background: var(--side);
 }
 /* The game's title and its teams share one tinted band across the top of the sheet, which sets
@@ -1507,42 +1506,31 @@ table.standings tr.playoff-line + tr td {
   color: var(--orange);
   font-weight: 600;
 }
-/* A team's stats face off like a game preview's, the regular season on the left against the
-   playoffs on the right, each named above its side, with a winning streak marked like a win.
-   Before the team's first playoff game, the regular season stands alone, each number after its
-   measure's name and with no bar, since there's nothing to measure it against. */
-.team-tape {
-  --side: var(--team-light, var(--ink-dim));
+/* Each part's numbers, the regular season's and the playoffs', in one list of the same measures,
+   each after its name, the names in a column, and a winning streak marked like a win. */
+.team-numbers {
   display: grid;
-  gap: 8px;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px 16px;
+  margin: 0;
 }
-:root[data-theme="dark"] .team-tape {
-  --side: var(--team-dark, var(--ink-dim));
+.team-numbers dd {
+  margin: 0;
+  font-family: var(--numbers);
+  font-size: 0.95rem;
+  font-weight: 600;
 }
-.team-tape .tape {
-  gap: 12px;
-}
-.team-tape .streak-won {
+.team-numbers .streak-won {
   color: var(--teal);
 }
-.team-tape.solo .tape {
-  gap: 8px;
+.team-titles {
+  margin: 0;
+  font-size: var(--size-glance);
+  font-weight: 500;
 }
-.team-tape.solo .tape-row {
-  grid-template-columns: 6.4em minmax(0, 1fr);
-}
-.team-tape.solo .tape-label {
-  order: -1;
-  text-align: left;
-}
-.team-tape.solo .tape-side.away {
-  justify-items: start;
-}
-.team-tape.solo .tape-side.away .tape-value {
-  flex-direction: row;
-}
-.team-tape.solo :is(.tape-side.home, .tape-bar) {
-  display: none;
+.team-titles b {
+  font-weight: 600;
 }
 
 /* The Home Screen bar and box show the icon the theme showing would give the Home Screen. */

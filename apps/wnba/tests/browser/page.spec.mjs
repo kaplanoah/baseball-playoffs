@@ -733,7 +733,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name like every team's at 20px, its stats in Barlow Condensed like a game preview's, its text in medium, and its first part 8px under the record", async ({
+  test("sets its name like every team's at 20px, its numbers in Barlow Condensed, its text in medium, and its first part 8px under the record", async ({
     page,
   }) => {
     await openApp(page);
@@ -745,24 +745,24 @@ test.describe("on a phone, a team's sheet", () => {
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-weight", "600");
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "20px");
     await expect(sheet.locator("#teamNote")).toHaveCSS("font-weight", "500");
-    await expect(sheet.locator(".tape-value").first()).toHaveCSS(
+    await expect(sheet.locator(".team-numbers dd").first()).toHaveCSS(
       "font-family",
       /^"Barlow Condensed"/,
     );
-    await expect(sheet.locator(".team-detail").first()).toHaveCSS("font-weight", "500");
+    await expect(sheet.locator(".team-titles")).toHaveCSS("font-weight", "500");
     await expect(sheet.locator(".team-game").first()).toHaveCSS("font-weight", "500");
 
     const colors = await sheet.evaluate((dialog) => {
       const readColor = (selector) => getComputedStyle(dialog.querySelector(selector)).color;
       return {
         title: readColor("#teamTitle"),
-        detail: readColor(".team-detail"),
+        titles: readColor(".team-titles"),
         note: readColor("#teamNote"),
         label: readColor(".team-label"),
         round: readColor(".team-round"),
       };
     });
-    expect(colors.detail).toBe(colors.title);
+    expect(colors.titles).toBe(colors.title);
     expect(colors.label).toBe(colors.note);
     expect(colors.label).not.toBe(colors.round);
 
@@ -790,30 +790,36 @@ test.describe("a team's sheet", () => {
       season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
       return season;
     });
-    await expect(sheet).toContainText(/9-1\s*Last 10/);
+    await expect(sheet).toContainText(/Last 10\s*9-1/);
 
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toBeHidden();
   });
 
-  test("a team without playoff games shows its regular season alone, each number after its measure's name, with no bars", async ({
+  test("a team's playoff and regular season numbers each sit after their names, in one column across both parts", async ({
     page,
   }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Standings" }).click();
-    await page.locator('#standings-league tr[data-team="SEA"] td.season').first().click();
-    const stats = page.locator("#teamDialog .team-tape");
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    await expect(sheet.locator(".sheet-part h3")).toHaveText([
+      "Playoffs",
+      "Regular season",
+      "Titles",
+    ]);
 
-    await expect(stats.locator(".tape-teams")).toHaveText("Regular season");
-    const record = stats.locator(".tape-row").first();
-    await expect(record).toHaveText(/8-36\s*Record/);
-    const label = await record.locator(".tape-label").boundingBox();
-    const value = await record.locator(".tape-value").boundingBox();
-    expect(value.x).toBeGreaterThan(label.x + label.width);
-    const shownBars = await stats
-      .locator(".tape-bar")
-      .evaluateAll((bars) => bars.filter((bar) => bar.checkVisibility()).length);
-    expect(shownBars).toBe(0);
+    const lists = sheet.locator(".team-numbers");
+    await expect(lists).toHaveCount(2);
+    const names = await sheet
+      .locator(".team-numbers dt")
+      .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().right));
+    const numbers = await sheet
+      .locator(".team-numbers dd")
+      .evaluateAll((cells) => cells.map((cell) => Math.round(cell.getBoundingClientRect().left)));
+    expect(numbers).toHaveLength(16);
+    expect(new Set(numbers).size).toBe(1);
+    expect(Math.max(...names)).toBeLessThan(numbers[0]);
   });
 
   test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {
@@ -898,7 +904,7 @@ test.describe("a team's sheet", () => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 360, height: 780 }, contextOptions: { reducedMotion: "reduce" } });
 
-  test("a team's leading scorers keep their names on one line, and its stats fit their sides", async ({
+  test("a team's leading scorers keep their names on one line, and its numbers fit beside their names", async ({
     page,
   }) => {
     await openApp(page);
@@ -917,11 +923,11 @@ test.describe("on a phone", () => {
       );
       expect(lineCounts, code).toEqual([1, 1, 1]);
       const overflowing = await sheet
-        .locator(".tape-side")
-        .evaluateAll((sides) =>
-          sides
-            .filter((side) => side.scrollWidth > side.clientWidth)
-            .map((side) => side.textContent),
+        .locator(".team-numbers dd")
+        .evaluateAll((numbers) =>
+          numbers
+            .filter((number) => number.scrollWidth > number.clientWidth)
+            .map((number) => number.textContent),
         );
       expect(overflowing, code).toEqual([]);
       await page.keyboard.press("Escape");

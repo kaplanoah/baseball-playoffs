@@ -1,13 +1,9 @@
 import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
-import { renderTapeRow } from "#shared/tape.js";
-import { renderTeamDetail } from "#shared/team-sheet.js";
 import { renderDot, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { readPlayoffRuns } from "./series.js";
-import { formatTeamColors } from "./sheet-colors.js";
-import { describeNumbers, describeRecords } from "./sheet-parts.js";
 import { ROUNDS } from "./snapshot.js";
 import { renderStreak } from "./standings-view.js";
 import { TEAMS } from "./teams.js";
@@ -203,59 +199,44 @@ function readPlayoffs(finished, team) {
 }
 
 /**
- * A row for a streak, which has no bar, since a winning streak and a losing one don't compare by
- * length.
- * @param {(string | null)[]} streaks
- * @returns {import("#shared/tape.js").TapeRow}
+ * A phase's numbers, each after its name, leaving out those it has none for.
+ * @param {PhaseStats} stats
  */
-function describeStreaks(streaks) {
-  const [away, home] = streaks.map((streak) => (streak ? { value: renderStreak(streak) } : null));
-  return { label: "Streak", away, home, leader: null };
-}
-
-/**
- * The regular season across from the playoffs, measure by measure, leaving out a measure neither
- * has.
- * @param {PhaseStats | null} regular
- * @param {PhaseStats | null} playoffs
- */
-function describeStatRows(regular, playoffs) {
-  /** @param {keyof PhaseStats} measure */
-  const pick = (measure) =>
-    /** @type {[any, any]} */ ([regular?.[measure] ?? null, playoffs?.[measure] ?? null]);
-  const rows = [
-    describeRecords("Record", pick("record")),
-    describeNumbers("PPG", pick("pointsFor"), { format: formatAverage }),
-    describeNumbers("Opp PPG", pick("pointsAgainst"), {
-      format: formatAverage,
-      isLowerBetter: true,
-    }),
-    describeNumbers("Margin", pick("margin"), { format: formatMargin }),
-    describeRecords("Home", pick("home")),
-    describeRecords("Road", pick("road")),
-    describeRecords("Last 10", pick("lastTen")),
-    describeStreaks(pick("streak")),
+function renderNumbers(stats) {
+  /** @type {[string, import("#shared/html.js").Markup | string | null][]} */
+  const numbers = [
+    ["Record", stats.record],
+    ["PPG", stats.pointsFor == null ? null : formatAverage(stats.pointsFor)],
+    ["Opp PPG", stats.pointsAgainst == null ? null : formatAverage(stats.pointsAgainst)],
+    ["Margin", stats.margin == null ? null : formatMargin(stats.margin)],
+    ["Home", stats.home],
+    ["Road", stats.road],
+    ["Last 10", stats.lastTen],
+    ["Streak", stats.streak == null ? null : renderStreak(stats.streak)],
   ];
-  return rows.filter((row) => row.away || row.home);
+  return html`<dl class="team-numbers">
+    ${numbers
+      .filter(([, value]) => value != null)
+      .map(
+        ([label, value]) =>
+          html`<dt class="team-label">${label}</dt><dd class="tabular">${value}</dd>`,
+      )}
+  </dl>`;
 }
 
 /**
- * The team's stats in the game preview's tape: the regular season on the left and the playoffs
- * on the right, each named over its side, or the regular season alone before the team's first
- * playoff game.
- * @param {string} code
+ * The team's regular season: its numbers from the standings, then its leading scorers.
  * @param {StandingsRow | undefined} row
- * @param {PhaseStats | null} playoffs
+ * @param {Leader[]} leaders
  */
-function renderStats(code, row, playoffs) {
-  const regular = row ? readRegularSeason(row) : null;
-  const rows = describeStatRows(regular, playoffs);
-  if (!rows.length) return false;
-  const heads = [regular && "Regular season", playoffs && "Playoffs"].filter(Boolean);
-  return html`<div class="team-tape${playoffs ? "" : " solo"}" style="${formatTeamColors(code)}">
-    <div class="tape-teams">${heads.map((head) => html`<span class="team-label">${head}</span>`)}</div>
-    <div class="tape">${rows.map(renderTapeRow)}</div>
-  </div>`;
+function renderRegularSeason(row, leaders) {
+  if (!row && !leaders.length) return false;
+  return renderSheetPart(
+    "Regular season",
+    html`<div class="team-season">
+      ${row && renderNumbers(readRegularSeason(row))}${renderLeadingScorers(leaders)}
+    </div>`,
+  );
 }
 
 /**
@@ -264,14 +245,13 @@ function renderStats(code, row, playoffs) {
  */
 function renderTitles(code, titles) {
   const count = titles.before.length + titles.now.length;
-  if (!count) return renderTeamDetail("Titles", "None yet");
   const formerTeam = TEAMS[code].titlesAs;
   const before = titles.before.join(", ") + (formerTeam ? ` (as ${formerTeam})` : "");
   const years = [titles.before.length ? before : "", ...titles.now].filter(Boolean).join(", ");
-  return renderTeamDetail(
-    "Titles",
-    joinWithSeparator([html`<b>${count}</b>`, html`<span class="tabular">${years}</span>`]),
-  );
+  const body = count
+    ? joinWithSeparator([html`<b>${count}</b>`, html`<span class="tabular">${years}</span>`])
+    : "None yet";
+  return renderSheetPart("Titles", html`<p class="team-titles">${body}</p>`);
 }
 
 /**
@@ -319,7 +299,8 @@ function renderNextGame(game, team, now) {
 }
 
 /**
- * The team's playoff games under its run so far, or only the run for a team that missed them.
+ * The team's playoff numbers and games under its run so far, or only the run for a team that
+ * missed them.
  * @param {string} team
  * @param {{ finished: Game[], next: Game | null }} games
  * @param {{ label: string, kind: string } | null} chip
@@ -327,12 +308,16 @@ function renderNextGame(game, team, now) {
  */
 function renderPlayoffs(team, { finished, next }, chip, { isPlaying, now }) {
   if (!chip) return false;
+  const stats = readPlayoffs(finished, team);
   const shownNext = isPlaying && next;
   return renderSheetPart(
     "Playoffs",
-    html`<div class="team-playoffs">
-      ${finished.map((game) => renderFinishedGame(game, team))}
-      ${shownNext && renderNextGame(shownNext, team, now)}
+    html`<div class="team-season">
+      ${stats && renderNumbers(stats)}
+      <div class="team-playoffs">
+        ${finished.map((game) => renderFinishedGame(game, team))}
+        ${shownNext && renderNextGame(shownNext, team, now)}
+      </div>
     </div>`,
     renderChip(chip),
   );
@@ -348,8 +333,8 @@ const listFacts = (row, run) =>
   );
 
 /**
- * The sheet a team opens: its name, its conference, seed, and record, then its season and how far
- * it got in the playoffs, the playoffs first for a team that made them.
+ * The sheet a team opens: its name, its conference, seed, and record, then its regular season and
+ * its playoffs, the playoffs first for a team that made them, then its titles.
  * @param {Season | null} season
  * @param {string} code
  * @param {{ year: number, now: number }} options
@@ -363,16 +348,12 @@ export function renderTeamSheet(season, code, { year, now }) {
   const isPlaying = !!run && !run.isOut && !run.isChampion;
   const chip = describeChip(run, isPlaying ? games.next : null, { hasField: runs.size > 0, now });
   const titles = listTitles(code, run, year);
-  const seasonPart = renderSheetPart(
-    "Season",
-    html`<div class="team-season">
-      ${renderStats(code, row, readPlayoffs(games.finished, code))}${renderLeadingScorers(findTeamLeaders(season, code))}${renderTitles(code, titles)}
-    </div>`,
-  );
-  const playoffsPart = renderPlayoffs(code, games, chip, { isPlaying, now });
+  const regularSeason = renderRegularSeason(row, findTeamLeaders(season, code));
+  const playoffs = renderPlayoffs(code, games, chip, { isPlaying, now });
   return {
     heading: html`${renderDot(code)}<span>${team.city} ${team.name}</span>`,
     note: joinWithSeparator(listFacts(row, run)),
-    body: run ? html`${playoffsPart}${seasonPart}` : html`${seasonPart}${playoffsPart}`,
+    body: html`${run ? html`${playoffs}${regularSeason}` : html`${regularSeason}${playoffs}`}
+    ${renderTitles(code, titles)}`,
   };
 }

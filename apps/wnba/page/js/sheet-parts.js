@@ -2,8 +2,8 @@ import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderClub } from "./clubs.js";
 
-// The pieces the game sheet's views and a team's sheet share: how two sides of a measure are
-// compared, which side leads it, and how far each side's bar reaches.
+// The pieces the game sheet's views share: how its two teams are compared, which side leads a
+// measure and how far each side's bar reaches.
 
 /**
  * The side whose number is better, or null for a tie or a missing number.
@@ -28,61 +28,12 @@ export const measureAgainst = (value, most) => (most > 0 ? Math.round((value / m
  * A record like 15-7 as the share of its games won, or null without any.
  * @param {string | null} record
  */
-function readWinShare(record) {
+export function readWinShare(record) {
   const [wins, losses] = String(record ?? "")
     .split("-")
     .map(Number);
   const games = wins + losses;
   return games > 0 ? wins / games : null;
-}
-
-/**
- * A row that compares two records, like 15-7, by the share of games each won. A side with no
- * record is left blank.
- * @param {import("#shared/html.js").Markup | string} label
- * @param {[string | null, string | null]} records
- * @returns {import("#shared/tape.js").TapeRow}
- */
-export function describeRecords(label, records) {
-  const shares = records.map(readWinShare);
-  const describeSide = (index) => {
-    const record = records[index];
-    const share = shares[index];
-    return record == null
-      ? null
-      : { value: record, bar: share == null ? null : Math.round(share * 100) };
-  };
-  return {
-    label,
-    away: describeSide(0),
-    home: describeSide(1),
-    leader: findLeader(shares[0], shares[1]),
-  };
-}
-
-/**
- * A row that compares two numbers, each bar as long as its share of the larger. A side with no
- * number is left blank.
- * @param {import("#shared/html.js").Markup | string} label
- * @param {[number | null, number | null]} values
- * @param {{ format: (value: number) => string, isLowerBetter?: boolean }} options
- * @returns {import("#shared/tape.js").TapeRow}
- */
-export function describeNumbers(label, values, { format, isLowerBetter = false }) {
-  const reaches = values.map((value) => Math.max(value ?? 0, 0));
-  const most = Math.max(...reaches);
-  const describeSide = (index) => {
-    const value = values[index];
-    return value == null
-      ? null
-      : { value: format(value), bar: measureAgainst(reaches[index], most) };
-  };
-  return {
-    label,
-    away: describeSide(0),
-    home: describeSide(1),
-    leader: findLeader(values[0], values[1], { isLowerBetter }),
-  };
 }
 
 /**
