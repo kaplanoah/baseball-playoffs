@@ -646,7 +646,7 @@ test("the header names a problem with the page's server or the league's feeds", 
 });
 
 test("a score shows in scoreboard digits, and still reads as its number", () => {
-  const markup = renderScoreboard(89, { places: 3 }).text;
+  const markup = renderScoreboard(89).text;
   assert.match(markup, /<span class="scoreboard-text">89<\/span>/);
   assert.equal(markup.match(/<svg/g).length, 3);
   assert.equal(
@@ -654,7 +654,7 @@ test("a score shows in scoreboard digits, and still reads as its number", () => 
     7 + 6,
     "an 8 lights every segment, a 9 all but one",
   );
-  assert.match(renderScoreboard(68, { places: 2, isLoser: true }).text, /class="scoreboard lost"/);
+  assert.match(renderScoreboard(68, { isLoser: true }).text, /class="scoreboard lost"/);
 });
 
 /** @param {{ text: string }} markup */
@@ -664,21 +664,36 @@ const readLitPlaces = (markup) =>
     .slice(1)
     .map((place) => (place.match(/class="on"/g) ?? []).length);
 
-test("a score fills the places it's given, with the ones it doesn't reach dark", () => {
-  assert.deepEqual(readLitPlaces(renderScoreboard(7, { places: 2 })), [0, 3]);
-  assert.deepEqual(readLitPlaces(renderScoreboard(89, { places: 2 })), [7, 6]);
-  assert.deepEqual(readLitPlaces(renderScoreboard(98, { places: 3 })), [0, 6, 7]);
+test("every score fills a narrow hundreds place and two digits, with the places it doesn't reach dark", () => {
+  assert.match(renderScoreboard(7).text, /<svg class="hundreds"/);
+  assert.equal(renderScoreboard(7).text.match(/class="hundreds"/g).length, 1);
+  assert.deepEqual(readLitPlaces(renderScoreboard(7)), [0, 0, 3]);
+  assert.deepEqual(readLitPlaces(renderScoreboard(89)), [0, 7, 6]);
+  assert.deepEqual(readLitPlaces(renderScoreboard(100)), [2, 6, 6]);
+  assert.deepEqual(readLitPlaces(renderScoreboard(108)), [2, 6, 7]);
 });
 
-test("a game's two panels match, with a hundreds place only once a score reaches 100", () => {
+test("a game's two panels hold the same places, whatever its scores", () => {
   const [game] = structuredClone(SEASON.games.filter((each) => each.state === "final"));
   Object.assign(game.away, { score: 7 });
-  Object.assign(game.home, { score: 89 });
-  assert.deepEqual(readLitPlaces(renderHeadline(game)), [0, 3, 7, 6]);
-  Object.assign(game.away, { score: 101 });
-  Object.assign(game.home, { score: 98 });
-  assert.deepEqual(readLitPlaces(renderHeadline(game)), [2, 6, 2, 0, 6, 7]);
+  Object.assign(game.home, { score: 104 });
+  assert.deepEqual(readLitPlaces(renderHeadline(game)), [0, 0, 3, 2, 6, 4]);
 });
+
+test("between periods the league's word for the break shows in place of the clock", () =>
+  inEastern(() => {
+    const running = readGameMarkup(LIVE_TONIGHT);
+    assert.match(running, /<span class="clock tabular">Q4 3:48<\/span>/);
+    assert.doesNotMatch(running, /class="break"/);
+    const atHalf = replaceGame(LIVE_TONIGHT, "1042600132", {
+      status: "Half",
+      period: 2,
+      clock: "0.0",
+    });
+    const markup = readGameMarkup(atHalf);
+    assert.match(markup, /<span class="game-status"><span class="break">Half<\/span><\/span>/);
+    assert.doesNotMatch(markup, /class="clock/);
+  }));
 
 test("each game's score shows in scoreboard digits, the loser's dimmed", () =>
   inEastern(() => {

@@ -331,6 +331,72 @@ test("the Games lists' days, series labels, and statuses are in Barlow, apart fr
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Barlow Condensed");
 });
 
+test("a break between periods reads in the status's capitals, in the live game's orange", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await app.changeSeason((season) => {
+    const game = season.games.find((each) => each.id === "1042600132");
+    Object.assign(game, { state: "live", status: "Half", period: 2, clock: "0.0" });
+    Object.assign(game.away, { score: 48 });
+    Object.assign(game.home, { score: 54 });
+    return season;
+  });
+  const word = page.locator('[data-game="1042600132"] .game-status .break');
+  await expect(word).toHaveText("Half");
+  const style = await word.evaluate((element) => {
+    const orange = document.createElement("span");
+    orange.style.color = "var(--orange)";
+    document.body.append(orange);
+    const { fontFamily, textTransform, color } = getComputedStyle(element);
+    const style = {
+      font: fontFamily.split(",")[0].replaceAll('"', ""),
+      textTransform,
+      isOrange: color === getComputedStyle(orange).color,
+    };
+    orange.remove();
+    return style;
+  });
+  expect(style).toEqual({ font: "Barlow", textTransform: "uppercase", isOrange: true });
+});
+
+test("every score panel is one size, a game past 100 like any other", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.getByRole("tab", { name: "Previous" }).click();
+  const sizes = await page.locator("#games-previous .scoreboard").evaluateAll((panels) =>
+    panels.map((panel) => {
+      const box = panel.getBoundingClientRect();
+      return `${Math.round(box.width * 10) / 10}x${Math.round(box.height * 10) / 10}`;
+    }),
+  );
+  expect(sizes.length).toBeGreaterThan(4);
+  expect(new Set(sizes).size).toBe(1);
+  const texts = await page.locator("#games-previous .scoreboard-text").allTextContents();
+  expect(texts.some((text) => Number(text) >= 100)).toBe(true);
+});
+
+test("a seed sits a little lighter than its team's name, and a pixel lower", async ({ page }) => {
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const club = page.locator("#gamePager .game-side .club").first();
+  const { nameWeight, seedWeight, offset } = await club.evaluate((element) => {
+    const seed = /** @type {Element} */ (element.querySelector(".seed"));
+    const name = /** @type {Element} */ (element.querySelector(".team-name"));
+    const middle = (box) => box.top + box.height / 2;
+    return {
+      nameWeight: getComputedStyle(name).fontWeight,
+      seedWeight: getComputedStyle(seed).fontWeight,
+      offset: middle(seed.getBoundingClientRect()) - middle(element.getBoundingClientRect()),
+    };
+  });
+  expect([seedWeight, nameWeight]).toEqual(["400", "600"]);
+  expect(offset).toBeCloseTo(1, 0);
+  const isLoaded = await page.evaluate(() => document.fonts.check('400 12px "Barlow Condensed"'));
+  expect(isLoaded).toBe(true);
+});
+
 test("every team name is in Barlow Condensed", async ({ page }) => {
   await openApp(page);
   const readFonts = (selector) =>
@@ -673,7 +739,7 @@ for (const { width, edge, gap, inset } of DAY_ROOM_BY_WIDTH) {
   });
 }
 
-for (const width of [430, 402, 390, 375, 360]) {
+for (const width of [440, 430, 402, 390, 375, 360]) {
   test.describe(`on a ${width}px phone`, () => {
     test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
 

@@ -6,6 +6,12 @@
 }
 @font-face {
   font-family: "Barlow Condensed";
+  font-weight: 400;
+  font-display: swap;
+  src: url(fonts/barlow-condensed-400.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
   font-weight: 500;
   font-display: swap;
   src: url(fonts/barlow-condensed-500.woff2) format("woff2");
@@ -285,9 +291,11 @@ header.top h1 {
   color: var(--ink-dim);
   font-weight: 500;
 }
+/* A little below the name's middle, where it sits level with the name's baseline. */
 .seed {
+  translate: 0 1px;
   font-size: 0.7em;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--ink-dim);
 }
 
@@ -374,10 +382,10 @@ header.top h1 {
   border-bottom: 0;
 }
 /* A phone narrows the date's column and lets it reach into the page's margin, and trims the room
-   around the score, so a long name still fits beside it. Narrower phones trim
-   the room around the date and inside the card further, and the narrowest also sets the names and
-   the scores a little closer. */
-@media (max-width: 429px) {
+   around the score, so a long name still fits beside it. Narrower phones trim the room around the
+   date and inside the card further, and the narrowest also sets the names and the scores a little
+   closer. */
+@media (max-width: 479px) {
   .game-day {
     grid-template-columns: 28px minmax(0, 1fr);
     column-gap: 10px;
@@ -393,8 +401,7 @@ header.top h1 {
     padding-inline: 2px;
   }
   .game-day .scoreboard {
-    gap: 2px;
-    padding: 0 4px;
+    padding-right: 4px;
   }
 }
 @media (max-width: 399px) {
@@ -420,6 +427,9 @@ header.top h1 {
   .game-day .score {
     gap: 4px;
   }
+  .game-day .game-middle {
+    padding-inline: 0;
+  }
 }
 .game-side {
   gap: 4px;
@@ -442,15 +452,6 @@ header.top h1 {
   min-width: 76px;
   padding-inline: 4px;
 }
-/* A game that reaches 100 draws its digits smaller, so a long name still fits beside them. */
-.game-day .game-middle:has(.hundreds) {
-  padding-inline: 0;
-}
-.game-day .hundreds .scoreboard {
-  --digit-height: 20px;
-  gap: 2px;
-  padding: 0 3px;
-}
 .score {
   display: flex;
   gap: 8px;
@@ -462,10 +463,10 @@ header.top h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   height: calc(var(--digit-height) * 1.5);
   min-width: calc(var(--digit-height) * 1.2);
-  padding: 0 5px;
+  padding: 0 5px 0 8px;
   border-radius: 1px;
   background: var(--scoreboard);
 }
@@ -473,6 +474,10 @@ header.top h1 {
   display: block;
   height: var(--digit-height);
   overflow: visible;
+}
+/* The narrow hundreds place sits close to the tens, as one figure. */
+.scoreboard svg.hundreds {
+  margin-right: -1px;
 }
 .scoreboard rect {
   fill: var(--led);
@@ -528,6 +533,11 @@ header.top h1 {
   font-weight: 700;
   text-transform: none;
   letter-spacing: normal;
+  color: var(--orange);
+}
+/* A break between periods is a word, not a time, so it takes the status's capitals, in the live
+   game's orange. */
+.break {
   color: var(--orange);
 }
 .time {
@@ -833,8 +843,8 @@ table.players td.minutes {
    showing at the edge, and ends with room for the Finals to stop in the screen's middle. Bracket
    lines join each pair of series into the one they feed at the line between its teams
    (js/bracket-tree.js). Each card's note hangs below it, in the gap to the next card. On a phone
-   the three gaps between the first round's cards grow alike to reach the round dots, and each later
-   card spans its pair's rows and the gap between them, so it stays midway. */
+   the three gaps between the first round's cards grow alike toward the round dots, up to a limit,
+   and each later card spans its pair's rows and the gap between them, so it stays midway. */
 #bracketWrap {
   container-type: inline-size;
 }
@@ -842,7 +852,7 @@ table.players td.minutes {
   --seed-room: 52px;
   --round-width: calc(82cqw - var(--seed-room));
   --round-gap: 30px;
-  --tightest-card-gap: 34px;
+  --tightest-card-gap: 32px;
   --card-gap: var(--tightest-card-gap);
   position: relative;
   display: grid;

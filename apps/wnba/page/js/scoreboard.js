@@ -50,17 +50,45 @@ function renderDigit(digit) {
   return html`<svg viewBox="0 0 ${WIDTH} ${HEIGHT}" aria-hidden="true">${segments}</svg>`;
 }
 
+// A basketball score never reaches 200, so, as on an arena's board, its hundreds place is a narrow
+// one that holds just a 1's two segments.
+const HUNDREDS_WIDTH = (SEGMENT_THICKNESS + 2 * EDGE).toFixed(2);
+const HUNDREDS_SEGMENTS = SEGMENTS.filter(({ name }) => "bc".includes(name)).map(
+  ({ box: [, y, width, height] }) => ({ box: [EDGE.toFixed(2), y, width, height] }),
+);
+
+/** @param {boolean} isLit */
+function renderHundreds(isLit) {
+  const segments = HUNDREDS_SEGMENTS.map(
+    ({ box: [x, y, width, height] }) =>
+      html`<rect class="${isLit ? "on" : ""}" x="${x}" y="${y}" width="${width}" height="${height}" rx="1.17"/>`,
+  );
+  return html`<svg class="hundreds" viewBox="0 0 ${HUNDREDS_WIDTH} ${HEIGHT}" aria-hidden="true"
+    >${segments}</svg
+  >`;
+}
+
+/**
+ * The tens and ones a score lights, with a 0 for the tens once a score reaches 100.
+ * @param {number | null} score
+ */
+function readLastTwoPlaces(score) {
+  if (score === null) return [null, null];
+  const places = String(score % 100).padStart(2, score >= 100 ? "0" : " ");
+  return [...places].map((place) => (place === " " ? null : Number(place)));
+}
+
 /**
  * A score in lit digits on a dark panel, which still reads as text to a screen reader and a search.
- * The places a score doesn't reach stay dark, as on an arena's board.
+ * Every panel holds the same places, so all are one width, and the places a score doesn't reach
+ * stay dark.
  * @param {number | null} score
- * @param {{ places: number, isLoser?: boolean }} options
+ * @param {{ isLoser?: boolean }} [options]
  */
-export function renderScoreboard(score, { places: placeCount, isLoser = false }) {
-  const places = [...String(score ?? "").padStart(placeCount)];
+export function renderScoreboard(score, { isLoser = false } = {}) {
   return html`<span class="scoreboard${isLoser ? " lost" : ""}"
-    ><span class="scoreboard-text">${score}</span>${places.map((place) =>
-      renderDigit(place === " " ? null : Number(place)),
-    )}</span
+    ><span class="scoreboard-text">${score}</span>${renderHundreds((score ?? 0) >= 100)}${readLastTwoPlaces(
+      score,
+    ).map(renderDigit)}</span
   >`;
 }

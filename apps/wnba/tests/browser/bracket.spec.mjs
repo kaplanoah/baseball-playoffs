@@ -48,7 +48,7 @@ function finishSemifinals(season) {
 
 const readRoundName = (page, round) => page.locator(`.round-name[data-round="${round}"]`);
 
-const TIGHTEST_CARD_GAP = 34;
+const TIGHTEST_CARD_GAP = 32;
 
 /**
  * The room above the first round's cards, between them, and from the last one's note to the round
@@ -139,6 +139,7 @@ test.describe("on a phone, the bracket", () => {
   test("spreads its cards alike to reach the round dots, with each round's name just above them", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: PHONE.width, height: 800 });
     await openApp(page);
     const gaps = await readCardGaps(page);
     expect(gaps.aboveCards).toBeCloseTo(14, 0);
@@ -148,13 +149,14 @@ test.describe("on a phone, the bracket", () => {
     expect(gaps.lastNoteToDots).toBeLessThan(12 + 4);
   });
 
-  test("spreads its cards no more than three times their tightest gap on a very tall screen", async ({
+  test("spreads its cards no more than 1.45 times their tightest gap on a taller screen", async ({
     page,
   }) => {
     await page.setViewportSize({ width: PHONE.width, height: 2000 });
     await openApp(page);
     const gaps = await readCardGaps(page);
-    for (const gap of gaps.between) expect(gap).toBeCloseTo(3 * TIGHTEST_CARD_GAP, 0);
+    for (const gap of gaps.between)
+      expect(gap).toBeCloseTo(Math.floor(1.45 * TIGHTEST_CARD_GAP), 0);
     expect(gaps.lastNoteToDots).toBeGreaterThan(100);
   });
 

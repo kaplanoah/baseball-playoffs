@@ -40,16 +40,7 @@ export function describePeriod(period) {
 
 // Between periods the clock stops at zero, and the league's own status says which break it is.
 /** @param {Game} game */
-function describeLiveClock(game) {
-  const isRunning = game.clock && game.clock !== "0.0" && game.period;
-  return isRunning ? `${describePeriod(game.period)} ${game.clock}` : game.status;
-}
-
-// Both of a game's panels hold the places its higher score needs, and at least two, so they match
-// each other and a hundreds place shows only once a game reaches 100.
-/** @param {Game} game */
-const countScorePlaces = (game) =>
-  Math.max(2, ...[game.away.score, game.home.score].map((score) => String(score ?? "").length));
+const isClockRunning = (game) => !!(game.clock && game.clock !== "0.0" && game.period);
 
 /** @param {Game} game */
 export function renderHeadline(game) {
@@ -58,19 +49,19 @@ export function renderHeadline(game) {
     return html`<span class="time tabular">${time}</span>`;
   }
   const loser = findLoser(game);
-  const places = countScorePlaces(game);
-  return html`<span class="score${places > 2 ? " hundreds" : ""}"
-    >${renderScoreboard(game.away.score, { places, isLoser: loser === "away" })}${renderScoreboard(
+  return html`<span class="score"
+    >${renderScoreboard(game.away.score, { isLoser: loser === "away" })}${renderScoreboard(
       game.home.score,
-      { places, isLoser: loser === "home" },
+      { isLoser: loser === "home" },
     )}</span
   >`;
 }
 
 /** @param {Game} game */
 export function renderStatus(game) {
-  if (game.state === "live")
-    return html`<span class="clock tabular">${describeLiveClock(game)}</span>`;
+  if (game.state === "live" && isClockRunning(game))
+    return html`<span class="clock tabular">${describePeriod(game.period ?? 0)} ${game.clock}</span>`;
+  if (game.state === "live") return html`<span class="break">${game.status}</span>`;
   if (game.state === "final") return html`${game.status || "Final"}`;
   return game.isIfNeeded && html`If needed`;
 }
