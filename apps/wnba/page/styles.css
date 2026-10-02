@@ -84,6 +84,7 @@
   --text: "Barlow", system-ui, sans-serif;
   --radius: 2px;
   --page-gutter: 16px;
+  --header-gap: 14px;
   --pager-track: rgba(42, 28, 16, 0.07);
   --pager-track-edge: rgba(42, 28, 16, 0.08);
   --pager-thumb: var(--card);
@@ -161,7 +162,7 @@ header.top {
   justify-content: space-between;
   gap: 12px;
   padding-bottom: 12px;
-  margin-bottom: 14px;
+  margin-bottom: var(--header-gap);
   border-bottom: 2px solid var(--divider);
 }
 .title-row {
@@ -1159,11 +1160,12 @@ table.standings tr.playoff-line + tr td {
 /* Teams: every team in the league's order, each row opening to its season. Conference and seed
    stand in a column of their own. On a phone the dividers run edge to edge, and the rows keep the
    page's gutter inside them. */
-/* The view pads its left side by a pixel, which the list reaches past too. */
+/* The view pads its left side by a pixel, which the list reaches past too. On a phone the header's
+   line tops the list, so the first team sits as far below it as each team below its divider. */
 .team-list {
   --team-gutter: var(--page-gutter);
-  margin: 0 calc(-1 * var(--team-gutter)) 0 calc(-1 * var(--team-gutter) - 1px);
-  border-top: 1px solid var(--divider);
+  margin: calc(-1 * var(--header-gap)) calc(-1 * var(--team-gutter)) 0
+    calc(-1 * var(--team-gutter) - 1px);
 }
 @media (min-width: 780px) {
   .team-list {

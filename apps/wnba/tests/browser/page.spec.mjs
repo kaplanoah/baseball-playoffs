@@ -549,6 +549,18 @@ test("on a phone, the team rows' dividers run edge to edge", async ({ page }) =>
   expect([box.x, box.width]).toEqual([0, 390]);
 });
 
+test("on a phone, the header's line tops the teams, with the first as far below it as the rest below their dividers", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  await expect(page.locator("#teamsWrap .team-list")).toHaveCSS("border-top-style", "none");
+  const header = await page.locator("header.top").boundingBox();
+  const first = await page.locator("#teamsWrap .team").first().boundingBox();
+  expect(first.y).toBeCloseTo(header.y + header.height, 1);
+});
+
 test("each day's games sit in a box of their own, apart from the next day's", async ({ page }) => {
   await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();
