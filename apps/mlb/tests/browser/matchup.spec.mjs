@@ -304,6 +304,15 @@ test("a game on a later day without its starters says to check back for them, un
   expect(reads.count).toBe(0);
 });
 
+test("a finished game without its starters has nothing to check back for", async ({ page }) => {
+  await showGames(page);
+  await page.locator("#games-today .game-row.final .game-open").first().click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("Pitching matchup");
+  await expect(sheet.locator(".pitcher-id .club")).toHaveCount(2);
+  await expect(sheet.locator(".check-back")).toHaveCount(0);
+});
+
 test("a game with its starters named has nothing to check back for", async ({ page }) => {
   const sheet = await openMatchup(page);
   await expect(sheet.locator(".pitch-mix")).toHaveCount(2);

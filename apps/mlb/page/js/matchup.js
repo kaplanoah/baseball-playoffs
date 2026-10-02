@@ -207,7 +207,9 @@ function renderRotation(side, game) {
 const isAwaitingStarter = (side, game) =>
   !side.starter && Boolean(side.club) && game.state === "pre" && Boolean(game.today);
 
-const isCheckBackSide = (side, game) => !side.starter?.name && !isAwaitingStarter(side, game);
+// Only a game still to start can yet name a starter worth coming back for.
+const isCheckBackSide = (side, game) =>
+  game.state === "pre" && !side.starter?.name && !isAwaitingStarter(side, game);
 
 const renderCheckBack = (sides, game) =>
   sides.some((side) => isCheckBackSide(side, game))
