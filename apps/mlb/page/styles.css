@@ -716,9 +716,11 @@ nav.tabs + .updates {
   height: 10px;
   display: block;
 }
-.updates-x:hover {
-  color: var(--ink-dim);
-  background: var(--divider);
+@media (hover: hover) {
+  .updates-x:hover {
+    color: var(--ink-dim);
+    background: var(--divider);
+  }
 }
 .updates-list {
   list-style: none;
@@ -1163,8 +1165,10 @@ table.ref td .team-name {
   letter-spacing: -2px;
   cursor: grab;
 }
-.grip:hover {
-  color: var(--ink);
+@media (hover: hover) {
+  .grip:hover {
+    color: var(--ink);
+  }
 }
 .grip:active {
   cursor: grabbing;

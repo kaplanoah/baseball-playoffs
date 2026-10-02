@@ -75,7 +75,6 @@
   color: color-mix(in srgb, var(--ink) calc(var(--nearness, 0) * 100%), var(--ink-dim));
   padding: 7px 0;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 /* A swiped list slides off the screen, not off the gutter. */
 .pager-pages {
