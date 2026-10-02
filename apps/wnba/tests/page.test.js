@@ -510,14 +510,14 @@ test("a team's Playoffs chip names its round, the same on a game day as any othe
     );
   }));
 
-test("a team's sheet shows its playoffs, then its regular season across from the league's, its leading scorers, and its titles", () =>
+test("a team's sheet shows its playoffs, then its regular season across from the league's with its record by its name, its leading scorers, and its titles", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
       "Playoffs 1st Rd G1 W vs Mystics 1st Rd 92-77 G2 at Mystics 1st Rd Today 7:00 PM " +
-        "Dream Playoff field 1-0 Record 92.0 PPG 87.7 77.0 Opp PPG 87.7 +15.0 Margin 0.0 " +
+        "Dream 1-0 Playoff field 92.0 PPG 87.7 77.0 Opp PPG 87.7 +15.0 Margin 0.0 " +
         "1-0 Home 5-1 0-0 Road 1-5 " +
-        "Regular season Dream League 30-14 Record 91.3 PPG 87.1 84.5 Opp PPG 87.1 +6.9 Margin 0.0 " +
+        "Regular season Dream 30-14 League 91.3 PPG 87.1 84.5 Opp PPG 87.1 +6.9 Margin 0.0 " +
         "15-7 Home 178-152 15-7 Road 152-178 Last 10 9-1 Streak W 5 " +
         "Leading scorers Per game Player Pts Reb Ast Allisha Gray 19.0 3.5 2.6 Rhyne Howard 17.7 3.8 3.7 " +
         "Angel Reese 16.4 12.1 2.8 Titles None yet",
@@ -528,7 +528,7 @@ test("a team's sheet shows its playoffs, then its regular season across from the
     );
     assert.match(
       readTeam(SEASON, "MIN").body,
-      /^Playoffs Out 1st Rd G1 L vs Liberty 1st Rd 75-91 G2 L at Liberty 1st Rd 71-87 Lynx Playoff field 0-2 Record .* Regular season /,
+      /^Playoffs Out 1st Rd G1 L vs Liberty 1st Rd 75-91 G2 L at Liberty 1st Rd 71-87 Lynx 0-2 Playoff field .* Regular season /,
     );
     assert.match(readTeam(SEASON, "SEA").body, /^Regular season .* Playoffs Missed Titles /);
   }));
@@ -594,7 +594,7 @@ const ATLANTA_SEASON = {
 test("a team's playoff numbers count its finished playoff games: its record, its averages, and its records at home and on the road", () => {
   assert.match(
     readTeam(ATLANTA_SEASON, "ATL").body,
-    / Dream Playoff field 8-4 Record 86\.7 PPG .* 83\.3 Opp PPG .* \+3\.3 Margin .* 3-3 Home .* 5-1 Road .* Regular season /,
+    / Dream 8-4 Playoff field 86\.7 PPG .* 83\.3 Opp PPG .* \+3\.3 Margin .* 3-3 Home .* 5-1 Road .* Regular season /,
   );
 });
 
@@ -623,16 +623,15 @@ test("on each measure, the side ahead has the lead bar, and fewer points allowed
   assert.equal(findLead(SEASON, "SEA", "Home"), "home");
 });
 
-test("a record shows without a bar, since the league has none to measure it against", () => {
+test("a team's record sits by its name over its numbers, not in a row of its own, since the league has none to measure it against", () => {
   const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
-  const records = body.text
-    .split('<div class="tape-row">')
-    .filter((row) => row.includes(">Record</span>"));
   assert.deepEqual(
-    records.map((row) => row.match(/\d+-\d+/)?.[0]),
+    [...body.text.matchAll(/<span class="team-record tabular">(.*?)<\/span>/g)].map(
+      ([, record]) => record,
+    ),
     ["1-0", "30-14"],
   );
-  for (const record of records) assert.doesNotMatch(record, /tape-bar/);
+  assert.equal(findTapeRow("Record", body.text), "");
 });
 
 test("Last 10 and Streak show only for the regular season, under its numbers and set like them, with a winning streak marked", () => {
@@ -661,7 +660,7 @@ test("over its numbers, a team is named without its dot, which the sheet's title
   );
   assert.equal(heads.length, 2);
   for (const head of heads) assert.doesNotMatch(head, /class="dot"/);
-  assert.match(readTeam(SEASON, "ATL").body, / Dream Playoff field /);
+  assert.match(readTeam(SEASON, "ATL").body, / Dream 1-0 Playoff field /);
 });
 
 test("a team's side of its numbers is drawn in its own color on each theme", () => {
@@ -674,7 +673,7 @@ test("a team's next game is in the round it's playing, not one left over from a 
   inEastern(() => {
     assert.match(
       readTeam(SEASON, "NYL").body,
-      /^Playoffs Semis .* G1 at TBD Semis Sun, Oct 4 Liberty Playoff field /,
+      /^Playoffs Semis .* G1 at TBD Semis Sun, Oct 4 Liberty 2-0 Playoff field /,
     );
   }));
 
@@ -713,7 +712,7 @@ test("before the playoffs, a team has no seed or playoff run, and its season sho
   assert.equal(minnesota.note, "West | 33-11");
   assert.equal(
     minnesota.body,
-    "Regular season Lynx League 33-11 Record Last 10 6-4 Titles 4 | 2011, 2013, 2015, 2017",
+    "Regular season Lynx 33-11 League Last 10 6-4 Titles 4 | 2011, 2013, 2015, 2017",
   );
 });
 

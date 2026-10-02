@@ -825,8 +825,8 @@ test.describe("a team's sheet", () => {
       "Titles",
     ]);
     await expect(sheet.locator(".team-tape .tape-teams")).toHaveText([
-      /^Liberty\s*Playoff field$/,
-      /^Liberty\s*League$/,
+      /^\s*Liberty 2-0\s+Playoff field\s*$/,
+      /^\s*Liberty 26-18\s+League\s*$/,
     ]);
   });
 
@@ -878,6 +878,56 @@ test.describe("a team's sheet", () => {
       .locator(".team-when")
       .evaluate((element) => getComputedStyle(element).color);
     await expect(icon).toHaveCSS("color", when);
+  });
+
+  test("a team's playoff games sit 25px apart, a final's score or not, with the team and field names 13px under them and right over their first measure", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const sheet = page.locator("#teamDialog");
+    const rows = await sheet
+      .locator(".team-game")
+      .evaluateAll((games) => games.map((game) => game.getBoundingClientRect().toJSON()));
+    const names = await sheet.locator(".team-playoffs + .team-tape .tape-teams").boundingBox();
+    const firstMeasure = await sheet
+      .locator(".team-playoffs + .team-tape .tape-row")
+      .first()
+      .boundingBox();
+
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map((row, index) => Math.round(row.top - rows[index].top))).toEqual([
+      25, 25,
+    ]);
+    expect(Math.round(names.y - rows[2].bottom)).toBe(13);
+    expect(Math.round(firstMeasure.y - (names.y + names.height))).toBe(0);
+  });
+
+  test("a team's record sits 5px after its name over its numbers, 1px below the middle of the name, in the dim small type of the game sheet's records", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
+    const club = page.locator("#teamDialog .team-tape .tape-teams .club").first();
+    const record = club.locator(".team-record");
+    await expect(record).toHaveText("2-0");
+
+    const [nameBox, recordBox] = await club.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(/** @type {Node} */ (element.firstChild));
+      return [
+        range.getBoundingClientRect().toJSON(),
+        element.lastElementChild?.getBoundingClientRect().toJSON(),
+      ];
+    });
+    expect(Math.round(recordBox.left - nameBox.right)).toBe(5);
+    expect(
+      Math.round(recordBox.top + recordBox.height / 2 - (nameBox.top + nameBox.height / 2)),
+    ).toBe(1);
+    await expect(record).toHaveCSS("font-size", "14px");
+    await expect(record).toHaveCSS("font-weight", "500");
   });
 
   test("Last 10 sits 20px under the regular season's numbers, and Streak 14px under Last 10", async ({

@@ -257,16 +257,8 @@ function readLeaguePlayoffs(games) {
 }
 
 /**
- * A measure the league has no side of, a record, keeps its number without a bar: a bar's
- * brightness says which side is ahead, and alone the team is neither.
- * @param {import("#shared/tape.js").TapeRow} row
- */
-const dropUnmatchedBar = (row) =>
-  row.home || !row.away ? row : { ...row, away: { ...row.away, bar: null } };
-
-/**
  * The team across from the league, measure by measure, leaving out a measure the team doesn't
- * have. The league has no record, so the team's shows alone, without a bar.
+ * have.
  * @param {PhaseStats} team
  * @param {PhaseStats | null} league
  */
@@ -275,7 +267,6 @@ function describeStatRows(team, league) {
   const pick = (measure) =>
     /** @type {[any, any]} */ ([team[measure] ?? null, league?.[measure] ?? null]);
   const rows = [
-    describeRecords("Record", pick("record")),
     describeNumbers("PPG", pick("pointsFor"), { format: formatAverage }),
     describeNumbers("Opp PPG", pick("pointsAgainst"), {
       format: formatAverage,
@@ -285,13 +276,13 @@ function describeStatRows(team, league) {
     describeRecords("Home", pick("home")),
     describeRecords("Road", pick("road")),
   ];
-  return rows.filter((row) => row.away).map(dropUnmatchedBar);
+  return rows.filter((row) => row.away);
 }
 
 /**
  * A team's numbers across from the league's, in the game preview's tape: the team on the left in
- * its color, named without its dot, which the sheet's title already shows, and the league on the
- * right.
+ * its color, named without its dot, which the sheet's title already shows, with its record beside
+ * its name, since the league has none to measure it against, and the league on the right.
  * @param {string} code
  * @param {PhaseStats} team
  * @param {PhaseStats | null} league
@@ -299,7 +290,10 @@ function describeStatRows(team, league) {
  */
 const renderAgainstLeague = (code, team, league, leagueName) =>
   html`<div class="team-tape" style="${formatTeamColors(code)}">
-    <div class="tape-teams"><span class="club">${nameTeam(code)}</span><span class="club">${leagueName}</span></div>
+    <div class="tape-teams">
+      <span class="club">${nameTeam(code)} <span class="team-record tabular">${team.record}</span></span>
+      <span class="club">${leagueName}</span>
+    </div>
     <div class="tape">${describeStatRows(team, league).map(renderTapeRow)}</div>
   </div>`;
 
