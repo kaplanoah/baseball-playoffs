@@ -36,7 +36,8 @@ function renderRelease({ version, commit, builtAt }) {
 
 async function showRelease() {
   const release = await loadRelease().catch(() => null);
-  if (release) renderRelease(release);
+  // A release this Worker no longer has names only its commit, and the page reloads for it.
+  if (release?.builtAt) renderRelease(release);
 }
 
 /**

@@ -1306,7 +1306,11 @@ body.kbd .rank-item .grip:focus {
     margin-left: 18px;
   }
   .settings-footer {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 3;
+    align-self: end;
+    margin: 0 24px 0 0;
+    text-align: left;
   }
 }
 .matchup-sheet .sheet-head h2 {

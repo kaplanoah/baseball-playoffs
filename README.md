@@ -228,11 +228,13 @@ Versions follow [semantic versioning](https://semver.org). Each pull request's
 title starts with a type: `feat:` for a new feature, `fix:`, `refactor:`, or
 `build:` for a patch, and `docs:`, `test:`, `ci:`, or `chore:` for changes that
 don't deploy. A `!` after a type that deploys, as in `feat!:`, marks a major
-change. The build works out each app's version from these titles on `main`, so
-there are no tags to keep. A merge that changes nothing an app's deploy counts,
-like only its tests, docs, or other apps' folders, leaves that app's version
-alone. Each app counts on from a baseline version in `worker/release.mjs`; a new
-app starts at 1.0.0 with the merge that adds its folder.
+change for every app it deploys; `feat(mlb)!:` makes it major for that app
+alone, and the others take the type's own bump. The build works out each app's
+version from these titles on `main`, so there are no tags to keep. A merge that
+changes nothing an app's deploy counts, like only its tests, docs, or other
+apps' folders, leaves that app's version alone. Each app counts on from a
+baseline version in `worker/release.mjs`; a new app starts at 1.0.0 with the
+merge that adds its folder.
 
 Every deploy checks that the Worker answers afterward. If it doesn't, the
 deploy puts the previous version back and fails. An open page reloads itself
