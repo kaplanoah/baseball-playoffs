@@ -219,7 +219,7 @@ test("where each game is on comes from ESPN's scoreboard for yesterday and today
   assert.deepEqual(tonight.networks, ["ESPN"]);
 });
 
-test("ESPN's scoreboard is read again only after 10 minutes, and kept when it stops answering", async () => {
+test("ESPN's scoreboard is read again only after 10 minutes, even after a failed read, and kept when it stops answering", async () => {
   /** @type {Record<string, "page" | "error">} */
   const refuse = {};
   const league = createLeague({ refuse });
@@ -236,6 +236,15 @@ test("ESPN's scoreboard is read again only after 10 minutes, and kept when it st
   const snapshot = await server.loadSnapshot(2026);
   assert.equal(league.countReads("networks"), 4);
   assert.deepEqual(snapshot.games.find((game) => game.id === "1042600132").networks, ["ESPN"]);
+
+  now += 11 * 1000;
+  const later = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("networks"), 4, "a failed read waits too");
+  assert.deepEqual(later.games.find((game) => game.id === "1042600132").networks, ["ESPN"]);
+
+  now += 10 * 60 * 1000;
+  await server.loadSnapshot(2026);
+  assert.equal(league.countReads("networks"), 6);
 });
 
 test("without ESPN's scoreboard, the games still show, with nowhere to watch them", async () => {

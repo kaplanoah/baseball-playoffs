@@ -53,6 +53,7 @@ export function createSnapshotServer({
   const failedFeeds = new Map();
   let lastFinals = null;
   let keptNetworks = null;
+  let networksReadAt = null;
 
   /**
    * @param {keyof typeof FEED_DATA} name
@@ -126,20 +127,20 @@ export function createSnapshotServer({
     return { games: games.filter(Boolean) };
   }
 
-  // Yesterday's too, since a late game is still being played after midnight Eastern. The last good
-  // answer stands in when a read fails.
+  // Yesterday's too, since a late game is still being played after midnight Eastern. A read that
+  // fails waits as long as one that answers, and the last good answer stands in meanwhile.
   async function readNetworks() {
-    if (keptNetworks && now() - keptNetworks.at < NETWORKS_MS) return keptNetworks.data;
+    if (networksReadAt !== null && now() - networksReadAt < NETWORKS_MS) return keptNetworks;
+    networksReadAt = now();
     try {
       const days = [now() - DAY_MS, now()].map(formatEspnDay);
-      const data = await Promise.all(
+      keptNetworks = await Promise.all(
         days.map((day) => fetchEspnJson(WNBASnapshot.NETWORKS_REQUEST(day))),
       );
-      keptNetworks = { at: now(), data };
-      return data;
     } catch {
-      return keptNetworks?.data ?? null;
+      // The last good answer stands in.
     }
+    return keptNetworks;
   }
 
   async function fetchResponses(season) {
