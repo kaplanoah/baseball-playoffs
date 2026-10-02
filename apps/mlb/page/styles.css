@@ -1291,6 +1291,17 @@ body.kbd .rank-item .grip:focus {
   flex-direction: column;
   gap: var(--section-gap);
 }
+/* Settings fill the whole sheet, so the ranking can be one sheet tall, and a scroll settles on the
+   settings or the ranking. */
+.settings-panel {
+  height: 100%;
+  container-type: size;
+  scroll-snap-type: y proximity;
+  scroll-padding-top: calc(var(--head-height) + var(--section-gap));
+}
+.settings-controls {
+  scroll-snap-align: start;
+}
 /* The ranking section is exactly one sheet tall, less the pinned header, the gap above it, and
    the bottom padding, so scrolling down to it shows all twelve rows at once. */
 .settings-ranking {

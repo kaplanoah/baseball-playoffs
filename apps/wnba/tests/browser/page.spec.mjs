@@ -1,5 +1,6 @@
 import { test, expect, openApp } from "./harness.mjs";
 import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
+import { serveReleases } from "../../../../tests/browser/serve-releases.mjs";
 
 test("the page opens on the bracket the Worker saved, and each tab shows its view", async ({
   page,
@@ -277,6 +278,75 @@ test("settings credit NBA.com for the data", async ({ page }) => {
   await openApp(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.locator("#settingsDialog")).toContainText("Data from NBA.com");
+});
+
+/**
+ * Opens settings with the release named under the title, and waits for the sheet to settle.
+ * @param {import("@playwright/test").Page} page
+ */
+async function openSettingsWithRelease(page) {
+  await serveReleases(page);
+  await openApp(page);
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(page.locator("#versionNote")).toBeVisible();
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+}
+
+/** @param {import("@playwright/test").Page} page */
+const readSettingsBoxes = (page) =>
+  page.locator("#settingsDialog").evaluate((dialog) => {
+    const readBox = (selector) => dialog.querySelector(selector).getBoundingClientRect().toJSON();
+    return {
+      sheet: dialog.getBoundingClientRect().toJSON(),
+      body: readBox(".settings-body"),
+      top: readBox(".sheet-top"),
+      head: readBox(".sheet-head"),
+      grabber: readBox(".sheet-grabber"),
+      title: readBox("h2"),
+    };
+  });
+
+test.describe("on a phone, settings", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("rise only as tall as what they hold, from the bottom of the screen", async ({ page }) => {
+    await openSettingsWithRelease(page);
+    const { sheet, body } = await readSettingsBoxes(page);
+    expect(Math.round(sheet.bottom)).toBe(844);
+    expect(Math.abs(sheet.bottom - body.bottom)).toBeLessThan(1);
+    expect(sheet.height).toBeLessThan(844 * 0.6);
+  });
+
+  test("set their title 12px under the grabber, with the release and NBA.com inside the header", async ({
+    page,
+  }) => {
+    await openSettingsWithRelease(page);
+    const { top, head, grabber, title } = await readSettingsBoxes(page);
+    expect(grabber.height).toBe(5);
+    expect(title.top - grabber.bottom).toBe(12);
+    expect(head.bottom).toBeLessThanOrEqual(top.bottom);
+  });
+});
+
+test.describe("on a wide screen, settings", () => {
+  test.use({ viewport: { width: 1280, height: 900 } });
+
+  test("open only as tall as what they hold, in the middle of the screen", async ({ page }) => {
+    await openSettingsWithRelease(page);
+    const { sheet, body } = await readSettingsBoxes(page);
+    expect(sheet.bottom - body.bottom).toBeLessThanOrEqual(1);
+    expect(sheet.height).toBeLessThan(900 * 0.6);
+    expect(Math.abs(sheet.top + sheet.height / 2 - 450)).toBeLessThan(1);
+  });
+
+  test("leave 10px above their title, with the release and NBA.com inside the header", async ({
+    page,
+  }) => {
+    await openSettingsWithRelease(page);
+    const { top, head, title } = await readSettingsBoxes(page);
+    expect(title.top - top.top).toBe(10);
+    expect(head.bottom).toBeLessThanOrEqual(top.bottom);
+  });
 });
 
 test("the page serves both themes' icons", async ({ page }) => {
