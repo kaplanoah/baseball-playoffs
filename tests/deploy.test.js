@@ -617,3 +617,33 @@ test("project settings ask before a deploy or a key change, and deny running the
     assert.ok(permissions.deny.includes(rule), rule);
   }
 });
+
+test(
+  "every app deploys at once, and one that fails doesn't hold back the others",
+  {
+    timeout: 2000,
+  },
+  async () => {
+    const { deployApps } = await loadDeployModule();
+    const started = [];
+    const errors = [];
+    /** @type {(value?: unknown) => void} */
+    let releaseMlb = () => {};
+    const mlbHeld = new Promise((resolve) => (releaseMlb = resolve));
+    const isDeployed = await deployApps(
+      ["mlb", "wnba"],
+      async (app) => {
+        started.push(app);
+        if (app === "mlb") {
+          await mlbHeld;
+          throw new Error("upload refused");
+        }
+        releaseMlb();
+      },
+      (line) => errors.push(line),
+    );
+    assert.deepEqual(started, ["mlb", "wnba"]);
+    assert.equal(isDeployed, false);
+    assert.deepEqual(errors, ["mlb: upload refused"]);
+  },
+);
