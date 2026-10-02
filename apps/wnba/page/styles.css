@@ -584,6 +584,10 @@ header.top h1 {
   --away: var(--away-dark, var(--ink-dim));
   --home: var(--home-dark, var(--ink-dim));
 }
+/* A tape of stats is the sheet's densest part, so it gets more room from the parts around it. */
+.game-sheet-body > .sheet-part:has(> .tape) {
+  margin-block: 8px;
+}
 .game-sheet-body :is(.tape-side, .lead-chart *).away {
   --side: var(--away);
 }
@@ -707,8 +711,18 @@ header.top h1 {
 
 /*
  * The lead through the game: a fine step line on a tile, each team's half shaded faintly in its
- * color, and named and its biggest lead marked in it.
+ * color, and named and its biggest lead marked in it. The words sit over the drawing at the type
+ * scale's size, placed by the shares of its width and height that lead-chart.js hands them.
  */
+.lead-chart {
+  display: grid;
+  gap: 6px;
+  font-size: var(--size-small);
+  line-height: 1;
+}
+.lead-plot {
+  position: relative;
+}
 .lead-chart svg {
   display: block;
   width: 100%;
@@ -718,6 +732,14 @@ header.top h1 {
 .lead-tile {
   fill: var(--tile);
   stroke: color-mix(in srgb, var(--divider) 70%, transparent);
+}
+.lead-tile.pending {
+  fill: var(--divider);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lead-tile.pending {
+    animation: placeholder-pulse 0.9s ease-in-out infinite alternate;
+  }
 }
 .lead-grid {
   stroke: color-mix(in srgb, var(--divider) 60%, transparent);
@@ -748,23 +770,61 @@ header.top h1 {
   stroke: var(--card);
   stroke-width: 1.5;
 }
-.lead-chart text {
-  font-family: var(--display);
-  font-size: 13px;
+.lead-side {
+  margin: 0;
+  padding-left: var(--plot-left);
+  font-family: var(--numbers);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--side);
+}
+.lead-reach,
+.lead-peak-label,
+.lead-period {
+  position: absolute;
+  white-space: nowrap;
+}
+.lead-reach {
+  top: var(--y);
+  right: calc(100% - var(--plot-left) + 5px);
+  translate: 0 -50%;
+  font-family: var(--numbers);
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+/* A label about half its length from the tile's edges, in Barlow Condensed's average width, so
+   one near an edge stays on the tile. */
+.lead-peak-label {
+  --half: calc(var(--length) * 0.26em);
+  top: var(--y);
+  left: clamp(
+    calc(var(--plot-left) + var(--half)),
+    var(--x),
+    calc(100% - var(--plot-right) - var(--half))
+  );
+  font-family: var(--numbers);
+  font-weight: 600;
+  color: var(--side);
+}
+.lead-peak-label.home {
+  translate: -50% calc(-100% - 6px);
+}
+.lead-peak-label.away {
+  translate: -50% 6px;
+}
+.lead-periods {
+  position: relative;
+  height: 1em;
+  margin-top: 2px;
+}
+.lead-period {
+  top: 0;
+  left: var(--x);
+  translate: -50%;
   font-weight: 600;
   letter-spacing: 0.05em;
-  fill: var(--ink-dim);
-}
-.lead-chart .lead-side {
-  font-family: var(--numbers);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  fill: var(--side);
-}
-.lead-chart .lead-peak-label {
-  font-family: var(--numbers);
-  letter-spacing: 0;
-  fill: var(--side);
+  color: var(--ink-dim);
 }
 
 table.line-score,
@@ -1229,7 +1289,7 @@ table.standings tr.groups th {
   color: var(--teal);
 }
 table.standings td {
-  padding: 8px 0 8px 12px;
+  padding: 10px 0 10px 12px;
   border-top: 1px solid var(--divider);
   text-align: center;
   white-space: nowrap;
