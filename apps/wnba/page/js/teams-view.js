@@ -10,7 +10,7 @@ import { TEAMS } from "./teams.js";
 /** @typedef {import("./series.js").Series} Series */
 /** @typedef {import("./standings-view.js").StandingsRow} StandingsRow */
 /** @typedef {{ seed: number | null, round: number, isOut: boolean, isChampion: boolean }} Run */
-/** @typedef {{ team: string, firstName: string, lastName: string, points: number, rebounds: number, assists: number }} Leader */
+/** @typedef {{ team: string, id: number, firstName: string, lastName: string, games: number, points: number, rebounds: number, assists: number }} Leader */
 /** @typedef {{ series?: Series[], standings?: StandingsRow[], games?: Game[], leaders?: Leader[] }} Season */
 
 // Phosphor's caret, in the Light weight the app's other icons use.
@@ -22,6 +22,14 @@ const CARET = html`<svg class="team-caret" viewBox="0 0 256 256" fill="currentCo
  */
 const findPlace = (game, team) =>
   game.home.team === team ? "home" : game.away.team === team ? "away" : null;
+
+/**
+ * A team's leading scorers, best first.
+ * @param {Season | null} season
+ * @param {string} team
+ */
+export const findTeamLeaders = (season, team) =>
+  (season?.leaders ?? []).filter((leader) => leader.team === team);
 
 const OTHER_PLACE = { home: "away", away: "home" };
 
@@ -123,9 +131,9 @@ const formatMargin = (margin) => (margin > 0 ? `+${margin.toFixed(1)}` : margin.
 function renderStats(row) {
   if (!row) return false;
   const stats = [
-    ["Points", row.pointsFor?.toFixed(1)],
-    ["Allowed", row.pointsAgainst?.toFixed(1)],
-    ["Net", row.margin == null ? null : formatMargin(row.margin)],
+    ["PPG", row.pointsFor?.toFixed(1)],
+    ["Opp PPG", row.pointsAgainst?.toFixed(1)],
+    ["Differential", row.margin == null ? null : formatMargin(row.margin)],
     ["Home", row.home],
     ["Road", row.road],
     ["Last 10", row.lastTen],
@@ -141,16 +149,25 @@ function renderStats(row) {
   </div>`;
 }
 
+/**
+ * @param {number} value
+ * @param {string} label
+ */
+const renderAverage = (value, label) =>
+  html`<span class="tabular">${value.toFixed(1)} <span class="team-label">${label}</span></span>`;
+
+// The name and the averages each keep to one line, and the averages move under the name together
+// when both don't fit.
 /** @param {Leader | undefined} leader */
-const renderTopScorer = (leader) =>
+const renderLeadingScorer = (leader) =>
   leader &&
-  html`<p class="team-detail">
-    <span class="team-label">Top scorer</span>${joinWithSeparator([
-      html`<b>${leader.firstName} ${leader.lastName}</b>`,
-      html`<span class="tabular">${leader.points.toFixed(1)} pts</span>`,
-      html`<span class="tabular">${leader.rebounds.toFixed(1)} reb</span>`,
-      html`<span class="tabular">${leader.assists.toFixed(1)} ast</span>`,
-    ])}
+  html`<p class="team-detail team-scorer">
+    <span class="team-label">Leading scorer</span><b>${leader.firstName} ${leader.lastName}</b
+    ><span class="team-averages">${joinWithSeparator([
+      renderAverage(leader.points, "Pts"),
+      renderAverage(leader.rebounds, "Reb"),
+      renderAverage(leader.assists, "Ast"),
+    ])}</span>
   </p>`;
 
 /**
@@ -239,7 +256,6 @@ function renderPlayoffs(team, { finished, next }, isPlaying, now) {
  */
 export function renderTeams(season, { year, now, openTeams = new Set() }) {
   const rowsByTeam = new Map((season?.standings ?? []).map((row) => [row.team, row]));
-  const leadersByTeam = new Map((season?.leaders ?? []).map((leader) => [leader.team, leader]));
   const runs = readPlayoffRuns(season?.series ?? []);
   const place = (code) => rowsByTeam.get(code)?.place ?? Infinity;
   const codes = Object.keys(TEAMS).sort(
@@ -265,7 +281,7 @@ export function renderTeams(season, { year, now, openTeams = new Set() }) {
         ${renderChip(chip)}${CARET}
       </summary>
       <div class="team-season">
-        ${renderStats(row)}${renderTopScorer(leadersByTeam.get(code))}${renderTitles(code, titles)}
+        ${renderStats(row)}${renderLeadingScorer(findTeamLeaders(season, code)[0])}${renderTitles(code, titles)}
         ${renderPlayoffs(code, games, isPlaying, now)}
       </div>
     </details>`;
@@ -281,7 +297,7 @@ export function renderTeams(season, { year, now, openTeams = new Set() }) {
  */
 export function drawTeams(wrap, season, options) {
   const openTeams = new Set(
-    [...wrap.querySelectorAll("details[open]")].map(
+    [...wrap.querySelectorAll("details[open]:not(.closing)")].map(
       (details) => /** @type {HTMLElement} */ (details).dataset.team ?? "",
     ),
   );

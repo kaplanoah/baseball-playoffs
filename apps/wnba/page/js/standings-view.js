@@ -34,7 +34,7 @@ function renderTeamTag(row, view) {
   if (view === "League") {
     return html`<span class="conference-tag ${row.conference.toLowerCase()}">${row.conference.charAt(0)}</span>`;
   }
-  return isAboveLine(row) ? html`<span class="seed-note">Seed ${row.place}</span>` : "";
+  return isAboveLine(row) ? html`<span class="seed-note">${row.place} seed</span>` : "";
 }
 
 /** @param {string | null} streak */

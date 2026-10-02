@@ -1,15 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
+import { REQUESTS } from "../../page/js/snapshot.js";
 import { nameBoxScoreRequest } from "../../worker/src/box-score.js";
-import { listPreviewRequests } from "../../worker/src/preview.js";
 import { FEED_HEADERS } from "../../worker/src/wnba.js";
 
-// Records what the game sheet's routes read from the league: the box scores of the games named,
-// and the season's schedule, standings, and player averages.
+// Records what the game sheet reads from the league: the box scores of the games named, and the
+// season's schedule, standings, and player averages.
 
-// Asked for anything but gzip alone, the stats site can answer from a months-old copy.
 async function fetchJson(url) {
-  const response = await fetch(url, { headers: { ...FEED_HEADERS, "accept-encoding": "gzip" } });
+  const response = await fetch(url, { headers: FEED_HEADERS });
   if (!response.ok) throw new Error(`${response.status} for ${url}`);
   return response.json();
 }
@@ -32,11 +31,10 @@ const trimSchedule = ({ leagueSchedule }) => ({
 
 async function recordFixture(season, name, gameIds) {
   const now = Date.now();
-  const requests = listPreviewRequests(season);
   const [schedule, standings, players, ...boxScores] = await Promise.all([
-    fetchJson(requests.schedule),
-    fetchJson(requests.standings),
-    fetchJson(requests.players),
+    fetchJson(REQUESTS.schedule),
+    fetchJson(REQUESTS.standings(season)),
+    fetchJson(REQUESTS.players(season)),
     ...gameIds.map((id) => fetchJson(nameBoxScoreRequest(id))),
   ]);
   const fixture = {

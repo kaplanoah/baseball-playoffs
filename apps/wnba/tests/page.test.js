@@ -221,7 +221,7 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     const text = readText(renderBracket(SEASON, NOW));
     assert.match(
       text,
-      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 Liberty win 2-0 Seed 1 Lynx 0 Seed 8 Liberty 2 Game 2 \| Today 7:00 PM Seed 4 Dream 1 Seed 5 Mystics 0 /,
+      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 Liberty win 2-0 1 seed Lynx 0 8 seed Liberty 2 Game 2 \| Today 7:00 PM 4 seed Dream 1 5 seed Mystics 0 /,
     );
     assert.match(
       text,
@@ -236,7 +236,7 @@ test("a series with a game under way says so", () =>
   inEastern(() => {
     assert.match(
       readText(renderBracket(LIVE_TONIGHT, NOW)),
-      /Live, Game 2 Seed 4 Dream 1 Seed 5 Mystics 0/,
+      /Live, Game 2 4 seed Dream 1 5 seed Mystics 0/,
     );
   }));
 
@@ -268,7 +268,7 @@ function finishFirstRound() {
 test("a seed is labeled only in the first round, where its team enters the bracket", () =>
   inEastern(() => {
     const text = readText(renderBracket(finishFirstRound(), NOW));
-    assert.match(text, /Dream win 2-0 Seed 4 Dream 2 Seed 5 Mystics 0 /);
+    assert.match(text, /Dream win 2-0 4 seed Dream 2 5 seed Mystics 0 /);
     assert.match(text, /Oct 4 Dream 0 Liberty 0 Game 1 \| Sun, Oct 4 Valkyries 0 Fever 0 /);
   }));
 
@@ -310,7 +310,7 @@ test("a conference's standings rank its own teams, note each playoff team's leag
   const text = readText(renderStandings(SEASON, "East"));
   assert.match(
     text,
-    /Strk 1 Dream Seed 4 30-14 - 9-1 W 5 2 Mystics Seed 5 28-16 2\.0 8-2 W 4 3 Fever Seed 6 /,
+    /Strk 1 Dream 4 seed 30-14 - 9-1 W 5 2 Mystics 5 seed 28-16 2\.0 8-2 W 4 3 Fever 6 seed /,
   );
   const rows = readStandingsRows(renderStandings(SEASON, "East"));
   assert.deepEqual(
@@ -318,7 +318,7 @@ test("a conference's standings rank its own teams, note each playoff team's leag
     ["", "", "", "", "playoff-line", "below", "below", "below"],
   );
   assert.match(rows[5].text, /^5 Sky 16-28 14\.0 4-6 L 1$/, "no seed below the line");
-  assert.match(readText(renderStandings(SEASON, "West")), /Strk 1 Lynx Seed 1 33-11 - /);
+  assert.match(readText(renderStandings(SEASON, "West")), /Strk 1 Lynx 1 seed 33-11 - /);
 });
 
 test("each standings table names the view it shows", () => {
@@ -374,12 +374,12 @@ test("teams follow the standings, each with its conference, seed, record, last t
     assert.match(markup, /class="team" data-team="NYL"/);
   }));
 
-test("a team opens to its season: its averages, its top scorer, its titles, and its playoff games", () =>
+test("a team opens to its season: its averages, its leading scorer, its titles, and its playoff games", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").details,
-      "Points 91.3 Allowed 84.5 Net +6.9 Home 15-7 Road 15-7 Last 10 9-1 " +
-        "Top scorer Allisha Gray | 19.0 pts | 3.5 reb | 2.6 ast " +
+      "PPG 91.3 Opp PPG 84.5 Differential +6.9 Home 15-7 Road 15-7 Last 10 9-1 " +
+        "Leading scorer Allisha Gray 19.0 Pts | 3.5 Reb | 2.6 Ast " +
         "Playoffs G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM",
     );
     assert.match(

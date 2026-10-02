@@ -18,6 +18,7 @@ import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStampProblem, renderStampLines } from "./stamp.js";
 import { drawStandings, startStandings } from "./standings-view.js";
+import { startTeamEasing } from "./team-easing.js";
 import { drawTeams } from "./teams-view.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
@@ -90,6 +91,7 @@ async function boot() {
   startHomeScreen();
   startBracket();
   startStandings();
+  startTeamEasing(findElement("teamsWrap"));
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);

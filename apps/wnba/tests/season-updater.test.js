@@ -66,7 +66,7 @@ test("the season saves its games, series, standings, and top scorers, and only w
   assert.equal(saved.games.length, 28);
   assert.equal(saved.series.length, 7);
   assert.equal(saved.standings.length, 15);
-  assert.equal(saved.leaders.length, 15);
+  assert.equal(saved.leaders.length, 45);
 });
 
 /**
@@ -113,7 +113,7 @@ test("the top scorers stay as they were when the players' averages didn't answer
   await saveSnapshot(docs, SNAPSHOT);
   await saveSnapshot(docs, buildWithout(["players"]));
 
-  assert.equal((await readUpdates(docs, 2026)).leaders.length, 15);
+  assert.equal((await readUpdates(docs, 2026)).leaders.length, 45);
 });
 
 // The afternoon's feeds, with some that didn't answer.
