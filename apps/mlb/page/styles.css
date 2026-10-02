@@ -1305,6 +1305,9 @@ body.kbd .rank-item .grip:focus {
     grid-row: 3;
     margin-left: 18px;
   }
+  .settings-footer {
+    grid-column: 1 / -1;
+  }
 }
 .matchup-sheet .sheet-head h2 {
   font-size: 1.125rem;

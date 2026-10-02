@@ -1,9 +1,9 @@
 /*
  * The chrome every app's page shares: the settings button, the tabs (a floating glass bar on
- * phones), the settings dialog (a sheet on phones), a sideways bracket's round dots (pinned
- * above the tab bar on phones), and the bar and settings box that ask a phone's browser to add the
- * page to the Home Screen. Apps link it before their own styles.css, which lays out the rest of the
- * page and may refine these rules.
+ * phones), the settings dialog (a sheet on phones) and the lines at its foot, a sideways
+ * bracket's round dots (pinned above the tab bar on phones), and the bar and settings box that ask
+ * a phone's browser to add the page to the Home Screen. Apps link it before their own styles.css,
+ * which lays out the rest of the page and may refine these rules.
  *
  * An app's :root defines these tokens:
  *   --bg, --card, --card-border, --divider    the page, card, and line colors
@@ -233,6 +233,17 @@ section.view.active {
 }
 .settings-version[hidden] {
   display: none;
+}
+/* Settings end with a few centered lines, like the copyright, under everything else. */
+.settings-footer {
+  display: grid;
+  gap: 2px;
+  margin-top: calc(18px - var(--section-gap));
+  text-align: center;
+}
+.settings-footer .settings-version {
+  font-size: var(--size-small);
+  white-space: normal;
 }
 .sheet-done {
   display: flex;
