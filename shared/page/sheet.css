@@ -16,8 +16,8 @@
  * While a sheet's details load, placeholders hold their place in the shape they'll have, and
  * sheet-resize.js eases the sheet to its new height once they arrive.
  *
- * Where to watch a game, as network-logos.js builds it, is a line of its channels, which takes
- * these tokens from the app's :root:
+ * Where to watch a game, as network-logos.js builds it, is a line of its channels, or a note to
+ * check back while they aren't listed, which takes these tokens from the app's :root:
  *   --network-logo-height    a logo's height, which each logo scales so a square badge and a
  *                            long wordmark look about the same size
  *   --network-gap            the room between two channels
@@ -217,6 +217,10 @@
   gap: 8px var(--network-gap);
   font-size: var(--size-small);
   color: var(--ink-mid);
+}
+.networks-pending {
+  margin: 0;
+  color: var(--ink-dim);
 }
 .network-logo {
   --logo-height: calc(var(--network-logo-height) * var(--logo-scale, 1));

@@ -25,7 +25,7 @@ const AFTERNOON = JSON.parse(
 const NOW = AFTERNOON.now;
 // Where ESPN says each of the afternoon's games was on.
 const ESPN_SCOREBOARD = JSON.parse(
-  readFileSync(new URL("../fixtures/2026-09-30-espn-scoreboard.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../fixtures/2026-10-02-espn-scoreboard.json", import.meta.url), "utf8"),
 );
 const GAMES = JSON.parse(
   readFileSync(new URL("../fixtures/2026-10-01-games.json", import.meta.url), "utf8"),

@@ -73,8 +73,9 @@ export const BACKUP_REQUESTS = {
   competition: (eventId) => `${ESPN_CORE}/events/${eventId}/competitions/${eventId}`,
 };
 
-/** @param {string} day as YYYYMMDD */
-export const NETWORKS_REQUEST = (day) => `${ESPN_SITE}/scoreboard?dates=${day}`;
+// A month's scoreboard holds every game ESPN lists that month, with room to spare.
+/** @param {string} month as YYYYMM */
+export const NETWORKS_REQUEST = (month) => `${ESPN_SITE}/scoreboard?dates=${month}&limit=200`;
 
 export const ROUNDS = {
   1: { name: "First Round", shortName: "1st Rd", bestOf: 3 },
@@ -411,18 +412,32 @@ function readNetworkGame(event) {
   };
 }
 
-const isWatchable = (game) => game.state === "pre" || game.state === "live";
+// Until ESPN names both teams, its game could be any of a round's games at that time.
+const hasBothTeams = (networkGame) => !!(networkGame.home?.team && networkGame.away?.team);
 
 /**
- * Where each game still to come or under way is on, as far as ESPN knows.
+ * Where each game is or was on, as far as ESPN knows.
  * @param {any[]} games
  * @param {any[]} networkGames
  */
-const addNetworks = (games, networkGames) =>
-  games.map((game) => ({
+function addNetworks(games, networkGames) {
+  const known = networkGames.filter(hasBothTeams);
+  return games.map((game) => ({
     ...game,
-    networks: isWatchable(game) ? (findEspnGame(game, networkGames)?.networks ?? []) : [],
+    networks: findEspnGame(game, known)?.networks ?? [],
   }));
+}
+
+/**
+ * When each of the season's playoff games starts, as the league's schedule has it.
+ * @param {any} schedule
+ * @param {number} season
+ * @returns {string[]}
+ */
+export const listScheduledStarts = (schedule, season) =>
+  mergeGames(schedule, null, season)
+    .map((game) => game.start)
+    .filter(Boolean);
 
 /**
  * @param {{ scoreboard?: any, schedule?: any, bracket?: any, standings?: any, players?: any, backup?: { games: any[] } | null, networks?: any[] | null }} responses

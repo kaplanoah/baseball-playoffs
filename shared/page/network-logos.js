@@ -91,18 +91,25 @@ function renderLogo(logo) {
   )}`;
 }
 
+/** @param {string[]} networks */
+const renderNetworkLine = (networks) =>
+  html`<div class="networks" role="group" aria-label="Where to watch">
+    ${listNetworkLogos(networks).map((network) =>
+      typeof network === "string"
+        ? html`<span class="network-name">${network}</span>`
+        : renderLogo(network),
+    )}
+  </div>`;
+
 /**
  * Where to watch a game, as sheet.css lays it out: its channels in one line, logos standing apart
- * by space alone, and a channel without one by its name.
+ * by space alone, and a channel without one by its name. A game yet to end whose channels aren't
+ * listed yet says to check back, and one that ended without them says nothing.
  * @param {string[]} networks
+ * @param {{ hasEnded: boolean }} game
  */
-export const renderNetworks = (networks) =>
-  networks.length
-    ? html`<div class="networks" role="group" aria-label="Where to watch">
-        ${listNetworkLogos(networks).map((network) =>
-          typeof network === "string"
-            ? html`<span class="network-name">${network}</span>`
-            : renderLogo(network),
-        )}
-      </div>`
-    : html``;
+export function renderNetworks(networks, { hasEnded }) {
+  if (networks.length) return renderNetworkLine(networks);
+  if (hasEnded) return html``;
+  return html`<p class="networks networks-pending">Check back for where to watch</p>`;
+}
