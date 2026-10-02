@@ -157,9 +157,10 @@ section.view.active {
   display: block;
 }
 
-/* Settings are as tall as what they hold, up to nearly the screen's height, under a pinned header.
-   An app that fills the whole sheet sizes its sections from --head-height, the header's least
-   height, --section-gap, and --bottom-padding. */
+/* Settings are as tall as what they hold, up to nearly the screen's height, and their header
+   scrolls with them. They never scroll past their top or bottom, so a swipe down at the top moves
+   the sheet instead. An app that fills the whole sheet sizes its sections from --section-gap and
+   --bottom-padding. */
 .settings-panel {
   --head-height: 64px;
   --section-gap: 14px;
@@ -174,7 +175,7 @@ section.view.active {
   border: 1px solid var(--card-border);
   border-radius: 12px;
   box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 .settings-panel::backdrop {
   background: rgba(0, 0, 0, 0.6);
@@ -186,9 +187,6 @@ section.view.active {
   padding: 0 22px var(--bottom-padding);
 }
 .sheet-top {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: center;

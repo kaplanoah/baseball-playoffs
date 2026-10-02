@@ -747,6 +747,20 @@ test.describe("on a phone", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
   });
 
+  test("the game sheet's title scrolls away with the rest, and the sheet never scrolls past its ends", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const sheet = await openSheet(page, ACES_AT_FEVER);
+    await expect(sheet.locator(".tape-row").first()).toBeVisible();
+    await expect(sheet).toHaveCSS("overscroll-behavior-y", "none");
+
+    await sheet.evaluate((dialog) => {
+      dialog.scrollTop = dialog.scrollHeight;
+    });
+    await expect(sheet.locator(".sheet-top")).not.toBeInViewport();
+  });
+
   test("the game sheet's backdrop fades in, and Done, a tap outside, or Escape slides the sheet down as the backdrop fades out", async ({
     page,
   }) => {

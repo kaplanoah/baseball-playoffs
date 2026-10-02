@@ -43,3 +43,55 @@ test("Done and a click on the backdrop close the sheet", () => {
   dialog.dispatchEvent(new Event("click"));
   assert.equal(dialog.open, false);
 });
+
+// A stand-in for a sheet on a phone, which a swipe down moves and closes.
+function createPhoneSheet() {
+  globalThis.matchMedia = /** @type {any} */ ((query) => ({ matches: query.includes("width") }));
+  const dialog = Object.assign(new EventTarget(), {
+    open: true,
+    scrollTop: 0,
+    style: { transform: "" },
+    animate() {
+      /** @type {{ cancel: () => void, finished?: Promise<unknown> }} */
+      const motion = { cancel() {} };
+      motion.finished = Promise.resolve(motion);
+      return motion;
+    },
+    close() {
+      dialog.open = false;
+    },
+  });
+  wireSheet(/** @type {any} */ (dialog), { doneButton: /** @type {any} */ (new EventTarget()) });
+  /** @param {string} type @param {number} [clientY] */
+  const touch = (type, clientY) => {
+    const touches = clientY === undefined ? [] : [{ clientY }];
+    dialog.dispatchEvent(Object.assign(new Event(type, { cancelable: true }), { touches }));
+  };
+  return { dialog, touch };
+}
+
+test("on a phone, a swipe down that scrolls the sheet back to its top goes on to move the sheet and close it", async () => {
+  const { dialog, touch } = createPhoneSheet();
+  dialog.scrollTop = 300;
+
+  touch("touchstart", 100);
+  touch("touchmove", 200);
+  assert.equal(dialog.style.transform, "");
+  dialog.scrollTop = 0;
+  touch("touchmove", 230);
+  assert.equal(dialog.style.transform, "translateY(30px)");
+  touch("touchmove", 400);
+  touch("touchend");
+  await new Promise((resolve) => setTimeout(resolve));
+  assert.equal(dialog.open, false);
+});
+
+test("on a phone, a swipe at the sheet's top that goes up first moves the sheet from its highest point", () => {
+  const { dialog, touch } = createPhoneSheet();
+
+  touch("touchstart", 300);
+  touch("touchmove", 260);
+  assert.equal(dialog.style.transform, "");
+  touch("touchmove", 310);
+  assert.equal(dialog.style.transform, "translateY(50px)");
+});

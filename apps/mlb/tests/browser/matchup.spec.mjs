@@ -153,17 +153,18 @@ test("on a desktop, the title centers over the sheet, with Done at its right edg
   expect(sides.map(Math.round)).toEqual([19, 19]);
 });
 
-test("the sheet scrolls under its pinned title with no line between them", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 500 });
+test("the sheet's title scrolls away with the rest, and the sheet never scrolls past its ends", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 500 });
   const sheet = await openMatchup(page);
   await expect(sheet.locator(".pitch-mix")).toHaveCount(2);
+  await expect(sheet).toHaveCSS("overscroll-behavior-y", "none");
+
   await sheet.evaluate((dialog) => {
     dialog.scrollTop = 200;
-    dialog.dispatchEvent(new Event("scroll"));
   });
-  const top = sheet.locator(".sheet-top");
-  await expect(top).toHaveCSS("box-shadow", "none");
-  await expect(top).toHaveCSS("position", "sticky");
+  await expect(sheet.locator(".sheet-top")).not.toBeInViewport();
 });
 
 test("the sheet's parts and lists leave room between their rows", async ({ page }) => {

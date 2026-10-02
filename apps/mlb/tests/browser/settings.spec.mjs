@@ -295,7 +295,7 @@ test("on a phone, a swipe down scrolled into the ranking or on a grip leaves set
   expect(await readSheetTop(page)).toBe(44);
 
   await scrollSettingsToEnd(page);
-  await swipeSheetDown(page, { target: ".sheet-top", distance: 200, steps: 10, stepMs: 30 });
+  await swipeSheetDown(page, { target: "#rankList", distance: 200, steps: 10, stepMs: 30 });
   await expect(settings).toBeVisible();
   expect(await readSheetTop(page)).toBe(44);
 });
@@ -334,10 +334,9 @@ async function waitForSheetToRise(page) {
 /** @param {import("@playwright/test").Page} page */
 async function expectWholeRankingInView(page) {
   const sheet = await page.locator("#settingsDialog").boundingBox();
-  const header = await page.locator("#settingsDialog .sheet-top").boundingBox();
   const first = await page.locator("#rankList .rank-item").first().boundingBox();
   const last = await page.locator("#rankList .rank-item").last().boundingBox();
-  expect(first.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
+  expect(first.y).toBeGreaterThanOrEqual(sheet.y - 1);
   expect(last.y + last.height).toBeLessThanOrEqual(sheet.y + sheet.height + 1);
 }
 
@@ -376,7 +375,7 @@ test("a page last left on the old Ranking tab opens on the bracket", async ({ pa
   await expect(page.locator("#view-bracket")).toBeVisible();
 });
 
-test("on a phone, scrolling settings down shows the whole ranking under the pinned header", async ({
+test("on a phone, scrolling settings down shows the whole ranking, and the header scrolls away", async ({
   page,
 }) => {
   await page.setViewportSize(PHONE);
@@ -389,7 +388,7 @@ test("on a phone, scrolling settings down shows the whole ranking under the pinn
   await scrollSettingsToEnd(page);
 
   await expectWholeRankingInView(page);
-  await expect(settings.getByRole("heading", { name: "Settings" })).toBeInViewport();
+  await expect(settings.getByRole("heading", { name: "Settings" })).not.toBeInViewport();
   await expect(settings.locator(".ranking-note")).toBeVisible();
   await expect(settings.locator("#rankList .rank-ws").first()).toBeVisible();
 });
