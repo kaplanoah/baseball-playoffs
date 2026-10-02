@@ -28,7 +28,7 @@ import { findTeamLeaders } from "./team-view.js";
 /** @type {("away" | "home")[]} */
 const SIDES = ["away", "home"];
 const ROAD_HOME = html`<span class="label-split">Road <i aria-hidden="true"></i> Home</span>`;
-const SEASON_ROW_LABELS = ["Record", "PPG", "Opp PPG", "Differential", ROAD_HOME, "Last 10"];
+const SEASON_ROW_LABELS = ["Record", "PPG", "Opp PPG", "Margin", ROAD_HOME, "Last 10"];
 // Teams in a playoff series have usually met a few times by then.
 const PENDING_MEETINGS = 3;
 
@@ -146,7 +146,7 @@ function describeNumbers(label, values, { format, isLowerBetter = false }) {
  * @param {TeamSeason} home
  */
 const describeSeasonRows = (away, home) => {
-  const [record, points, allowed, differential, roadHome, lastTen] = SEASON_ROW_LABELS;
+  const [record, points, allowed, margin, roadHome, lastTen] = SEASON_ROW_LABELS;
   return [
     describeRecords(record, [`${away.wins}-${away.losses}`, `${home.wins}-${home.losses}`]),
     describeNumbers(points, [away.pointsFor, home.pointsFor], { format: formatAverage }),
@@ -154,7 +154,7 @@ const describeSeasonRows = (away, home) => {
       format: formatAverage,
       isLowerBetter: true,
     }),
-    describeNumbers(differential, [away.margin, home.margin], { format: formatMargin }),
+    describeNumbers(margin, [away.margin, home.margin], { format: formatMargin }),
     describeRecords(roadHome, [away.road, home.home]),
     describeRecords(lastTen, [away.lastTen, home.lastTen]),
   ];

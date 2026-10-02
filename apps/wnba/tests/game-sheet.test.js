@@ -173,7 +173,7 @@ test("a preview compares the season stats from the saved standings, the visitors
   assert.match(text, /Season stats Fever Aces 28-16 Record 31-13/);
   assert.match(text, /96\.0 PPG 91\.5/);
   assert.match(text, /90\.4 Opp PPG 85\.8/);
-  assert.match(text, /\+5\.5 Differential \+5\.7/);
+  assert.match(text, /\+5\.5 Margin \+5\.7/);
   assert.match(text, /13-9 Road Home 15-7/);
   assert.match(text, /8-2 Leading scorers/);
   assert.deepEqual(readTapeBars(markup, "Opp PPG"), ["100", "lead 95"]);

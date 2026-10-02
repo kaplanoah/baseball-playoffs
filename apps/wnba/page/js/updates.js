@@ -90,7 +90,7 @@ function describeWin(game, games) {
   const own = wins[winner.team ?? ""] ?? 0;
   const theirs = wins[loser.team ?? ""] ?? 0;
   const result = html`<b>${nameTeam(winner.team)}</b> beat the <b>${nameTeam(loser.team)}</b> ${winner.score}-${loser.score}`;
-  const score = html`${own}&ndash;${theirs}`;
+  const score = html`<span class="series-score">${own}&ndash;${theirs}</span>`;
   if (own === Math.ceil(round.bestOf / 2)) return html`${result} to win the ${round.name} ${score}`;
   return html`${result} in Game&nbsp;${game.number}&nbsp;&mdash; ${describeStanding(own, theirs)} the ${round.name} ${score}`;
 }

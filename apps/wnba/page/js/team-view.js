@@ -107,7 +107,7 @@ function renderStats(row) {
   const stats = [
     ["PPG", row.pointsFor?.toFixed(1)],
     ["Opp PPG", row.pointsAgainst?.toFixed(1)],
-    ["Differential", row.margin == null ? null : formatMargin(row.margin)],
+    ["Margin", row.margin == null ? null : formatMargin(row.margin)],
     ["Home", row.home],
     ["Road", row.road],
     ["Last 10", row.lastTen],

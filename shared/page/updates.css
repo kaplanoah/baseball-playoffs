@@ -28,7 +28,7 @@
   gap: 14px;
 }
 .updates-count {
-  font-size: 0.68rem;
+  font-size: var(--size-small);
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--updates-head);
@@ -68,7 +68,7 @@
   display: flex;
   align-items: baseline;
   gap: 12px;
-  font-size: 0.82rem;
+  font-size: var(--size-read);
   padding: 5px 0;
 }
 .updates-list li:first-child {
@@ -79,8 +79,8 @@
 }
 .updates-list .when {
   flex: none;
-  width: 62px;
-  font-size: 0.68rem;
+  width: 80px;
+  font-size: var(--size-glance);
   color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -89,9 +89,9 @@
   min-width: 0;
   line-height: 1.45;
 }
-/* The .when column's 62px plus the row's 12px gap. */
+/* The .when column's 80px plus the row's 12px gap. */
 .updates-list .more {
-  font-size: 0.7rem;
+  font-size: var(--size-small);
   color: var(--ink-dim);
-  padding-left: 74px;
+  padding-left: 92px;
 }

@@ -50,7 +50,7 @@ body.gate-page {
   background: var(--card);
   color: var(--ink);
   font-family: var(--gate-code-font);
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 300;
   letter-spacing: 0.12em;
   text-align: center;
@@ -93,7 +93,7 @@ body.kbd .open-button:focus {
   inset-inline: 0;
   max-width: 30ch;
   margin: 12px auto 0;
-  font-size: 0.84rem;
+  font-size: var(--size-glance);
   line-height: 1.4;
   color: var(--gate-problem);
 }
