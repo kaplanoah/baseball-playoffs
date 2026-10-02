@@ -636,8 +636,8 @@ test("a club's seed is labeled beside its card only where it enters the bracket:
   const readLabels = (round, club) =>
     bracket.locator(`.box[data-round="${round}"]`).filter({ hasText: club }).locator(".seed-label");
 
-  await expect(readLabels("WC", "Yankees")).toHaveText(["Seed 5", "Seed 4"]);
-  await expect(readLabels("DS", "Blue Jays")).toHaveText(["Seed 1"]);
+  await expect(readLabels("WC", "Yankees")).toHaveText(["5 seed", "4 seed"]);
+  await expect(readLabels("DS", "Blue Jays")).toHaveText(["1 seed"]);
   await expect(readLabels("CS", "Blue Jays")).toHaveCount(0);
   await expect(readLabels("WS", "Dodgers")).toHaveCount(0);
   await expect(bracket.locator(".seed-label")).toHaveCount(12);
