@@ -1,6 +1,6 @@
 /*
  * The page a phone sees until it sends the access code (an app's gate.html): the app's icon, the
- * code, and Open, together in the middle of the screen, a little above center. Pages theme it with
+ * code, and Open, together in the middle of the screen, however short. Pages theme it with
  * --card, --card-border, --ink, --ink-dim, --accent, --accent-ink, --focus-ring, --gate-problem
  * (what was typed is wrong), --gate-heading-font, and --gate-code-font.
  */
@@ -9,13 +9,12 @@ body.gate-page {
   flex-direction: column;
   justify-content: center;
   min-height: 100dvh;
-  padding-bottom: max(48px, env(safe-area-inset-bottom));
+  padding-block: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-bottom));
 }
 .gate {
   display: grid;
   justify-items: center;
   gap: 14px;
-  padding-bottom: 40px;
   text-align: center;
 }
 .gate-icon {
@@ -37,6 +36,7 @@ body.gate-page {
 .gate-form {
   display: grid;
   justify-items: center;
+  position: relative;
   gap: 12px;
   width: 100%;
 }
@@ -62,8 +62,7 @@ body.gate-page {
   letter-spacing: 0.06em;
 }
 .code-field:focus {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: none;
 }
 .code-field.is-wrong {
   border-color: var(--gate-problem);
@@ -87,10 +86,13 @@ body.kbd .open-button:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+/* Below the form and out of the layout, so a message never moves the rest off center. */
 .gate-message {
-  min-height: 1.4em;
+  position: absolute;
+  top: 100%;
+  inset-inline: 0;
   max-width: 30ch;
-  margin: 0;
+  margin: 12px auto 0;
   font-size: 0.84rem;
   line-height: 1.4;
   color: var(--gate-problem);
