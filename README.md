@@ -37,9 +37,10 @@ every playoff game with live scores and clocks, and the league and conference st
 the playoff line. Tap a team in the standings or the bracket for its season: its
 conference, seed, and record, its scoring, home and road records, top scorer,
 titles, and how far it got in the playoffs. Tap a game for its details: once it
-starts, its points by quarter, the two teams' stats side by side, and each team's
-top scorers; before it does, the two teams' meetings this season, how their
-seasons compare, and each team's leading scorers. On a phone or tablet, an Updates
+starts, its points by quarter, a chart of the lead through the game, the two
+teams' stats side by side, and each team's top scorers; before it does, the two
+teams' meetings this season, how their seasons compare, and each team's leading
+scorers. On a phone or tablet, an Updates
 box under the tabs lists each playoff game that ended since you last dismissed it,
 and where its series stands; each device keeps its own dismissal. It follows the phone's dark or
 light setting, or the one you pick in its settings. Added to the home screen, it keeps

@@ -2,7 +2,7 @@ import * as WNBASnapshot from "../../page/js/snapshot.js";
 import { readEasternDay } from "#shared/days.js";
 import { serveSeasonSnapshot } from "../../../../shared/worker/seasons.js";
 import { createReusedLoader, fetchUpstream } from "../../../../shared/worker/upstream.js";
-import { FEED_HEADERS, fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
+import { ESPN_HEADERS, fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
 
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
@@ -30,7 +30,6 @@ const FEED_DATA = {
 
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
 
-const BACKUP_HEADERS = { accept: "application/json", "user-agent": FEED_HEADERS["user-agent"] };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const formatEspnDay = (ms) => readEasternDay(ms).date.replaceAll("-", "");
@@ -93,7 +92,7 @@ export function createSnapshotServer({
 
   async function fetchBackupJson(url) {
     const response = await fetchUpstream(fetchImpl, url, {
-      headers: BACKUP_HEADERS,
+      headers: ESPN_HEADERS,
       cacheSeconds: EDGE_CACHE_SECONDS,
     });
     if (!response.ok) throw new Error(`ESPN answered ${response.status}`);

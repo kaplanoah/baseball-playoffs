@@ -112,6 +112,65 @@ test("only the team rows of By quarter have a line above them, not its heading r
     await expect(cell).toHaveCSS("border-top-width", "1px");
 });
 
+/**
+ * Valkyries at Wings, Game 2, over: the Wings won 108-100 in overtime.
+ * @param {any} season
+ */
+function finishValkyriesAtWings(season) {
+  const game = season.games.find((each) => each.id === "1042600112");
+  Object.assign(game, { state: "final", status: "Final/OT" });
+  Object.assign(game.away, { score: 100 });
+  Object.assign(game.home, { score: 108 });
+  return season;
+}
+
+test("a final's sheet charts the lead through the game under its quarters, and one ESPN has no lead for goes without", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+
+  const chart = sheet.locator(".lead-chart");
+  await expect(chart.getByRole("img")).toHaveAttribute(
+    "aria-label",
+    "The Wings led by as many as 8, the Valkyries led by as many as 8",
+  );
+  await expect(sheet.locator(".sheet-part h3")).toHaveText([
+    "By quarter",
+    "Lead through the game",
+    "Team stats",
+    "Top scorers",
+  ]);
+  await expect(chart.locator(".lead-period")).toHaveText(["Q1", "Q2", "Q3", "Q4", "OT"]);
+  await sheet.getByRole("button", { name: "Done" }).click();
+  await expect(sheet).toBeHidden();
+
+  await openSheet(page, ACES_AT_FEVER);
+  await expect(sheet.locator(".line-score tbody tr")).toHaveCount(2);
+  await expect(sheet.locator(".sheet-part h3")).toHaveText([
+    "By quarter",
+    "Team stats",
+    "Top scorers",
+  ]);
+});
+
+test("a live game's sheet reads its lead again with its box score", async ({ page }) => {
+  const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
+  await app.changeSeason(startValkyriesAtWings);
+  const reads = { count: 0 };
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/lead") reads.count += 1;
+  });
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  await expect(sheet.locator(".lead-chart")).toBeVisible();
+  await expect.poll(() => reads.count).toBe(1);
+
+  await page.clock.runFor(POLL_LIVE_MS);
+
+  await expect.poll(() => reads.count).toBe(2);
+});
+
 test("no text in a live game's row, its sheet, or a preview is heavier than 600", async ({
   page,
 }) => {
@@ -140,7 +199,9 @@ test("a live game's sheet reads its box score again as often as the score, until
   await expect(sheet.locator(".faceoff .clock")).toHaveText("Q3 4:32");
   await expect(sheet.locator(".faceoff-side.home .bonus")).toHaveText("Bonus");
   await expect(sheet.locator(".line-score th.now")).toHaveText("3");
-  await expect(sheet.locator(".sheet-part-head").nth(1)).toContainText("So far");
+  await expect(sheet.locator(".sheet-part-head", { hasText: "Team stats" })).toContainText(
+    "So far",
+  );
   await expect(sheet.locator(".foul-chip")).toHaveText(["Fouled out", "5 fouls", "4 fouls"]);
   await expect.poll(() => reads.count).toBe(1);
 

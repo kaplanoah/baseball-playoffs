@@ -25,6 +25,9 @@ export const FEED_HEADERS = {
   "sec-fetch-site": "same-site",
 };
 
+// ESPN answers any caller, so it needs only to be asked for JSON.
+export const ESPN_HEADERS = { accept: "application/json", "user-agent": FEED_HEADERS["user-agent"] };
+
 function parseJson(text) {
   try {
     return JSON.parse(text);

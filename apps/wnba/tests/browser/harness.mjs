@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { buildSnapshot, REQUESTS } from "../../page/js/snapshot.js";
 import { createBoxScoreServer, nameBoxScoreRequest } from "../../worker/src/box-score.js";
+import {
+  createLeadServer,
+  nameScoreboardRequest,
+  nameSummaryRequest,
+} from "../../worker/src/lead.js";
 import { createPreviewServer } from "../../worker/src/preview.js";
 import { SeasonStore } from "../../worker/src/store.js";
 import worker from "../../worker/src/index.js";
@@ -21,20 +26,26 @@ const NOW = AFTERNOON.now;
 const GAMES = JSON.parse(
   readFileSync(new URL("../fixtures/2026-10-01-games.json", import.meta.url), "utf8"),
 );
+const LEAD = JSON.parse(
+  readFileSync(new URL("../fixtures/2026-10-01-espn-lead.json", import.meta.url), "utf8"),
+);
 
-export { test, expect, GAMES };
+export { test, expect, GAMES, LEAD };
 
 /**
  * The league's answers to the game sheet's routes, from the recorded box scores and schedule, with
  * any box score changed, or the schedule refused. A game without a box score is one that hasn't
  * started.
- * @param {{ boxScores?: Record<string, any>, isScheduleRefused?: boolean }} league
+ * ESPN answers for the one game its lead was recorded for, Valkyries at Wings, Game 2.
+ * @param {{ boxScores?: Record<string, any>, isScheduleRefused?: boolean, leadSummary?: any }} league
  */
-function createLeagueFetch({ boxScores = {}, isScheduleRefused = false }) {
+function createLeagueFetch({ boxScores = {}, isScheduleRefused = false, leadSummary = LEAD.summary }) {
   const answers = new Map([
     ...Object.entries({ ...GAMES.boxScores, ...boxScores }).map(
       ([id, box]) => /** @type {[string, any]} */ ([nameBoxScoreRequest(id), box]),
     ),
+    [nameScoreboardRequest(LEAD.game.start), LEAD.scoreboard],
+    [nameSummaryRequest(LEAD.eventId), leadSummary],
   ]);
   if (!isScheduleRefused) answers.set(REQUESTS.schedule, GAMES.preview.schedule);
   return async (url) =>
@@ -81,6 +92,11 @@ export async function openApp(page, { league = {}, isShowingUpdates = false } = 
   const fetchImpl = createLeagueFetch(league);
   const boxScores = createBoxScoreServer({ fetchImpl });
   const previews = createPreviewServer({ fetchImpl, now: () => Date.parse(NOW) });
+  const leads = createLeadServer({ fetchImpl });
+  await page.route(
+    (url) => url.pathname === "/lead",
+    (route) => answerFromWorker(route, leads.serveLead),
+  );
   await page.route(
     (url) => url.pathname === "/box-score",
     (route) => answerFromWorker(route, boxScores.serveBoxScore),
