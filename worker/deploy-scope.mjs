@@ -18,7 +18,9 @@ const SKIPPED_FILES = new Set([
   "tsconfig.json",
   "types/globals.d.ts",
   "worker/check-pr-title.mjs",
+  "worker/set-access-code.mjs",
   "worker/set-app-key.mjs",
+  "worker/worker-secrets.mjs",
 ]);
 const SKIPPED_FOLDERS = [/^tests\//, /^apps\/[^/]+\/tests\//];
 

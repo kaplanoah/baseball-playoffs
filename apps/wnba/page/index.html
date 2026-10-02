@@ -10,18 +10,6 @@
   <meta name="apple-mobile-web-app-title" content="WNBA" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#1d1511" id="themeColor" />
-  <script>
-    // Picks the theme before the first paint, so Walnut never flashes Maple. js/appearance.js
-    // keeps it, and the icons and bar color that go with it, current.
-    try {
-      const choice = localStorage.getItem("appearance");
-      const prefersDark = matchMedia("(prefers-color-scheme: dark)").matches;
-      const isDark = choice === "dark" || (choice !== "light" && prefersDark);
-      document.documentElement.dataset.theme = isDark ? "dark" : "light";
-    } catch {
-      document.documentElement.dataset.theme = "light";
-    }
-  </script>
   <title>WNBA</title>
   <meta
     name="description"
@@ -40,6 +28,7 @@
   <link rel="stylesheet" href="shared/pager.css" />
   <link rel="stylesheet" href="shared/sheet.css" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="js/pick-theme.js"></script>
   <script src="shared/open-last-tab.js"></script>
   <script type="importmap">
     { "imports": { "#shared/": "./shared/" } }

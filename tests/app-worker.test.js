@@ -1,4 +1,5 @@
 import test from "node:test";
+import { createHmac } from "node:crypto";
 import assert from "node:assert/strict";
 import { createAppWorker } from "../shared/worker/app-worker.js";
 
@@ -61,4 +62,162 @@ test("a Worker built without a release has no release folder", async () => {
   });
 
   assert.equal((await requestPageFile(worker, "release/abc1234/styles.css")).status, 404);
+});
+
+const PAGE_FILES = {
+  "index.html": { contentType: "text/html", text: "the app" },
+  "gate.html": { contentType: "text/html", text: "the gate" },
+  "styles.css": { contentType: "text/css", text: "body {}" },
+};
+
+const answerOk = () => new Response("data");
+
+function createLockedWorker() {
+  return createAppWorker({
+    pageFiles: PAGE_FILES,
+    serveSnapshot: answerOk,
+    forwardToStore: answerOk,
+    reads: { "/box-score": answerOk },
+  });
+}
+
+const LOCKED_ENV = { APP_KEY: "key", ACCESS_CODE: "fast break", ACCESS_SIGNING_KEY: "signing" };
+
+/**
+ * @param {string} path under the page's key
+ * @param {{ method?: string, cookie?: string, body?: unknown, env?: object, origin?: string }} [options]
+ */
+function requestLocked(
+  path,
+  { method = "GET", cookie, body, env = LOCKED_ENV, origin = "https://worker.example" } = {},
+) {
+  const headers = { "cf-connecting-ip": "203.0.113.7", ...(cookie && { cookie }) };
+  const init = { method, headers, ...(body !== undefined && { body: JSON.stringify(body) }) };
+  return createLockedWorker().fetch(new Request(`${origin}/key${path}`, init), env);
+}
+
+const readCookie = (response) => response.headers.get("set-cookie")?.split(";")[0] ?? null;
+
+async function signIn(env = LOCKED_ENV) {
+  const response = await requestLocked("/access", {
+    method: "POST",
+    body: { code: "FASTBREAK" },
+    env,
+  });
+  return readCookie(response);
+}
+
+const DATA_PATHS = ["/snapshot", "/box-score", "/store/seasons/2026", "/watch", "/push/key"];
+
+test("without an access code, the page and its data open as they always have", async () => {
+  const env = { APP_KEY: "key" };
+  const page = await requestLocked("/", { env });
+  assert.equal(await page.text(), "the app");
+  assert.equal(page.headers.get("set-cookie"), null);
+  for (const path of DATA_PATHS) assert.equal((await requestLocked(path, { env })).status, 200);
+  assert.equal((await requestLocked("/access", { env })).status, 404);
+});
+
+test("until the code is sent, the page's address shows the gate and its data stays locked", async () => {
+  for (const path of ["/", "/index.html"]) {
+    const gate = await requestLocked(path);
+    assert.equal(gate.status, 200);
+    assert.equal(await gate.text(), "the gate");
+    assert.equal(gate.headers.get("cache-control"), "no-store");
+  }
+  assert.equal(await (await requestLocked("/styles.css")).text(), "body {}");
+  for (const path of DATA_PATHS) {
+    const locked = await requestLocked(path);
+    assert.equal(locked.status, 401, path);
+    assert.equal((await locked.json()).error.code, "access_required");
+  }
+  assert.deepEqual(await (await requestLocked("/access")).json(), { isChanged: false });
+});
+
+test("the right code, however it's typed, signs the phone in with a cookie for the page", async () => {
+  for (const code of ["FASTBREAK", "fast-break", " Fast Break "]) {
+    const response = await requestLocked("/access", { method: "POST", body: { code } });
+    assert.equal(response.status, 204, code);
+    const attributes = response.headers.get("set-cookie").split("; ");
+    assert.match(attributes[0], /^access=[\w-]{43}$/);
+    assert.deepEqual(attributes.slice(1), [
+      "Path=/key/",
+      `Max-Age=${400 * 24 * 60 * 60}`,
+      "HttpOnly",
+      "SameSite=Lax",
+      "Secure",
+    ]);
+  }
+  const cookie = await signIn();
+  const page = await requestLocked("/", { cookie });
+  assert.equal(await page.text(), "the app");
+  assert.equal(readCookie(page), cookie);
+  for (const path of DATA_PATHS) assert.equal((await requestLocked(path, { cookie })).status, 200);
+});
+
+test("a wrong code, or none, signs nothing in", async () => {
+  const wrong = await requestLocked("/access", { method: "POST", body: { code: "layup" } });
+  assert.equal(wrong.status, 401);
+  assert.equal((await wrong.json()).error.code, "wrong_code");
+  assert.equal(wrong.headers.get("set-cookie"), null);
+
+  const empty = await requestLocked("/access", { method: "POST", body: {} });
+  assert.equal(empty.status, 400);
+  assert.equal((await requestLocked("/", { cookie: "access=made-up" })).status, 200);
+  assert.equal((await requestLocked("/snapshot", { cookie: "access=made-up" })).status, 401);
+});
+
+test("a new code signs every phone out, and the gate can say so", async () => {
+  const cookie = await signIn();
+  const env = { ...LOCKED_ENV, ACCESS_CODE: "LAYUP" };
+  assert.equal(await (await requestLocked("/", { cookie, env })).text(), "the gate");
+  assert.equal((await requestLocked("/snapshot", { cookie, env })).status, 401);
+  assert.deepEqual(await (await requestLocked("/access", { cookie, env })).json(), {
+    isChanged: true,
+  });
+});
+
+test("a cookie anyone with the link could make from its key and a guessed code opens nothing", async () => {
+  const guessed = createHmac("sha256", "key").update("FASTBREAK").digest("base64url");
+  const cookie = `access=${guessed}`;
+  assert.equal(await (await requestLocked("/", { cookie })).text(), "the gate");
+  assert.equal((await requestLocked("/snapshot", { cookie })).status, 401);
+});
+
+test("a code without a key to sign with keeps the page locked and signs no one in", async () => {
+  const env = { APP_KEY: "key", ACCESS_CODE: "fast break" };
+  const response = await requestLocked("/access", {
+    method: "POST",
+    body: { code: "FASTBREAK" },
+    env,
+  });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.equal(await (await requestLocked("/", { env })).text(), "the gate");
+});
+
+test("too many tries from one address are turned away, even with the right code", async () => {
+  const keys = [];
+  const env = {
+    ...LOCKED_ENV,
+    ACCESS_LIMIT: { limit: async ({ key }) => (keys.push(key), { success: false }) },
+  };
+  const response = await requestLocked("/access", {
+    method: "POST",
+    body: { code: "FASTBREAK" },
+    env,
+  });
+  assert.equal(response.status, 429);
+  assert.equal((await response.json()).error.code, "too_many_tries");
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.deepEqual(keys, ["worker.example 203.0.113.7"]);
+});
+
+test("a page served over plain http, as on a laptop, gets a cookie it can keep", async () => {
+  const response = await requestLocked("/access", {
+    method: "POST",
+    body: { code: "FASTBREAK" },
+    origin: "http://127.0.0.1:4173",
+  });
+  assert.ok(!response.headers.get("set-cookie").includes("Secure"));
 });

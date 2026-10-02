@@ -48,6 +48,9 @@ every 15 seconds during games. If the WNBA stops sending scores, ESPN's stand in
 Saved to an iPhone's home screen, the page opens full screen like an app, and
 can send a notification with the score when any playoff game ends.
 
+To share the WNBA page, give it an access code. Anyone who opens the link
+types the code once, and the phone remembers it.
+
 ## Setup (for humans)
 
 Open [Claude Code on the web](https://claude.ai/code), paste this prompt, and
@@ -131,6 +134,12 @@ the Worker a long random `APP_KEY` secret and prints the page's address,
 data answer only there. Give the user the address and tell them to keep it
 private: anyone who has it can see and change the page. Never pass
 `--rotate` unless they ask. It replaces the key, which changes the address.
+
+To share the WNBA page beyond the user, have them pick an access code and run
+`npm run set-access-code -- wnba <code>`. The page then asks for it before it
+opens, and each phone types it once. Case, spaces, and hyphens don't count.
+Running it again with a new code signs every phone out until it types the new
+one, and `--remove` stops asking. Never commit or post the code.
 
 **4. Check the page.** Have the user open the address. The first visit also
 starts the Worker's own updates. Then read `<address>store/live/status` with
