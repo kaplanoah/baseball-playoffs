@@ -501,7 +501,7 @@ test("a team's Playoffs chip names its round, the same on a game day as any othe
     );
   }));
 
-test("a team's sheet shows its playoffs, then its regular season, each across from the league's, then its titles", () =>
+test("a team's sheet shows its playoffs, then its regular season across from the league's, its leading scorers, and its titles", () =>
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
@@ -510,7 +510,7 @@ test("a team's sheet shows its playoffs, then its regular season, each across fr
         "1-0 Home 5-1 0-0 Road 1-5 " +
         "Regular season Dream League 30-14 Record 91.3 PPG 87.1 84.5 Opp PPG 87.1 +6.9 Margin 0.0 " +
         "15-7 Home 178-152 15-7 Road 152-178 Last 10 9-1 Streak W 5 " +
-        "Leading scorers Pts Reb Ast Allisha Gray 19.0 3.5 2.6 Rhyne Howard 17.7 3.8 3.7 " +
+        "Leading scorers Per game Player Pts Reb Ast Allisha Gray 19.0 3.5 2.6 Rhyne Howard 17.7 3.8 3.7 " +
         "Angel Reese 16.4 12.1 2.8 Titles None yet",
     );
     assert.match(

@@ -733,7 +733,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium, and its first part 8px under the record", async ({
+  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium, and its title in a tinted band like a game's, with its first part 12px under it", async ({
     page,
   }) => {
     await openApp(page);
@@ -761,9 +761,17 @@ test.describe("on a phone, a team's sheet", () => {
     });
     expect(colors.titles).toBe(colors.title);
 
-    const note = await sheet.locator("#teamNote").boundingBox();
+    const backgrounds = await page.evaluate(() =>
+      ["#teamDialog .sheet-top", "#gameDialog .sheet-top", "#teamDialog"].map(
+        (selector) => getComputedStyle(document.querySelector(selector)).backgroundColor,
+      ),
+    );
+    const [band, gameBand, sheetColor] = backgrounds;
+    expect(band).toBe(gameBand);
+    expect(band).not.toBe(sheetColor);
+    const top = await sheet.locator(".sheet-top").boundingBox();
     const firstPart = await sheet.locator(".sheet-part-head").first().boundingBox();
-    expect(Math.round(firstPart.y - (note.y + note.height))).toBe(8);
+    expect(Math.round(firstPart.y - (top.y + top.height))).toBe(12);
   });
 });
 
@@ -802,6 +810,7 @@ test.describe("a team's sheet", () => {
     await expect(sheet.locator(".sheet-part h3")).toHaveText([
       "Playoffs",
       "Regular season",
+      "Leading scorers",
       "Titles",
     ]);
     await expect(sheet.locator(".team-tape .tape-teams")).toHaveText([
@@ -810,7 +819,7 @@ test.describe("a team's sheet", () => {
     ]);
   });
 
-  test("a team's sheet titles its leading scorers like its parts, names the sides over its numbers at 16px, and sets Last 10 and Streak like its measures", async ({
+  test("a team's sheet names the sides over its numbers at 16px, and sets Last 10 and Streak like its measures", async ({
     page,
   }) => {
     await openApp(page);
@@ -828,8 +837,6 @@ test.describe("a team's sheet", () => {
         };
       };
       return {
-        partTitle: read(".sheet-part h3"),
-        scorersTitle: read("table.players thead th"),
         measure: read(".team-tape .tape-label"),
         formName: read(".team-form dt"),
         number: read(".team-tape .tape-value"),
@@ -837,7 +844,6 @@ test.describe("a team's sheet", () => {
         side: read(".team-tape .tape-teams .club"),
       };
     });
-    expect(styles.scorersTitle.color).toBe(styles.partTitle.color);
     expect(styles.formName).toEqual(styles.measure);
     expect(styles.formNumber).toEqual(styles.number);
     await expect(sheet.locator(".team-tape .tape-teams .club").first()).toHaveCSS(
@@ -846,19 +852,21 @@ test.describe("a team's sheet", () => {
     );
   });
 
-  test("Last 10 and Streak stand 18px apart from the regular season's numbers above and its scorers below", async ({
+  test("Last 10 sits 20px under the regular season's numbers, and Streak 12px under Last 10", async ({
     page,
   }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Standings" }).click();
     await page.locator('#standings-league tr[data-team="NYL"] td.season').first().click();
     const sheet = page.locator("#teamDialog");
-    const form = await sheet.locator(".team-form").boundingBox();
     const numbers = await sheet.locator(".team-tape").last().boundingBox();
-    const scorers = await sheet.locator("table.players").boundingBox();
+    const form = await sheet.locator(".team-form").boundingBox();
+    const [lastTen, streak] = await sheet
+      .locator(".team-form dd")
+      .evaluateAll((values) => values.map((value) => value.getBoundingClientRect().toJSON()));
 
-    expect(Math.round(form.y - (numbers.y + numbers.height))).toBe(18);
-    expect(Math.round(scorers.y - (form.y + form.height))).toBe(18);
+    expect(Math.round(form.y - (numbers.y + numbers.height))).toBe(20);
+    expect(Math.round(streak.top - lastTen.bottom)).toBe(12);
   });
 
   test("a team's sheet is titled with its name, set like every other team's", async ({ page }) => {

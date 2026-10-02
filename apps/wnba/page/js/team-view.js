@@ -65,8 +65,10 @@ export const renderLeaderTable = (heading, leaders) =>
   </table>`;
 
 /** @param {Leader[]} leaders */
+/** @param {Leader[]} leaders */
 const renderLeadingScorers = (leaders) =>
-  leaders.length > 0 && renderLeaderTable("Leading scorers", leaders);
+  leaders.length > 0 &&
+  renderSheetPart("Leading scorers", renderLeaderTable("Player", leaders), "Per game");
 
 const OTHER_PLACE = { home: "away", away: "home" };
 
@@ -328,21 +330,17 @@ function renderRecentForm(row) {
 
 /**
  * The team's regular season across from the league's, from the standings, then its last ten and
- * its streak, then its leading scorers.
+ * its streak.
  * @param {string} code
  * @param {StandingsRow[]} standings
- * @param {Leader[]} leaders
  */
-function renderRegularSeason(code, standings, leaders) {
+function renderRegularSeason(code, standings) {
   const row = standings.find((each) => each.team === code);
-  if (!row && !leaders.length) return false;
-  const numbers =
-    row &&
-    renderAgainstLeague(code, readRegularSeason(row), readLeagueRegularSeason(standings), "League");
+  if (!row) return false;
   return renderSheetPart(
     "Regular season",
     html`<div class="team-season">
-      ${numbers}${row && renderRecentForm(row)}${renderLeadingScorers(leaders)}
+      ${renderAgainstLeague(code, readRegularSeason(row), readLeagueRegularSeason(standings), "League")}${renderRecentForm(row)}
     </div>`,
   );
 }
@@ -442,8 +440,9 @@ const listFacts = (row, run) =>
   );
 
 /**
- * The sheet a team opens: its name, its conference, seed, and record, then its regular season and
- * its playoffs, the playoffs first for a team that made them, then its titles.
+ * The sheet a team opens: its name, its conference, seed, and record, then its regular season with
+ * its leading scorers and its playoffs, the playoffs first for a team that made them, then its
+ * titles.
  * @param {Season | null} season
  * @param {string} code
  * @param {{ year: number, now: number }} options
@@ -457,11 +456,8 @@ export function renderTeamSheet(season, code, { year, now }) {
   const isPlaying = !!run && !run.isOut && !run.isChampion;
   const chip = describeChip(run, { hasField: runs.size > 0 });
   const titles = listTitles(code, run, year);
-  const regularSeason = renderRegularSeason(
-    code,
-    season?.standings ?? [],
-    findTeamLeaders(season, code),
-  );
+  const regularSeason = html`${renderRegularSeason(code, season?.standings ?? [])}
+  ${renderLeadingScorers(findTeamLeaders(season, code))}`;
   const playoffs = renderPlayoffs(code, games, chip, {
     isPlaying,
     field: readLeaguePlayoffs(season?.games ?? []),

@@ -525,9 +525,7 @@ test("a game that hasn't started previews the meetings, the season stats, and th
     /Meetings\s*Fever won the season series 2-1/,
   );
   await expect(sheet.locator(".meetings li")).toHaveCount(3);
-  await expect(sheet.locator(".meetings li").first()).toHaveText(
-    /Aug 6\s*Aces\s*86-84\s*on the road/,
-  );
+  await expect(sheet.locator(".meetings li").first()).toHaveText(/Aug 6\s*Aces\s*86-84\s*at Fever/);
   await expect(sheet.locator(".tape-label")).toHaveText([
     "Record",
     "PPG",

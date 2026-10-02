@@ -1438,21 +1438,27 @@ table.standings tr.playoff-line + tr td {
   font-family: var(--team-name);
   letter-spacing: 0.02em;
 }
-/* Its parts are spaced like the game sheet's, --part-space-above each title after the first and
-   --part-space-below it, and Last 10 and Streak sit --form-space-above under the numbers before
-   them, --form-space-between apart. Its players table's title is set like the parts'. */
+/* Its title shares a tinted band across the top, like a game's. Its parts are spaced like the game
+   sheet's: --part-space-first under the band, --part-space-above each later title, and
+   --part-space-below each title. Last 10 and Streak sit --form-space-above under the numbers
+   before them, --form-space-between apart, and the two sides over its numbers are named at
+   --side-name-size. */
+#teamDialog .sheet-top {
+  padding-bottom: 14px;
+  background: var(--tile);
+}
 .team-sheet-body {
-  --part-space-above: 24px;
-  --part-space-below: 14px;
-  --form-space-above: 18px;
-  --form-space-between: 4px;
+  --part-space-first: 12px;
+  --part-space-above: 29px;
+  --part-space-below: 11px;
+  --form-space-above: 20px;
+  --form-space-between: 12px;
+  --side-name-size: 16px;
   gap: var(--part-space-above);
+  padding-top: var(--part-space-first);
 }
 .team-sheet-body > .sheet-part {
   gap: var(--part-space-below);
-}
-.team-sheet-body table.players thead th:first-child {
-  color: var(--sheet-part-head);
 }
 .status-chip.alive {
   background: color-mix(in srgb, var(--ink) 15%, transparent);
@@ -1536,7 +1542,7 @@ table.standings tr.playoff-line + tr td {
   gap: 12px;
 }
 .team-tape .tape-teams .club {
-  font-size: 1rem;
+  font-size: var(--side-name-size);
 }
 .team-tape .tape-side.away {
   --side: var(--team);
@@ -1550,7 +1556,7 @@ table.standings tr.playoff-line + tr td {
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: baseline;
   gap: var(--form-space-between) 10px;
-  margin: calc(var(--form-space-above) - 12px) 0 6px;
+  margin: calc(var(--form-space-above) - 12px) 0 0;
 }
 .team-form .tape-label {
   text-align: left;

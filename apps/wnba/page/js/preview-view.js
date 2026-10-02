@@ -3,7 +3,7 @@ import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTapeRow } from "#shared/tape.js";
-import { renderClub } from "./clubs.js";
+import { renderClub, renderTeamName } from "./clubs.js";
 import { nameTeam } from "./series.js";
 import {
   describeNumbers,
@@ -33,7 +33,11 @@ const PENDING_MEETINGS = 3;
 /** @param {Meeting} meeting */
 const findWinner = (meeting) => (meeting.home.score > meeting.away.score ? "home" : "away");
 
-/** @param {Meeting} meeting */
+/**
+ * A meeting's winner and score, then where it was played: at the other team's place, or vs them
+ * at home.
+ * @param {Meeting} meeting
+ */
 function renderMeeting(meeting) {
   const winnerPlace = findWinner(meeting);
   const winner = meeting[winnerPlace];
@@ -45,7 +49,7 @@ function renderMeeting(meeting) {
         >${winner.score}-${loser.score}</span
       ></span
     >
-    <span>${winnerPlace === "home" ? "at home" : "on the road"}</span>
+    <span>${winnerPlace === "home" ? "vs" : "at"} ${renderTeamName(loser.team)}</span>
   </li>`;
 }
 
@@ -84,7 +88,7 @@ const renderPendingMeeting = () =>
   html`<li>
     <span class="meeting-day">${renderPlaceholder("Sep 00")}</span>
     <span class="meeting-result">${renderPlaceholder("Team 00-00")}</span>
-    <span>${renderPlaceholder("on the road")}</span>
+    <span>${renderPlaceholder("at Mystics")}</span>
   </li>`;
 
 const renderPendingMeetings = () =>
