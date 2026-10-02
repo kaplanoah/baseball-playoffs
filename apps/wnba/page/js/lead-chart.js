@@ -3,8 +3,8 @@ import { nameTeam } from "./series.js";
 
 // The game sheet's chart of the lead through a game: the home team's lead above the middle line
 // and the visitors' below it, after each basket, on a tile with each team named just outside its
-// own half and each side's biggest lead marked. The side ahead at the line's end, the winner once
-// the game is over, takes the accent. A live game's line stops at its latest basket.
+// own half and each side's biggest lead marked, each side in its team's color, which the game
+// sheet sets. A live game's line stops at its latest basket.
 
 /** @typedef {{ periods: number, isOver: boolean, scores: [number, number, number][] }} Lead each score's seconds from tip-off, then the away and home scores */
 
@@ -117,11 +117,6 @@ export function renderLeadChart(lead, teams) {
   const x = (/** @type {number} */ at) => LEFT + (at / length) * (WIDTH - LEFT - RIGHT);
   const y = (/** @type {number} */ margin) => MIDDLE - (margin / reach) * (PLOT_HEIGHT / 2);
   const end = lead.isOver ? length : margins[margins.length - 1].at;
-  const lastMargin = margins[margins.length - 1].margin;
-  const isHomeAhead = lastMargin > 0;
-  const isAwayAhead = lastMargin < 0;
-  const markLeader = (/** @type {string} */ name, /** @type {boolean} */ isLeader) =>
-    isLeader ? `${name} leader` : name;
 
   const steps = traceSteps(margins, end);
   const trace = (/** @type {number[][]} */ points) =>
@@ -152,15 +147,15 @@ export function renderLeadChart(lead, teams) {
   const renderPeak = (
     /** @type {{ at: number, margin: number }} */ peak,
     /** @type {string} */ name,
-    /** @type {boolean} */ isLeader,
+    /** @type {"away" | "home"} */ place,
   ) => {
     if (!peak.margin) return "";
     const label = `${name} +${Math.abs(peak.margin)}`;
     const halfWidth = label.length * HALF_CHARACTER;
     const labelY = peak.margin > 0 ? y(peak.margin) - 7 : y(peak.margin) + 15;
     const labelX = Math.min(Math.max(x(peak.at), LEFT + halfWidth), WIDTH - RIGHT - halfWidth);
-    return html`<circle class="lead-peak" cx="${formatCoordinate(x(peak.at))}" cy="${formatCoordinate(y(peak.margin))}" r="3.5"></circle>
-      <text class="${markLeader("lead-peak-label", isLeader)}" x="${formatCoordinate(labelX)}" y="${formatCoordinate(labelY)}" text-anchor="middle">${label}</text>`;
+    return html`<circle class="lead-peak ${place}" cx="${formatCoordinate(x(peak.at))}" cy="${formatCoordinate(y(peak.margin))}" r="3.5"></circle>
+      <text class="lead-peak-label ${place}" x="${formatCoordinate(labelX)}" y="${formatCoordinate(labelY)}" text-anchor="middle">${label}</text>`;
   };
   const label = [
     describeBiggestLead(homeName, homeBest.margin),
@@ -171,14 +166,14 @@ export function renderLeadChart(lead, teams) {
     <svg viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" aria-label="${label.charAt(0).toUpperCase()}${label.slice(1)}">
       <rect class="lead-tile" x="${LEFT - 0.5}" y="${TILE_TOP}" width="${WIDTH - LEFT - RIGHT + 1}" height="${TILE_BOTTOM - TILE_TOP}" rx="4"></rect>
       ${reachLines}
-      <path class="${markLeader("lead-area", isHomeAhead)}" d="${homeArea}"></path>
-      <path class="${markLeader("lead-area", isAwayAhead)}" d="${awayArea}"></path>
+      <path class="lead-area home" d="${homeArea}"></path>
+      <path class="lead-area away" d="${awayArea}"></path>
       <line class="lead-middle" x1="${LEFT}" x2="${WIDTH - RIGHT}" y1="${MIDDLE}" y2="${MIDDLE}"></line>
       ${periodTicks}
       <path class="lead-line" d="${trace(steps)}"></path>
-      <text class="${markLeader("lead-side", isHomeAhead)}" x="${LEFT}" y="${HOME_NAME_BASELINE}">&#9650; ${homeName} ahead</text>
-      <text class="${markLeader("lead-side", isAwayAhead)}" x="${LEFT}" y="${AWAY_NAME_BASELINE}">&#9660; ${awayName} ahead</text>
-      ${renderPeak(homeBest, homeName, isHomeAhead)}${renderPeak(awayBest, awayName, isAwayAhead)}${periodNames}
+      <text class="lead-side home" x="${LEFT}" y="${HOME_NAME_BASELINE}">&#9650; ${homeName} ahead</text>
+      <text class="lead-side away" x="${LEFT}" y="${AWAY_NAME_BASELINE}">&#9660; ${awayName} ahead</text>
+      ${renderPeak(homeBest, homeName, "home")}${renderPeak(awayBest, awayName, "away")}${periodNames}
     </svg>
   </div>`;
 }

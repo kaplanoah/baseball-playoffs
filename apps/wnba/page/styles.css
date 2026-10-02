@@ -556,11 +556,30 @@ header.top h1 {
 }
 
 /* The game sheet: the two teams across the score, then the game's parts, each under a teal
-   title. The better side of each measure gets the orange bar. */
+   title. Each team's side of a chart or bar is in its color for the theme, which
+   js/sheet-colors.js hands the sheet, and the side behind on a measure gets a lighter bar. */
 .game-sheet-body {
+  --away: var(--away-light, var(--ink-dim));
+  --home: var(--home-light, var(--ink-dim));
   display: grid;
   gap: 20px;
   padding-top: 4px;
+}
+:root[data-theme="dark"] .game-sheet-body {
+  --away: var(--away-dark, var(--ink-dim));
+  --home: var(--home-dark, var(--ink-dim));
+}
+.game-sheet-body :is(.tape-side, .lead-chart *).away {
+  --side: var(--away);
+}
+.game-sheet-body :is(.tape-side, .lead-chart *).home {
+  --side: var(--home);
+}
+.game-sheet-body .tape-bar i {
+  background: color-mix(in srgb, var(--side) 38%, var(--divider));
+}
+.game-sheet-body .tape-bar i.lead {
+  background: var(--side);
 }
 .faceoff {
   display: grid;
@@ -688,8 +707,8 @@ header.top h1 {
 }
 
 /*
- * The lead through the game: a fine step line on a tile, each team's half shaded faintly and the
- * side ahead at the line's end in orange, with each side's biggest lead marked in orange.
+ * The lead through the game: a fine step line on a tile, each team's half shaded faintly in its
+ * color, and named and its biggest lead marked in it.
  */
 .lead-chart svg {
   display: block;
@@ -716,10 +735,7 @@ header.top h1 {
   stroke-linecap: round;
 }
 .lead-area {
-  fill: color-mix(in srgb, var(--ink) 8%, transparent);
-}
-.lead-area.leader {
-  fill: color-mix(in srgb, var(--orange) 14%, transparent);
+  fill: color-mix(in srgb, var(--side) 17%, transparent);
 }
 .lead-line {
   fill: none;
@@ -729,7 +745,7 @@ header.top h1 {
   stroke-linejoin: round;
 }
 .lead-peak {
-  fill: var(--orange);
+  fill: var(--side);
   stroke: var(--card);
   stroke-width: 1.5;
 }
@@ -744,15 +760,12 @@ header.top h1 {
   font-family: var(--numbers);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  fill: var(--ink-mid);
+  fill: var(--side);
 }
 .lead-chart .lead-peak-label {
   font-family: var(--numbers);
   letter-spacing: 0;
-  fill: var(--ink-mid);
-}
-.lead-chart text.leader {
-  fill: var(--orange);
+  fill: var(--side);
 }
 
 table.line-score,
