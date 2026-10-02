@@ -57,9 +57,10 @@ test("a club's row in the standings opens its sheet, with its race and titles, a
   const sheet = page.locator("#teamDialog");
 
   await expect(sheet.locator("#teamTitle")).toHaveText(/Mariners/);
-  await expect(sheet.locator(".sheet-part h3").first()).toHaveText("Season");
-  await expect(sheet.locator(".team-stat .team-label").first()).toHaveText("PCT");
-  await expect(sheet).toContainText("Never won WS");
+  await expect(sheet.locator(".sheet-part h3")).toHaveText(["Season", "Titles"]);
+  await expect(sheet.locator(".team-stat .team-label").first()).toHaveText("AL West");
+  await expect(sheet.locator(".team-detail .team-label")).toHaveText("Next");
+  await expect(sheet.locator(".team-titles")).toHaveText("None yet");
   await expect(sheet).toContainText("Since 1977");
 
   await sheet.getByRole("button", { name: "Done" }).click();
@@ -86,7 +87,7 @@ test("a club in the ranking stays a handle to drag, not a way to its sheet", asy
   await expect(page.locator("#teamDialog")).toBeHidden();
 });
 
-test("a club's sheet title is its dot and name, in the page's own type, not in capitals", async ({
+test("a club's sheet title is its dot and name, in the page's own type, not in capitals, over gold part titles and green labels", async ({
   page,
 }) => {
   await openApp(page);
@@ -100,6 +101,10 @@ test("a club's sheet title is its dot and name, in the page's own type, not in c
   await expect(page.locator("#teamDialog .sheet-part h3").first()).toHaveCSS(
     "color",
     "rgb(244, 193, 92)",
+  );
+  await expect(page.locator("#teamDialog .team-detail .team-label")).toHaveCSS(
+    "color",
+    "rgb(127, 168, 143)",
   );
 });
 

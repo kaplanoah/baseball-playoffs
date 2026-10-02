@@ -2,6 +2,7 @@ import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { session } from "../page/js/session.js";
 import { renderTeamSheet } from "../page/js/team-view.js";
+import { TEAMS } from "../page/js/teams.js";
 import { stripTags } from "../../../tests/text.js";
 import { EASTERN, useTimeZone } from "../../../tests/time-zone.js";
 
@@ -25,6 +26,13 @@ const readStats = (markup) =>
     ...markup.text.matchAll(/<span class="team-label">(.*?)<\/span><b class="tabular">(.*?)<\/b>/g),
   ].map(([, label, value]) => `${stripTags(label)} ${readText(value)}`);
 
+const listParts = (markup) =>
+  [...markup.text.matchAll(/<h3>(.*?)<\/h3>/g)].map(([, title]) => title);
+
+// The text of one titled part, from its title to the next part's.
+const readPart = (markup, title) =>
+  readText(markup).match(new RegExp(`${title} (.*?)(?= (?:Playoffs|Season|Titles) |$)`))?.[1];
+
 const row = (id, w, l, fields = {}) => ({
   id,
   w,
@@ -46,39 +54,44 @@ beforeEach(() => {
   Object.assign(session, {
     currentSeason: 2026,
     activeYear: 2026,
-    trackedTitles: { LAD: 2025 },
+    trackedTitles: {},
     state: { teams: NL_FIELD, series: {}, projected: true, ranking: ["CHC", "PHI", "LAD"] },
     standings: null,
   });
 });
 
-test("a division leader in September: its division, seed, and record, its lead and magic number, its next game, and its titles", () => {
-  session.standings = {
-    divisions: {
-      "NL West": [
-        row("LAD", 89, 61, {
-          gb: "-",
-          elim: "-",
-          lead: true,
-          magic: "7",
-          next: { at: "2026-09-16T23:10:00Z", home: true, opp: "SD" },
-        }),
-        row("SD", 83, 67, { gb: "6.0", elim: "7", wcgb: "+2.0", wce: "-", wcrank: "1" }),
-      ],
-    },
-  };
+const NL_WEST_IN_SEPTEMBER = {
+  divisions: {
+    "NL West": [
+      row("LAD", 89, 61, {
+        gb: "-",
+        elim: "-",
+        lead: true,
+        magic: "7",
+
+        next: { at: "2026-09-16T23:10:00Z", home: true, opp: "SD" },
+      }),
+      row("SD", 83, 67, { gb: "6.0", elim: "7", wcgb: "+2.0", wce: "-", wcrank: "1" }),
+    ],
+  },
+};
+
+test("a division leader in September: its division, seed, record, and percentage, its place, lead, and magic number, its next game, and every title", () => {
+  session.standings = NL_WEST_IN_SEPTEMBER;
   const sheet = renderTeamSheet("LAD", { now: SEPTEMBER_NOON });
 
   assert.equal(readText(sheet.heading), "Dodgers #3");
-  assert.equal(readText(sheet.note), "NL West | 2 seed | 89-61");
-  assert.deepEqual(readStats(sheet.body), ["PCT .593", "Lead +6.0", "M# 7"]);
-  assert.match(readText(sheet.body), /^Season 12 left/);
-  assert.match(readText(sheet.body), /Next Today 7:10 vs SD/);
-  assert.match(readText(sheet.body), /Titles Last WS 2025 \| Defending/);
-  assert.doesNotMatch(sheet.body.text, /Playoffs/);
+  assert.equal(readText(sheet.note), "NL West | 2 seed | 89-61 | .593");
+  assert.deepEqual(listParts(sheet.body), ["Season", "Titles"]);
+  assert.deepEqual(readStats(sheet.body), ["NL West 1st", "Lead +6.0", "M# 7"]);
+  assert.match(readPart(sheet.body, "Season"), /^12 left .* Next Today 7:10 vs SD$/);
+  assert.equal(
+    readPart(sheet.body, "Titles"),
+    "Defending 9 | 1955, 1959, 1963, 1965, 1981, 1988, 2020, 2024, 2025",
+  );
 });
 
-test("a club chasing a wild card shows its division race and its wild card race, and a drought since its first season", () => {
+test("a club chasing a wild card has a row for each race, each starting with its place, and a club that never won says so", () => {
   session.state.teams = {};
   session.standings = {
     divisions: {
@@ -91,16 +104,16 @@ test("a club chasing a wild card shows its division race and its wild card race,
   const sheet = renderTeamSheet("SEA", { now: SEPTEMBER_NOON });
 
   assert.equal(readText(sheet.heading), "Mariners");
-  assert.equal(readText(sheet.note), "AL West | 81-69");
+  assert.equal(readText(sheet.note), "AL West | 81-69 | .540");
   assert.deepEqual(readStats(sheet.body), [
-    "PCT .540",
+    "AL West 2nd",
     "GB 4.5",
     "E# 8",
-    "WC 4th",
+    "Wild card 4th",
     "WCGB 1.0",
     "WCE 12",
   ]);
-  assert.match(readText(sheet.body), /Titles Never won WS \| Since 1977/);
+  assert.equal(readPart(sheet.body, "Titles"), "Since 1977 None yet");
 });
 
 test("a race number shows in copper while it counts down, as a gold dash once clinched, and as E once out", () => {
@@ -120,7 +133,7 @@ test("a race number shows in copper while it counts down, as a gold dash once cl
   assert.match(chaser, /<span class="elim-num live">12<\/span>/);
 });
 
-test("once the season is over, the grid keeps only where the club finished, with no games left", () => {
+test("once the season is over, the Season part counts no games left", () => {
   session.standings = {
     divisions: {
       "NL Central": [
@@ -129,15 +142,30 @@ test("once the season is over, the grid keeps only where the club finished, with
       ],
     },
   };
-  const chaser = renderTeamSheet("CHC", { now: OCTOBER_NOON }).body;
   const leader = renderTeamSheet("MIL", { now: OCTOBER_NOON }).body;
 
-  assert.deepEqual(readStats(chaser), ["PCT .562", "GB 4.0", "WCGB +2.0"]);
-  assert.deepEqual(readStats(leader), ["PCT .586", "Lead +4.0"]);
-  assert.doesNotMatch(readText(chaser), /left/);
+  assert.deepEqual(readStats(leader), ["NL Central 1st", "Lead +4.0", "M# -"]);
+  assert.doesNotMatch(readPart(leader, "Season"), /left/);
 });
 
-test("once the field is set, a club alive in the postseason lists its series, how each stands, and its next game", () => {
+const NL_CENTRAL_IN_OCTOBER = {
+  divisions: {
+    "NL Central": [
+      row("MIL", 95, 67, { gb: "-", elim: "-", lead: true, clinched: true }),
+      row("CHC", 91, 71, {
+        gb: "4.0",
+        elim: "E",
+        wcgb: "+2.0",
+        wce: "-",
+        wcrank: "1",
+
+        next: { at: "2026-10-08T21:08:00Z", home: false, opp: "PHI", postseason: true },
+      }),
+    ],
+  },
+};
+
+test("once the field is set, a club alive in the postseason shows it first, with how each series stands and its next game", () => {
   session.state = {
     ...session.state,
     projected: false,
@@ -146,38 +174,23 @@ test("once the field is set, a club alive in the postseason lists its series, ho
       NL_DS1: { winsA: 1, winsB: 2, started: true },
     },
   };
-  session.standings = {
-    divisions: {
-      "NL Central": [
-        row("MIL", 95, 67, { gb: "-", elim: "-", lead: true, clinched: true }),
-        row("CHC", 91, 71, {
-          gb: "4.0",
-          elim: "E",
-          wcgb: "+2.0",
-          wce: "-",
-          wcrank: "1",
-          next: { at: "2026-10-08T21:08:00Z", home: false, opp: "PHI", postseason: true },
-        }),
-      ],
-    },
-  };
+  session.standings = NL_CENTRAL_IN_OCTOBER;
   const sheet = renderTeamSheet("CHC", { now: OCTOBER_NOON });
-  const text = readText(sheet.body);
 
-  assert.match(text, /Playoffs Alive/);
-  assert.match(text, /NL WC Padres Won 2-1/);
-  assert.match(text, /NLDS Phillies Lead 2-1/);
-  assert.match(text, /Next Today 5:08 @ PHI$/);
+  assert.deepEqual(listParts(sheet.body), ["Playoffs", "Season", "Titles"]);
+  assert.equal(
+    readPart(sheet.body, "Playoffs"),
+    "Alive NL WC Padres Won 2-1 NLDS Phillies Lead 2-1 Next Today 5:08 @ PHI",
+  );
+  assert.doesNotMatch(readPart(sheet.body, "Season"), /Next/);
   assert.match(sheet.body.text, /<button type="button" class="club team-open" data-team="SD"/);
-  assert.doesNotMatch(text.split("Playoffs")[0], /Next/);
 });
 
 test("a club with a bye shows it, and a series still to start shows no games", () => {
   session.state = { ...session.state, projected: false };
-  const text = readText(renderTeamSheet("LAD", { now: OCTOBER_NOON }).body);
+  const playoffs = readPart(renderTeamSheet("LAD", { now: OCTOBER_NOON }).body, "Playoffs");
 
-  assert.match(text, /NL WC Bye/);
-  assert.match(text, /NLDS TBD 0-0/);
+  assert.equal(playoffs, "Alive NL WC Bye NLDS TBD 0-0");
 });
 
 test("a club knocked out says how its series ended, with no next game", () => {
@@ -196,14 +209,15 @@ test("a club knocked out says how its series ended, with no next game", () => {
           wcgb: "-",
           wce: "-",
           wcrank: "3",
+
           next: { at: "2026-10-09T21:08:00Z", home: true, opp: "PHI", postseason: true },
         }),
       ],
     },
   };
-  const text = readText(renderTeamSheet("NYM", { now: OCTOBER_NOON }).body);
+  const playoffs = readPart(renderTeamSheet("NYM", { now: OCTOBER_NOON }).body, "Playoffs");
 
-  assert.match(text, /Playoffs Out NL WC Brewers Lost 1-2$/);
+  assert.equal(playoffs, "Out NL WC Brewers Lost 1-2");
 });
 
 test("a series tied or trailing says so, and a club still in a projected field shows no postseason", () => {
@@ -218,12 +232,32 @@ test("a series tied or trailing says so, and a club still in a projected field s
   assert.match(readText(renderTeamSheet("MIL", { now: OCTOBER_NOON }).body), /NL WC Mets Tied 1-1/);
   assert.match(readText(renderTeamSheet("SD", { now: OCTOBER_NOON }).body), /NL WC Cubs Trail 0-1/);
   session.state.projected = true;
-  assert.doesNotMatch(renderTeamSheet("SD", { now: OCTOBER_NOON }).body.text, /Playoffs/);
+  assert.deepEqual(listParts(renderTeamSheet("SD", { now: OCTOBER_NOON }).body), ["Titles"]);
 });
 
 test("a club the standings don't list yet still shows its league and its titles", () => {
   const sheet = renderTeamSheet("COL", { now: SEPTEMBER_NOON });
 
   assert.equal(readText(sheet.note), "NL");
-  assert.equal(readText(sheet.body), "Season Titles Never won WS | Since 1993");
+  assert.deepEqual(listParts(sheet.body), ["Titles"]);
+  assert.equal(readPart(sheet.body, "Titles"), "Since 1993 None yet");
+});
+
+test("a season the store tracked adds its champion's title, whether the page kept one year or a list", () => {
+  session.currentSeason = 2028;
+  session.trackedTitles = { SEA: [2026, 2027] };
+  assert.equal(readPart(renderTeamSheet("SEA").body, "Titles"), "Defending 2 | 2026, 2027");
+  session.trackedTitles = { SEA: 2027 };
+  assert.equal(readPart(renderTeamSheet("SEA").body, "Titles"), "Defending 1 | 2027");
+});
+
+test("every World Series since the first, but for 1904 and 1994, has one champion", () => {
+  const champions = Object.values(TEAMS)
+    .flatMap((team) => team.titles)
+    .sort((first, second) => first - second);
+  const played = Array.from({ length: 2025 - 1903 + 1 }, (_, index) => 1903 + index).filter(
+    (year) => year !== 1904 && year !== 1994,
+  );
+
+  assert.deepEqual(champions, played);
 });

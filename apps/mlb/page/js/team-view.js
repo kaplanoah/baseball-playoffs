@@ -1,5 +1,5 @@
-// The sheet a club's name or dot opens: its division, seed, and record, its race this season and
-// the World Series it last won, and once the field is set, how far it has gone in the postseason.
+// The sheet a club's name or dot opens: its division, seed, and record, then once the field is
+// set how far it has gone in the postseason, its race this season, and every World Series it won.
 
 import { html, joinWithSeparator } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
@@ -7,12 +7,13 @@ import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTeamDetail, renderTeamStats } from "#shared/team-sheet.js";
 import { buildBracket, describeTeamStatus } from "./bracket.js";
 import {
+  describeDrought,
+  listTitles,
   nameTeam,
   renderClub,
   renderRankTag,
   renderStatusChip,
   renderTeamDot,
-  renderTitleSummary,
 } from "./clubs.js";
 import { nameRound } from "./games-view.js";
 import { session } from "./session.js";
@@ -35,7 +36,9 @@ function findDivision(id) {
   const found = Object.entries(divisions).find(([, rows]) => rows.some((row) => row.id === id));
   if (!found) return null;
   const [name, rows] = found;
-  return { name, row: rows.find((row) => row.id === id), divisions };
+  // A division's rows come in the order of its standings.
+  const place = rows.findIndex((row) => row.id === id) + 1;
+  return { name, place, row: rows[place - 1], divisions };
 }
 
 const countGamesLeft = (row) => SEASON_GAMES - row.w - row.l;
@@ -57,34 +60,27 @@ function renderMagicNumber(row) {
   return /^\d+$/.test(row.magic || "") ? renderRaceNumber(row.magic) : null;
 }
 
-// A division leader's race is its lead and magic number; anyone else's runs on two rows, its
-// division's and the wild card's. Once the season is over, only where it finished is left.
+// Each race's row starts with the club's place in it: a division leader has only its division's
+// race, and anyone else also has the wild card's.
 /** @returns {[Markup | string, Markup | string | null][]} */
-function listStats({ row, divisions }) {
-  const isPlaying = countGamesLeft(row) > 0;
+function listStats({ name, place, row, divisions }) {
   if (row.lead)
     return [
-      ["PCT", row.pct],
+      [name, formatOrdinal(place)],
       ["Lead", renderGamesBack(describeDivisionLead(row, divisions))],
-      [renderTitledLabel("M#", MAGIC_NUMBER_TITLE), isPlaying ? renderMagicNumber(row) : null],
-    ];
-  if (!isPlaying)
-    return [
-      ["PCT", row.pct],
-      ["GB", renderGamesBack(row.gb)],
-      ["WCGB", renderGamesBack(row.wcgb)],
+      [renderTitledLabel("M#", MAGIC_NUMBER_TITLE), renderMagicNumber(row)],
     ];
   return [
-    ["PCT", row.pct],
+    [name, formatOrdinal(place)],
     ["GB", renderGamesBack(row.gb)],
     [renderTitledLabel("E#", DIVISION_ELIMINATION_TITLE), renderRaceNumber(row.elim)],
-    ["WC", row.wcrank ? formatOrdinal(Number(row.wcrank)) : null],
+    ["Wild card", row.wcrank ? formatOrdinal(Number(row.wcrank)) : null],
     ["WCGB", renderGamesBack(row.wcgb)],
     [renderTitledLabel("WCE", WILD_CARD_ELIMINATION_TITLE), renderRaceNumber(row.wce)],
   ];
 }
 
-/** @param {{ text: unknown, classes: string[] } | null} next */
+/** @param {{ text: unknown, classes: string[] } | null | false} next */
 const renderNextDetail = (next) =>
   next &&
   renderTeamDetail(
@@ -93,26 +89,33 @@ const renderNextDetail = (next) =>
   );
 
 /**
- * @param {string} id
  * @param {ReturnType<typeof findDivision>} division
  * @param {{ isNextShown: boolean, now: number }} options
  */
-function renderSeason(id, division, { isNextShown, now }) {
-  const titles = renderTeamDetail(
-    "Titles",
-    html`<span class="tabular">${renderTitleSummary(id)}</span>`,
-  );
-  if (!division?.row)
-    return renderSheetPart("Season", html`<div class="team-season">${titles}</div>`);
+function renderSeason(division, { isNextShown, now }) {
+  if (!division?.row) return false;
   const left = countGamesLeft(division.row);
   const next = isNextShown && describeNextGame(division.row, { now });
   return renderSheetPart(
     "Season",
-    html`<div class="team-season">
-      ${renderTeamStats(listStats(division))}
-      <div class="team-details">${renderNextDetail(next)}${titles}</div>
-    </div>`,
+    html`<div class="team-season">${renderTeamStats(listStats(division))}${renderNextDetail(next)}</div>`,
     left > 0 && html`<span class="tabular">${left} left</span>`,
+  );
+}
+
+/** @param {string} id */
+function renderTitles(id) {
+  const titles = listTitles(id);
+  const body = titles.length
+    ? joinWithSeparator([
+        html`<b>${titles.length}</b>`,
+        html`<span class="tabular">${titles.join(", ")}</span>`,
+      ])
+    : "None yet";
+  return renderSheetPart(
+    "Titles",
+    html`<p class="team-titles">${body}</p>`,
+    html`<span class="tabular">${describeDrought(id)}</span>`,
   );
 }
 
@@ -168,8 +171,10 @@ function renderPlayoffs(id, division, now) {
   const byeRow = hasBye(id) && renderByeRow(TEAMS[id].league);
   return renderSheetPart(
     "Playoffs",
-    html`<ul class="team-series">${byeRow}${listTeamSeries(id).map((series) => renderSeriesRow(series, id))}</ul>
-      ${next && html`<div class="team-details">${renderNextDetail(next)}</div>`}`,
+    html`<div class="team-season">
+      <ul class="team-series">${byeRow}${listTeamSeries(id).map((series) => renderSeriesRow(series, id))}</ul>
+      ${renderNextDetail(next)}
+    </div>`,
     renderStatusChip(status),
   );
 }
@@ -184,12 +189,14 @@ function listFacts(id, division) {
     division ? html`<span class="${TEAMS[id].league}">${division.name}</span>` : TEAMS[id].league,
     seed && `${seed} seed`,
     row && html`<span class="tabular">${row.w}-${row.l}</span>`,
+    row?.pct && html`<span class="tabular">${row.pct}</span>`,
   ].filter(Boolean);
 }
 
 /**
- * The sheet a club opens: its dot, name, and rank over its division, seed, and record, then its
- * season, and once the field is set, its postseason, which then shows its next game.
+ * The sheet a club opens: its dot, name, and rank over its division, seed, record, and winning
+ * percentage, then once the field is set its postseason, then its season, either of them with its
+ * next game, and its titles.
  * @param {string} id
  * @param {{ now?: number }} [options]
  */
@@ -199,7 +206,8 @@ export function renderTeamSheet(id, { now = Date.now() } = {}) {
   return {
     heading: html`${renderTeamDot(id)}<span>${nameTeam(id)}</span>${renderRankTag(id)}`,
     note: joinWithSeparator(listFacts(id, division)),
-    body: html`${renderSeason(id, division, { isNextShown: !isPlayoffShown, now })}
-      ${isPlayoffShown && renderPlayoffs(id, division, now)}`,
+    body: html`${isPlayoffShown && renderPlayoffs(id, division, now)}
+      ${renderSeason(division, { isNextShown: !isPlayoffShown, now })}
+      ${renderTitles(id)}`,
   };
 }

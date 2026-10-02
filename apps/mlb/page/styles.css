@@ -1659,7 +1659,7 @@ body.kbd .rank-item .grip:focus {
 }
 
 /* A club's sheet, as shared/team-sheet.css lays it out, set in Chivo Mono's lighter weights, its
-   parts under gold titles like the Updates box's. A club's name or dot opens it wherever it shows,
+   parts under gold titles like the Updates box's and its labels in the green of the page's. A club's name or dot opens it wherever it shows,
    and in the standings so does the rest of its row. */
 @media (hover: hover) {
   table.st tr[data-team]:hover td {
@@ -1689,6 +1689,9 @@ body.kbd .rank-item .grip:focus {
   font-weight: 450;
   letter-spacing: 0.09em;
 }
+.team-label {
+  color: var(--ink-dim);
+}
 .team-label span[title] {
   cursor: help;
 }
@@ -1702,15 +1705,16 @@ body.kbd .rank-item .grip:focus {
 .team-detail b {
   font-weight: 550;
 }
-/* The labels of the lines under the grid share a width, so their values start level. */
-.team-details {
-  display: grid;
-  gap: 5px;
-}
 .team-detail > .team-label {
-  display: inline-block;
-  min-width: 6ch;
   margin-right: 12px;
+}
+.team-titles {
+  margin: 0;
+  font-size: var(--size-glance);
+  line-height: 1.5;
+}
+.team-titles b {
+  font-weight: 550;
 }
 .team-next {
   color: var(--ink-mid);

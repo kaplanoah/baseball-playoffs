@@ -4,12 +4,16 @@ import { html, joinWithSeparator } from "#shared/html.js";
 import { renderTeamSheetButton } from "#shared/team-sheet.js";
 import { session, readSeasonYear } from "./session.js";
 
-function findLastTitle(id) {
-  const seeded = TEAMS[id].lastWS;
-  const tracked = session.trackedTitles[id];
-  if (seeded && tracked) return Math.max(seeded, tracked);
-  return tracked || seeded;
-}
+// A page saved before tracked titles were lists kept only a club's latest one, as a number.
+const listTrackedTitles = (id) => [].concat(session.trackedTitles[id] ?? []);
+
+/** Every season a club won the World Series, oldest first. */
+export const listTitles = (id) =>
+  [...new Set([...TEAMS[id].titles, ...listTrackedTitles(id)])].sort(
+    (first, second) => first - second,
+  );
+
+const findLastTitle = (id) => listTitles(id).at(-1) ?? null;
 
 export function describeDrought(id) {
   const won = findLastTitle(id);
