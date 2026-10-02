@@ -4,7 +4,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   page,
 }) => {
   await openApp(page);
-  await expect(page.locator('[data-series="1-0"]')).toContainText("Liberty win 2-0");
+  await expect(page.locator('[data-series="1-0"] .team-line.won')).toContainText("Liberty");
   await expect(page.locator("header.top .title-row")).toHaveText("WNBA");
   const stampLines = page.locator("#stamp > span");
   await expect(stampLines.nth(0)).toHaveText(
@@ -323,7 +323,7 @@ test("the Games lists' days and series labels stand apart from the team names in
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Saira Condensed");
 });
 
-test("the title, the round names, and each card's header are in Barlow Condensed", async ({
+test("the title, the round names, and each card's note are in Barlow Condensed", async ({
   page,
 }) => {
   await openApp(page);
@@ -334,8 +334,8 @@ test("the title, the round names, and each card's header are in Barlow Condensed
       .evaluate((element) =>
         getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
       );
-  await expect(page.locator(".series-note").first()).toBeVisible();
-  for (const selector of ["header.top h1", ".round-name", ".series-note"])
+  await expect(page.locator(".card-note").first()).toBeVisible();
+  for (const selector of ["header.top h1", ".round-name", ".card-note"])
     expect(await readFirstFont(selector)).toBe("Barlow Condensed");
   await page.getByRole("tab", { name: "Games" }).click();
   expect(await readFirstFont("#gamePager .day-month")).toBe("Barlow Condensed");
