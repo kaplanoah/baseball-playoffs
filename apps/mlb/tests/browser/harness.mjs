@@ -1,12 +1,15 @@
 import { readFileSync } from "node:fs";
 import * as MLBSnapshot from "../../page/js/snapshot.js";
-import { SeasonStore } from "../../worker/src/store.js";
+import PAGE_FILES from "#page-files/mlb";
+import { createAppWorker } from "../../../../shared/worker/app-worker.js";
+import { SeasonStore, forwardToStore } from "../../worker/src/store.js";
 import {
   test,
   expect,
   createTestStore,
   connectToStore,
   loadPageAt,
+  openLockedPage,
 } from "../../../../tests/browser/harness.mjs";
 import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
@@ -211,4 +214,22 @@ export async function chooseSeason(page, year) {
   await openSettings(page);
   await page.getByRole("combobox", { name: "Season" }).selectOption(year);
   await page.keyboard.press("Escape");
+}
+
+/**
+ * The page at its key's address behind an access code, as the Worker serves it, with the evening's
+ * scores in place of MLB's.
+ * @param {import("@playwright/test").Page} page
+ * @param {{ accessCode: string }} options
+ */
+export function openLockedApp(page, { accessCode }) {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  const loadSnapshot = async () => structuredClone(snapshot);
+  const testStore = createTestStore(SeasonStore, { loadSnapshot, now: EVENING_FIXTURE.now });
+  const worker = createAppWorker({
+    pageFiles: PAGE_FILES,
+    serveSnapshot: () => Response.json(snapshot),
+    forwardToStore,
+  });
+  return openLockedPage(page, { worker, testStore, accessCode, now: EVENING_FIXTURE.now });
 }

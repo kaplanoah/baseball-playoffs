@@ -10,6 +10,7 @@ import {
   createTestStore,
   connectToStore,
   loadPageAt,
+  openLockedPage,
 } from "../../../../tests/browser/harness.mjs";
 import { holdStore } from "../../../../tests/browser/hold-store.mjs";
 
@@ -112,67 +113,13 @@ export async function openApp(page, { league = {} } = {}) {
   };
 }
 
-const PAGE_KEY = "test-key";
-
 /**
- * @param {import("@playwright/test").Route} route
- * @param {object} env
- */
-async function answerThroughWorker(route, env) {
-  const request = route.request();
-  const answer = await worker.fetch(
-    new Request(request.url(), {
-      method: request.method(),
-      headers: await request.allHeaders(),
-      body: request.postData() ?? undefined,
-    }),
-    env,
-  );
-  await route.fulfill({
-    status: answer.status,
-    headers: Object.fromEntries(answer.headers),
-    body: Buffer.from(await answer.arrayBuffer()),
-  });
-}
-
-/**
- * The page at its key's address behind an access code, with every request under the key answered
- * by the Worker itself, and the store behind it.
+ * The page at its key's address behind an access code, as the Worker serves it, with the
+ * afternoon's store behind it.
  * @param {import("@playwright/test").Page} page
  * @param {{ accessCode: string }} options
  */
 export async function openLockedApp(page, { accessCode }) {
-  const { context, store } = await createAfternoonStore();
-  const tries = { isOverLimit: false };
-  const env = {
-    APP_KEY: PAGE_KEY,
-    ACCESS_CODE: accessCode,
-    ACCESS_SIGNING_KEY: "test-signing-key",
-    ACCESS_LIMIT: { limit: async () => ({ success: !tries.isOverLimit }) },
-    STORE: { idFromName: () => "store", get: () => store },
-  };
-  await page.route(
-    (url) => url.hostname !== "127.0.0.1",
-    (route) => route.abort(),
-  );
-  await page.route(
-    (url) => url.pathname.startsWith(`/${PAGE_KEY}/`),
-    (route) => answerThroughWorker(route, env),
-  );
-  await page.routeWebSocket(
-    (url) => url.pathname === `/${PAGE_KEY}/watch`,
-    (socket) => context.ctx.acceptWebSocket({ send: (message) => socket.send(message) }),
-  );
-  await page.clock.install({ time: new Date(NOW) });
-  await page.goto(`/${PAGE_KEY}/`);
-
-  return {
-    /** @param {string} code */
-    changeAccessCode: (code) => {
-      env.ACCESS_CODE = code;
-    },
-    limitTries: () => {
-      tries.isOverLimit = true;
-    },
-  };
+  const testStore = await createAfternoonStore();
+  return openLockedPage(page, { worker, testStore, accessCode, now: NOW });
 }

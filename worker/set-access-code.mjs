@@ -1,22 +1,15 @@
 // Sets the ACCESS_CODE secret, the code an app's page asks for before it opens, with a new
 // ACCESS_SIGNING_KEY for the cookies that keep phones signed in, or with --remove, stops asking.
 // A new code signs every phone out until it types the new one.
-import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { normalizeCode } from "../shared/worker/access-gate.js";
-import { checkAppName, findPageRoot } from "./apps.mjs";
+import { checkAppName } from "./apps.mjs";
 import { createKey } from "./set-app-key.mjs";
 import { createSecretsClient } from "./worker-secrets.mjs";
 
 const CODE_SECRET = "ACCESS_CODE";
 const SIGNING_SECRET = "ACCESS_SIGNING_KEY";
 const SHORTEST_CODE = 4;
-
-/** @param {string} app */
-function checkAppHasGate(app) {
-  if (!existsSync(`${findPageRoot(app)}gate.html`))
-    throw new Error(`The ${app} page has no gate.html to ask for a code with.`);
-}
 
 /** @param {string | undefined} code */
 function checkCode(code) {
@@ -57,7 +50,6 @@ export async function setAccessCode({
     log("The page opens without a code now.");
     return;
   }
-  checkAppHasGate(app);
   checkCode(code);
   await secrets.putSecret(SIGNING_SECRET, makeSigningKey());
   await secrets.putSecret(CODE_SECRET, code);
