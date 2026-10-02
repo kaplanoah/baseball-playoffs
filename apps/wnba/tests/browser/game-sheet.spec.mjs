@@ -3,6 +3,7 @@ import { holdRequests } from "../../../../tests/browser/hold-requests.mjs";
 import { recordSheetMotions } from "../../../../tests/browser/sheet-motions.mjs";
 import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs";
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
+import { readOklab } from "../../page/js/sheet-colors.js";
 import { TEAMS } from "../../page/js/teams.js";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
@@ -11,10 +12,17 @@ const VALKYRIES_AT_WINGS = "Game details: Valkyries at Wings, First Round Game 2
 const POLL_LIVE_MS = 15 * 1000;
 // The type scale's smallest size, which the lead chart's words show at with no room above or below.
 const SMALLEST_TEXT_PX = 13;
-// The room the team stats keep from the parts around them, beyond the usual gap between parts.
-const TAPE_ROOM_PX = 8;
+// The room between the line under the teams and the first part's title, above each later title,
+// below each title, below By quarter's, and between a tape's rows.
+const FIRST_TITLE_SPACE_PX = 15;
+const TITLE_SPACE_ABOVE_PX = 24;
+const TITLE_SPACE_BELOW_PX = 14;
+const QUARTER_TITLE_SPACE_BELOW_PX = 6;
+const TAPE_ROW_SPACE_PX = 12;
 // The least room between a team's name, as its font draws it, and the edge of the lead chart's tile.
 const NAME_GAP_PX = 4;
+// How far, in degrees, the paler bar of the side behind may turn from its team's own hue.
+const LARGEST_HUE_TURN = 10;
 
 // Most of these tests are about what a sheet shows, so they skip the eased scrolling between the
 // Games lists. The ones about how a sheet moves ask for full motion.
@@ -26,6 +34,30 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
  */
 const formatRgb = (hex) =>
   `rgb(${[1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16)).join(", ")})`;
+
+/**
+ * A color's hue in OKLCH, in degrees.
+ * @param {string} hex like #1c1c1c
+ */
+function measureHue(hex) {
+  const [, greenRed, blueYellow] = readOklab(hex);
+  return (Math.atan2(blueYellow, greenRed) * 180) / Math.PI;
+}
+
+/**
+ * The color an element's background paints, as hex, whatever form the browser computes it in.
+ * @param {import("@playwright/test").Locator} locator
+ */
+const readPaintedBackground = (locator) =>
+  locator.evaluate((element) => {
+    const context = /** @type {CanvasRenderingContext2D} */ (
+      document.createElement("canvas").getContext("2d")
+    );
+    context.fillStyle = getComputedStyle(element).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    const [red, green, blue] = context.getImageData(0, 0, 1, 1).data;
+    return `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+  });
 
 /**
  * Shows the Games list that has the game a button names, and finds the button.
@@ -86,7 +118,7 @@ test("tapping a final opens its sheet with the score, the box score, and the top
   const sheet = await openSheet(page, ACES_AT_FEVER);
 
   await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("First Round Game 2");
-  await expect(sheet.locator("#gameWhen")).toHaveText("Tied 1-1•Yesterday");
+  await expect(sheet.locator("#gameWhen")).toHaveText("Fever won to tie 1-1•Yesterday");
   await expect(sheet.locator(".faceoff .score")).toHaveText(/89\s*99/);
   await expect(sheet.locator(".faceoff-record")).toHaveText(["31-13", "28-16"]);
   await expect(sheet.locator(".line-score tbody tr").first()).toHaveText(
@@ -219,27 +251,76 @@ for (const { screen, viewport } of [
   });
 }
 
-test("the team stats stand further from the parts above and below them than the other parts do from each other", async ({
+test("a final's sheet spaces its parts' titles evenly, with By quarter's closer and the stat rows apart", async ({
   page,
 }) => {
   const app = await openApp(page);
   await app.changeSeason(finishValkyriesAtWings);
   const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
   await expect(sheet.locator(".lead-peak-label")).toHaveCount(2);
-  const parts = await sheet.locator(".game-sheet-body > .sheet-part").evaluateAll((sections) =>
-    sections.map((section) => {
-      const { top, bottom } = section.getBoundingClientRect();
-      return { title: section.querySelector("h3")?.textContent, top, bottom };
-    }),
-  );
-  const gapBefore = (/** @type {string} */ title) => {
-    const index = parts.findIndex((part) => part.title === title);
-    return parts[index].top - parts[index - 1].bottom;
-  };
-  const usual = gapBefore("Lead through the game");
-  expect(gapBefore("Team stats")).toBeGreaterThanOrEqual(usual + TAPE_ROOM_PX);
-  expect(gapBefore("Top scorers")).toBeGreaterThanOrEqual(usual + TAPE_ROOM_PX);
+  const layout = await sheet.locator(".game-sheet-body").evaluate((body) => {
+    const measure = (/** @type {Element} */ element) => element.getBoundingClientRect();
+    const faceoff = measure(/** @type {Element} */ (body.querySelector(".faceoff")));
+    const parts = [...body.querySelectorAll(":scope > .sheet-part")].map((part) => {
+      const head = measure(/** @type {Element} */ (part.querySelector(".sheet-part-head")));
+      const content = measure(/** @type {Element} */ (part.children[1]));
+      return {
+        title: part.querySelector("h3")?.textContent,
+        top: measure(part).top,
+        bottom: measure(part).bottom,
+        spaceBelow: content.top - head.bottom,
+      };
+    });
+    const rows = [...body.querySelectorAll(".tape-row")].map(measure);
+    return {
+      firstSpace: parts[0].top - faceoff.bottom,
+      parts,
+      rowSpaces: rows.slice(1).map((row, index) => row.top - rows[index].bottom),
+    };
+  });
+
+  expect(layout.firstSpace).toBeCloseTo(FIRST_TITLE_SPACE_PX, 0);
+  for (const [index, part] of layout.parts.entries()) {
+    if (index > 0)
+      expect(part.top - layout.parts[index - 1].bottom).toBeCloseTo(TITLE_SPACE_ABOVE_PX, 0);
+    const spaceBelow =
+      part.title === "By quarter" ? QUARTER_TITLE_SPACE_BELOW_PX : TITLE_SPACE_BELOW_PX;
+    expect(part.spaceBelow).toBeCloseTo(spaceBelow, 0);
+  }
+  for (const space of layout.rowSpaces) expect(space).toBeCloseTo(TAPE_ROW_SPACE_PX, 0);
 });
+
+for (const [device, viewport] of Object.entries({
+  "a computer": { width: 1280, height: 720 },
+  "a phone": { width: 390, height: 844 },
+})) {
+  test(`on ${device}, a sheet's title and teams share one tinted band to its edges, with no line under the teams`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await openApp(page);
+    const sheet = await openSheet(page, ACES_AT_FEVER);
+    await expect(sheet.locator(".faceoff .score")).toHaveText(/89\s*99/);
+    const band = await sheet.evaluate((dialog) => {
+      const find = (/** @type {string} */ selector) =>
+        /** @type {Element} */ (dialog.querySelector(selector));
+      const read = (/** @type {string} */ selector) => getComputedStyle(find(selector));
+      const faceoff = find(".faceoff").getBoundingClientRect();
+      const content = find(".sheet-content").getBoundingClientRect();
+      return {
+        top: read(".sheet-top").backgroundColor,
+        teams: read(".faceoff").backgroundColor,
+        sheet: getComputedStyle(dialog).backgroundColor,
+        line: read(".faceoff").borderBottomWidth,
+        edges: [faceoff.left - content.left, content.right - faceoff.right],
+      };
+    });
+    expect(band.teams).toBe(band.top);
+    expect(band.teams).not.toBe(band.sheet);
+    expect(band.line).toBe("0px");
+    expect(band.edges).toEqual([0, 0]);
+  });
+}
 
 test("while the lead loads after the box score, the sheet holds the chart's place, so nothing below it moves as it arrives", async ({
   page,
@@ -285,6 +366,25 @@ test("each team's side of the lead chart and the team stats takes its color, on 
       "background-color",
       awayColor,
     );
+  }
+});
+
+test("the side behind on a measure gets a paler bar of its own team's hue, on each theme", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  const behind = sheet.locator(".tape-row").first().locator(".away .tape-bar i");
+  await expect(behind).not.toHaveClass("lead");
+
+  for (const theme of /** @type {const} */ (["light", "dark"])) {
+    await page.emulateMedia({ colorScheme: theme });
+    const teamColor = TEAMS.GSV.chartColors[theme][0];
+    await expect(behind).not.toHaveCSS("background-color", formatRgb(teamColor));
+    const turn = Math.abs(measureHue(await readPaintedBackground(behind)) - measureHue(teamColor));
+    expect(Math.min(turn, 360 - turn)).toBeLessThan(LARGEST_HUE_TURN);
   }
 });
 

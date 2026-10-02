@@ -4,8 +4,8 @@ import { html } from "#shared/html.js";
 import { renderClub } from "./clubs.js";
 import { abbreviateDay, nameListDay, readGameDay } from "./days.js";
 import { renderScoreboard } from "./scoreboard.js";
-import { nameTeam } from "./series.js";
-import { ROUNDS } from "./snapshot.js";
+import { describeSeriesAfterWin, nameTeam } from "./series.js";
+import { countWinsNeeded, ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./series.js").Series} Series */
 /** @typedef {{ team: string | null, seed: number | null, score: number | null, isInBonus: boolean }} GameSide */
@@ -79,6 +79,24 @@ function countSeriesWins(game, games) {
   const winners = games.filter(isCounted).map(findWinningTeam);
   const countWins = (team) => winners.filter((winner) => winner === team).length;
   return [countWins(game.away.team), countWins(game.home.team)];
+}
+
+/**
+ * Where a final's series stood once it was over, as its winner tells it, or nothing for a game
+ * outside a series.
+ * @param {Game} game
+ * @param {Game[]} games
+ */
+export function describeFinalInSeries(game, games) {
+  if (game.state !== "final" || !game.round) return "";
+  const [awayWins, homeWins] = countSeriesWins(game, games);
+  const isAwayWinner = findLoser(game) === "home";
+  return describeSeriesAfterWin({
+    winner: /** @type {string} */ (findWinningTeam(game)),
+    wins: isAwayWinner ? awayWins : homeWins,
+    losses: isAwayWinner ? homeWins : awayWins,
+    winsNeeded: countWinsNeeded(game.round),
+  });
 }
 
 // Short names, since the label shares the row's middle with the time or score. Until both teams

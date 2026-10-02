@@ -136,6 +136,21 @@ test("a release without a version names its commit", async ({ page }) => {
   await expect(page.locator("#versionNote")).toHaveText(/^abc1234\u2022Released/);
 });
 
+test("settings end with the copyright, centered under the ranking", async ({ page }) => {
+  await openApp(page);
+  await openSettings(page);
+
+  const footer = page.locator("#settingsDialog .settings-body > :last-child");
+  await expect(footer).toHaveText("\u00a9 2026 Noah Kaplan");
+  await expect(footer).toHaveCSS("text-align", "center");
+  const ranking = await page.locator(".rank-frame").boundingBox();
+  const copyright = await footer.boundingBox();
+  expect(copyright.y).toBeGreaterThan(ranking.y + ranking.height);
+  const settings = await page.locator("#settingsDialog").boundingBox();
+  const findMiddle = (box) => box.x + box.width / 2;
+  expect(Math.abs(findMiddle(copyright) - findMiddle(settings))).toBeLessThan(1);
+});
+
 test("without a version file, settings leave the version out", async ({ page }) => {
   await openApp(page);
   await openSettings(page);

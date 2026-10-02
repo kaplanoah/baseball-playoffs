@@ -3,9 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderBracket } from "../page/js/bracket-view.js";
 import { readGameDay } from "../page/js/days.js";
-import { renderGames, renderHeadline, sortGamesByDay } from "../page/js/games-view.js";
+import {
+  describeFinalInSeries,
+  renderGames,
+  renderHeadline,
+  sortGamesByDay,
+} from "../page/js/games-view.js";
 import { renderScoreboard } from "../page/js/scoreboard.js";
-import { describeSeriesStanding } from "../page/js/series.js";
+import { describeSeriesAfterWin, describeSeriesStanding } from "../page/js/series.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { describeStampProblem, renderStampLines } from "../page/js/stamp.js";
 import { renderStandings } from "../page/js/standings-view.js";
@@ -70,6 +75,21 @@ test("a series reads as who leads, a tie, or who won it", () => {
   assert.equal(describeSeriesStanding(valkyries), "Valkyries lead 1-0");
   assert.equal(describeSeriesStanding(aces), "Tied 1-1");
   assert.equal(describeSeriesStanding(SEASON.series.find((series) => series.id === "2-1")), "");
+});
+
+test("a final reads as how its winner left the series: ahead, level, behind, or through", () => {
+  const readFinal = (id) =>
+    describeFinalInSeries(
+      SEASON.games.find((game) => game.id === id),
+      SEASON.games,
+    );
+  assert.equal(readFinal("1042600101"), "Liberty won to lead 1-0");
+  assert.equal(readFinal("1042600122"), "Fever won to tie 1-1");
+  assert.equal(readFinal("1042600102"), "Liberty won the series 2-0");
+  assert.equal(
+    describeSeriesAfterWin({ winner: "NYL", wins: 1, losses: 2, winsNeeded: 3 }),
+    "Liberty won but trail 1-2",
+  );
 });
 
 test("today's games come first, then the days ahead, then results newest first", () =>

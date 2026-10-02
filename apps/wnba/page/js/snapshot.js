@@ -82,7 +82,8 @@ export const ROUNDS = {
   2: { name: "Semifinals", shortName: "Semis", bestOf: 5 },
   3: { name: "WNBA Finals", shortName: "Finals", bestOf: 7 },
 };
-const countWinsNeeded = (round) => Math.ceil(ROUNDS[round].bestOf / 2);
+/** @param {number} round */
+export const countWinsNeeded = (round) => Math.ceil(ROUNDS[round].bestOf / 2);
 
 // A playoff game's ID spells out where it sits: 104, the season's last two digits, 00, then its
 // round, its series in that round from 0, and its game in the series.

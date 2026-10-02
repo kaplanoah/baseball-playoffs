@@ -11,7 +11,13 @@ import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
 import { renderClub } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { fetchBoxScore, fetchLead, fetchPreview } from "./game-details-fetch.js";
-import { findLoser, nameGame, renderHeadline, renderStatus } from "./games-view.js";
+import {
+  describeFinalInSeries,
+  findLoser,
+  nameGame,
+  renderHeadline,
+  renderStatus,
+} from "./games-view.js";
 import { renderPreview } from "./preview-view.js";
 import { describeSeriesStanding } from "./series.js";
 import { session } from "./session.js";
@@ -37,12 +43,18 @@ const findGame = (id) => session.season?.games?.find((game) => game.id === id) ?
 /** @param {Game} game */
 const chooseKind = (game) => (game.state === "pre" ? "preview" : "box");
 
+// A final tells how it left its series, and any other game how the series stands now.
+/** @param {Game} game */
+function describeSeries(game) {
+  if (game.state === "final") return describeFinalInSeries(game, session.season?.games ?? []);
+  return describeSeriesStanding(session.season?.series?.find((each) => each.id === game.series));
+}
+
 /** @param {Game} game */
 function renderWhen(game) {
-  const series = session.season?.series?.find((each) => each.id === game.series);
   const day = readGameDay(game);
   return joinWithSeparator(
-    [describeSeriesStanding(series), day && describeDay(day, Date.now())].filter(Boolean),
+    [describeSeries(game), day && describeDay(day, Date.now())].filter(Boolean),
   );
 }
 
