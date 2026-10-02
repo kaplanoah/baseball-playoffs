@@ -1,3 +1,4 @@
+import { TEAMS } from "../../page/js/teams.js";
 import { test, expect, openApp } from "./harness.mjs";
 
 const PHONE = { width: 390, height: 844 };
@@ -388,14 +389,16 @@ test("thin square bracket lines run from the line between each pair's teams into
   await expectJoins();
 });
 
-test("a team's dot splits its colors top and bottom, with nothing between them", async ({
+test("a team's dot splits its colors top and bottom at the team's own split, with nothing between them", async ({
   page,
 }) => {
   await openApp(page);
-  const dot = page.locator('[data-series="1-0"] .dot').first();
-  await expect(dot).toHaveCSS(
+  const club = page.locator('[data-series="1-0"] [data-team]').first();
+  const split = TEAMS[/** @type {string} */ (await club.getAttribute("data-team"))].dotSplit;
+  expect(split).not.toBe(50);
+  await expect(club.locator(".dot")).toHaveCSS(
     "background-image",
-    /^linear-gradient\(rgb\([^)]*\) 50%, rgb\([^)]*\) 50%\)$/,
+    new RegExp(`^linear-gradient\\(rgb\\([^)]*\\) ${split}%, rgb\\([^)]*\\) ${split}%\\)$`),
   );
 });
 

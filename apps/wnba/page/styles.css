@@ -283,7 +283,7 @@ header.top h1 {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: linear-gradient(var(--color) 50%, var(--color2) 50%);
+  background: linear-gradient(var(--color) var(--split), var(--color2) var(--split));
   /* Set into the floor, lit from the top left like the numbers cut into the win blocks. */
   box-shadow:
     inset 0.4px 0.4px 1px var(--dot-shadow),
