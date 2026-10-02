@@ -1481,8 +1481,10 @@ table.standings tr.playoff-line + tr td {
   --form-space-between: 14px;
   --side-name-size: 16px;
   --game-row-height: 25px;
-  --field-space-above: 12px;
+  --field-space-above: 13px;
   --field-space-below: 0px;
+  --record-gap: 5px;
+  --record-nudge: 1px;
   gap: var(--part-space-above);
   padding-top: var(--part-space-first);
 }
@@ -1505,8 +1507,8 @@ table.standings tr.playoff-line + tr td {
   color: var(--ink-dim);
 }
 /* Each playoff game takes the same --game-row-height, whatever its row holds, and the numbers
-   under them start --field-space-above the games. Over each part's numbers, the team and the
-   league are named --field-space-below above the first row. */
+   under them start --field-space-above the games. Over each part's numbers, the team, with its
+   record, and the league are named --field-space-below above the first row. */
 .team-playoffs {
   display: grid;
   grid-auto-rows: var(--game-row-height);
@@ -1578,6 +1580,19 @@ table.standings tr.playoff-line + tr td {
 }
 .team-tape .tape-teams {
   margin-bottom: var(--field-space-below);
+}
+/* A team's record sits --record-gap after its name, set like the game sheet's record under each
+   team, and --record-nudge down from the name's middle. */
+.team-tape .tape-teams .club {
+  gap: var(--record-gap);
+}
+.team-record {
+  translate: 0 var(--record-nudge);
+  font-family: var(--display);
+  font-size: var(--size-glance);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--ink-dim);
 }
 :root[data-theme="dark"] .team-tape {
   --team: var(--team-dark, var(--ink-dim));
