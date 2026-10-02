@@ -1,6 +1,7 @@
 // Reads JSON from the page's own Worker for a sheet. A read under way or done in the last while for
 // the same path is shared, so the read a finger starts as it comes down on a row serves the sheet
 // the tap opens, and a sheet opened again soon doesn't wait on another.
+import { reloadWhenSignedOut } from "./access.js";
 
 /** @typedef {{ timeoutMs: number, isExpected: (body: any) => boolean }} ReadRules */
 
@@ -17,6 +18,7 @@ async function requestFromWorker(path, { timeoutMs, isExpected }) {
     cache: "no-store",
     signal: AbortSignal.timeout(timeoutMs),
   });
+  reloadWhenSignedOut(response);
   const body = await response.json().catch(() => null);
   if (!response.ok)
     throw Object.assign(new Error(body?.error || `The Worker answered ${response.status}`), {

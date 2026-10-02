@@ -62,6 +62,14 @@ const STORE_BINDING = {
   name: "STORE",
   class_name: "SeasonStore",
 };
+// Counts each phone's tries at the access code. The namespace is the account's own number for
+// these counts, and each Worker keys its counts by its own address.
+const ACCESS_LIMIT_BINDING = {
+  type: "ratelimit",
+  name: "ACCESS_LIMIT",
+  namespace_id: "2701",
+  simple: { limit: 10, period: 60 },
+};
 // Cloudflare records the last tag applied and rejects an upload that repeats one.
 export const MIGRATIONS = [{ tag: "v1", new_sqlite_classes: ["SeasonStore"] }];
 
@@ -208,7 +216,7 @@ export async function deploy({
             main_module: "worker.mjs",
             compatibility_date: compatibilityDate,
             observability: { enabled: true },
-            bindings: [STORE_BINDING],
+            bindings: [STORE_BINDING, ACCESS_LIMIT_BINDING],
             keep_bindings: ["secret_text"],
             ...(commit && { annotations: { "workers/message": commit } }),
             ...(migrations && { migrations }),

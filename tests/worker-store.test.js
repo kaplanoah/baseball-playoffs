@@ -11,7 +11,7 @@ function startStore() {
     (url) =>
       new Promise((resolve) => {
         const answer = (body) => resolve(new Response(JSON.stringify(body)));
-        reads.push({ url: String(url), answer });
+        reads.push({ url: String(url), answer, resolve });
       })
   );
   globalThis.WebSocket = /** @type {any} */ (
@@ -182,4 +182,21 @@ test("catching up swaps a socket that may have gone quiet for a new one", () => 
   assert.equal(sockets.length, 2);
   assert.ok(sockets[0].isClosed);
   assert.ok(!sockets[1].isClosed);
+});
+
+test("a read the Worker turns away for want of the access code reloads the page", async () => {
+  const { store, reads, openSocket } = startStore();
+  let reloads = 0;
+  globalThis.location = /** @type {any} */ ({ reload: () => (reloads += 1) });
+  store.doc("seasons/2026").onSnapshot(
+    () => {},
+    () => {},
+  );
+  openSocket();
+  reads[0].resolve(
+    new Response(JSON.stringify({ error: { code: "access_required" } }), { status: 401 }),
+  );
+  await settle();
+  assert.equal(reloads, 1);
+  delete globalThis.location;
 });
