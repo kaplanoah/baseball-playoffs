@@ -12,7 +12,7 @@ import {
   renderSheetPart,
   renderTapeTeams,
 } from "./sheet-parts.js";
-import { findTeamLeaders } from "./team-view.js";
+import { findTeamLeaders, renderLeaderTable } from "./team-view.js";
 
 // The game sheet's preview for a game that hasn't started: the two teams' meetings this regular
 // season, from the Worker, then their seasons side by side and each team's leading scorers, from
@@ -21,7 +21,6 @@ import { findTeamLeaders } from "./team-view.js";
 /** @typedef {{ team: string, score: number }} MeetingSide */
 /** @typedef {{ id: string, start: string, away: MeetingSide, home: MeetingSide }} Meeting */
 /** @typedef {{ wins: number, losses: number, pointsFor: number, pointsAgainst: number, margin: number, home: string, road: string, lastTen: string }} TeamSeason */
-/** @typedef {import("./team-view.js").Leader} Leader */
 /** @typedef {import("./team-view.js").Season} Season */
 /** @typedef {Record<"away" | "home", string>} Teams */
 
@@ -191,32 +190,6 @@ function renderSeasons(teams, season) {
 }
 
 /**
- * @param {string} team
- * @param {Leader[]} leaders
- */
-const renderLeaders = (team, leaders) =>
-  html`<table class="players tabular">
-    <thead>
-      <tr>
-        <th scope="col">${renderClub(team)}</th>
-        <th scope="col" title="Points per game">Pts</th>
-        <th scope="col" title="Rebounds per game">Reb</th>
-        <th scope="col" title="Assists per game">Ast</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${leaders.map(
-        (leader) => html`<tr>
-          <th scope="row"><span class="first-name">${leader.firstName}</span> ${leader.lastName}</th>
-          <td>${formatAverage(leader.points)}</td>
-          <td>${formatAverage(leader.rebounds)}</td>
-          <td>${formatAverage(leader.assists)}</td>
-        </tr>`,
-      )}
-    </tbody>
-  </table>`;
-
-/**
  * @param {Teams} teams
  * @param {Season | null} season
  */
@@ -230,7 +203,7 @@ function renderLeadingScorers(teams, season) {
   return renderSheetPart(
     "Leading scorers",
     html`<div class="player-tables">
-      ${renderLeaders(teams.away, away)}${renderLeaders(teams.home, home)}
+      ${renderLeaderTable(renderClub(teams.away), away)}${renderLeaderTable(renderClub(teams.home), home)}
     </div>`,
     "Per game",
   );
