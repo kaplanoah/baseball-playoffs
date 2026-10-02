@@ -11,10 +11,18 @@ enabled = true
 [observability.traces]
 enabled = true
 
-# worker/deploy.mjs declares the same binding and migrations for npm run deploy:api.
+# worker/deploy.mjs declares the same bindings and migrations for npm run deploy:api.
 [[durable_objects.bindings]]
 name = "STORE"
 class_name = "SeasonStore"
+
+[[ratelimits]]
+name = "ACCESS_LIMIT"
+namespace_id = "2701"
+
+[ratelimits.simple]
+limit = 10
+period = 60
 
 [[migrations]]
 tag = "v1"

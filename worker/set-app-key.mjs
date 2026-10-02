@@ -2,12 +2,7 @@
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { checkAppName } from "./apps.mjs";
-import {
-  createCloudflareCaller,
-  findWorkersApi,
-  readAccount,
-  readAppWorkerConfig,
-} from "./deploy.mjs";
+import { createSecretsClient } from "./worker-secrets.mjs";
 
 const SECRET_NAME = "APP_KEY";
 
@@ -30,26 +25,16 @@ export async function setAppKey({
   isRotating = false,
   makeKey = createKey,
 }) {
-  const base = findWorkersApi(readAccount(env));
-  const { name } = readAppWorkerConfig(app);
-  const callCloudflare = createCloudflareCaller({ fetchImpl, env, log });
-  const secretsUrl = `${base}/scripts/${name}/secrets`;
-
-  const secrets = await callCloudflare("secrets", secretsUrl, { method: "GET" });
-  if (secrets.some((secret) => secret.name === SECRET_NAME) && !isRotating)
+  const secrets = createSecretsClient({ app, fetchImpl, env, log });
+  if ((await secrets.listSecretNames()).includes(SECRET_NAME) && !isRotating)
     throw new Error(
       `The Worker already has an ${SECRET_NAME}. A new one changes the page's address, so the ` +
         "home-screen icon stops working. To do it anyway, add --rotate.",
     );
 
   const key = makeKey();
-  await callCloudflare(SECRET_NAME, secretsUrl, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: SECRET_NAME, text: key, type: "secret_text" }),
-  });
-  const { subdomain } = await callCloudflare("subdomain", `${base}/subdomain`, { method: "GET" });
-  const url = `https://${name}.${subdomain}.workers.dev/${key}/`;
+  await secrets.putSecret(SECRET_NAME, key);
+  const url = `${await secrets.readWorkerUrl()}${key}/`;
   log(`Page address: ${url}`);
   return url;
 }

@@ -1529,3 +1529,104 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
     text-align: left;
   }
 }
+
+/* The page a phone sees until it sends the access code (gate.html): the app's icon, the code, and
+   Open, together in the middle of the screen, a little above center. */
+body.gate-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+  padding-bottom: max(48px, env(safe-area-inset-bottom));
+}
+.gate {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-bottom: 40px;
+  text-align: center;
+}
+.gate-icon {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+:root[data-theme="dark"] .gate-icon-light,
+:root:not([data-theme="dark"]) .gate-icon-dark {
+  display: none;
+}
+.gate-title {
+  margin: 4px 0 6px;
+  font-family: var(--heading);
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-wrap: balance;
+}
+.gate-form {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.code-field {
+  width: 100%;
+  max-width: 250px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid color-mix(in srgb, var(--card-border), var(--ink) 25%);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--numbers);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.code-field::placeholder {
+  color: var(--ink-dim);
+  opacity: 0.55;
+  letter-spacing: 0.06em;
+}
+.code-field:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.code-field.is-wrong {
+  border-color: var(--orange);
+}
+.open-button {
+  height: 40px;
+  min-width: 120px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+body.kbd .open-button:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.gate-message {
+  min-height: 1.4em;
+  max-width: 30ch;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--orange);
+}
+.gate-message.is-calm {
+  color: var(--ink-dim);
+}

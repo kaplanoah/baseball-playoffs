@@ -116,7 +116,15 @@ test("upload, route, and the Worker URL", async () => {
     main_module: "worker.mjs",
     compatibility_date: "2026-09-01",
     observability: { enabled: true, traces: { enabled: true } },
-    bindings: [{ type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" }],
+    bindings: [
+      { type: "durable_object_namespace", name: "STORE", class_name: "SeasonStore" },
+      {
+        type: "ratelimit",
+        name: "ACCESS_LIMIT",
+        namespace_id: "2701",
+        simple: { limit: 10, period: 60 },
+      },
+    ],
     keep_bindings: ["secret_text"],
     annotations: { "workers/message": NEW_COMMIT },
     migrations: { new_tag: "v1", steps: [{ new_sqlite_classes: ["SeasonStore"] }] },
@@ -213,16 +221,22 @@ test("a migration already applied isn't sent again", async () => {
   assert.equal(metadata.migrations, undefined);
 });
 
-test("wrangler.toml declares the same store binding and migrations", async () => {
+test("each app's wrangler.toml declares the same bindings and migrations", async () => {
   const { MIGRATIONS } = await loadDeployModule();
-  const toml = readFileSync(`${import.meta.dirname}/../apps/mlb/worker/wrangler.toml`, "utf8");
-  assert.match(
-    toml,
-    /\[\[durable_objects\.bindings\]\]\nname = "STORE"\nclass_name = "SeasonStore"/,
-  );
-  for (const { tag, new_sqlite_classes: classes } of MIGRATIONS) {
-    const declared = `[[migrations]]\ntag = "${tag}"\nnew_sqlite_classes = ${JSON.stringify(classes)}`;
-    assert.ok(toml.includes(declared), declared);
+  for (const app of ["mlb", "wnba"]) {
+    const toml = readFileSync(`${import.meta.dirname}/../apps/${app}/worker/wrangler.toml`, "utf8");
+    assert.match(
+      toml,
+      /\[\[durable_objects\.bindings\]\]\nname = "STORE"\nclass_name = "SeasonStore"/,
+    );
+    assert.match(
+      toml,
+      /\[\[ratelimits\]\]\nname = "ACCESS_LIMIT"\nnamespace_id = "2701"\n\n\[ratelimits\.simple\]\nlimit = 10\nperiod = 60/,
+    );
+    for (const { tag, new_sqlite_classes: classes } of MIGRATIONS) {
+      const declared = `[[migrations]]\ntag = "${tag}"\nnew_sqlite_classes = ${JSON.stringify(classes)}`;
+      assert.ok(toml.includes(declared), declared);
+    }
   }
 });
 
