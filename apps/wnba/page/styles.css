@@ -1438,14 +1438,29 @@ table.standings tr.playoff-line + tr td {
   font-family: var(--team-name);
   letter-spacing: 0.02em;
 }
-/* Its title shares a tinted band across the top, like a game's. Its parts are spaced like the game
+/* Its title shares a tinted band across the top, like a game's, --band-space-top under the band's
+   top, or its grabber on a phone, and --band-space-bottom over its bottom. Its parts are spaced like the game
    sheet's: --part-space-first under the band, --part-space-above each later title, and
    --part-space-below each title. Last 10 and Streak sit --form-space-above under the numbers
    before them, --form-space-between apart, and the two sides over its numbers are named at
    --side-name-size. */
+#teamDialog {
+  --band-space-top: 12px;
+  --band-space-bottom: 14px;
+}
 #teamDialog .sheet-top {
-  padding-bottom: 14px;
+  padding-top: var(--band-space-top);
+  padding-bottom: var(--band-space-bottom);
   background: var(--tile);
+}
+/* On a phone the grabber tops the band, and the title sits --band-space-top under it. */
+@media (max-width: 779px) {
+  #teamDialog .sheet-top {
+    padding-top: 0;
+  }
+  #teamDialog .sheet-grabber {
+    margin-bottom: var(--band-space-top);
+  }
 }
 .team-sheet-body {
   --part-space-first: 12px;
