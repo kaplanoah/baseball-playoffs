@@ -52,6 +52,7 @@
 .tape-label {
   font-size: 0.55rem;
   line-height: 1.25;
+  text-wrap: balance;
   text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -109,6 +110,10 @@
   text-align: center;
   color: var(--ink-dim);
   text-wrap: balance;
+}
+/* A fact that doesn't fit moves to the next line whole, so the line breaks only after a dot. */
+.tape-note .fact {
+  display: inline-block;
 }
 
 @media (max-width: 779px) {

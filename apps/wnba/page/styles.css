@@ -701,7 +701,7 @@ table.players thead th {
   text-align: center;
   color: var(--ink-dim);
 }
-table.line-score td,
+table.line-score tbody td,
 table.line-score tbody th {
   padding: 6px 0;
   border-top: 1px solid var(--divider);

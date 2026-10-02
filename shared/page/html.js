@@ -54,11 +54,15 @@ export const convertToText = (markup) =>
 const SEPARATOR = new Markup('<span class="sep">&bull;</span>');
 
 /**
- * Joins items with the page's one separator, so every list of facts reads the same way.
+ * Joins items with the page's one separator, so every list of facts reads the same way. Each fact
+ * holds the separator after it, so a line that keeps its facts whole breaks after a dot.
  * @param {unknown[]} items
  */
 export const joinWithSeparator = (items) =>
-  html`${items.flatMap((item, index) => (index ? [SEPARATOR, item] : [item]))}`;
+  html`${items.map(
+    (item, index) =>
+      html`<span class="fact">${item}${index < items.length - 1 && SEPARATOR}</span>`,
+  )}`;
 
 // Views redraw on every update and every minute, so markup the element already holds is left as
 // it is, with the focus, scrolling, and running animations inside it.
