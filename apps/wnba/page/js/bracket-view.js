@@ -1,10 +1,10 @@
 import { formatClockTime } from "#shared/days.js";
-import { html, joinWithSeparator } from "#shared/html.js";
+import { html } from "#shared/html.js";
 import { findOpeningRound } from "#shared/opening-round.js";
 import { renderRoundDots } from "#shared/round-dots.js";
 import { renderClub } from "./clubs.js";
-import { describeDay, readGameDay } from "./days.js";
-import { describeLiveClock } from "./games-view.js";
+import { describeDayInSentence, readGameDay } from "./days.js";
+import { describePeriod } from "./games-view.js";
 import { BRACKET_ORDER } from "./series.js";
 import { ROUNDS } from "./snapshot.js";
 
@@ -50,13 +50,22 @@ function describeLiveScore(series, game) {
 }
 
 /**
+ * Where a live game is, as a broadcaster says it: "with 3:18 in Q2", "at halftime", or "after Q3".
+ * Between periods the clock stops at zero.
+ * @param {Game} game
+ */
+function describeLiveMoment({ period, clock }) {
+  if (!period) return "";
+  if (clock && clock !== "0.0") return `with ${clock} in ${describePeriod(period)}`;
+  return period === 2 ? "at halftime" : `after ${describePeriod(period)}`;
+}
+
+/**
  * @param {Series} series
  * @param {Game} game
  */
-function describeLiveGame(series, game) {
-  const parts = [describeLiveScore(series, game), describeLiveClock(game)].filter(Boolean);
-  return joinWithSeparator(parts.length ? parts : ["Live"]);
-}
+const describeLiveGame = (series, game) =>
+  [describeLiveScore(series, game) || "Live", describeLiveMoment(game)].filter(Boolean).join(" ");
 
 /**
  * When a series next plays, with TBD for what the league hasn't set yet.
@@ -66,8 +75,9 @@ function describeLiveGame(series, game) {
 function describeNextGame(game, now) {
   const day = readGameDay(game);
   if (!day) return "Next game TBD";
-  const time = game.isTimeSet && game.start ? formatClockTime(new Date(game.start)) : "TBD";
-  return joinWithSeparator([`Next game ${describeDay(day, now)}`, time]);
+  const dayName = describeDayInSentence(day, now);
+  if (!game.isTimeSet || !game.start) return `Next game ${dayName}, time TBD`;
+  return `Next game ${dayName} at ${formatClockTime(new Date(game.start))}`;
 }
 
 /**

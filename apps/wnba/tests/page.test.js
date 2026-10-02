@@ -220,11 +220,11 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     const text = readText(renderBracket(SEASON, NOW));
     assert.match(
       text,
-      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 1 seed Lynx 0 8 seed Liberty 2 4 seed Dream 1 5 seed Mystics 0 Next game Today \| 7:00 PM 2 seed Valkyries 1 7 seed Wings 0 /,
+      /^First Round Best of 3 Semifinals Best of 5 WNBA Finals Best of 7 1 seed Lynx 0 8 seed Liberty 2 4 seed Dream 1 5 seed Mystics 0 Next game today at 7:00 PM 2 seed Valkyries 1 7 seed Wings 0 /,
     );
     assert.match(
       text,
-      / 6 seed Fever 1 Next game Tomorrow \| 9:00 PM Liberty 0 TBD Next game TBD TBD TBD Next game TBD TBD TBD Next game TBD$/,
+      / 6 seed Fever 1 Next game tomorrow at 9:00 PM Liberty 0 TBD Next game TBD TBD TBD Next game TBD TBD TBD Next game TBD$/,
     );
     assert.match(markup, /class="team-line out"[\s\S]*?Lynx/);
   }));
@@ -249,25 +249,47 @@ test("a series still waiting on a team says its next game is TBD", () =>
     assert.match(readText(renderBracket(finishFirstRound(), NOW)), / TBD TBD Next game TBD$/);
   }));
 
-test("a next game without a set time says TBD in its place, and without a day says only TBD", () =>
+test("a next game without a set time says its time is TBD, and without a day says only TBD", () =>
   inEastern(() => {
     const nextId = SEASON.series.find((series) => series.id === "1-3")?.nextGame?.id;
     const untimed = replaceGame(SEASON, nextId, { isTimeSet: false });
-    assert.match(readText(renderBracket(untimed, NOW)), /Mystics 0 Next game Today \| TBD /);
+    assert.match(readText(renderBracket(untimed, NOW)), /Mystics 0 Next game today, time TBD /);
     const undated = replaceGame(SEASON, nextId, { isTimeSet: false, start: null });
     assert.match(readText(renderBracket(undated, NOW)), /Mystics 0 Next game TBD /);
   }));
 
-test("a series with a game under way shows its score, top team first, and its clock", () =>
+test("a series with a game under way says its score, top team first, and where the game is", () =>
   inEastern(() => {
     const text = readText(renderBracket(LIVE_TONIGHT, NOW));
-    assert.match(text, /4 seed Dream 1 5 seed Mystics 0 71-68 \| Q4 3:48 /);
+    assert.match(text, /4 seed Dream 1 5 seed Mystics 0 71-68 with 3:48 in Q4 /);
     assert.match(renderBracket(LIVE_TONIGHT, NOW).text, /class="card-note live"/);
     const dreamAtHome = replaceGame(LIVE_TONIGHT, "1042600132", {
       away: { team: "WAS", seed: 5, score: 68, seriesWins: 0, isInBonus: false, timeouts: 1 },
       home: { team: "ATL", seed: 4, score: 71, seriesWins: 1, isInBonus: true, timeouts: 2 },
     });
-    assert.match(readText(renderBracket(dreamAtHome, NOW)), /Mystics 0 71-68 \| Q4 3:48 /);
+    assert.match(readText(renderBracket(dreamAtHome, NOW)), /Mystics 0 71-68 with 3:48 in Q4 /);
+  }));
+
+test("a live game's note says where the game is in overtime, at halftime, and after a quarter", () =>
+  inEastern(() => {
+    const readNote = (changes) =>
+      readText(renderBracket(replaceGame(LIVE_TONIGHT, "1042600132", changes), NOW));
+    assert.match(readNote({ period: 5, clock: "2:05" }), /Mystics 0 71-68 with 2:05 in OT /);
+    assert.match(readNote({ period: 4, clock: "42.3" }), /Mystics 0 71-68 with 42.3 in Q4 /);
+    assert.match(
+      readNote({ period: 2, clock: "0.0", status: "Half" }),
+      /Mystics 0 71-68 at halftime /,
+    );
+    assert.match(readNote({ period: 3, clock: "0.0" }), /Mystics 0 71-68 after Q3 /);
+  }));
+
+test("a live game without its score yet still says where it is", () =>
+  inEastern(() => {
+    const noScores = replaceGame(LIVE_TONIGHT, "1042600132", {
+      away: { team: "ATL", seed: 4, score: null, seriesWins: 1, isInBonus: false, timeouts: 2 },
+      home: { team: "WAS", seed: 5, score: null, seriesWins: 0, isInBonus: false, timeouts: 1 },
+    });
+    assert.match(readText(renderBracket(noScores, NOW)), /Mystics 0 Live with 3:48 in Q4 /);
   }));
 
 /**
@@ -301,7 +323,7 @@ test("a seed is labeled only in the first round, where its team enters the brack
     assert.match(text, / 4 seed Dream 2 5 seed Mystics 0 /);
     assert.match(
       text,
-      / Fever 2 Dream 0 Liberty 0 Next game Sun, Oct 4 \| TBD Valkyries 0 Fever 0 /,
+      / Fever 2 Dream 0 Liberty 0 Next game Sun, Oct 4, time TBD Valkyries 0 Fever 0 /,
     );
   }));
 

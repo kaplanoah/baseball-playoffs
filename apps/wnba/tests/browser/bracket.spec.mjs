@@ -240,7 +240,7 @@ test("a card has no header, and its note hangs just under it, in one plain color
   for (const id of ["1-3", "1-1", "1-2", "2-0", "2-1", "3-0"]) {
     const card = await page.locator(`[data-series="${id}"]`).boundingBox();
     const note = await page.locator(`[data-series="${id}"] .card-note`).boundingBox();
-    expect(note.y - (card.y + card.height)).toBeCloseTo(5, 0);
+    expect(note.y - (card.y + card.height)).toBeCloseTo(2, 0);
     expect(note.x).toBeGreaterThanOrEqual(card.x);
     expect(note.x + note.width).toBeLessThanOrEqual(card.x + card.width);
   }
@@ -263,7 +263,7 @@ test("a live game's note shows its score and clock in orange", async ({ page }) 
     return season;
   });
   const note = page.locator('[data-series="1-3"] .card-note');
-  await expect(note).toHaveText(/^30-28.Q2 5:10$/);
+  await expect(note).toHaveText("30-28 with 5:10 in Q2");
   expect(await note.evaluate((element) => getComputedStyle(element).color)).toBe(
     await page.evaluate(() => {
       const probe = document.createElement("span");
@@ -370,21 +370,28 @@ test("the Finals card has the same outline as every other series", async ({ page
   expect(await readOutline("3-0")).toEqual(await readOutline("1-0"));
 });
 
-test("a round's name and its Best of, in the text face, center on each other", async ({ page }) => {
+test("a round's Best of, in the text face, sits half a pixel above its name's baseline", async ({
+  page,
+}) => {
   await openApp(page);
+  // A zero-size box set in a line of text sits on its baseline.
   const readParts = () =>
     readRoundName(page, 2)
       .locator(":scope > span")
       .evaluateAll((parts) =>
         parts.map((part) => {
-          const box = part.getBoundingClientRect();
+          const probe = document.createElement("span");
+          probe.style.cssText = "display: inline-block; width: 0; height: 0";
+          part.append(probe);
+          const baseline = probe.getBoundingClientRect().top;
+          probe.remove();
           const font = getComputedStyle(part).fontFamily.split(",")[0].replaceAll('"', "");
-          return { middle: (box.top + box.bottom) / 2, font };
+          return { baseline, font };
         }),
       );
   await expect.poll(async () => (await readParts())[1].font).toBe("Barlow");
   const [name, bestOf] = await readParts();
-  expect(Math.abs(name.middle - bestOf.middle)).toBeLessThanOrEqual(0.5);
+  expect(name.baseline - bestOf.baseline).toBeCloseTo(0.5, 1);
 });
 
 test("a round's Best of sits just after its name", async ({ page }) => {
