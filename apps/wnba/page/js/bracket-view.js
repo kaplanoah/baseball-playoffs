@@ -72,7 +72,8 @@ function describeNextGame(game, now) {
 
 /**
  * A card's note, as on MLB's bracket, says only when its series next plays or how the game on now
- * stands. The card's wins already say how the series stands, and so which game is next.
+ * stands, and a finished series has none. The card's wins already say how the series stands, and
+ * so which game is next.
  * @param {Series} series
  * @param {Game[]} games
  * @param {number} now
@@ -80,9 +81,9 @@ function describeNextGame(game, now) {
 function renderCardNote(series, games, now) {
   const live = games.find((game) => game.series === series.id && game.state === "live");
   if (live) return html`<p class="card-note live">${describeLiveGame(series, live)}</p>`;
-  const next = !series.winner && games.find((game) => game.id === series.nextGame?.id);
-  if (!next || !series.top || !series.bottom) return "";
-  return html`<p class="card-note">${describeNextGame(next, now)}</p>`;
+  if (series.winner) return "";
+  const next = series.top && series.bottom && games.find((game) => game.id === series.nextGame?.id);
+  return html`<p class="card-note">${next ? describeNextGame(next, now) : "Next game TBD"}</p>`;
 }
 
 /**

@@ -225,12 +225,12 @@ test("the bracket pairs each semifinal with the first-round series that feed it"
     );
     assert.match(
       text,
-      / 6 seed Fever 1 Next game Tomorrow \| 9:00 PM Liberty 0 TBD TBD TBD TBD TBD$/,
+      / 6 seed Fever 1 Next game Tomorrow \| 9:00 PM Liberty 0 TBD Next game TBD TBD TBD Next game TBD TBD TBD Next game TBD$/,
     );
     assert.match(markup, /class="team-line out"[\s\S]*?Lynx/);
   }));
 
-test("only a series with a game to play has a note under its card, which leaves out the game's number", () =>
+test("every series still to finish has a note under its card, which leaves out the game's number", () =>
   inEastern(() => {
     const markup = renderBracket(SEASON, NOW).text;
     const notes = [
@@ -238,9 +238,16 @@ test("only a series with a game to play has a note under its card, which leaves 
     ];
     assert.deepEqual(
       notes.map((note) => note[1]),
-      ["1-3", "1-1", "1-2"],
+      ["1-3", "1-1", "1-2", "2-0", "2-1", "3-0"],
     );
     assert.doesNotMatch(markup, /Game \d|win 2-0|Waits on|Starts after/);
+  }));
+
+test("a series still waiting on a team says its next game is TBD", () =>
+  inEastern(() => {
+    const text = readText(renderBracket(SEASON, NOW));
+    assert.match(text, / Liberty 0 TBD Next game TBD /);
+    assert.match(readText(renderBracket(finishFirstRound(), NOW)), / TBD TBD Next game TBD$/);
   }));
 
 test("a next game without a set time says TBD in its place, and without a day says only TBD", () =>

@@ -234,9 +234,10 @@ test("a card has no header, and its note hangs just under it, in one plain color
   await openApp(page);
   await expect(page.locator(".series-head")).toHaveCount(0);
   const notes = page.locator(".card-note");
-  await expect(notes).toHaveCount(3);
+  await expect(notes).toHaveCount(6);
   await expect(page.locator('[data-series="1-0"] .card-note')).toHaveCount(0);
-  for (const id of ["1-3", "1-1", "1-2"]) {
+  await expect(page.locator('[data-series="2-0"] .card-note')).toHaveText("Next game TBD");
+  for (const id of ["1-3", "1-1", "1-2", "2-0", "2-1", "3-0"]) {
     const card = await page.locator(`[data-series="${id}"]`).boundingBox();
     const note = await page.locator(`[data-series="${id}"] .card-note`).boundingBox();
     expect(note.y - (card.y + card.height)).toBeCloseTo(5, 0);
