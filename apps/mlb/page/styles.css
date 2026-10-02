@@ -65,8 +65,8 @@
   --pager-label: var(--ink-dim);
   --updates-head: var(--gold);
   --sheet-part-head: var(--gold);
-  --game-row-height: 63.5px;
-  --game-side-offset: 1px;
+  --game-row-height: 82.5px;
+  --game-side-offset: 0px;
   --game-label-offset: -21px;
   --game-headline-offset: -1px;
   --game-status-offset: 19.5px;
@@ -512,7 +512,7 @@ table.st .seed-cell {
   margin-top: 0;
 }
 .game-side {
-  gap: 4px;
+  gap: 5.5px;
 }
 .game-side .club {
   font-size: var(--size-glance);
@@ -531,24 +531,23 @@ table.st .seed-cell {
 .game-side.out .dot {
   opacity: 0.55;
 }
+/* One line, so a club's race letter stays with its record even if it nears the time. */
 .game-facts {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 1.5ch;
+  gap: 1.5ch;
   font-size: var(--size-small);
   color: var(--ink-dim);
   white-space: nowrap;
 }
 .game-extra {
-  margin-top: 3.25px;
+  margin-top: 4px;
 }
-/* On a narrow row the ERA wraps under the name, and a long name gives way before it. */
+/* A long name gives way before the arm. */
 .starter {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 1ch;
+  gap: 1ch;
   max-width: 100%;
   font-size: var(--size-small);
   color: var(--ink-mid);
@@ -577,20 +576,6 @@ table.st .seed-cell {
 .starter .arm {
   font-size: var(--size-small);
 }
-/* The smaller number and letters sit a hair high on the name's baseline, so they read level. */
-.starter-era {
-  position: relative;
-  top: -0.25px;
-  color: var(--ink-dim);
-  white-space: nowrap;
-}
-.starter-era b {
-  font-size: var(--size-small);
-  font-weight: 400;
-}
-.starter-era-label {
-  font-size: var(--size-small);
-}
 /* A character width from the word, like the number, and a pixel low so it reads level with the text. */
 .seed-lock {
   width: 0.66em;
@@ -601,7 +586,7 @@ table.st .seed-cell {
 }
 .race.clinched {
   color: var(--gold);
-  font-weight: 500;
+  font-weight: 400;
 }
 .race.racing {
   color: var(--copper-ink);
@@ -1322,12 +1307,17 @@ body.kbd .rank-item .grip:focus {
   }
 }
 .matchup-sheet .sheet-head h2 {
-  text-transform: none;
-  letter-spacing: 0.02em;
+  font-size: 1.125rem;
+  font-weight: 400;
+}
+@media (max-width: 779px) {
+  .matchup-sheet .sheet-head h2 {
+    font-size: 1rem;
+  }
 }
 .matchup-body {
   display: grid;
-  gap: 16px;
+  gap: 22px;
   padding-top: 6px;
 }
 .faceoff {
@@ -1386,7 +1376,7 @@ body.kbd .rank-item .grip:focus {
 }
 .scout {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 .scout h3 {
   display: flex;
@@ -1418,7 +1408,7 @@ body.kbd .rank-item .grip:focus {
 }
 .recent-starts {
   display: grid;
-  gap: 2px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1428,7 +1418,7 @@ body.kbd .rank-item .grip:focus {
 .recent-starts li {
   display: grid;
   grid-template-columns: 4.2em minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 11px;
 }
 .start-now {
   color: var(--copper-ink);
@@ -1439,7 +1429,7 @@ body.kbd .rank-item .grip:focus {
 /* A club's last starters, each by his last start and the rest he'd have, gold once it's the usual. */
 .rotation {
   display: grid;
-  gap: 3px;
+  gap: 5px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1501,13 +1491,26 @@ body.kbd .rank-item .grip:focus {
   margin-top: 8px;
   overflow: visible;
 }
-.speed-label {
-  font-size: 13px;
-  text-anchor: middle;
-  fill: var(--ink-dim);
+/* Each label's number centers on its speed, and the unit hangs off the first one's end. */
+.speed-labels {
+  position: relative;
+  height: 16px;
+  margin-top: 3px;
+  font-size: var(--size-small);
+  line-height: 16px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
 }
-.speed-label.first {
-  text-anchor: start;
+.speed-label {
+  position: absolute;
+  top: 0;
+  translate: -50% 0;
+  white-space: nowrap;
+}
+.speed-unit {
+  position: absolute;
+  left: 100%;
+  white-space: pre;
 }
 .speed-axis {
   stroke: var(--divider);
@@ -1526,8 +1529,8 @@ body.kbd .rank-item .grip:focus {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 6px 10px;
-  margin: 2px 0 0;
+  gap: 10px;
+  margin: 12px 0 0;
   padding: 0;
   list-style: none;
   font-size: var(--size-glance);

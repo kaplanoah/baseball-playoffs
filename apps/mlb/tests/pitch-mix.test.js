@@ -48,11 +48,15 @@ test("pitches at nearly the same speed sit side by side on the line, slowest fir
   assert.doesNotMatch(svg, /pitch-stem/);
 });
 
+const readSpeedLabels = (pitches) =>
+  [
+    ...String(renderPitchMix(pitches)).matchAll(
+      /<span class="speed-label" style="left: ([\d.]+)%">(\d+)(?:<span class="speed-unit">([^<]*)<\/span>)?<\/span>/g,
+    ),
+  ].map(([, left, mph, unit = ""]) => ({ left: Number(left), text: `${mph}${unit}` }));
+
 test("the speed line is labeled every 10 mph, with the unit on the slowest", () => {
-  const labels = (pitches) =>
-    [...String(renderPitchMix(pitches)).matchAll(/class="speed-label[^"]*"[^>]*>([^<]+)</g)].map(
-      (match) => match[1],
-    );
+  const labels = (pitches) => readSpeedLabels(pitches).map((label) => label.text);
   assert.deepEqual(labels([pitch("FF", 0.5, 94.2)]), ["70 mph", "80", "90", "100"]);
   assert.deepEqual(labels([pitch("EP", 0.1, 58.0), pitch("FF", 0.5, 101.2)]), [
     "50 mph",
@@ -63,6 +67,17 @@ test("the speed line is labeled every 10 mph, with the unit on the slowest", () 
     "100",
     "110",
   ]);
+});
+
+test("each speed label is page text under the line, at its speed's share of the line's width", () => {
+  const pitches = [pitch("FF", 0.5, 94.2)];
+  assert.deepEqual(
+    readSpeedLabels(pitches).map((label) => label.left),
+    [3.1, 34.4, 65.6, 96.9],
+  );
+  const markup = String(renderPitchMix(pitches));
+  assert.doesNotMatch(markup, /<text/);
+  assert.ok(markup.indexOf("</svg>") < markup.indexOf('class="speed-labels"'));
 });
 
 test("each pitch gets a row with its dot, name, share, and speed", () => {
