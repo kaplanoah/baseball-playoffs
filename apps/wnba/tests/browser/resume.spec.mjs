@@ -41,18 +41,18 @@ async function sleepUnannounced(page, minutes) {
 }
 
 /** @param {import("@playwright/test").Page} page */
-const findFinal = (page) => page.locator('[data-series="1-0"]');
+const findFinalWinner = (page) => page.locator('[data-series="1-0"] .team-line.won');
 
 test("a reload shows the bracket the page last showed while the store is still answering", async ({
   page,
 }) => {
   const app = await openApp(page);
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
   const release = await app.holdStore();
 
   await page.reload();
 
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
   release();
 });
 
@@ -63,7 +63,7 @@ test("a last-shown season the page can't draw is skipped", async ({ page }) => {
 
   await openApp(page);
 
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
 });
 
 test("a page asleep half an hour reads what it missed when it wakes, without reloading", async ({
@@ -100,7 +100,7 @@ test("a page whose first load failed loads the last season once the store answer
 
   await sleepUnannounced(page, 5);
 
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
   await expect(page.locator("#stamp")).not.toContainText("Can't reach the page's server");
 });
 
@@ -122,7 +122,7 @@ test("a page that asks a server still on the last release for one of its files r
   await page.clock.runFor(2000);
 
   await expect.poll(() => loads.page).toBe(2);
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
   await expect(page.locator(".view.active")).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("releaseReloads"))).toBe(null);
   await page.clock.runFor(2000);
@@ -138,7 +138,7 @@ test("a page from the last release reloads when it comes back, though the Worker
     (url.pathname === "/version.json" ? serveNextRelease : serveRelease)(url),
   );
   await openApp(page);
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
   await markPage(page);
 
   const reloaded = page.waitForEvent("load");
@@ -168,7 +168,7 @@ test("a page that has reloaded as often as it may for a missing file stays as it
 
   expect(await readReleaseReloads(page)).toBe("15");
   expect(await isSameLoad(page)).toBe(true);
-  await expect(findFinal(page)).toContainText("Liberty win 2-0");
+  await expect(findFinalWinner(page)).toContainText("Liberty");
 });
 
 test("a file outside the release's folder that fails to load leaves the page as it is", async ({
