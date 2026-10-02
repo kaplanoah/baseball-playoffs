@@ -123,6 +123,23 @@ test("the code field shows it's ready with its cursor, not an outline", async ({
   await expect(findCodeField(page)).toHaveCSS("outline-style", "none");
 });
 
+test("the gate's heading, code, and Open each draw in their own weight of Barlow Condensed", async ({
+  page,
+}) => {
+  await openLockedApp(page, { accessCode: "FASTBREAK" });
+  await expect(findGate(page)).toHaveCSS("font-weight", "500");
+  await expect(findCodeField(page)).toHaveCSS("font-weight", "300");
+  await expect(page.getByRole("button", { name: "Open" })).toHaveCSS("font-weight", "600");
+
+  const loadedWeights = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return [...document.fonts]
+      .filter((face) => face.family.includes("Barlow Condensed") && face.status === "loaded")
+      .map((face) => face.weight);
+  });
+  expect(loadedWeights).toEqual(expect.arrayContaining(["300", "500", "600"]));
+});
+
 /**
  * @param {import("@playwright/test").Page} page
  * @param {"light" | "dark"} theme

@@ -1,5 +1,17 @@
 @font-face {
   font-family: "Barlow Condensed";
+  font-weight: 300;
+  font-display: swap;
+  src: url(fonts/barlow-condensed-300.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 500;
+  font-display: swap;
+  src: url(fonts/barlow-condensed-500.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
   font-weight: 600;
   font-display: swap;
   src: url(fonts/barlow-condensed-600.woff2) format("woff2");
