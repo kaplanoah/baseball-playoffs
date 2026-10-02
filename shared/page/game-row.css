@@ -15,7 +15,9 @@
  *   --network-logo-height    a channel's logo on that line, which each logo scales so a square
  *                            badge and a long wordmark look about the same size
  *   --network-gap            the room between two channels on that line
- * and these, set for whether the page's background is light or dark, since each channel's logo
+ * A game whose status shares its line with channels shows the status beside its label instead,
+ * unless the page's root says data-where-to-watch="off", which leaves the channels out.
+ * And these, set for whether the page's background is light or dark, since each channel's logo
  * is drawn for one or the other:
  *   --logos-for-light        inline when a logo with a version for each shows its version for a
  *   --logos-for-dark         light (or dark) background, and none when it doesn't
@@ -130,6 +132,17 @@
 }
 .network-logo.for-dark {
   display: var(--logos-for-dark);
+}
+.game-label {
+  align-items: baseline;
+}
+.game-label-status {
+  margin-left: 0.6em;
+}
+:root:not([data-where-to-watch="off"]) .game-row:has(.game-label-status) .game-status,
+:root[data-where-to-watch="off"] .game-label-status,
+:root[data-where-to-watch="off"] .game-networks {
+  display: none;
 }
 /* An action that covers the whole row, so a tap anywhere on the game opens it. */
 .game-open {

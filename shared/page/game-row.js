@@ -36,12 +36,26 @@ export const renderGameRow = ({
   html`<li class="${joinClasses("game-row", ...classes)}"${id && html` data-game="${id}"`}>
     ${renderSide(away, "away")}
     <span class="game-middle"
-      >${label && html`<span class="game-label">${label}</span>`}<span class="game-headline">${headline}</span
+      >${renderLabel(label, status && networks.length > 0 && status)}<span class="game-headline"
+        >${headline}</span
       >${status && html`<span class="game-status">${status}</span>`}</span
     >
     ${renderSide(home, "home")} ${renderExtra(away, "away")} ${renderExtra(home, "home")}
     ${renderNetworks(networks)} ${action}
   </li>`;
+
+// A game with channels to show keeps them where its status goes, so the status, like a live
+// game's clock, also shows beside the label; game-row.css shows one or the other.
+/**
+ * @param {Markup | false} label
+ * @param {Markup | false} liftedStatus
+ */
+function renderLabel(label, liftedStatus) {
+  if (!label && !liftedStatus) return html``;
+  return html`<span class="game-label"
+    >${label}${liftedStatus && html`<span class="game-label-status">${liftedStatus}</span>`}</span
+  >`;
+}
 
 /**
  * @param {GameRowSide} side

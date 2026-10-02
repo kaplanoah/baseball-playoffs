@@ -529,13 +529,6 @@ header.top h1 {
   font-size: var(--size-small);
   letter-spacing: 0.06em;
 }
-.series-count {
-  color: var(--ink-mid);
-}
-.series-label.decided,
-.series-label.decided .series-count {
-  color: var(--teal);
-}
 .clock {
   font-family: var(--numbers);
   font-size: 0.85rem;

@@ -28,10 +28,6 @@ export function findLoser(game) {
   return game.away.score < game.home.score ? "away" : "home";
 }
 
-/** @param {Game} game */
-const findWinningTeam = (game) =>
-  game.away.score > game.home.score ? game.away.team : game.home.team;
-
 /** @param {number} period */
 export function describePeriod(period) {
   if (period <= 4) return `Q${period}`;
@@ -66,38 +62,11 @@ export function renderStatus(game) {
   return game.isIfNeeded && html`If needed`;
 }
 
-// A game shows its series as it stood at tip-off, and once it's over, as it stood after.
-/**
- * @param {Game} game
- * @param {Game[]} games
- */
-function countSeriesWins(game, games) {
-  const isCounted = (other) =>
-    other.series === game.series &&
-    other.state === "final" &&
-    (other === game || other.number < game.number);
-  const winners = games.filter(isCounted).map(findWinningTeam);
-  const countWins = (team) => winners.filter((winner) => winner === team).length;
-  return [countWins(game.away.team), countWins(game.home.team)];
-}
-
-// Short names, since the label shares the row's middle with the time or score. Until both teams
-// are known, the game's number tells the series' games apart instead.
-/**
- * @param {Game} game
- * @param {Game[]} games
- */
-function renderSeriesLabel(game, games) {
-  if (!game.round) return false;
-  const round = ROUNDS[game.round];
-  if (!game.away.team || !game.home.team)
-    return html`<span class="series-label">${round.shortName} G${game.number}</span>`;
-  const wins = countSeriesWins(game, games);
-  const isDecided = Math.max(...wins) > round.bestOf / 2;
-  return html`<span class="series-label${isDecided ? " decided" : ""}"
-    >${round.shortName} <span class="series-count tabular">${wins.join("-")}</span></span
-  >`;
-}
+// Short names, since the label shares the row's middle with the time or score. The bracket keeps
+// each series' score.
+/** @param {Game} game */
+const renderSeriesLabel = (game) =>
+  !!game.round && html`<span class="series-label">${ROUNDS[game.round].shortName}</span>`;
 
 // Every game holds a line for Bonus under each team, so the teams stay put as it comes and goes.
 /**
@@ -130,16 +99,15 @@ function renderOpenButton(game) {
 // Only today's games say where to watch them.
 /**
  * @param {Game} game
- * @param {Game[]} games
  * @param {boolean} isToday
  */
-const renderGame = (game, games, isToday) =>
+const renderGame = (game, isToday) =>
   renderGameRow({
     id: game.id,
     classes: [game.state],
     away: describeSide(game, "away"),
     home: describeSide(game, "home"),
-    label: renderSeriesLabel(game, games),
+    label: renderSeriesLabel(game),
     headline: renderHeadline(game),
     status: renderStatus(game),
     networks: (isToday && game.networks) || [],
@@ -148,39 +116,35 @@ const renderGame = (game, games, isToday) =>
 
 /**
  * @param {Game[]} games
- * @param {Game[]} allGames every game of the season, which the series labels count from
  * @param {boolean} isToday
  */
-const renderGameList = (games, allGames, isToday) =>
+const renderGameList = (games, isToday) =>
   html`<ul class="game-list">
-    ${games.map((game) => renderGame(game, allGames, isToday))}
+    ${games.map((game) => renderGame(game, isToday))}
   </ul>`;
 
 /**
  * A day's games in a box of their own, beside its date as a wall calendar shows it.
  * @param {{ day: Date, games: Game[] }} gameDay
- * @param {Game[]} allGames
  * @param {number} now
  * @param {boolean} [isToday]
  */
-const renderDay = ({ day, games }, allGames, now, isToday = false) =>
+const renderDay = ({ day, games }, now, isToday = false) =>
   html`<section class="game-day">
     <h3 class="day-label" aria-label="${nameListDay(day, now)}, ${formatShortMonth(day)} ${day.getDate()}">
       <span class="day-month">${formatShortMonth(day)}</span
       ><span class="day-number tabular">${day.getDate()}</span
       ><span class="day-name">${abbreviateDay(day, now)}</span>
     </h3>
-    ${renderGameList(games, allGames, isToday)}
+    ${renderGameList(games, isToday)}
   </section>`;
 
 /**
  * Games grouped by day, in the order given.
  * @param {{ day: Date, games: Game[] }[]} days
- * @param {Game[]} allGames
  * @param {number} now
  */
-const renderDays = (days, allGames, now) =>
-  html`${days.map((gameDay) => renderDay(gameDay, allGames, now))}`;
+const renderDays = (days, now) => html`${days.map((gameDay) => renderDay(gameDay, now))}`;
 
 /**
  * @param {Game[]} games
@@ -223,12 +187,11 @@ const renderEmptyNote = (text) => html`<p class="empty-note">${text}</p>`;
 
 /**
  * @param {Game[]} today
- * @param {Game[]} allGames
  * @param {number} now
  */
-const renderToday = (today, allGames, now) =>
+const renderToday = (today, now) =>
   today.length
-    ? renderDay({ day: new Date(now), games: today }, allGames, now, true)
+    ? renderDay({ day: new Date(now), games: today }, now, true)
     : renderEmptyNote("No games today.");
 
 /**
@@ -238,20 +201,17 @@ const renderToday = (today, allGames, now) =>
  */
 export function renderGames(season, now) {
   const seriesById = new Map((season?.series ?? []).map((series) => [series.id, series]));
-  const allGames = season?.games ?? [];
-  const shown = allGames.filter((game) => hasATeam(game) && !isCalledOff(game, seriesById));
+  const shown = (season?.games ?? []).filter(
+    (game) => hasATeam(game) && !isCalledOff(game, seriesById),
+  );
   if (!shown.length) {
     const note = renderEmptyNote("No playoff games yet.");
     return { previous: note, today: note, next: note };
   }
   const { today, ahead, before } = sortGamesByDay(shown, now);
   return {
-    previous: before.length
-      ? renderDays(before, allGames, now)
-      : renderEmptyNote("No results yet."),
-    today: renderToday(today, allGames, now),
-    next: ahead.length
-      ? renderDays(ahead, allGames, now)
-      : renderEmptyNote("No more games scheduled."),
+    previous: before.length ? renderDays(before, now) : renderEmptyNote("No results yet."),
+    today: renderToday(today, now),
+    next: ahead.length ? renderDays(ahead, now) : renderEmptyNote("No more games scheduled."),
   };
 }

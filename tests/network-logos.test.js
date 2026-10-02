@@ -96,3 +96,32 @@ test("a logo whose weight sits low is nudged up, and one with its weight centere
 test("a game with nowhere to watch it has no line for it", () => {
   assert.equal(renderNetworksLine([]), "");
 });
+
+test("a status sharing its line with channels also shows beside the label, and one without doesn't", () => {
+  const side = { lines: html`` };
+  const live = String(
+    renderGameRow({
+      away: side,
+      home: side,
+      label: html`Semis`,
+      headline: html``,
+      status: html`Q3 4:12`,
+      networks: ["ESPN"],
+    }),
+  );
+  assert.match(
+    live,
+    /<span class="game-label"\s*>Semis<span class="game-label-status">Q3 4:12<\/span>/,
+  );
+  assert.match(live, /<span class="game-status">Q3 4:12<\/span>/);
+  const final = String(
+    renderGameRow({
+      away: side,
+      home: side,
+      label: html`Semis`,
+      headline: html``,
+      status: html`Final`,
+    }),
+  );
+  assert.doesNotMatch(final, /game-label-status/);
+});

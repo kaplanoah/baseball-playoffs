@@ -115,6 +115,48 @@ for (const [scheme, shown, hidden] of LOGO_LOOKS) {
   });
 }
 
+test("a live game's clock sits beside its round while its channels show, and under its score once they're turned off", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await app.changeSeason((season) => {
+    const game = season.games.find((each) => each.id === "1042600132");
+    Object.assign(game, { state: "live", status: "Q3 4:12", period: 3, clock: "4:12" });
+    Object.assign(game.away, { score: 58 });
+    Object.assign(game.home, { score: 61 });
+    return season;
+  });
+  const row = page.locator('#games-today [data-game="1042600132"]');
+  await expect(row.locator(".game-label-status")).toHaveText("Q3 4:12");
+  await expect(row.locator(".game-status")).toBeHidden();
+  await expect(row.getByRole("img", { name: "ESPN" })).toBeVisible();
+  const [clockColor, orange] = await row.locator(".game-label-status .clock").evaluate((clock) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--orange)";
+    clock.after(probe);
+    const colors = [getComputedStyle(clock).color, getComputedStyle(probe).color];
+    probe.remove();
+    return colors;
+  });
+  expect(clockColor).toBe(orange);
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  const toggle = page.getByRole("switch", { name: "Show where to watch" });
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await expect(row.locator(".game-status")).toHaveText("Q3 4:12");
+  await expect(row.locator(".game-label-status")).toBeHidden();
+  await expect(row.getByRole("img", { name: "ESPN" })).toBeHidden();
+
+  await page.reload();
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expect(page.locator("#games-today .game-networks img").first()).toBeHidden();
+  await expect(page.locator("html")).toHaveAttribute("data-where-to-watch", "off");
+});
+
 test("a square badge is drawn taller than a long wordmark, in the room under the teams", async ({
   page,
 }) => {
@@ -321,7 +363,7 @@ async function chooseAppearance(page, choice) {
   await page.keyboard.press("Escape");
 }
 
-test("settings list Notifications above Appearance, with one line between them", async ({
+test("settings list Notifications, Show where to watch, and Appearance, with a line between each", async ({
   page,
 }) => {
   await openApp(page);
@@ -329,12 +371,13 @@ test("settings list Notifications above Appearance, with one line between them",
   const rows = page.locator("#settingsDialog .control-row");
   await expect(rows.locator(".control-label > span:first-child")).toHaveText([
     "Notifications",
+    "Show where to watch",
     "Appearance",
   ]);
   await expect(rows.first()).toBeVisible();
   const readTopBorders = () =>
     rows.evaluateAll((each) => each.map((row) => getComputedStyle(row).borderTopStyle));
-  expect(await readTopBorders()).toEqual(["none", "solid"]);
+  expect(await readTopBorders()).toEqual(["none", "solid", "solid"]);
 
   await rows.first().evaluate((row) => row.setAttribute("hidden", ""));
   expect((await readTopBorders())[1]).toBe("none");
