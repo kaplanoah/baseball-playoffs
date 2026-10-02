@@ -87,29 +87,27 @@ test("each team keeps its first color unless it looks like the other team's", ()
     away: TEAMS.GSV.chartColors.light[0],
     home: TEAMS.DAL.chartColors.light[0],
   });
-  // The Fever's navy is too near the Aces' black, so the Fever take their red.
-  assert.deepEqual(pickSheetColors("IND", "LVA", "light"), {
-    away: TEAMS.IND.chartColors.light[1],
-    home: TEAMS.LVA.chartColors.light[0],
-  });
-  assert.deepEqual(pickSheetColors("IND", "LVA", "dark"), {
-    away: TEAMS.IND.chartColors.dark[0],
-    home: TEAMS.LVA.chartColors.dark[0],
-  });
+  // The Dream and the Mystics are both red, so the Dream, away, take their charcoal.
+  for (const theme of THEMES)
+    assert.deepEqual(pickSheetColors("ATL", "WAS", theme), {
+      away: TEAMS.ATL.chartColors[theme][1],
+      home: TEAMS.WAS.chartColors[theme][0],
+    });
 });
 
 test("when neither of the away team's colors reads apart from the home team's first, the home team takes its other", () => {
-  assert.deepEqual(pickSheetColors("NYL", "PDX", "dark"), {
-    away: TEAMS.NYL.chartColors.dark[1],
-    home: TEAMS.PDX.chartColors.dark[1],
+  // Both of the Storm's colors are too near the Wings' olive, so the Wings take their navy.
+  assert.deepEqual(pickSheetColors("SEA", "DAL", "light"), {
+    away: TEAMS.SEA.chartColors.light[0],
+    home: TEAMS.DAL.chartColors.light[1],
   });
 });
 
 test("the sheet's style hands it each side's color on each theme, and nothing while a team isn't known", () => {
   assert.equal(
-    formatSheetColors("IND", "LVA"),
-    `--away-light: ${TEAMS.IND.chartColors.light[1]}; --home-light: ${TEAMS.LVA.chartColors.light[0]}; ` +
-      `--away-dark: ${TEAMS.IND.chartColors.dark[0]}; --home-dark: ${TEAMS.LVA.chartColors.dark[0]};`,
+    formatSheetColors("ATL", "WAS"),
+    `--away-light: ${TEAMS.ATL.chartColors.light[1]}; --home-light: ${TEAMS.WAS.chartColors.light[0]}; ` +
+      `--away-dark: ${TEAMS.ATL.chartColors.dark[1]}; --home-dark: ${TEAMS.WAS.chartColors.dark[0]};`,
   );
   assert.equal(formatSheetColors(null, "LVA"), "");
 });

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { renderBracket } from "../page/js/bracket-view.js";
+import { renderDot } from "../page/js/clubs.js";
 import { readGameDay } from "../page/js/days.js";
 import {
   describeFinalInSeries,
@@ -67,6 +68,13 @@ const LIVE_TONIGHT = replaceGame(SEASON, "1042600132", {
   clock: "3:48",
   away: { team: "ATL", seed: 4, score: 71, seriesWins: 1, isInBonus: false, timeouts: 2 },
   home: { team: "WAS", seed: 5, score: 68, seriesWins: 0, isInBonus: true, timeouts: 1 },
+});
+
+test("a team's dot shows its logo's colors, top then bottom", () => {
+  assert.match(renderDot("WAS").text, /--color:#002b5c;--color2:#e03a3e/);
+  assert.match(renderDot("PHX").text, /--color:#fa4b0a;--color2:#3c286e/);
+  assert.match(renderDot("MIN").text, /--color:#315c98;--color2:#6cc32e/);
+  assert.match(renderDot("LVA").text, /--color:#000000;--color2:#a7a8aa/);
 });
 
 test("a series reads as who leads, a tie, or who won it", () => {
