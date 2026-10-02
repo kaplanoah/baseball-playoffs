@@ -19,7 +19,9 @@ World Series. It shows the standings, the postseason bracket (projected from the
 standings until the field is set), your ranking of who you want to win the World
 Series, each team's
 previous, current and next game with its starting pitchers, and scores that update
-automatically. Tap a game to compare its starters: how they rank among the season's starters,
+automatically. Tap a team's name for its sheet: its place in each race, its next game, how far
+it's gone in the postseason, and every World Series it has won. Tap the rest of a game to
+compare its starters: how they rank among the season's starters,
 what they throw, and how their last starts went. A game later today whose club hasn't named
 its starter says "Still TBD" and opens to who started for that club lately and how rested each
 would be.

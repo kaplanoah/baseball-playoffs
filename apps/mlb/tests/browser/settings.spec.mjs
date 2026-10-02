@@ -305,7 +305,7 @@ const readCenters = (locator) =>
 test("the ranking has no tab of its own; settings hold it, numbered 1 to 12", async ({ page }) => {
   await openApp(page);
   const tabs = page.getByRole("tablist", { name: "Views" }).getByRole("tab");
-  await expect(tabs).toHaveText(["Bracket", "Games", "Standings", "Teams"]);
+  await expect(tabs).toHaveText(["Bracket", "Games", "Standings"]);
 
   await openSettings(page);
   const settings = page.getByRole("dialog", { name: "Settings" });

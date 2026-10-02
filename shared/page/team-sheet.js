@@ -70,7 +70,7 @@ export const renderTeamSheetButton = ({ team, name, content, className = "" }) =
 /**
  * A grid of a team's numbers, each under its label, leaving out those it has none for, or nothing
  * when it has none at all.
- * @param {[string, string | number | null | undefined][]} stats
+ * @param {[Markup | string, Markup | string | number | null | undefined][]} stats
  */
 export function renderTeamStats(stats) {
   const shown = stats.filter(([, value]) => value != null);

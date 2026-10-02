@@ -1,5 +1,5 @@
 import { findSeriesBetween, isEliminated } from "./bracket.js";
-import { renderTeamTag } from "./clubs.js";
+import { renderClub } from "./clubs.js";
 import { formatClockTime, formatWeekdayAndDate, readCalendarDate } from "#shared/days.js";
 import { fillGameLists } from "#shared/game-pager.js";
 import { html } from "#shared/html.js";
@@ -55,8 +55,8 @@ function describeStatus(game) {
 }
 
 // Not a .team-name: its clipped overflow cuts off the slant of the italic's last letter in Safari.
-function renderClub(id) {
-  if (id) return renderTeamTag(id);
+function renderSideClub(id) {
+  if (id) return renderClub(id);
   return html`<span class="club"><span class="dot unknown-club"></span><span class="tbd">TBD</span></span>`;
 }
 
@@ -107,7 +107,7 @@ function renderStarterLine(starter, place, isPending) {
 
 function describeSide(id, place, starter, hasWon, isPending) {
   return {
-    lines: html`${renderClub(id)}${renderFacts(id)}`,
+    lines: html`${renderSideClub(id)}${renderFacts(id)}`,
     classes: [hasWon && "won", isOut(id) && "out"],
     extra: renderStarterLine(starter, place, isPending),
   };
@@ -125,7 +125,7 @@ function findGameSeries(game) {
 }
 
 // Short names, since the label shares the row's middle with the time or score.
-function nameRound(series) {
+export function nameRound(series) {
   const [league] = series.id.split("_");
   if (series.round === "WC") return `${league} WC`;
   if (series.round === "WS") return "WS";

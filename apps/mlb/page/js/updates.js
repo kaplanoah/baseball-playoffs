@@ -1,4 +1,4 @@
-import { renderRankTag, renderTeamTag } from "./clubs.js";
+import { renderClub, renderRankTag } from "./clubs.js";
 import { describeEntry, describeUpdate } from "./entry-text.js";
 import { html } from "#shared/html.js";
 import { showUpdates } from "#shared/updates.js";
@@ -9,7 +9,7 @@ import { TEAMS } from "./teams.js";
 import { groupUpdates } from "./update-groups.js";
 
 function renderClubChip(id) {
-  return TEAMS[id] ? html`${renderRankTag(id)}${renderTeamTag(id, "b")}` : html``;
+  return TEAMS[id] ? html`${renderRankTag(id)}${renderClub(id)}` : html``;
 }
 
 const readTextContext = () => ({

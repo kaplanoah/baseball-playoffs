@@ -1,5 +1,5 @@
 import { ROUND_LABEL, buildBracket, isEliminated, listSlotCandidates } from "./bracket.js";
-import { listRankedOrder, renderRankTag, nameTeam, renderTeamTag } from "./clubs.js";
+import { listRankedOrder, renderRankTag, nameTeam, renderClub } from "./clubs.js";
 import { readGameDay } from "./dates.js";
 import { formatClockTime, formatShortDate, formatShortWeekday, nameDay } from "#shared/days.js";
 import { describeInning, renderOutLights } from "./games-view.js";
@@ -42,7 +42,7 @@ function renderMatchupRow(series, side) {
   // A score stays empty until the series' first game starts, and counts from 0 after.
   const shownWins = series.started ? wins : null;
   return html`<div class="matchup-row ${isWinner ? "winner" : ""} ${isLoser ? "eliminated" : ""}">
-    <div class="team-id">${renderRankTag(id, isPreferred)}${renderTeamTag(id)}</div>
+    <div class="team-id">${renderRankTag(id, isPreferred)}${renderClub(id)}</div>
     ${renderSeriesWins(shownWins, isWinner)}
   </div>`;
 }
@@ -529,7 +529,7 @@ export function watchBracketSpace() {
 
 function renderBannerTeam(label, id) {
   return html`<span class="banner-label">${label}</span>
-    <span class="banner-team">${renderRankTag(id)}${renderTeamTag(id)}</span>`;
+    <span class="banner-team">${renderRankTag(id)}${renderClub(id)}</span>`;
 }
 
 function renderBanner(bracket) {

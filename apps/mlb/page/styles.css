@@ -59,6 +59,7 @@
   --pager-thumb-edge: rgba(255, 255, 255, 0.14);
   --pager-label: var(--ink-dim);
   --updates-head: var(--gold);
+  --sheet-part-head: var(--gold);
   --game-row-height: 63.5px;
   --game-side-offset: 1px;
   --game-label-offset: -21px;
@@ -684,7 +685,8 @@ nav.tabs + .updates {
 .updates-list .what {
   font-weight: 350;
 }
-.updates-list .what b {
+.updates-list .what b,
+.updates-list .what .team-name {
   font-weight: 500;
 }
 .updates .rank-slot {
@@ -974,8 +976,7 @@ nav.tabs + .updates {
   gap: 10px;
 }
 .matchup-row .team-name,
-table.st td.team .team-name,
-table.ref td .team-name {
+table.st td.team .team-name {
   font-size: var(--size-glance);
   font-weight: 400;
 }
@@ -1567,58 +1568,6 @@ body.kbd .rank-item .grip:focus {
   --pitch: var(--pitch-splitter);
 }
 
-table.ref {
-  max-width: 800px;
-}
-
-table.ref {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-table.ref th {
-  text-align: left;
-  font-weight: 450;
-  font-size: var(--size-small);
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--ink-dim);
-  border-bottom: 1px solid var(--divider);
-  padding: 7px 0 4px 10px;
-}
-table.ref td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--divider);
-}
-table.ref th:first-child,
-table.ref td.rank-col {
-  width: 1%;
-  white-space: nowrap;
-}
-table.ref td.tabular {
-  font-size: var(--size-glance);
-  color: var(--ink-dim);
-}
-table.ref td.seed-col {
-  width: 1%;
-  white-space: nowrap;
-  font-size: var(--size-glance);
-  color: var(--ink-dim);
-  font-variant-numeric: tabular-nums;
-}
-table.ref td.seed-col,
-table.ref th.seed-col,
-table.ref td.lg-col,
-table.ref th.lg-col,
-table.ref td.won-col,
-table.ref th.won-col {
-  text-align: center;
-}
-table.ref th.seed-col,
-table.ref th.lg-col,
-table.ref th.won-col {
-  padding-right: 10px;
-}
 .league-tag.AL {
   background: color-mix(in srgb, var(--al) 20%, transparent);
   color: var(--al);
@@ -1642,22 +1591,6 @@ table.ref th.won-col {
   }
   .stand-head {
     margin-bottom: 14px;
-  }
-
-  #view-reference {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-inline: -18px;
-    padding-inline: 18px;
-  }
-  /* Not max-content, which sums every column's longest run into thousands of pixels. */
-  #view-reference table.ref {
-    width: auto;
-    min-width: 100%;
-  }
-  #view-reference table.ref th,
-  #view-reference table.ref td {
-    white-space: nowrap;
   }
 
   .head-right {
@@ -1723,4 +1656,110 @@ table.ref th.won-col {
 }
 .open-button {
   font-weight: 550;
+}
+
+/* A club's sheet, as shared/team-sheet.css lays it out, set in Chivo Mono's lighter weights, its
+   parts under gold titles like the Updates box's and its labels in the green of the page's. A club's name or dot opens it wherever it shows,
+   and in the standings so does the rest of its row. */
+@media (hover: hover) {
+  table.st tr[data-team]:hover td {
+    background: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
+}
+#teamTitle {
+  font-size: 1.15rem;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+}
+#teamTitle .rank-slot {
+  width: auto;
+  margin: 0;
+}
+#teamNote {
+  font-weight: 450;
+}
+#teamNote .NL {
+  color: var(--nl);
+}
+#teamNote .AL {
+  color: var(--al);
+}
+.sheet-part-head h3,
+.team-label {
+  font-weight: 450;
+  letter-spacing: 0.09em;
+}
+.team-label {
+  color: var(--ink-dim);
+}
+.team-label span[title] {
+  cursor: help;
+}
+.team-stat b {
+  font-size: 1.05rem;
+  font-weight: 550;
+}
+.team-detail {
+  font-weight: 400;
+}
+.team-detail b {
+  font-weight: 550;
+}
+.team-detail > .team-label {
+  margin-right: 12px;
+}
+.team-titles {
+  margin: 0;
+  font-size: var(--size-glance);
+  line-height: 1.5;
+}
+.team-titles b {
+  font-weight: 550;
+}
+.team-next {
+  color: var(--ink-mid);
+}
+.team-next.live {
+  color: var(--copper-ink);
+}
+.team-next.delayed {
+  color: var(--gold);
+}
+.team-series {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.series-row {
+  display: grid;
+  grid-template-columns: 4.6em minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--size-glance);
+}
+.series-round {
+  font-size: var(--size-small);
+  font-weight: 450;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-dim);
+}
+.series-opp {
+  min-width: 0;
+}
+.series-opp .tbd {
+  font-size: var(--size-glance);
+}
+.series-result {
+  text-align: right;
+  white-space: nowrap;
+}
+.series-result.won {
+  color: var(--gold);
+}
+.series-result.lost,
+.series-result.upcoming {
+  color: var(--ink-dim);
 }

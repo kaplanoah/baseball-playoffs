@@ -5,7 +5,7 @@
 // Phones show it as a sheet from the bottom that a swipe down closes, wider screens as a modal,
 // like Settings.
 
-import { nameTeam, renderTeamTag } from "./clubs.js";
+import { nameTeam, renderClub, renderClubName } from "./clubs.js";
 import { describeStart, formatGameDay, renderArm } from "./games-view.js";
 import { formatShortDate, readCalendarDate } from "#shared/days.js";
 import { watchGameOpens } from "#shared/game-row.js";
@@ -76,7 +76,7 @@ function renderPitcherId(side) {
   const { club } = side;
   return html`<div class="pitcher-id ${side.key}">
     ${renderName(side)}
-    ${club ? renderTeamTag(club) : html``}
+    ${club ? renderClub(club) : html``}
     ${renderBio(side)}
   </div>`;
 }
@@ -204,7 +204,7 @@ function renderRotation(side, game) {
     html`<ul class="rotation">${starters}</ul>
       <p class="tape-note">Gold is a starter's usual rest, ${USUAL_REST_DAYS} days or more</p>`;
   return html`<section class="scout">
-    <h3>${nameTeam(side.club)}<span>Who's rested</span></h3>
+    <h3>${renderClubName(side.club)}<span>Who's rested</span></h3>
     <p class="scout-note">${describeRotationNote(side, game)}</p>
     ${list}
   </section>`;
