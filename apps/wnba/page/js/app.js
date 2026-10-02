@@ -1,3 +1,4 @@
+import { startHomeScreen } from "#shared/home-screen.js";
 import { setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fillGameLists, startGamePager } from "#shared/game-pager.js";
@@ -86,6 +87,7 @@ async function boot() {
   startGamePager();
   startGameSheet();
   startSettingsSheet();
+  startHomeScreen();
   startBracket();
   startStandings();
   session.db = createWorkerStore();

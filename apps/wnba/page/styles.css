@@ -1416,6 +1416,14 @@ body.kbd .team summary:focus {
   font-weight: 600;
 }
 
+/* The Home Screen bar and box show the icon the theme showing would give the Home Screen. */
+.home-screen-icon {
+  background-image: url(icon-light-180.png);
+}
+:root[data-theme="dark"] .home-screen-icon {
+  background-image: url(icon-180.png);
+}
+
 /* Settings: the appearance choices show the home-screen icon each one offers. System shows
    both, Maple on the left half and Walnut on the right. */
 .appearance-row {
