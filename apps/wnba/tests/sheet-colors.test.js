@@ -87,7 +87,7 @@ test("each team keeps its first color unless it looks like the other team's", ()
     away: TEAMS.GSV.chartColors.light[0],
     home: TEAMS.DAL.chartColors.light[0],
   });
-  // The Dream and the Mystics are both red, so the Dream, away, take their charcoal.
+  // The Dream and the Mystics are both red, so the Dream, away, take their blue.
   for (const theme of THEMES)
     assert.deepEqual(pickSheetColors("ATL", "WAS", theme), {
       away: TEAMS.ATL.chartColors[theme][1],
