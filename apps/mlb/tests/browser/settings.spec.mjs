@@ -151,6 +151,17 @@ test("settings end with the copyright, centered under the ranking", async ({ pag
   expect(Math.abs(findMiddle(copyright) - findMiddle(settings))).toBeLessThan(1);
 });
 
+test("a release the Worker no longer has, named only by its commit, leaves the version out", async ({
+  page,
+}) => {
+  await serveRelease(page, { version: null, commit: "abc1234", builtAt: null });
+  await openApp(page);
+  await openSettings(page);
+
+  await expect(page.getByRole("dialog", { name: "Settings" })).toBeVisible();
+  await expect(page.locator("#versionNote")).toBeHidden();
+});
+
 test("without a version file, settings leave the version out", async ({ page }) => {
   await openApp(page);
   await openSettings(page);
