@@ -356,7 +356,7 @@ function renderTitles(code, titles) {
   const years = [titles.before.length ? before : "", ...titles.now].filter(Boolean).join(", ");
   const body = count
     ? joinWithSeparator([html`<b>${count}</b>`, html`<span class="tabular">${years}</span>`])
-    : "None yet";
+    : html`<span class="team-titles-none">None yet</span>`;
   return renderSheetPart("Titles", html`<p class="team-titles">${body}</p>`);
 }
 
@@ -389,6 +389,13 @@ function renderFinishedGame(game, team) {
   </div>`;
 }
 
+// Phosphor's caret-right, at its Regular weight.
+const NEXT_GAME_ICON = html`<svg class="next-game-icon" viewBox="0 0 256 256" fill="currentColor">
+  <path
+    d="M181.66,133.66l-80,80a8,8,0,0,1-11.32-11.32L164.69,128,90.34,53.66a8,8,0,0,1,11.32-11.32l80,80A8,8,0,0,1,181.66,133.66Z"
+  />
+</svg>`;
+
 /**
  * @param {Game} game
  * @param {string} team
@@ -398,7 +405,7 @@ function renderNextGame(game, team, now) {
   const isSoon = game.state === "live" || isToday(game, now);
   return html`<div class="team-game next${isSoon ? " soon" : ""}">
     <span class="team-game-number">G${game.number}</span>
-    <span class="team-result" aria-hidden="true">&rsaquo;</span>
+    <span class="team-result" aria-hidden="true">${NEXT_GAME_ICON}</span>
     <span class="team-matchup">${describeMatchup(game, team)}</span>
     <span class="team-when">${describeWhen(game, now)}</span>
   </div>`;

@@ -1542,6 +1542,13 @@ table.standings tr.playoff-line + tr td {
   font-size: 0.95rem;
   font-weight: 600;
 }
+/* The next game's caret sits where its result will, at the size of the text beside it. */
+.next-game-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin-inline: auto;
+}
 .team-game.next .team-result,
 .team-when {
   color: var(--ink-dim);
@@ -1600,6 +1607,10 @@ table.standings tr.playoff-line + tr td {
 }
 .team-titles b {
   font-weight: 600;
+}
+/* A team with no titles reads a step lighter than the seasons another team lists. */
+.team-titles-none {
+  font-weight: 400;
 }
 
 /* The Home Screen bar and box show the icon the theme showing would give the Home Screen. */

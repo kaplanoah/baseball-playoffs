@@ -733,7 +733,7 @@ test.describe("on a phone, a team's sheet", () => {
     contextOptions: { reducedMotion: "reduce" },
   });
 
-  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium, and its title in a tinted band like a game's, over a hairline like a bracket card's border, with its first part 15px under it", async ({
+  test("sets its name like every team's at 20px, its numbers in Barlow Condensed like a game preview's, its text in medium but None yet a step lighter, and its title in a tinted band like a game's, over a hairline like a bracket card's border, with its first part 15px under it", async ({
     page,
   }) => {
     await openApp(page);
@@ -750,6 +750,8 @@ test.describe("on a phone, a team's sheet", () => {
       /^"Barlow Condensed"/,
     );
     await expect(sheet.locator(".team-titles")).toHaveCSS("font-weight", "500");
+    await expect(sheet.locator(".team-titles")).toHaveText("None yet");
+    await expect(sheet.locator(".team-titles-none")).toHaveCSS("font-weight", "400");
     await expect(sheet.locator(".team-game").first()).toHaveCSS("font-weight", "500");
 
     const colors = await sheet.evaluate((dialog) => {
@@ -859,6 +861,23 @@ test.describe("a team's sheet", () => {
       "font-size",
       "16px",
     );
+  });
+
+  test("a team's next game is marked with a 14px caret, orange on the day it's played like its time", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Standings" }).click();
+    await page.locator('#standings-league tr[data-team="ATL"] td.season').first().click();
+    const next = page.locator("#teamDialog .team-game.next");
+    const icon = next.locator(".next-game-icon");
+
+    await expect(icon).toHaveCSS("width", "14px");
+    await expect(icon).toHaveCSS("height", "14px");
+    const when = await next
+      .locator(".team-when")
+      .evaluate((element) => getComputedStyle(element).color);
+    await expect(icon).toHaveCSS("color", when);
   });
 
   test("Last 10 sits 20px under the regular season's numbers, and Streak 14px under Last 10", async ({

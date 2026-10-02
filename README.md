@@ -268,5 +268,5 @@ one app.
 
 [MIT](LICENSE)
 
-The tab bar icons are from [Phosphor Icons](https://phosphoricons.com), used
-under the MIT license, copyright (c) 2023 Phosphor Icons.
+The icons are from [Phosphor Icons](https://phosphoricons.com), used under the
+MIT license, copyright (c) 2023 Phosphor Icons.

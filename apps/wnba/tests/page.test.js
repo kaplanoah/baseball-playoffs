@@ -457,6 +457,15 @@ test("each standings table names the view it shows", () => {
   assert.match(renderStandings(SEASON, "West").text, /aria-label="West standings"/);
 });
 
+test("a team's next game is marked with Phosphor's caret-right icon, which reading the sheet aloud skips", () => {
+  const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
+  const next = body.text.match(/<div class="team-game next[^"]*">[\s\S]*?<\/div>/)?.[0] ?? "";
+  assert.match(
+    next,
+    /<span class="team-result" aria-hidden="true"><svg class="next-game-icon" viewBox="0 0 256 256" fill="currentColor">\s*<path\s+d="M181\.66,133\.66l-80,80/,
+  );
+});
+
 test("a winning streak is marked, so one below the line can show paler than one above it", () => {
   const rows = renderStandings(REGULAR_SEASON).text.split("<tr").slice(1);
   const fire = rows.find((row) => row.includes(">Fire<"));
@@ -497,7 +506,7 @@ test("a team's Playoffs chip names its round, the same on a game day as any othe
     );
     assert.match(
       readTeam(ATLANTA_SEASON, "ATL").body,
-      /^Playoffs 1st Rd G1 .* G13 &rsaquo; vs Mystics 1st Rd Live /,
+      /^Playoffs 1st Rd G1 .* G13 vs Mystics 1st Rd Live /,
     );
   }));
 
@@ -505,7 +514,7 @@ test("a team's sheet shows its playoffs, then its regular season across from the
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
-      "Playoffs 1st Rd G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
+      "Playoffs 1st Rd G1 W vs Mystics 1st Rd 92-77 G2 at Mystics 1st Rd Today 7:00 PM " +
         "Dream Playoff field 1-0 Record 92.0 PPG 87.7 77.0 Opp PPG 87.7 +15.0 Margin 0.0 " +
         "1-0 Home 5-1 0-0 Road 1-5 " +
         "Regular season Dream League 30-14 Record 91.3 PPG 87.1 84.5 Opp PPG 87.1 +6.9 Margin 0.0 " +
@@ -665,7 +674,7 @@ test("a team's next game is in the round it's playing, not one left over from a 
   inEastern(() => {
     assert.match(
       readTeam(SEASON, "NYL").body,
-      /^Playoffs Semis .* G1 &rsaquo; at TBD Semis Sun, Oct 4 Liberty Playoff field /,
+      /^Playoffs Semis .* G1 at TBD Semis Sun, Oct 4 Liberty Playoff field /,
     );
   }));
 
