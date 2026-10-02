@@ -108,6 +108,7 @@
   --pager-thumb: var(--card);
   --pager-thumb-edge: rgba(255, 255, 255, 0.6);
   --pager-label: var(--ink-mid);
+  --updates-head: var(--teal);
   --game-row-height: 88px;
   --game-side-offset: 9px;
   --game-label-offset: -31px;
@@ -1094,6 +1095,19 @@ table.players td.minutes {
   .round-dots {
     display: none;
   }
+}
+
+/* The Updates box's count is a label like the sheets' titles, and its team names are set like
+   every other team's. */
+.updates-count {
+  font-family: var(--display);
+  font-weight: 600;
+}
+.updates-list .what b {
+  font-family: var(--team-name);
+  font-size: 1.06em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 /* Barlow reads lighter than baseball's monospace, so the names in a pill are a little larger and
