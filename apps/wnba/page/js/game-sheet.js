@@ -4,6 +4,7 @@
 
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { watchGameOpens } from "#shared/game-row.js";
+import { renderNetworks } from "#shared/network-logos.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
 import { openSheet, wireSheet } from "#shared/sheet.js";
 import { renderBoxScore, renderPendingBoxScore } from "./box-score-view.js";
@@ -73,7 +74,7 @@ const renderFaceOff = (game) =>
     <div class="faceoff-middle">
       ${renderHeadline(game)}<span class="faceoff-status">${renderStatus(game)}</span>
     </div>
-    ${renderFaceOffSide(game, "home")}
+    ${renderFaceOffSide(game, "home")} ${renderNetworks(game.networks ?? [])}
   </div>`;
 
 /** @param {ShownGame} opened */

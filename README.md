@@ -38,8 +38,9 @@ A private web page that follows the WNBA season. It shows the playoff bracket,
 every playoff game with live scores and clocks, and the league and conference standings with
 the playoff line. Tap a team's name or dot anywhere, even inside a game, for its season: its
 conference, seed, and record, its scoring, home and road records, top scorer,
-titles, and how far it got in the playoffs. Tap a game for its details: once it
-starts, its points by quarter, a chart of the lead through the game, the two
+titles, and how far it got in the playoffs. Tap a game for its details: for a
+game today, which channels it's on until it ends; once it starts, its points by quarter, a chart
+of the lead through the game, the two
 teams' stats side by side, and each team's top scorers; before it does, the two
 teams' meetings this season, how their seasons compare, and each team's leading
 scorers. On a phone or tablet, an Updates box under the tabs lists each playoff
@@ -49,7 +50,8 @@ the one you pick in its settings. Added to the home screen, it keeps
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
-every 15 seconds during games. If the WNBA stops sending scores, ESPN's stand in.
+every 15 seconds during games, and ESPN's for where each game is on. If the WNBA
+stops sending scores, ESPN's stand in.
 Saved to an iPhone's home screen, the page opens full screen like an app, and
 can send a notification with the score when any playoff game ends.
 

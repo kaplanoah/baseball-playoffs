@@ -31,6 +31,8 @@ const FEED_DATA = {
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Where a game is on rarely changes on its day, so ESPN's scoreboard is read at most this often.
+const NETWORKS_MS = 10 * 60 * 1000;
 
 const formatEspnDay = (ms) => readEasternDay(ms).date.replaceAll("-", "");
 
@@ -50,6 +52,8 @@ export function createSnapshotServer({
   const slowFeeds = new Map();
   const failedFeeds = new Map();
   let lastFinals = null;
+  let keptNetworks = null;
+  let networksReadAt = null;
 
   /**
    * @param {keyof typeof FEED_DATA} name
@@ -90,7 +94,7 @@ export function createSnapshotServer({
     }
   }
 
-  async function fetchBackupJson(url) {
+  async function fetchEspnJson(url) {
     const response = await fetchUpstream(fetchImpl, url, {
       headers: ESPN_HEADERS,
       cacheSeconds: EDGE_CACHE_SECONDS,
@@ -100,11 +104,11 @@ export function createSnapshotServer({
   }
 
   async function fetchBackupGame(eventId) {
-    const competition = await fetchBackupJson(WNBASnapshot.BACKUP_REQUESTS.competition(eventId));
+    const competition = await fetchEspnJson(WNBASnapshot.BACKUP_REQUESTS.competition(eventId));
     const [status, ...scores] = await Promise.all([
-      fetchBackupJson(upgradeLink(competition.status.$ref)),
+      fetchEspnJson(upgradeLink(competition.status.$ref)),
       ...competition.competitors.map((competitor) =>
-        fetchBackupJson(upgradeLink(competitor.score.$ref)),
+        fetchEspnJson(upgradeLink(competitor.score.$ref)),
       ),
     ]);
     return { competition, status, scores };
@@ -117,10 +121,26 @@ export function createSnapshotServer({
       formatEspnDay(now() - DAY_MS),
       formatEspnDay(now()),
     );
-    const listing = await fetchBackupJson(request);
+    const listing = await fetchEspnJson(request);
     const eventIds = (listing.items ?? []).map((item) => readEventId(item.$ref)).filter(Boolean);
     const games = await Promise.all(eventIds.map((id) => fetchBackupGame(id).catch(() => null)));
     return { games: games.filter(Boolean) };
+  }
+
+  // Yesterday's too, since a late game is still being played after midnight Eastern. A read that
+  // fails waits as long as one that answers, and the last good answer stands in meanwhile.
+  async function readNetworks() {
+    if (networksReadAt !== null && now() - networksReadAt < NETWORKS_MS) return keptNetworks;
+    networksReadAt = now();
+    try {
+      const days = [now() - DAY_MS, now()].map(formatEspnDay);
+      keptNetworks = await Promise.all(
+        days.map((day) => fetchEspnJson(WNBASnapshot.NETWORKS_REQUEST(day))),
+      );
+    } catch {
+      // The last good answer stands in.
+    }
+    return keptNetworks;
   }
 
   async function fetchResponses(season) {
@@ -131,16 +151,17 @@ export function createSnapshotServer({
     const finals = scoreboard ? countFinals(scoreboard) : lastFinals;
     const hasNewFinal = lastFinals !== null && finals > lastFinals;
     lastFinals = finals;
-    const [schedule, bracket, standings, players] = await Promise.all([
+    const [schedule, bracket, standings, players, networks] = await Promise.all([
       readSlowFeed("schedule", WNBASnapshot.REQUESTS.schedule, hasNewFinal).catch(() => null),
       readSlowFeed("bracket", WNBASnapshot.REQUESTS.bracket(season), hasNewFinal).catch(() => null),
       readSlowFeed("standings", WNBASnapshot.REQUESTS.standings(season), false).catch(() => null),
       readSlowFeed("players", WNBASnapshot.REQUESTS.players(season), false).catch(() => null),
+      readNetworks(),
     ]);
     if (!scoreboard && !schedule && !bracket)
       throw new Error("None of the WNBA's feeds answered with data");
     const backup = scoreboard ? null : await fetchBackup().catch(() => null);
-    return { scoreboard, schedule, bracket, standings, players, backup };
+    return { scoreboard, schedule, bracket, standings, players, backup, networks };
   }
 
   const loadSnapshot = createReusedLoader(
