@@ -122,3 +122,43 @@ test("the code field shows it's ready with its cursor, not an outline", async ({
   await findCodeField(page).focus();
   await expect(findCodeField(page)).toHaveCSS("outline-style", "none");
 });
+
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {"light" | "dark"} theme
+ */
+async function expectGateIcons(page, theme) {
+  const isDark = theme === "dark";
+  await expect(page.locator(".gate-icon:visible")).toHaveAttribute(
+    "src",
+    isDark ? "icon-180.png" : "icon-light-180.png",
+  );
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+    "href",
+    isDark ? "icon.svg" : "icon-light.svg",
+  );
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    "href",
+    isDark ? "icon-180.png" : "icon-light-180.png",
+  );
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+    "content",
+    isDark ? "#1d1511" : "#ead5b2",
+  );
+}
+
+test("the gate's tab icon and bar follow the phone's theme", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await openLockedApp(page, { accessCode: "FASTBREAK" });
+  await expectGateIcons(page, "light");
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expectGateIcons(page, "dark");
+});
+
+test("the gate's tab icon and bar follow the theme picked in settings", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => localStorage.setItem("appearance", "light"));
+  await openLockedApp(page, { accessCode: "FASTBREAK" });
+  await expectGateIcons(page, "light");
+});
