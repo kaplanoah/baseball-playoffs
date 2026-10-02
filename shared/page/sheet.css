@@ -5,6 +5,10 @@
  * .sheet-content with chrome.css's pinned .sheet-top over the rest. Apps link it after chrome.css,
  * before their own styles.css, and theme it with chrome.css's tokens.
  *
+ * Its content falls in titled parts, as sheet-part.js builds them, each with an optional note
+ * across from its title, which takes the app's --sheet-part-head color. A short status beside a
+ * title, like how far a team got, is a .status-chip, whose kinds the app colors.
+ *
  * It also lays out a tape, as tape.js builds it: rows of one measure each, the away side's number
  * and bar reaching left of the measure's name and the home side's right, the leader's bar in
  * --accent.
@@ -44,6 +48,42 @@
   margin: 0;
   font-size: var(--size-small);
   color: var(--ink-dim);
+  white-space: nowrap;
+}
+
+.sheet-part {
+  display: grid;
+  gap: 8px;
+}
+.sheet-part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.sheet-part-head h3 {
+  font-size: var(--size-small);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sheet-part-head);
+}
+.sheet-part-head span {
+  font-size: var(--size-glance);
+  text-align: right;
+  color: var(--ink-dim);
+}
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 3px;
+  font-size: var(--size-small);
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   white-space: nowrap;
 }
 

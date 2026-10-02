@@ -1,5 +1,6 @@
 import { html, joinWithSeparator } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
+import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderPendingTapeRow, renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
 import { renderLeadChart } from "./lead-chart.js";
@@ -7,7 +8,6 @@ import {
   findLeader,
   measureAgainst,
   renderPendingPlayerRows,
-  renderSheetPart,
   renderTapeTeams,
 } from "./sheet-parts.js";
 import { nameTeam } from "./series.js";
