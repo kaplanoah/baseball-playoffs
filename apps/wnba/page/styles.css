@@ -935,14 +935,15 @@ table.players td.minutes {
 .team-line + .team-line {
   border-top: 1px solid var(--divider);
 }
-/* Seed and its number center on each other, rather than sharing a baseline. */
+/* The number and Seed share a baseline. Each is trimmed to its letters, from the top of a capital
+   to the baseline, so the pair centers on its row by what's drawn rather than by its fonts' boxes. */
 .seed-label {
   position: absolute;
   top: 50%;
   right: calc(100% + 9px);
   translate: 0 -50%;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.45em;
   font-size: 0.66rem;
   font-weight: 500;
@@ -958,6 +959,10 @@ table.players td.minutes {
   line-height: 1;
   letter-spacing: 0;
   color: var(--ink);
+}
+.seed-number,
+.seed-word {
+  text-box: trim-both cap alphabetic;
 }
 /* A team's wins sit on a square block resting on the card, seen from a little above and to the
    left: its bottom and right sides show, mitred where they meet the face, and it casts a soft
@@ -1533,4 +1538,105 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
     align-items: flex-start;
     text-align: left;
   }
+}
+
+/* The page a phone sees until it sends the access code (gate.html): the app's icon, the code, and
+   Open, together in the middle of the screen, a little above center. */
+body.gate-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+  padding-bottom: max(48px, env(safe-area-inset-bottom));
+}
+.gate {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-bottom: 40px;
+  text-align: center;
+}
+.gate-icon {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+:root[data-theme="dark"] .gate-icon-light,
+:root:not([data-theme="dark"]) .gate-icon-dark {
+  display: none;
+}
+.gate-title {
+  margin: 4px 0 6px;
+  font-family: var(--heading);
+  font-size: 1.12rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-wrap: balance;
+}
+.gate-form {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+}
+.code-field {
+  width: 100%;
+  max-width: 250px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid color-mix(in srgb, var(--card-border), var(--ink) 25%);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--numbers);
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.code-field::placeholder {
+  color: var(--ink-dim);
+  opacity: 0.55;
+  letter-spacing: 0.06em;
+}
+.code-field:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.code-field.is-wrong {
+  border-color: var(--orange);
+}
+.open-button {
+  height: 40px;
+  min-width: 120px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--heading);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+body.kbd .open-button:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.gate-message {
+  min-height: 1.4em;
+  max-width: 30ch;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--orange);
+}
+.gate-message.is-calm {
+  color: var(--ink-dim);
 }

@@ -1,5 +1,6 @@
 // The settings panel's notifications switch: subscribes this device to the Worker's pushes. A note
 // shows under it only when the switch can't do its job.
+import { reloadWhenSignedOut } from "./access.js";
 
 import { isIos, isOnHomeScreen } from "./device.js";
 
@@ -63,6 +64,7 @@ function encodeBase64Url(buffer) {
 
 async function requestPush(path, init = {}) {
   const response = await fetch(new URL(path, location.href), { cache: "no-store", ...init });
+  reloadWhenSignedOut(response);
   if (!response.ok) throw new Error(`The Worker answered ${response.status}`);
   return response.status === 204 ? null : response.json();
 }
