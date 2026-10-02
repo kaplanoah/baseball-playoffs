@@ -1322,9 +1322,10 @@ table.standings tr.playoff-line + tr td {
 }
 
 /* A team's sheet: its dot and full name over its conference, seed, and record, then its season and
-   its playoff games, each under a teal title. A team's name opens it from the standings and the
-   bracket, and so does the rest of its row. */
-.team-open {
+   its playoff games, each under a teal title. A team's name or dot opens it wherever it shows, and
+   in the standings and the bracket so does the rest of its row. The button only clears the
+   browser's own look, so a team's name keeps the type of wherever it sits. */
+:where(.team-open) {
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
@@ -1335,11 +1336,25 @@ table.standings tr.playoff-line + tr td {
   letter-spacing: inherit;
   color: inherit;
   text-align: inherit;
+}
+.team-open {
   cursor: pointer;
 }
 body.kbd .team-open:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+/* A game's sides sit above the button that covers its row, and let taps through to it but on a
+   team's name, so the name opens the team and the rest of the row the game. */
+.game-row .game-side {
+  z-index: 1;
+  pointer-events: none;
+}
+.game-row .team-open {
+  pointer-events: auto;
+}
+.game-side.away .team-open {
+  align-self: flex-start;
 }
 [data-team] {
   cursor: pointer;
@@ -1348,6 +1363,9 @@ body.kbd .team-open:focus {
   table.standings tr[data-team]:hover td,
   .team-line[data-team]:hover {
     background: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
+  .team-open:hover {
+    text-decoration: underline;
   }
 }
 .team-sheet-body {

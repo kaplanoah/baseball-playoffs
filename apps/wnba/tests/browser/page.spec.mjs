@@ -760,6 +760,21 @@ test.describe("a team's sheet", () => {
     await expect(sheet.locator(".team-game")).toHaveCount(3);
   });
 
+  test("an opponent's name in a team's sheet opens that team's sheet in its place", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.locator('#bracketWrap .team-line[data-team="NYL"]').first().click();
+    const sheet = page.locator("#teamDialog");
+    await expect(sheet.locator("#teamTitle")).toHaveText("New York Liberty");
+    const opponent = sheet.locator(".team-matchup").first().getByRole("button");
+    const label = await opponent.getAttribute("aria-label");
+
+    await opponent.click();
+    await expect(sheet.locator("#teamTitle")).toHaveText(label.replace("Team details: ", ""));
+    await expect(sheet.locator("#teamTitle")).not.toHaveText("New York Liberty");
+  });
+
   test("a team's name in the standings opens its sheet from the keyboard", async ({ page }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Standings" }).click();

@@ -73,7 +73,22 @@ test("a game goes by when the Worker found it final, or by its start when it was
   const [newest] = listPlayoffWins({ ...SEASON, games });
 
   assert.equal(newest.at, Date.parse("2026-10-01T03:00:00Z"));
-  assert.match(newest.text.text, /^<b>Aces<\/b> beat the <b>Fever<\/b> 102-85 in Game/);
+  assert.match(readText(newest), /^Aces beat the Fever 102-85 in Game/);
+});
+
+test("each update's winner and loser open their teams' sheets", () => {
+  const texts = listPlayoffWins(SEASON).map((win) => win.text.text);
+  const teams = texts.map((text) =>
+    [...text.matchAll(/<b><button type="button" class="team-open" data-team="(\w+)"/g)].map(
+      ([, team]) => team,
+    ),
+  );
+  assert.ok(teams.length > 0);
+  for (const pair of teams) assert.equal(new Set(pair).size, 2);
+  assert.match(
+    texts.find((text, index) => teams[index][0] === "LVA"),
+    /Las Vegas Aces">Aces</,
+  );
 });
 
 test("a team down in a longer series trails it after a win, and games still to finish aren't news", () => {

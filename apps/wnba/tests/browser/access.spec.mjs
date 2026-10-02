@@ -86,7 +86,11 @@ test("a page left open when the code changes goes back to the gate on its next r
   await page.getByRole("tab", { name: "Previous" }).click();
 
   app.changeAccessCode("LAYUP");
-  await page.locator("#games-previous").getByRole("button").first().click();
+  await page
+    .locator("#games-previous")
+    .getByRole("button", { name: /^Game details: / })
+    .first()
+    .click();
   await expect(findGate(page)).toBeVisible();
 });
 

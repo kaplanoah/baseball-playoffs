@@ -584,3 +584,50 @@ test.describe("on a phone, with less motion", () => {
     ]);
   });
 });
+
+test("a team's name in a game's row opens its sheet, set like the row's other names, and the rest of the row opens the game", async ({
+  page,
+}) => {
+  await openApp(page);
+  const gameButton = await findGameButton(page, ACES_AT_FEVER);
+  const row = gameButton.locator("xpath=..");
+  const fever = row.getByRole("button", { name: "Team details: Indiana Fever" });
+  await expect(fever).toHaveCSS("font-family", /^"Barlow Condensed"/);
+  await expect(fever).toHaveCSS("font-weight", "600");
+  const aces = row.getByRole("button", { name: "Team details: Las Vegas Aces" });
+  const acesBox = await aces.boundingBox();
+  const awaySideBox = await row.locator(".game-side.away").boundingBox();
+  expect(acesBox.width).toBeLessThan(awaySideBox.width / 2);
+
+  await fever.click();
+  const teamSheet = page.locator("#teamDialog");
+  await expect(teamSheet.locator("#teamTitle")).toHaveText("Indiana Fever");
+  await expect(page.locator("#gameDialog")).toBeHidden();
+  await teamSheet.getByRole("button", { name: "Done" }).click();
+  await expect(teamSheet).toBeHidden();
+
+  await gameButton.click();
+  await expect(page.locator("#gameTitle")).toHaveText("First Round Game 2");
+});
+
+test("a team's name in a game's sheet opens its sheet over the game's, and Done goes back to the game", async ({
+  page,
+}) => {
+  await openApp(page);
+  await (await findGameButton(page, ACES_AT_FEVER)).click();
+  const gameSheet = page.locator("#gameDialog");
+  await expect(gameSheet.locator(".line-score")).toBeVisible();
+  const teamSheet = page.locator("#teamDialog");
+
+  for (const place of [".faceoff", ".line-score", ".players"]) {
+    await gameSheet
+      .locator(place)
+      .first()
+      .getByRole("button", { name: "Team details: Las Vegas Aces" })
+      .click();
+    await expect(teamSheet.locator("#teamTitle")).toHaveText("Las Vegas Aces");
+    await teamSheet.getByRole("button", { name: "Done" }).click();
+    await expect(teamSheet).toBeHidden();
+    await expect(gameSheet).toBeVisible();
+  }
+});

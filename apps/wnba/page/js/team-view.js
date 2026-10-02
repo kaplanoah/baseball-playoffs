@@ -1,8 +1,8 @@
 import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
-import { renderDot } from "./clubs.js";
+import { renderDot, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
-import { nameTeam, readPlayoffRuns } from "./series.js";
+import { readPlayoffRuns } from "./series.js";
 import { renderSheetPart } from "./sheet-parts.js";
 import { ROUNDS } from "./snapshot.js";
 import { TEAMS } from "./teams.js";
@@ -184,7 +184,7 @@ function describeMatchup(game, team) {
   const place = findPlace(game, team) ?? "home";
   const opponent = game[OTHER_PLACE[place]].team;
   const round = game.round ? ROUNDS[game.round].shortName : "";
-  return html`${place === "home" ? "vs" : "at"} ${nameTeam(opponent)}
+  return html`${place === "home" ? "vs" : "at"} ${renderTeamName(opponent)}
     <span class="team-round">${round}</span>`;
 }
 
