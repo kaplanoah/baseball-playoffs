@@ -10,7 +10,7 @@ import { TEAMS } from "./teams.js";
 /** @typedef {import("./series.js").Series} Series */
 /** @typedef {import("./standings-view.js").StandingsRow} StandingsRow */
 /** @typedef {{ seed: number | null, round: number, isOut: boolean, isChampion: boolean }} Run */
-/** @typedef {{ team: string, firstName: string, lastName: string, points: number, rebounds: number, assists: number }} Leader */
+/** @typedef {{ team: string, id: number, firstName: string, lastName: string, games: number, points: number, rebounds: number, assists: number }} Leader */
 /** @typedef {{ series?: Series[], standings?: StandingsRow[], games?: Game[], leaders?: Leader[] }} Season */
 
 // Phosphor's caret, in the Light weight the app's other icons use.
@@ -22,6 +22,14 @@ const CARET = html`<svg class="team-caret" viewBox="0 0 256 256" fill="currentCo
  */
 const findPlace = (game, team) =>
   game.home.team === team ? "home" : game.away.team === team ? "away" : null;
+
+/**
+ * A team's leading scorers, best first.
+ * @param {Season | null} season
+ * @param {string} team
+ */
+export const findTeamLeaders = (season, team) =>
+  (season?.leaders ?? []).filter((leader) => leader.team === team);
 
 const OTHER_PLACE = { home: "away", away: "home" };
 
@@ -248,7 +256,6 @@ function renderPlayoffs(team, { finished, next }, isPlaying, now) {
  */
 export function renderTeams(season, { year, now, openTeams = new Set() }) {
   const rowsByTeam = new Map((season?.standings ?? []).map((row) => [row.team, row]));
-  const leadersByTeam = new Map((season?.leaders ?? []).map((leader) => [leader.team, leader]));
   const runs = readPlayoffRuns(season?.series ?? []);
   const place = (code) => rowsByTeam.get(code)?.place ?? Infinity;
   const codes = Object.keys(TEAMS).sort(
@@ -274,7 +281,7 @@ export function renderTeams(season, { year, now, openTeams = new Set() }) {
         ${renderChip(chip)}${CARET}
       </summary>
       <div class="team-season">
-        ${renderStats(row)}${renderLeadingScorer(leadersByTeam.get(code))}${renderTitles(code, titles)}
+        ${renderStats(row)}${renderLeadingScorer(findTeamLeaders(season, code)[0])}${renderTitles(code, titles)}
         ${renderPlayoffs(code, games, isPlaying, now)}
       </div>
     </details>`;

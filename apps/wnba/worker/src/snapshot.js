@@ -15,6 +15,9 @@ const SLOW_FEED_MS = {
   players: 60 * 60 * 1000,
   bracket: 10 * 60 * 1000,
 };
+// A slow feed that didn't answer isn't asked again for a while, since a hung read holds up each
+// update until it times out.
+const FAILED_FEED_WAIT_MS = 5 * 60 * 1000;
 
 // Where each feed's answer keeps its data.
 const FEED_DATA = {
@@ -46,6 +49,7 @@ export function createSnapshotServer({
   now = () => Date.now(),
 } = {}) {
   const slowFeeds = new Map();
+  const failedFeeds = new Map();
   let lastFinals = null;
 
   /**
@@ -55,15 +59,33 @@ export function createSnapshotServer({
   const fetchFeed = (name, url) =>
     fetchWnbaJson(fetchImpl, url, EDGE_CACHE_SECONDS, (answer) => hasFeedData(name, answer));
 
-  // A slow feed's last good answer stands in when a read fails. Each season's are kept apart.
+  /**
+   * @param {keyof typeof SLOW_FEED_MS} name
+   * @param {string} url
+   * @param {boolean} isStale
+   */
+  function isDueForRead(name, url, isStale) {
+    const failedAt = failedFeeds.get(url);
+    if (failedAt !== undefined && now() - failedAt < FAILED_FEED_WAIT_MS) return false;
+    const kept = slowFeeds.get(url);
+    return !kept || isStale || now() - kept.at >= SLOW_FEED_MS[name];
+  }
+
+  // A slow feed's last good answer stands in when a read fails or waits. Each season's are kept
+  // apart.
   async function readSlowFeed(name, url, isStale) {
     const kept = slowFeeds.get(url);
-    if (kept && !isStale && now() - kept.at < SLOW_FEED_MS[name]) return kept.data;
+    if (!isDueForRead(name, url, isStale)) {
+      if (kept) return kept.data;
+      throw new Error(`The WNBA didn't answer ${name} a moment ago`);
+    }
     try {
       const data = await fetchFeed(name, url);
       slowFeeds.set(url, { at: now(), data });
+      failedFeeds.delete(url);
       return data;
     } catch (error) {
+      failedFeeds.set(url, now());
       if (kept) return kept.data;
       throw error;
     }

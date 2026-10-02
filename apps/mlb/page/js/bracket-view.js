@@ -212,7 +212,7 @@ function renderSeedLabel(series, side) {
   const id = side === "A" ? series.teamA : series.teamB;
   const seed = isEntrySlot(series, side) && session.state.teams[id]?.seed;
   return seed
-    ? html`<span class="seed-label">Seed <span class="seed-number tabular">${seed}</span></span>`
+    ? html`<span class="seed-label"><span class="seed-number tabular">${seed}</span> seed</span>`
     : html`<span></span>`;
 }
 

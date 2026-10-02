@@ -73,6 +73,7 @@ test("the Worker reads every feed as the league's own site would", async () => {
     assert.match(headers["user-agent"], /Chrome/);
     assert.equal(headers.referer, "https://www.wnba.com/");
     assert.equal(headers["sec-fetch-mode"], "cors");
+    assert.equal(headers["accept-encoding"], "gzip");
   }
   assert.equal(snapshot.games.length, 28);
   assert.deepEqual(snapshot.missing, []);
@@ -256,6 +257,26 @@ test("a slow feed that stops answering keeps its last good answer", async () => 
 
   assert.deepEqual(snapshot.missing, []);
   assert.equal(snapshot.series.find((series) => series.id === "1-0").winner, "NYL");
+});
+
+test("a slow feed that didn't answer waits five minutes before it's asked again", async () => {
+  const refuse = /** @type {Record<string, "page" | "error">} */ ({ standings: "error" });
+  const league = createLeague({ refuse });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+
+  await server.loadSnapshot(2026);
+  now += 11 * 1000;
+  const waiting = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("standings"), 1);
+  assert.deepEqual(waiting.missing, ["standings"]);
+  assert.equal(league.countReads("scoreboard"), 2);
+
+  delete refuse.standings;
+  now += 5 * 60 * 1000;
+  const answered = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("standings"), 2);
+  assert.deepEqual(answered.missing, []);
 });
 
 test("the page's snapshot says why it couldn't be read when no feed answers", async () => {
