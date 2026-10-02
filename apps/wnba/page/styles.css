@@ -304,10 +304,10 @@ header.top h1 {
 /* Games: each day's games share a card, beside its date as a wall calendar shows it, level with
    the first game, and in it the away and home teams face each other across the score. */
 .game-day {
-  --day-inset: 12px;
+  --day-inset: 16px;
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
-  column-gap: 8px;
+  column-gap: 12px;
   align-items: start;
 }
 .game-day + .game-day {
@@ -363,20 +363,28 @@ header.top h1 {
   border-bottom: 0;
 }
 /* A phone narrows the date's column and lets it reach into the page's margin, and trims the card's
-   sides, so a long name still fits beside a three-digit score. The narrowest also sets the names
-   and the scores a little closer. */
+   sides, so a long name still fits beside a three-digit score. Narrower phones trim the room around
+   the date and inside the card further, and the narrowest also sets the names and the scores a
+   little closer. */
 @media (max-width: 429px) {
   .game-day {
-    --day-inset: 6px;
+    --day-inset: 10px;
     grid-template-columns: 28px minmax(0, 1fr);
-    column-gap: 6px;
-    margin-left: -12px;
+    column-gap: 10px;
+    margin-left: -8px;
   }
   .game-day .game-row {
     column-gap: 4px;
   }
   .game-day .game-side .club {
     gap: 6px;
+  }
+}
+@media (max-width: 389px) {
+  .game-day {
+    --day-inset: 6px;
+    column-gap: 6px;
+    margin-left: -12px;
   }
 }
 @media (max-width: 374px) {
