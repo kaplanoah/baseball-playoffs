@@ -1,6 +1,6 @@
-// A pitcher's pitches from slowest to fastest: a bar split by how often he throws each, a line
-// that places each by its speed over a label every 10 mph, then a row for each, keyed by a dot the
-// size of the line's. Until they load, gray rows stand in.
+// A pitcher's pitches: a bar split by how often he throws each and a line that places each by its
+// speed over a label every 10 mph, both slowest to fastest, then a row for each from fastest to
+// slowest, keyed by a dot the size of the line's. Until they load, gray rows stand in.
 
 import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
@@ -141,7 +141,7 @@ export function renderPitchMix(allPitches) {
   return html`<div class="pitch-mix" style="${LINE_SCALE}">
     ${renderUsage(pitches)}
     ${renderSpeedLine(pitches)}
-    <ol class="pitch-rows">${pitches.map(renderPitchRow)}</ol>
+    <ol class="pitch-rows">${[...pitches].reverse().map(renderPitchRow)}</ol>
   </div>`;
 }
 

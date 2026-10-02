@@ -95,7 +95,8 @@
 .game-status {
   translate: 0 var(--status-offset);
 }
-/* An action that covers the whole row, so a tap anywhere on the game opens it. */
+/* An action that covers the whole row, so a tap anywhere on the game opens it. Its highlight reaches
+   past the row's sides, so the row's text never sits against the highlight's edge. */
 .game-open {
   position: absolute;
   inset: 0;
@@ -105,11 +106,18 @@
   cursor: pointer;
 }
 .game-row:has(> .game-open) {
-  transition: background 0.15s;
+  --row-highlight: transparent;
+  background: var(--row-highlight);
+  box-shadow:
+    -12px 0 var(--row-highlight),
+    12px 0 var(--row-highlight);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
 }
 @media (hover: hover) {
   .game-row:has(> .game-open:hover) {
-    background: color-mix(in srgb, var(--ink) 5%, transparent);
+    --row-highlight: color-mix(in srgb, var(--ink) 5%, transparent);
   }
 }
 /* The sides sit above the action and let taps through to it, but on a team's name, which opens

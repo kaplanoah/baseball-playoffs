@@ -1277,7 +1277,7 @@ body.kbd .rank-item .grip:focus {
     grid-row: 2 / 4;
     border-left: 1px solid var(--divider);
   }
-  .sheet-top {
+  .settings-body .sheet-top {
     grid-column: 1 / -1;
     grid-row: 1;
     position: static;
@@ -1307,13 +1307,7 @@ body.kbd .rank-item .grip:focus {
   }
 }
 .matchup-sheet .sheet-head h2 {
-  font-size: 1.125rem;
   font-weight: 400;
-}
-@media (max-width: 779px) {
-  .matchup-sheet .sheet-head h2 {
-    font-size: 1rem;
-  }
 }
 .matchup-body {
   display: grid;
@@ -1370,6 +1364,12 @@ body.kbd .rank-item .grip:focus {
   line-height: 1.4;
 }
 /* Each measure faces off across its label, gold for whichever starter ranks higher. */
+.check-back {
+  margin: 0;
+  font-size: var(--size-glance);
+  text-align: center;
+  color: var(--ink-dim);
+}
 .matchup-body .tape {
   padding-block: 12px;
   border-block: 1px solid var(--divider);
@@ -1393,7 +1393,7 @@ body.kbd .rank-item .grip:focus {
   color: var(--ink-dim);
 }
 .scout h4 {
-  margin: 4px 0 0;
+  margin: 10px 0 0;
   font-size: var(--size-small);
   font-weight: 450;
   text-transform: uppercase;
