@@ -1366,13 +1366,13 @@ body.kbd .rank-item .grip:focus {
 .pitcher-bio .arm {
   line-height: 1.4;
 }
-/* Each measure faces off across its label, gold for whichever starter ranks higher. */
 .check-back {
   margin: 0;
   font-size: var(--size-glance);
   text-align: center;
   color: var(--ink-dim);
 }
+/* Each measure faces off across its label, gold for whichever starter ranks higher. */
 .matchup-body .tape {
   padding-block: 12px;
   border-block: 1px solid var(--divider);
