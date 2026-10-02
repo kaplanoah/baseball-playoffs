@@ -100,7 +100,7 @@ test("an earlier season shows its year by the title until the current one is bac
   await expect(yearTag).toBeHidden();
 });
 
-test("under the title, settings name the release and when it came out, in the viewer's time", async ({
+test("at their foot, settings name the release and when it came out, in the viewer's time, over the copyright", async ({
   page,
 }) => {
   await serveRelease(page, RELEASE);
@@ -110,12 +110,11 @@ test("under the title, settings name the release and when it came out, in the vi
   const version = page.locator("#versionNote");
   await expect(version).toHaveText("v2.13.0\u2022Released Sep 27, 8:10 PM");
   await expect(version).toHaveAttribute("title", "Commit abc1234");
-  const title = await page.locator("#settingsTitle").boundingBox();
-  expect((await version.boundingBox()).y).toBeGreaterThan(title.y + title.height - 1);
-  const noteSize = await page
-    .locator("#notifyNote")
-    .evaluate((note) => getComputedStyle(note).fontSize);
-  await expect(version).toHaveCSS("font-size", noteSize);
+  await expect(page.locator("#settingsDialog .settings-footer .settings-version")).toHaveText([
+    "v2.13.0\u2022Released Sep 27, 8:10 PM",
+    "\u00a9 2026 Noah Kaplan",
+  ]);
+  await expect(page.locator("#settingsDialog .sheet-top")).not.toContainText("Released");
 });
 
 test("a release from an earlier year names its year", async ({ page }) => {
@@ -136,19 +135,42 @@ test("a release without a version names its commit", async ({ page }) => {
   await expect(page.locator("#versionNote")).toHaveText(/^abc1234\u2022Released/);
 });
 
-test("settings end with the copyright, centered under the ranking", async ({ page }) => {
+test("on a wide screen, settings end at the bottom left, level with the ranking's end", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await serveRelease(page, RELEASE);
+  await openApp(page);
+  await openSettings(page);
+
+  const footer = page.locator("#settingsDialog .settings-footer");
+  await expect(footer).toHaveCSS("text-align", "left");
+  const [box, controls, ranking] = await Promise.all(
+    [footer, page.locator(".settings-controls"), page.locator(".rank-frame")].map((each) =>
+      each.boundingBox(),
+    ),
+  );
+  expect(Math.abs(box.x - controls.x)).toBeLessThan(1);
+  expect(box.x + box.width).toBeLessThanOrEqual(ranking.x);
+  expect(Math.abs(box.y + box.height - (ranking.y + ranking.height))).toBeLessThan(1);
+});
+
+test("on a phone, settings end with the copyright, centered under the ranking", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize(PHONE);
   await openApp(page);
   await openSettings(page);
 
   const footer = page.locator("#settingsDialog .settings-body > :last-child");
   await expect(footer).toHaveText("\u00a9 2026 Noah Kaplan");
   await expect(footer).toHaveCSS("text-align", "center");
-  const ranking = await page.locator(".rank-frame").boundingBox();
-  const copyright = await footer.boundingBox();
+  const [ranking, copyright] = await Promise.all(
+    [page.locator(".rank-frame"), footer].map((each) => each.boundingBox()),
+  );
   expect(copyright.y).toBeGreaterThan(ranking.y + ranking.height);
-  const settings = await page.locator("#settingsDialog").boundingBox();
-  const findMiddle = (box) => box.x + box.width / 2;
-  expect(Math.abs(findMiddle(copyright) - findMiddle(settings))).toBeLessThan(1);
 });
 
 test("without a version file, settings leave the version out", async ({ page }) => {
