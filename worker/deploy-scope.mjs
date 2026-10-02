@@ -18,6 +18,7 @@ const SKIPPED_FILES = new Set([
   "tsconfig.json",
   "types/globals.d.ts",
   "worker/check-pr-title.mjs",
+  "worker/find-passed-ci.mjs",
   "worker/set-access-code.mjs",
   "worker/set-app-key.mjs",
   "worker/worker-secrets.mjs",

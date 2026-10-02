@@ -2,6 +2,8 @@ name: Deploy
 
 # Its own workflow, so pull requests don't list a deploy job that never runs for them.
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: [CI]
     types: [completed]
@@ -9,13 +11,16 @@ on:
 
 permissions:
   contents: read
+  # To find a pull request's CI run that passed on main's exact code.
+  actions: read
 
 jobs:
-  # Merges to main deploy once every check passes, unless nothing but docs, tests, and tooling
-  # changed since the live version. The token lives in the production environment, which only
-  # main can use.
+  # A merge deploys at once when its pull request's CI passed on exactly the code main now has,
+  # and otherwise once CI passes on main, unless nothing but docs, tests, and tooling changed
+  # since the live version. The token lives in the production environment, which only main can
+  # use.
   deploy:
-    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'push' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -26,17 +31,25 @@ jobs:
       # All of main's history, so the merge can be compared with the live version's commit.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
-      # CI already ran the tests on this commit, and no package's install script runs where the
+      - name: Find the pull request's CI run that passed on this code
+        id: passed
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node worker/find-passed-ci.mjs
+      # CI already ran the tests on this code, and no package's install script runs where the
       # token is.
       - run: npm ci --ignore-scripts
+        if: github.event_name != 'push' || steps.passed.outputs.run
       # A secret, so the account ID is masked in this public log.
       - name: Deploy the Worker
+        if: github.event_name != 'push' || steps.passed.outputs.run
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

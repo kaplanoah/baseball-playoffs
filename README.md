@@ -234,7 +234,9 @@ flash empty while it waits for its data.
 
 ### Deploying on merge
 
-GitHub can deploy each app's Worker, page included, after each merge once the
+GitHub can deploy each app's Worker, page included, after each merge: at once
+when the pull request's checks passed on exactly the code `main` now has, which
+is when it was up to date with `main` as it merged, and otherwise once the
 checks pass on `main`. In the repo's **Settings > Environments**, create an
 environment named `production`, limit its deployment branches to `main`, and
 add:
