@@ -4,7 +4,7 @@
 // A phone waking a page often fails its first requests, so a release check that got no answer
 // tries again on each tick until one does.
 
-import { fetchRelease, loadRelease } from "./release.js";
+import { fetchRelease, isFromReleaseFolder, loadRelease } from "./release.js";
 
 // Timers stop while a phone suspends the page, so a tick this late means the page was asleep,
 // even when the phone never said it was hidden.
@@ -23,11 +23,14 @@ let catchUp = () => {};
 /** @type {((awayMs: number) => void)[]} */
 const awayWatchers = [];
 
+// A Worker serves only its own release's folder, so a page that never read its release before a
+// deploy finds the folder gone, and has been replaced all the same.
 /**
  * @param {import("./release.js").Release | null} loaded
  * @param {import("./release.js").Release | null} current
  */
-const isReplaced = (loaded, current) => !!loaded && !!current && loaded.commit !== current.commit;
+const isReplaced = (loaded, current) =>
+  !!current && (loaded ? loaded.commit !== current.commit : isFromReleaseFolder());
 
 // A reload while the app is busy, as mid-drag, would drop what's under way, so it waits for the
 // first tick after.

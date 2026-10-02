@@ -40,9 +40,30 @@
 .sheet-panel::backdrop {
   background: rgba(0, 0, 0, 0.6);
 }
+/* A sheet looks the same on every screen: its title centered at one size over 18px sides, with
+   Done, where it shows, at the right edge. Only its shape and its ways to close differ. */
 .sheet-content {
   --head-height: 64px;
-  padding: 0 22px 22px;
+  padding: 0 18px max(22px, env(safe-area-inset-bottom));
+}
+.sheet-content .sheet-top {
+  margin-inline: -18px;
+  padding-inline: 18px;
+}
+.sheet-content .sheet-head {
+  position: relative;
+  justify-content: center;
+}
+.sheet-content .sheet-title {
+  align-items: center;
+  text-align: center;
+}
+.sheet-content .sheet-head h2 {
+  font-size: 1rem;
+}
+.sheet-content .sheet-done {
+  position: absolute;
+  right: 0;
 }
 .sheet-note {
   margin: 0;
@@ -182,10 +203,6 @@
     .sheet-panel[open]::backdrop {
       animation: backdrop-fade-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
-  }
-  .sheet-content {
-    --head-height: 63px;
-    padding: 0 18px max(22px, env(safe-area-inset-bottom));
   }
 }
 

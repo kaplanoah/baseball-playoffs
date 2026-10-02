@@ -1,7 +1,7 @@
-// The matchup sheet a game with named starters opens: the two starters face to face, where each
-// ranks among the season's starters, what each throws, and their last starts. A club yet to name
-// its starter shows who started its last games instead, and how rested each would be. Until each
-// side loads, placeholders hold its shape.
+// The matchup sheet every game opens: the two starters face to face, where each ranks among the
+// season's starters, what each throws, and their last starts. A club yet to name today's starter
+// shows who started its last games instead, and how rested each would be, and any other starter
+// still to be named is one to check back for. Until each side loads, placeholders hold its shape.
 // Phones show it as a sheet from the bottom that a swipe down closes, wider screens as a modal,
 // like Settings.
 
@@ -205,7 +205,16 @@ function renderRotation(side, game) {
 }
 
 const isAwaitingStarter = (side, game) =>
-  !side.starter && Boolean(side.club) && game.state === "pre";
+  !side.starter && Boolean(side.club) && game.state === "pre" && Boolean(game.today);
+
+// Only a game still to start can yet name a starter worth coming back for.
+const isCheckBackSide = (side, game) =>
+  game.state === "pre" && !side.starter?.name && !isAwaitingStarter(side, game);
+
+const renderCheckBack = (sides, game) =>
+  sides.some((side) => isCheckBackSide(side, game))
+    ? html`<p class="check-back">Check back for pitchers</p>`
+    : html``;
 
 function renderScouting(side, game) {
   if (isAwaitingStarter(side, game)) return renderRotation(side, game);
@@ -243,6 +252,7 @@ function renderPendingScouting(name) {
 
 function renderBody(game, sides) {
   return html`<div class="faceoff">${sides.map(renderPitcherId)}</div>
+    ${renderCheckBack(sides, game)}
     ${renderTape(sides)}
     ${sides.map((side) => renderScouting(side, game))}`;
 }
@@ -281,7 +291,7 @@ async function loadSide(side, game, season) {
 }
 
 /**
- * @param {{ date: string, start: string, state: string, tbd?: boolean, doubleheader?: number, away: string, home: string, starters: object[] }} game
+ * @param {{ date: string, start: string, state: string, tbd?: boolean, doubleheader?: number, away: string, home: string, starters: object[], today: boolean }} game
  */
 async function openMatchup(game) {
   const sequence = ++opening;

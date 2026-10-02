@@ -148,6 +148,26 @@ test("a page from the last release reloads when it comes back, though the Worker
   expect(await isSameLoad(page)).toBe(false);
 });
 
+test("a page that never read its own release still reloads when it comes back after a deploy", async ({
+  page,
+}) => {
+  const serveRelease = buildReleaseServer("wnba", LAST_RELEASE);
+  const serveNextRelease = buildReleaseServer("wnba", NEW_RELEASE);
+  const ownRelease = `/release/${LAST_RELEASE.commit}/version.json`;
+  const deploy = { isDone: false };
+  await servePageFiles(page, (url) => {
+    if (deploy.isDone) return serveNextRelease(url);
+    if (url.pathname === ownRelease) return Promise.resolve(new Response(null, { status: 503 }));
+    return serveRelease(url);
+  });
+  await openApp(page);
+  await expect(findFinalWinner(page)).toContainText("Liberty");
+  await markPage(page);
+
+  deploy.isDone = true;
+  await expectReload(page, () => comeBack(page));
+});
+
 /** @param {import("@playwright/test").Page} page */
 const readReleaseReloads = (page) => page.evaluate(() => sessionStorage.getItem("releaseReloads"));
 

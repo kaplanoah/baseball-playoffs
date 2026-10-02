@@ -114,16 +114,56 @@ test("tapping a game with its starters named opens their matchup, and Done close
   await expect(sheet).toBeHidden();
 });
 
-test("the sheet's title names it in capitals, a step larger on a desktop than on a phone", async ({
+test("the sheet's title names it in capitals, at one size on a desktop and a phone", async ({
   page,
 }) => {
   const sheet = await openMatchup(page);
   const title = sheet.getByRole("heading", { level: 2 });
   await expect(title).toHaveCSS("text-transform", "uppercase");
   await expect(title).toHaveCSS("font-weight", "400");
-  await expect(title).toHaveCSS("font-size", "18px");
+  await expect(title).toHaveCSS("font-size", "16px");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(title).toHaveCSS("font-size", "16px");
+});
+
+test("on a desktop, the title centers over the sheet, with Done at its right edge, and 18px sides as on a phone", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const sheet = await openMatchup(page);
+  await expect(sheet.locator(".pitch-mix")).toHaveCount(2);
+  const { titleCenter, sheetCenter, doneRight, sheetRight } = await sheet.evaluate((dialog) => {
+    const box = dialog.getBoundingClientRect();
+    const title = dialog.querySelector(".sheet-title").getBoundingClientRect();
+    const done = dialog.querySelector(".sheet-done").getBoundingClientRect();
+    return {
+      titleCenter: title.left + title.width / 2,
+      sheetCenter: box.left + box.width / 2,
+      doneRight: done.right,
+      sheetRight: box.right,
+    };
+  });
+  expect(titleCenter).toBeCloseTo(sheetCenter, 0);
+  expect(sheetRight - doneRight).toBeCloseTo(11, 0);
+  const sides = await sheet.evaluate((dialog) => {
+    const box = dialog.getBoundingClientRect();
+    const faceoff = dialog.querySelector(".faceoff").getBoundingClientRect();
+    return [faceoff.left - box.left, box.right - faceoff.right];
+  });
+  expect(sides.map(Math.round)).toEqual([19, 19]);
+});
+
+test("the sheet scrolls under its pinned title with no line between them", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 });
+  const sheet = await openMatchup(page);
+  await expect(sheet.locator(".pitch-mix")).toHaveCount(2);
+  await sheet.evaluate((dialog) => {
+    dialog.scrollTop = 200;
+    dialog.dispatchEvent(new Event("scroll"));
+  });
+  const top = sheet.locator(".sheet-top");
+  await expect(top).toHaveCSS("box-shadow", "none");
+  await expect(top).toHaveCSS("position", "sticky");
 });
 
 test("the sheet's parts and lists leave room between their rows", async ({ page }) => {
@@ -140,6 +180,11 @@ test("the sheet's parts and lists leave room between their rows", async ({ page 
     );
   expect(await readGaps(blubaugh.locator(".pitch-name"))).toEqual([10, 10]);
   expect(await readGaps(blubaugh.locator(".recent-starts li"))).toEqual([8]);
+  const rowsToLastStarts = await blubaugh.evaluate((scout) => {
+    const rows = scout.querySelector(".pitch-rows").getBoundingClientRect();
+    return scout.querySelector("h4").getBoundingClientRect().top - rows.bottom;
+  });
+  expect(Math.round(rowsToLastStarts)).toBe(20);
   const tapeToScout = await sheet.locator(".matchup-body").evaluate((body) => {
     const tape = body.querySelector(".tape").getBoundingClientRect();
     return body.querySelector(".scout").getBoundingClientRect().top - tape.bottom;
@@ -217,13 +262,13 @@ test("each bar is the share of starters he beats, gold for whichever starter ran
   );
 });
 
-test("the pitches run slowest to fastest, leaving out the ones he barely throws", async ({
+test("the pitch rows run fastest to slowest, leaving out the ones he barely throws", async ({
   page,
 }) => {
   const sheet = await openMatchup(page);
   const pitches = sheet.locator(".pitch-mix").first();
-  await expect(pitches.locator(".pitch-name")).toHaveText(["Slider", "Changeup", "Four-seam"]);
-  await expect(pitches.locator(".pitch-share")).toHaveText(["30%", "17%", "52%"]);
+  await expect(pitches.locator(".pitch-name")).toHaveText(["Four-seam", "Changeup", "Slider"]);
+  await expect(pitches.locator(".pitch-share")).toHaveText(["52%", "17%", "30%"]);
 });
 
 test("a starter the Worker can't describe says so, and the other still shows", async ({ page }) => {
@@ -234,33 +279,70 @@ test("a starter the Worker can't describe says so, and the other still shows", a
   );
 });
 
-test("a game under way or on a later day without its starters named has no matchup to open", async ({
-  page,
-}) => {
+test("every game opens, whether or not its starters are named", async ({ page }) => {
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
-  await expect(page.locator("#games-today .game-row.live .game-open")).toHaveCount(0);
-  await expect(page.locator("#games-today .game-row.final .game-open")).toHaveCount(0);
-  await expect(page.locator("#games-next .game-open")).toHaveCount(0);
+  for (const list of ["#games-previous", "#games-today", "#games-next"]) {
+    const rows = page.locator(`${list} .game-row`);
+    await expect(rows.locator(".game-open")).toHaveCount(await rows.count());
+  }
   await expect(page.locator("#games-next .starter.pending")).toHaveCount(0);
 });
 
-test("on a desktop, a game that opens lights up under the pointer, and one that doesn't stays as it is", async ({
+test("a game on a later day without its starters says to check back for them, under its clubs", async ({
+  page,
+}) => {
+  const reads = countPitcherReads(page);
+  await showGames(page);
+  await page.locator("#games-next .game-open").first().click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("Pitching matchup");
+  await expect(sheet.locator(".pitcher-last")).toHaveText(["Still TBD", "Still TBD"]);
+  await expect(sheet.locator(".pitcher-id .club")).toHaveCount(2);
+  await expect(sheet.locator(".check-back")).toHaveText("Check back for pitchers");
+  await expect(sheet.locator(".tape, .scout")).toHaveCount(0);
+  expect(reads.count).toBe(0);
+});
+
+test("a finished game without its starters has nothing to check back for", async ({ page }) => {
+  await showGames(page);
+  await page.locator("#games-today .game-row.final .game-open").first().click();
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("heading", { level: 2 })).toHaveText("Pitching matchup");
+  await expect(sheet.locator(".pitcher-id .club")).toHaveCount(2);
+  await expect(sheet.locator(".check-back")).toHaveCount(0);
+});
+
+test("a game with its starters named has nothing to check back for", async ({ page }) => {
+  const sheet = await openMatchup(page);
+  await expect(sheet.locator(".pitch-mix")).toHaveCount(2);
+  await expect(sheet.locator(".check-back")).toHaveCount(0);
+});
+
+test("on a desktop, a game lights up under the pointer, past the row's sides, and goes back after", async ({
   page,
 }) => {
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
-  const readBackground = (row) =>
-    row.evaluate((element) => getComputedStyle(element).backgroundColor);
-  const opens = page.locator("#games-today .game-row:has(.game-open)").first();
-  const stays = page.locator("#games-today .game-row.final").first();
-  const resting = await readBackground(opens);
+  const readHighlight = (row) =>
+    row.evaluate((element) => {
+      const { backgroundColor, boxShadow } = getComputedStyle(element);
+      return { backgroundColor, boxShadow };
+    });
+  const [first, second] = [0, 1].map((index) => page.locator("#games-today .game-row").nth(index));
+  const resting = await readHighlight(first);
 
-  await opens.hover();
-  await expect.poll(() => readBackground(opens)).not.toBe(resting);
-  await stays.hover();
-  await expect.poll(() => readBackground(opens)).toBe(resting);
-  expect(await readBackground(stays)).toBe(resting);
+  // The highlight's color fills the row and both 12px reaches beyond its sides.
+  const isReachingPast = async () => {
+    const { backgroundColor, boxShadow } = await readHighlight(first);
+    const reach = `${backgroundColor} -12px 0px 0px 0px, ${backgroundColor} 12px 0px 0px 0px`;
+    return backgroundColor !== resting.backgroundColor && boxShadow === reach;
+  };
+
+  await first.hover();
+  await expect.poll(isReachingPast).toBe(true);
+  await second.hover();
+  await expect.poll(() => readHighlight(first)).toEqual(resting);
 });
 
 // What the Worker answers for the last starters of the Angels, who play at Seattle tonight.
@@ -478,9 +560,9 @@ test("each pitch is a row with its dot, name, share, and speed", async ({ page }
   const sheet = await openMatchup(page);
   const rows = sheet.locator(".pitch-mix").first().locator(".pitch-rows li");
   await expect(rows.locator(".pitch-key")).toHaveCount(3);
-  await expect(rows.locator(".pitch-name")).toHaveText(["Slider", "Changeup", "Four-seam"]);
-  await expect(rows.locator(".pitch-share")).toHaveText(["30%", "17%", "52%"]);
-  await expect(rows.locator(".pitch-speed")).toHaveText(["86 mph", "87 mph", "95 mph"]);
+  await expect(rows.locator(".pitch-name")).toHaveText(["Four-seam", "Changeup", "Slider"]);
+  await expect(rows.locator(".pitch-share")).toHaveText(["52%", "17%", "30%"]);
+  await expect(rows.locator(".pitch-speed")).toHaveText(["95 mph", "87 mph", "86 mph"]);
 });
 
 /** @param {import("@playwright/test").Locator} chart */

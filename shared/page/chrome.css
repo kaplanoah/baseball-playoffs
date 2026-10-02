@@ -196,10 +196,6 @@ section.view.active {
   margin-inline: -22px;
   padding: 10px 22px;
   background: var(--card);
-  transition: box-shadow 0.2s;
-}
-.sheet-top.scrolled {
-  box-shadow: 0 1px 0 var(--divider);
 }
 .sheet-grabber {
   display: none;
@@ -510,8 +506,7 @@ body:has(> .home-screen-bar:not([hidden])) {
   .switch-knob {
     transition: none;
   }
-  .settings-btn,
-  .sheet-top {
+  .settings-btn {
     transition: none;
   }
 }
