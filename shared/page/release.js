@@ -25,6 +25,10 @@ async function readRelease(url) {
 
 export const fetchRelease = () => readRelease(new URL("version.json", location.href));
 
+// A deploy's page loads its modules from its release's folder; a local server's page doesn't.
+const RELEASE_FOLDER_PATH = /\/release\/[^/]+\//;
+export const isFromReleaseFolder = () => RELEASE_FOLDER_PATH.test(import.meta.url);
+
 // The release this page's files came from, read from their own folder, since the Worker may
 // already serve a newer one, and a server still on another release has no such folder. A read
 // that found nothing isn't kept, so the next check tries again.

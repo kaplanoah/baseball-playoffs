@@ -974,10 +974,11 @@ test("games list: a game still to play names its starters with their arm, leavin
     away: "BOS",
     home: "NYY",
     starters: slate.today.games[0].starters,
+    today: true,
   });
 });
 
-test("games list: a starter MLB can't name yet leaves his line out, rather than calling him TBD", () => {
+test("games list: a starter MLB can't name yet leaves his line out, rather than calling him TBD, and the game still opens", () => {
   const slate = {
     today: {
       date: "2026-09-29",
@@ -996,10 +997,10 @@ test("games list: a starter MLB can't name yet leaves his line out, rather than 
   assert.match(rendered, /class="game-row pre"/);
   assert.doesNotMatch(rendered, /class="starter/);
   assert.doesNotMatch(rendered, /class="game-extra/);
-  assert.doesNotMatch(rendered, /game-open/);
+  assert.match(rendered, /class="game-open" aria-label="Pitching matchup: TBD vs TBD"/);
 });
 
-test("games list: a club yet to name today's starter says Still TBD, and the game opens", () => {
+test("games list: a club yet to name today's starter says Still TBD, and every game opens", () => {
   const game = { away: "PHI", home: "ATL", state: "pre", start: "2026-10-02T00:08:00Z" };
   const slate = {
     today: { date: "2026-10-01", games: [game] },
@@ -1014,7 +1015,9 @@ test("games list: a club yet to name today's starter says Still TBD, and the gam
     /class="game-open" aria-label="Pitching matchup: TBD vs TBD"/,
   );
   const later = String(renderGameList(slate, "next"));
-  assert.doesNotMatch(later, /Still TBD|game-open/);
+  assert.doesNotMatch(later, /Still TBD/);
+  assert.match(later, /class="game-open" aria-label="Pitching matchup: TBD vs TBD"/);
+  assert.match(later, /&quot;today&quot;:false/);
 });
 
 test("games list: an empty list says so without a closing period", () => {
