@@ -40,7 +40,7 @@ export function describePeriod(period) {
 
 // Between periods the clock stops at zero, and the league's own status says which break it is.
 /** @param {Game} game */
-export function describeLiveClock(game) {
+function describeLiveClock(game) {
   const isRunning = game.clock && game.clock !== "0.0" && game.period;
   return isRunning ? `${describePeriod(game.period)} ${game.clock}` : game.status;
 }

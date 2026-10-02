@@ -46,6 +46,13 @@
   font-display: swap;
   src: url(fonts/barlow-700.woff2) format("woff2");
 }
+@font-face {
+  font-family: "Barlow";
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url(fonts/barlow-500-italic.woff2) format("woff2");
+}
 
 /*
  * Maple, a light court floor, and Walnut, dark stained wood, following the phone's setting.
@@ -864,11 +871,12 @@ table.players td.minutes {
   stroke: var(--line);
   stroke-width: 1;
 }
-/* A round's name, with Best of in the text face just after it, the two centered on each other. */
+/* A round's name, with Best of in the text face just after it, on the name's baseline but lifted
+   half a pixel, which looks level beside the name's heavier capitals. */
 .round-name {
   grid-row: 1;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   padding-inline: 2px;
   font-family: var(--heading);
@@ -882,6 +890,7 @@ table.players td.minutes {
   scroll-snap-align: start;
 }
 .round-name .best-of {
+  translate: 0 -0.5px;
   font-family: var(--text);
   font-size: 0.68rem;
   font-weight: 600;
@@ -931,19 +940,20 @@ table.players td.minutes {
   width: 100%;
   min-width: 0;
 }
+/* The note's top counts from inside the card's 1px border, so it sits 2px below the card. */
 .card-note {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  margin: 6px 0 0;
+  margin: 3px 0 0;
   padding-left: 1px;
   overflow: hidden;
-  font-family: var(--heading);
-  font-size: 0.734rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-family: var(--text);
+  font-size: 0.8125rem;
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   text-overflow: ellipsis;
   color: var(--ink-dim);

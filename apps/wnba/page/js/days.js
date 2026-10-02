@@ -27,6 +27,14 @@ export const describeDay = (day, now) =>
   nameDay(day, new Date(now), { nameOtherDay: formatWeekdayAndDate, isCapitalized: true });
 
 /**
+ * describeDay's name for the middle of a sentence, as in "Next game tomorrow".
+ * @param {Date} day
+ * @param {number} now
+ */
+export const describeDayInSentence = (day, now) =>
+  nameDay(day, new Date(now), { nameOtherDay: formatWeekdayAndDate });
+
+/**
  * A day's name beside its date, which doesn't need "Today": the Games list it heads already says so.
  * @param {Date} day
  * @param {number} now

@@ -306,6 +306,12 @@ test("the page uses its own fonts, served with it", async ({ page }) => {
     [...document.fonts].filter((font) => font.status === "loaded").map((font) => font.family),
   );
   expect(new Set(loaded)).toEqual(new Set(["Barlow Condensed", "Barlow"]));
+  const italics = await page.evaluate(() =>
+    [...document.fonts]
+      .filter((font) => font.status === "loaded" && font.style === "italic")
+      .map((font) => font.family),
+  );
+  expect(italics).toEqual(["Barlow"]);
 });
 
 test("the Games lists' days, series labels, and statuses are in Barlow, apart from the team names", async ({
@@ -342,7 +348,7 @@ test("every team name is in Barlow Condensed", async ({ page }) => {
   expect(new Set(await readFonts(".team-full-name"))).toEqual(new Set(["Barlow Condensed"]));
 });
 
-test("the title, the round names, and each card's note are in Barlow Condensed", async ({
+test("the title and the round names are in Barlow Condensed, and each card's note in Barlow's italic", async ({
   page,
 }) => {
   await openApp(page);
@@ -354,8 +360,11 @@ test("the title, the round names, and each card's note are in Barlow Condensed",
         getComputedStyle(element).fontFamily.split(",")[0].replaceAll('"', ""),
       );
   await expect(page.locator(".card-note").first()).toBeVisible();
-  for (const selector of ["header.top h1", ".round-name", ".card-note"])
+  for (const selector of ["header.top h1", ".round-name"])
     expect(await readFirstFont(selector)).toBe("Barlow Condensed");
+  expect(await readFirstFont(".card-note")).toBe("Barlow");
+  await expect(page.locator(".card-note").first()).toHaveCSS("font-style", "italic");
+  await expect(page.locator(".card-note").first()).toHaveCSS("font-size", "13px");
   await page.getByRole("tab", { name: "Games" }).click();
   expect(await readFirstFont("#gamePager .day-month")).toBe("Barlow Condensed");
 });
