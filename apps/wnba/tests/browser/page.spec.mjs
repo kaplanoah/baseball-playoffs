@@ -672,13 +672,14 @@ test.describe("on a phone, the text", () => {
     expect(await listOffScaleText(page)).toEqual([]);
   });
 
-  test("of the Updates box reads at 16px, its days at 14px, and its count at 13px, and a series' standing stays on one line", async ({
+  test("of the Updates box reads at 16px with its team names at Condensed's 16.5px, its days at 14px, and its count at 13px, and a series' standing stays on one line", async ({
     page,
   }) => {
     await openApp(page, { isShowingUpdates: true });
     const updates = page.locator("#updates");
     await expect(updates.locator(".what").first()).toBeVisible();
     await expect(updates.locator(".what").first()).toHaveCSS("font-size", "16px");
+    await expect(updates.locator(".what b").first()).toHaveCSS("font-size", "16.5px");
     await expect(updates.locator(".when").first()).toHaveCSS("font-size", "14px");
     await expect(updates.locator(".updates-count")).toHaveCSS("font-size", "13px");
     const lineCounts = await updates

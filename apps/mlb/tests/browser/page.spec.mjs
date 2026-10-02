@@ -1510,6 +1510,7 @@ test("rebuilds updates from the saved readings as the Worker adds to them", asyn
   await expect(updates).toContainText(/Mets .*Phillies/);
   expect((await app.readDocument(`readings-2026/${part}`)).changes).toHaveLength(2);
   expect(await listOffScaleText(page)).toEqual([]);
+  await expect(updates.locator(".what").first()).toHaveCSS("font-size", "14.5px");
 });
 
 test("a release note shows in the Updates box, headed New in the app, until it's dismissed", async ({
@@ -1988,7 +1989,7 @@ test("on a phone, the bracket fills the height above the tab bar and swipes side
 test("on a phone a little short of room, the bracket's spaces shrink so it fits above the round dots", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 840 });
+  await page.setViewportSize({ width: 390, height: 830 });
   await openApp(page);
   await expect(page.locator(".bracket-stage")).toBeVisible();
   await expectBracketToFillHeight(page);
@@ -2132,4 +2133,14 @@ test("Chivo Mono draws 6% smaller than its size, so it looks as big as Barlow", 
       .map((font) => /** @type {FontFace & { sizeAdjust: string }} */ (font).sizeAdjust),
   );
   expect(sizeAdjusts).toEqual(["94%", "94%"]);
+});
+
+test("Chivo Mono takes its own size at each step: sentences 14.5px, facts and labels 13px", async ({
+  page,
+}) => {
+  await openApp(page);
+  await expect(page.locator("#stamp")).toBeVisible();
+  await expect(page.locator("#stamp")).toHaveCSS("font-size", "13px");
+  await expect(page.locator("#stamp")).toHaveCSS("line-height", "18px");
+  await expect(page.locator("#bracketWrap .card-note").first()).toHaveCSS("font-size", "13px");
 });

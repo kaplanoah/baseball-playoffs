@@ -103,6 +103,9 @@
   --numbers: "Barlow Condensed", "Arial Narrow", sans-serif;
   --heading: "Barlow Condensed", "Arial Narrow", sans-serif;
   --team-name: "Barlow Condensed", "Arial Narrow", sans-serif;
+  /* Barlow Condensed reads a little smaller than Barlow in a sentence, so it takes its own size there,
+     matched by eye. */
+  --size-read-condensed: 1.03125rem;
   --gate-heading-font: var(--heading);
   --gate-code-font: var(--numbers);
   --gate-problem: var(--orange);
@@ -1255,6 +1258,7 @@ table.players td.minutes {
 }
 .updates-list .what b {
   font-family: var(--team-name);
+  font-size: var(--size-read-condensed);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
