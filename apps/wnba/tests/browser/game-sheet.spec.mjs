@@ -8,6 +8,8 @@ const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
 const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
 const VALKYRIES_AT_WINGS = "Game details: Valkyries at Wings, First Round Game 2";
 const POLL_LIVE_MS = 15 * 1000;
+// The least room between a team's name, as its font draws it, and the edge of the lead chart's tile.
+const NAME_GAP_PX = 4;
 
 // Most of these tests are about what a sheet shows, so they skip the eased scrolling between the
 // Games lists. The ones about how a sheet moves ask for full motion.
@@ -153,6 +155,33 @@ test("a final's sheet charts the lead through the game under its quarters, and o
     "Team stats",
     "Top scorers",
   ]);
+});
+
+test("the lead chart keeps each biggest lead's label on its tile and each team's name just off it", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await app.changeSeason(finishValkyriesAtWings);
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  const chart = sheet.locator(".lead-chart");
+  await expect(chart.locator(".lead-peak-label")).toHaveText(["Wings +8", "Valkyries +8"]);
+
+  const readBox = (/** @type {import("@playwright/test").Locator} */ locator) =>
+    locator.evaluateAll((elements) =>
+      elements.map((element) => {
+        const { top, bottom, left, right } = element.getBoundingClientRect();
+        return { top, bottom, left, right };
+      }),
+    );
+  const [tile] = await readBox(chart.locator(".lead-tile"));
+  const [homeName, awayName] = await readBox(chart.locator(".lead-side"));
+  const labels = await readBox(chart.locator(".lead-peak-label"));
+  expect(tile.top - homeName.bottom).toBeGreaterThanOrEqual(NAME_GAP_PX);
+  expect(awayName.top - tile.bottom).toBeGreaterThanOrEqual(NAME_GAP_PX);
+  for (const label of labels) {
+    expect(label.left).toBeGreaterThanOrEqual(tile.left);
+    expect(label.right).toBeLessThanOrEqual(tile.right);
+  }
 });
 
 test("a live game's sheet reads its lead again with its box score", async ({ page }) => {
