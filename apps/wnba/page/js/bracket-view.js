@@ -2,7 +2,7 @@ import { formatClockTime } from "#shared/days.js";
 import { html } from "#shared/html.js";
 import { findOpeningRound } from "#shared/opening-round.js";
 import { renderRoundDots } from "#shared/round-dots.js";
-import { renderClub } from "./clubs.js";
+import { renderClub, renderTeamButton } from "./clubs.js";
 import { describeDayInSentence, readGameDay } from "./days.js";
 import { describePeriod } from "./games-view.js";
 import { BRACKET_ORDER } from "./series.js";
@@ -32,8 +32,8 @@ function renderTeamLine(side, series) {
   const isOut = !!series.winner && series.winner !== side.team;
   const isWinner = series.winner === side.team;
   const state = isOut ? " out" : isWinner ? " won" : "";
-  return html`<div class="team-line${state}">
-    ${renderSeedLabel(side, series)}${renderClub(side.team)}<span class="wins tabular"><span>${side.wins}</span></span>
+  return html`<div class="team-line${state}" data-team="${side.team}">
+    ${renderSeedLabel(side, series)}${renderTeamButton(side.team, renderClub(side.team))}<span class="wins tabular"><span>${side.wins}</span></span>
   </div>`;
 }
 

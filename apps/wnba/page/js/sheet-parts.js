@@ -48,7 +48,7 @@ export const renderTapeTeams = (away, home) =>
  * One titled part of the sheet, with an optional note across from its title.
  * @param {string} title
  * @param {import("#shared/html.js").Markup} body
- * @param {string | false} [aside]
+ * @param {import("#shared/html.js").Markup | string | false} [aside]
  */
 export const renderSheetPart = (title, body, aside = false) =>
   html`<section class="sheet-part">

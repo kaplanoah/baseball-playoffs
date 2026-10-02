@@ -228,7 +228,7 @@ function listTeamLeaders(players, team, count) {
     }));
 }
 
-// The Teams tab shows each team's top scorer, and a game's preview its leading three.
+// A team's sheet shows its top scorer, and a game's preview its leading three.
 const LEADERS_PER_TEAM = 3;
 
 const listLeaders = (players) =>
