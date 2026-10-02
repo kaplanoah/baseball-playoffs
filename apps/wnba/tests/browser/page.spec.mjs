@@ -436,6 +436,24 @@ test("each day's date sits to the left of its games, level with the first", asyn
   ).toBeLessThanOrEqual(1);
 });
 
+test.describe("on a 390px phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("each day's date has room on both sides, and its card's games room inside it", async ({
+    page,
+  }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Games" }).click();
+    const day = page.locator("#games-today .game-day").first();
+    const date = await day.locator(".day-label").boundingBox();
+    const list = await day.locator(".game-list").boundingBox();
+    const firstDot = await day.locator(".game-side.away .dot").first().boundingBox();
+    expect(date.x).toBeGreaterThanOrEqual(8);
+    expect(list.x - (date.x + date.width)).toBeGreaterThanOrEqual(10);
+    expect(firstDot.x - list.x).toBeGreaterThanOrEqual(10);
+  });
+});
+
 for (const width of [390, 375, 360]) {
   test.describe(`on a ${width}px phone`, () => {
     test.use({ viewport: { width, height: 844 }, hasTouch: true, isMobile: true });
