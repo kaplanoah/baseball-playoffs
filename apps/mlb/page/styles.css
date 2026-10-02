@@ -1733,6 +1733,11 @@ table.ref th.won-col {
   body {
     padding-bottom: var(--tab-bar-clearance);
   }
+  /* The body's bottom padding already holds the round dots, so a bracket that fills the screen
+     leaves the page nothing to scroll. */
+  .tree-scroll.stacked {
+    padding-bottom: 0;
+  }
   nav.tabs {
     margin-bottom: 18px;
   }

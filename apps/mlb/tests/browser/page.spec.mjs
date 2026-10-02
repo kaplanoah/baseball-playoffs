@@ -698,7 +698,7 @@ test("on a phone, the bracket's round dots sit just above the tab bar and follow
   const dotsBox = await dots.boundingBox();
   const bar = await page.locator("#tabBar").boundingBox();
   expect(bar.y - (dotsBox.y + dotsBox.height)).toBeGreaterThan(0);
-  expect(bar.y - (dotsBox.y + dotsBox.height)).toBeLessThanOrEqual(16);
+  expect(bar.y - (dotsBox.y + dotsBox.height)).toBeLessThanOrEqual(8);
 
   const scroller = page.locator("#bracketWrap .tree-scroll");
   await scroller.evaluate((tree) => tree.scrollTo({ left: 0, behavior: "instant" }));
@@ -1115,8 +1115,8 @@ test("on a phone too short for the bracket, its spaces are at their tightest", a
 
   expect(await readStackedSpaces(page)).toEqual({
     aboveLeague: 18,
-    belowLine: 11,
-    betweenRows: 13,
+    belowLine: 5,
+    betweenRows: 6,
   });
 });
 
@@ -1876,6 +1876,21 @@ test("on a phone, the bracket fills the height above the tab bar and swipes side
   const { bracketOverflow, pageOverflow } = await readBracketFit(page);
   expect(bracketOverflow).toBeGreaterThan(0);
   expect(pageOverflow).toBe(0);
+});
+
+test("on a phone a little short of room, the bracket's spaces shrink so it fits above the round dots", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 781 });
+  await openApp(page);
+  await expect(page.locator(".bracket-stage")).toBeVisible();
+  await expectBracketToFillHeight(page);
+  const { belowLine, betweenRows } = await readStackedSpaces(page);
+  expect(belowLine).toBeLessThan(11);
+  expect(betweenRows).toBeLessThan(13);
+  expect(
+    await page.evaluate(() => document.scrollingElement.scrollHeight - innerHeight),
+  ).toBeLessThanOrEqual(1);
 });
 
 test("on a phone, the bracket redraws for a new screen height and keeps its sideways scroll", async ({
