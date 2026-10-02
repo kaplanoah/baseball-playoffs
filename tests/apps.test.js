@@ -1,9 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkAppName, listApps, listAppsOrExit, listNamedApps } from "../worker/apps.mjs";
+import { existsSync } from "node:fs";
+import {
+  checkAppName,
+  findPageRoot,
+  listApps,
+  listAppsOrExit,
+  listNamedApps,
+} from "../worker/apps.mjs";
 
 test("an app is a folder under apps/ whose Worker has a wrangler.toml", () => {
   assert.ok(listApps().includes("mlb"));
+});
+
+test("every app's page has a gate, so any app can be given an access code", () => {
+  for (const app of listApps()) assert.ok(existsSync(`${findPageRoot(app)}gate.html`), app);
 });
 
 test("a command takes only an app that exists, and says which ones do", () => {

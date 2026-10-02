@@ -47,12 +47,6 @@ test("a code too short to guard the page, or none, is refused before Cloudflare 
   }
 });
 
-test("an app whose page has no gate can't be given a code", async () => {
-  const cloudflare = createFakeCloudflare();
-  await assert.rejects(changeCode(cloudflare, { app: "mlb", code: "FASTBREAK" }), /no gate\.html/);
-  assert.equal(cloudflare.calls.length, 0);
-});
-
 test("--remove deletes the code and its signing key, and does nothing when there's none", async () => {
   const set = createFakeCloudflare({
     secrets: [
