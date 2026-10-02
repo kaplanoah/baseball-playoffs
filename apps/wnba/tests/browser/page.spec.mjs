@@ -376,41 +376,111 @@ test("a team opens to its season, and stays open as the season changes", async (
   await expect(aces).toHaveAttribute("open", "");
 });
 
+/**
+ * Notes the heights each team's easing runs between, as it starts, for `read` to return and
+ * forget. While `hold` is on, each easing stops halfway. Call it before the page loads.
+ * @param {import("@playwright/test").Page} page
+ */
+async function recordTeamEasings(page) {
+  await page.addInitScript(() => {
+    const record = { easings: [], isHeld: false };
+    Object.assign(window, { teamEasings: record });
+    const { animate } = Element.prototype;
+    Element.prototype.animate = function (keyframes, options) {
+      const animation = animate.call(this, keyframes, options);
+      if (this instanceof HTMLDetailsElement && Array.isArray(keyframes)) {
+        record.easings.push(keyframes.map((keyframe) => parseFloat(String(keyframe.height))));
+        if (record.isHeld) {
+          animation.pause();
+          animation.currentTime = 125;
+        }
+      }
+      return animation;
+    };
+  });
+  return {
+    read: () => page.evaluate(() => /** @type {any} */ (window).teamEasings.easings.splice(0)),
+    /** @param {boolean} isHeld */
+    hold: (isHeld) =>
+      page.evaluate((held) => {
+        /** @type {any} */ (window).teamEasings.isHeld = held;
+      }, isHeld),
+  };
+}
+
 /** @param {import("@playwright/test").Locator} team */
-const readTeamEasing = (team) =>
-  team.evaluate((details) =>
-    details
-      .getAnimations()
-      .map((animation) =>
-        /** @type {KeyframeEffect} */ (animation.effect)
-          .getKeyframes()
-          .map((keyframe) => parseFloat(String(keyframe.height))),
-      ),
-  );
+const readHeight = (team) => team.evaluate((details) => details.getBoundingClientRect().height);
 
 test("a team eases open to its season, and stays open while it eases closed", async ({ page }) => {
+  const easings = await recordTeamEasings(page);
   await openApp(page);
   await page.getByRole("tab", { name: "Teams" }).click();
   const aces = page.locator('#teamsWrap [data-team="LVA"]');
-  const closedHeight = await aces.evaluate((details) => details.getBoundingClientRect().height);
+  const closedHeight = await readHeight(aces);
 
+  await easings.hold(true);
   await aces.locator("summary").click();
-  const [[openFrom, openTo]] = await readTeamEasing(aces);
+  const [[openFrom, openTo]] = await easings.read();
   expect(openFrom).toBeCloseTo(closedHeight, 1);
   expect(openTo).toBeGreaterThan(closedHeight + 100);
   await expect(aces).toHaveAttribute("open", "");
-  await page.waitForFunction(() => document.getAnimations().length === 0);
+  await easings.hold(false);
+  await page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()));
 
+  await easings.hold(true);
   await aces.locator("summary").click();
-  expect(await aces.evaluate((details) => details.hasAttribute("open"))).toBe(true);
-  const [[closeFrom, closeTo]] = await readTeamEasing(aces);
+  const [[closeFrom, closeTo]] = await easings.read();
   expect(closeFrom).toBeCloseTo(openTo, 1);
   expect(closeTo).toBeCloseTo(closedHeight, 1);
+  await expect(aces).toHaveAttribute("open", "");
+  await expect(aces).toHaveClass(/closing/);
+
+  await page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()));
   await expect(aces).not.toHaveAttribute("open");
   await expect(aces).not.toHaveClass(/closing/);
 });
 
+test("a team tapped while it eases turns back from the height it's at", async ({ page }) => {
+  const easings = await recordTeamEasings(page);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"]');
+  const closedHeight = await readHeight(aces);
+
+  await easings.hold(true);
+  await aces.locator("summary").click();
+  const halfwayHeight = await readHeight(aces);
+  expect(halfwayHeight).toBeGreaterThan(closedHeight + 10);
+
+  await easings.hold(false);
+  await aces.locator("summary").click();
+  const [, [from, to]] = await easings.read();
+  expect(from).toBeCloseTo(halfwayHeight, 1);
+  expect(to).toBeCloseTo(closedHeight, 1);
+  await expect(aces).not.toHaveAttribute("open");
+});
+
+test("a team redrawn while it eases closed stays closed", async ({ page }) => {
+  const easings = await recordTeamEasings(page);
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Teams" }).click();
+  const aces = page.locator('#teamsWrap [data-team="LVA"]');
+  await aces.locator("summary").click();
+  await page.waitForFunction(() => document.getAnimations().length === 0);
+
+  await easings.hold(true);
+  await aces.locator("summary").click();
+  await app.changeSeason((season) => {
+    season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
+    return season;
+  });
+
+  await expect(aces.locator(".team-season")).toContainText(/Last 10\s*9-1/);
+  await expect(aces).not.toHaveAttribute("open");
+});
+
 test("with reduced motion, a team opens at once", async ({ page }) => {
+  const easings = await recordTeamEasings(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page);
   await page.getByRole("tab", { name: "Teams" }).click();
@@ -418,7 +488,7 @@ test("with reduced motion, a team opens at once", async ({ page }) => {
 
   await aces.locator("summary").click();
   await expect(aces).toHaveAttribute("open", "");
-  expect(await readTeamEasing(aces)).toEqual([]);
+  expect(await easings.read()).toEqual([]);
 });
 
 test.describe("on a phone", () => {
