@@ -165,7 +165,7 @@ function readBracketSeries(series) {
  * @param {any} response
  * @returns {Record<string, any>[]}
  */
-export function readStatsTable(response) {
+function readStatsTable(response) {
   const table = response?.resultSets?.[0];
   if (!table) return [];
   return table.rowSet.map((row) =>
@@ -211,7 +211,7 @@ function splitName(name) {
  * @param {string} team
  * @param {number} count
  */
-export function listTeamLeaders(players, team, count) {
+function listTeamLeaders(players, team, count) {
   const rows = readStatsTable(players).filter((row) => findTeamCode(row.TEAM_ID) === team);
   const most = Math.max(0, ...rows.map((row) => row.GP));
   return rows
@@ -228,9 +228,12 @@ export function listTeamLeaders(players, team, count) {
     }));
 }
 
-const listTopScorers = (players) =>
+// The Teams tab shows each team's top scorer, and a game's preview its leading three.
+const LEADERS_PER_TEAM = 3;
+
+const listLeaders = (players) =>
   Object.keys(TEAMS).flatMap((team) =>
-    listTeamLeaders(players, team, 1).map((leader) => ({ team, ...leader })),
+    listTeamLeaders(players, team, LEADERS_PER_TEAM).map((leader) => ({ team, ...leader })),
   );
 
 // The schedule and the scoreboard hold the last season's games until the league starts the next.
@@ -407,7 +410,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
     games,
     series,
     standings: readStandingsRows(responses.standings),
-    leaders: listTopScorers(responses.players),
+    leaders: listLeaders(responses.players),
     missing: LEAGUE_FEEDS.filter((name) => !responses[name]),
     standIn: standIns.size ? "espn" : null,
   };

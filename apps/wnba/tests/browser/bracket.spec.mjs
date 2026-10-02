@@ -131,7 +131,7 @@ test("a first-round seed's label sits outside its card, beside its row", async (
   await openApp(page);
   const card = page.locator('[data-series="1-0"]');
   const row = card.locator(".team-line").filter({ hasText: "Liberty" });
-  await expect(row.locator(".seed-label")).toHaveText("Seed 8");
+  await expect(row.locator(".seed-label")).toHaveText("8 seed");
   const label = await row.locator(".seed-label").boundingBox();
   const cardBox = await card.boundingBox();
   const rowBox = await row.boundingBox();

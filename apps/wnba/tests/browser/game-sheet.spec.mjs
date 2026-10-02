@@ -165,10 +165,10 @@ test("a sheet open on a preview switches to the box score once the game starts",
   await expect(sheet.locator(".faceoff .clock")).toHaveText("Q3 4:32");
 });
 
-test("a game the league has no box score for says so, and a preview shows the parts that loaded", async ({
+test("a game the league has no box score for says so, and a preview whose meetings can't load shows the rest", async ({
   page,
 }) => {
-  await openApp(page, { league: { refused: ["players"] } });
+  await openApp(page, { league: { isScheduleRefused: true } });
   const sheet = await openSheet(page, "Game details: Fever at Aces, First Round Game 1");
   await expect(sheet.locator(".sheet-message")).toHaveText(
     "The league hasn't posted a box score for this game yet.",
@@ -176,10 +176,24 @@ test("a game the league has no box score for says so, and a preview shows the pa
   await sheet.getByRole("button", { name: "Done" }).click();
 
   const preview = await openSheet(page, FEVER_AT_ACES);
-  await expect(preview.locator(".meetings li")).toHaveCount(3);
   await expect(preview.locator(".sheet-message")).toHaveText(
-    "Couldn't load the players' averages.",
+    "Couldn't load this season's meetings.",
   );
+  await expect(preview.locator(".tape-label")).toHaveCount(6);
+  await expect(preview.locator(".players tbody tr")).toHaveCount(6);
+});
+
+test("a preview takes the season stats and leading scorers from the store as it changes", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  const sheet = await openSheet(page, FEVER_AT_ACES);
+  await expect(sheet.locator(".players tbody tr")).toHaveCount(6);
+
+  await app.changeSeason((season) => ({ ...season, leaders: [] }));
+
+  await expect(sheet.locator(".sheet-message")).toHaveText("Couldn't load the players' averages.");
+  await expect(sheet.locator(".tape-label")).toHaveCount(6);
 });
 
 test("a sheet the Worker can't load says to try again", async ({ page }) => {
@@ -221,7 +235,7 @@ test("while its box score loads, the sheet holds the box score's shape, then fil
   await expect(body).toHaveAttribute("aria-busy", "false");
 });
 
-test("while its preview loads, the sheet holds the preview's shape, then fills it in", async ({
+test("while its meetings load, the sheet holds their shape, with the season stats and leading scorers already in", async ({
   page,
 }) => {
   await openApp(page);
@@ -234,8 +248,11 @@ test("while its preview loads, the sheet holds the preview's shape, then fills i
     "Leading scorers",
   ]);
   await expect(sheet.locator(".meetings .placeholder")).toHaveCount(9);
+  await expect(sheet.locator(".placeholder")).toHaveCount(9);
   await expect(sheet.locator(".tape-label")).toHaveCount(6);
-  await expect(sheet.locator(".players tbody tr")).toHaveCount(6);
+  await expect(sheet.locator(".players tbody tr").first()).toHaveText(
+    /Kelsey Mitchell\s*24\.7\s*1\.7\s*2\.8/,
+  );
 
   release();
   await expect(sheet.locator(".meetings li")).toHaveCount(3);
