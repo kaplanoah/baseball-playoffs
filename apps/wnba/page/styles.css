@@ -114,6 +114,7 @@
   --pager-thumb-edge: rgba(255, 255, 255, 0.6);
   --pager-label: var(--ink-mid);
   --updates-head: var(--teal);
+  --sheet-part-head: var(--teal);
   --game-row-height: 90px;
   --game-side-offset: 9px;
   --game-label-offset: -32px;
@@ -637,29 +638,6 @@ header.top h1 {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-dim);
-}
-.sheet-part {
-  display: grid;
-  gap: 8px;
-}
-.sheet-part-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-.sheet-part-head h3 {
-  font-family: var(--display);
-  font-size: var(--size-small);
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--teal);
-}
-.sheet-part-head span {
-  font-size: var(--size-glance);
-  text-align: right;
   color: var(--ink-dim);
 }
 .sheet-message {
@@ -1334,104 +1312,18 @@ table.standings tr.playoff-line + tr td {
   border-top: 0;
 }
 
-/* A team's sheet: its dot and full name over its conference, seed, and record, then its season and
-   its playoff games, each under a teal title. A team's name or dot opens it wherever it shows, and
-   in the standings and the bracket so does the rest of its row. The button only clears the
-   browser's own look, so a team's name keeps the type of wherever it sits. */
-:where(.team-open) {
-  display: inline-flex;
-  min-width: 0;
-  max-width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  font: inherit;
-  letter-spacing: inherit;
-  color: inherit;
-  text-align: inherit;
-}
-.team-open {
-  cursor: pointer;
-}
-body.kbd .team-open:focus {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-/* A game's sides sit above the button that covers its row, and let taps through to it but on a
-   team's name, so the name opens the team and the rest of the row the game. */
-.game-row .game-side {
-  z-index: 1;
-  pointer-events: none;
-}
-.game-row .team-open {
-  pointer-events: auto;
-}
-.game-side.away .team-open {
-  align-self: flex-start;
-}
-[data-team] {
-  cursor: pointer;
-}
+/* A team's sheet, as shared/team-sheet.css lays it out, with its title set like every other team's
+   name and its parts under teal titles. A team's name or dot opens it wherever it shows, and in
+   the standings and the bracket so does the rest of its row. */
 @media (hover: hover) {
   table.standings tr[data-team]:hover td,
   .team-line[data-team]:hover {
     background: color-mix(in srgb, var(--ink) 5%, transparent);
   }
-  .team-open:hover {
-    text-decoration: underline;
-  }
 }
-.team-sheet-body {
-  display: grid;
-  gap: 20px;
-  padding-top: 4px;
-}
-@media (max-width: 779px) {
-  .team-sheet-body {
-    padding-top: 2px;
-  }
-}
-/* The title is the team's name, so it's set like every other team's. */
 #teamTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   font-family: var(--team-name);
-  font-size: 1.25rem;
-  font-weight: 600;
   letter-spacing: 0.02em;
-  text-transform: none;
-}
-#teamNote {
-  font-weight: 500;
-  color: var(--ink-mid);
-}
-#teamTitle .dot {
-  width: 14px;
-  height: 14px;
-}
-.team-label {
-  font-family: var(--display);
-  font-size: var(--size-small);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ink-mid);
-}
-/* Shaped like baseball's chips. */
-.status-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 19px;
-  padding: 0 7px;
-  border-radius: 3px;
-  font-family: var(--display);
-  font-size: var(--size-small);
-  font-weight: 600;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  white-space: nowrap;
 }
 .status-chip.alive {
   background: color-mix(in srgb, var(--ink) 15%, transparent);
@@ -1448,48 +1340,6 @@ body.kbd .team-open:focus {
 .status-chip.missed {
   box-shadow: inset 0 0 0 1px var(--divider);
   color: var(--ink-dim);
-}
-.team-season {
-  display: grid;
-  gap: 12px;
-}
-.team-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid var(--divider);
-  border-radius: var(--radius);
-  background: var(--card);
-}
-.team-stat {
-  display: grid;
-  gap: 1px;
-  padding: 7px 10px;
-}
-.team-stat:nth-child(n + 4) {
-  border-top: 1px solid var(--divider);
-}
-.team-stat:not(:nth-child(3n + 1)) {
-  border-left: 1px solid var(--divider);
-}
-.team-stat b {
-  font-family: var(--display);
-  font-size: 1.15rem;
-  font-weight: 600;
-}
-.team-detail {
-  margin: 0;
-  font-size: var(--size-glance);
-  font-weight: 500;
-  line-height: 1.4;
-}
-.team-detail > .team-label {
-  margin-right: 6px;
-}
-.team-detail b {
-  font-weight: 600;
-}
-.team-detail .tabular {
-  white-space: nowrap;
 }
 .team-playoffs {
   display: grid;

@@ -1,6 +1,7 @@
 import { formatShortDate } from "#shared/days.js";
 import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
+import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTapeRow } from "#shared/tape.js";
 import { renderClub } from "./clubs.js";
 import { nameTeam } from "./series.js";
@@ -9,7 +10,6 @@ import {
   measureAgainst,
   readWinShare,
   renderSheetMessage,
-  renderSheetPart,
   renderTapeTeams,
 } from "./sheet-parts.js";
 import { findTeamLeaders, renderLeaderTable } from "./team-view.js";

@@ -1,0 +1,113 @@
+/*
+ * A team's sheet, as team-sheet.js opens it, and the buttons on a team's name or dot that open it.
+ * The sheet is sheet.css's: its title is the team's dot and name over a note of its facts, then
+ * titled parts of its season, with its numbers in a grid and its facts in lines after a label.
+ * Apps link it after sheet.css, before their own styles.css, which sets the title's font and may
+ * refine these rules.
+ *
+ * Beside chrome.css's --card, --divider, --ink, --focus-ring, and --radius, an app's :root
+ * defines this token:
+ *   --ink-mid              text between --ink and --ink-dim, for the note and the labels
+ */
+
+/* The button only clears the browser's own look, so a team's name keeps the type of wherever it
+   sits. */
+:where(.team-open) {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: inherit;
+}
+[data-team] {
+  cursor: pointer;
+}
+body.kbd .team-open:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .team-open:hover {
+    text-decoration: underline;
+  }
+}
+
+.team-sheet-body {
+  display: grid;
+  gap: 20px;
+  padding-top: 4px;
+}
+@media (max-width: 779px) {
+  .team-sheet-body {
+    padding-top: 2px;
+  }
+}
+#teamTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-transform: none;
+}
+#teamTitle .dot {
+  width: 14px;
+  height: 14px;
+}
+#teamNote {
+  font-weight: 500;
+  color: var(--ink-mid);
+}
+.team-label {
+  font-size: var(--size-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-mid);
+}
+.team-season {
+  display: grid;
+  gap: 12px;
+}
+.team-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--divider);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.team-stat {
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+}
+.team-stat:nth-child(n + 4) {
+  border-top: 1px solid var(--divider);
+}
+.team-stat:not(:nth-child(3n + 1)) {
+  border-left: 1px solid var(--divider);
+}
+.team-stat b {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.team-detail {
+  margin: 0;
+  font-size: var(--size-glance);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.team-detail > .team-label {
+  margin-right: 6px;
+}
+.team-detail b {
+  font-weight: 600;
+}
+.team-detail .tabular {
+  white-space: nowrap;
+}

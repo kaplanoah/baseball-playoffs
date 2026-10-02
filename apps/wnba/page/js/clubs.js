@@ -1,4 +1,5 @@
 import { html } from "#shared/html.js";
+import { renderTeamSheetButton } from "#shared/team-sheet.js";
 import { nameTeam } from "./series.js";
 import { TEAMS } from "./teams.js";
 
@@ -21,7 +22,7 @@ const renderClubParts = (code, seed) =>
   html`${renderDot(code)}${renderSeed(seed)}<span class="team-name">${nameTeam(code)}</span>`;
 
 /** @param {string} code */
-const describeTeamButton = (code) => `Team details: ${TEAMS[code].city} ${TEAMS[code].name}`;
+const nameFullTeam = (code) => `${TEAMS[code].city} ${TEAMS[code].name}`;
 
 /**
  * A team's dot, seed, and name, that opens its sheet, or TBD while it isn't known.
@@ -31,7 +32,12 @@ const describeTeamButton = (code) => `Team details: ${TEAMS[code].city} ${TEAMS[
 export function renderClub(code, { seed } = {}) {
   if (!code || !TEAMS[code])
     return html`<span class="club tbd">${renderClubParts(code, seed)}</span>`;
-  return html`<button type="button" class="club team-open" data-team="${code}" aria-label="${describeTeamButton(code)}">${renderClubParts(code, seed)}</button>`;
+  return renderTeamSheetButton({
+    team: code,
+    name: nameFullTeam(code),
+    content: renderClubParts(code, seed),
+    className: "club",
+  });
 }
 
 /**
@@ -47,7 +53,7 @@ export const renderPlainClub = (code) =>
  * @param {import("#shared/html.js").Markup | string} content
  */
 export const renderTeamButton = (code, content) =>
-  html`<button type="button" class="team-open" data-team="${code}" aria-label="${describeTeamButton(code)}">${content}</button>`;
+  renderTeamSheetButton({ team: code, name: nameFullTeam(code), content });
 
 /**
  * A team's name in a line of text, that opens its sheet once the team is known.

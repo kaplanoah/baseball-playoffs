@@ -2,8 +2,8 @@ import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
 import { renderClub } from "./clubs.js";
 
-// The pieces the game sheet's views share: its titled parts, and how its two teams are compared,
-// which side leads a measure and how far each side's bar reaches.
+// The pieces the game sheet's views share: how its two teams are compared, which side leads a
+// measure and how far each side's bar reaches.
 
 /**
  * The side whose number is better, or null for a tie or a missing number.
@@ -43,21 +43,6 @@ export function readWinShare(record) {
  */
 export const renderTapeTeams = (away, home) =>
   html`<div class="tape-teams">${renderClub(away)}${renderClub(home)}</div>`;
-
-/**
- * One titled part of the sheet, with an optional note across from its title.
- * @param {string} title
- * @param {import("#shared/html.js").Markup} body
- * @param {import("#shared/html.js").Markup | string | false} [aside]
- */
-export const renderSheetPart = (title, body, aside = false) =>
-  html`<section class="sheet-part">
-    <div class="sheet-part-head">
-      <h3>${title}</h3>
-      ${aside && html`<span>${aside}</span>`}
-    </div>
-    ${body}
-  </section>`;
 
 /** @param {string} text a line in place of a part's details */
 export const renderSheetMessage = (text) => html`<p class="sheet-message">${text}</p>`;
