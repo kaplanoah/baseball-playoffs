@@ -1547,6 +1547,34 @@ body.kbd .appearance-choice:has(input:focus) .appearance-icon {
   outline: 2px solid var(--focus-ring);
   outline-offset: 6px;
 }
+/* Settings end with the release, the data's credit, and the copyright, under everything else. */
+.settings-footer {
+  display: grid;
+  gap: 2px;
+  margin-top: calc(18px - var(--section-gap));
+  text-align: center;
+}
+.settings-footer .settings-version {
+  font-size: var(--size-small);
+  white-space: normal;
+}
+.settings-footer .sep {
+  font-size: 95%;
+  opacity: 0.9;
+}
+/* On a phone the title stands alone in the header, close over the first setting. */
+@media (max-width: 779px) {
+  .settings-panel {
+    --bottom-padding: max(17px, env(safe-area-inset-bottom));
+  }
+  .settings-panel .sheet-top {
+    min-height: 0;
+    padding-bottom: 7px;
+  }
+  .settings-panel .sheet-head h2 {
+    font-size: 17.9px;
+  }
+}
 
 @media (max-width: 779px) {
   body {
