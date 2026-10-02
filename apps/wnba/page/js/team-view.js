@@ -2,6 +2,7 @@ import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTapeRow } from "#shared/tape.js";
+import { renderTeamDetail } from "#shared/team-sheet.js";
 import { renderDot, renderPlainClub, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { readPlayoffRuns } from "./series.js";
@@ -17,7 +18,7 @@ import { TEAMS } from "./teams.js";
 /** @typedef {{ seed: number | null, round: number, isOut: boolean, isChampion: boolean }} Run */
 /** @typedef {{ team: string, id: number, firstName: string, lastName: string, games: number, points: number, rebounds: number, assists: number }} Leader */
 /** @typedef {{ series?: Series[], standings?: StandingsRow[], games?: Game[], leaders?: Leader[] }} Season */
-/** @typedef {{ record: string | null, pointsFor: number | null, pointsAgainst: number | null, margin: number | null, home: string | null, road: string | null, lastTen: string | null, streak: string | null }} PhaseStats */
+/** @typedef {{ record: string | null, pointsFor: number | null, pointsAgainst: number | null, margin: number | null, home: string | null, road: string | null }} PhaseStats */
 
 /**
  * @param {Game} game
@@ -144,17 +145,10 @@ function formatMargin(margin) {
   return margin > 0 ? `+${shown}` : shown;
 }
 
-/** @param {boolean[]} results each game's, oldest first, true for a win */
+/** @param {boolean[]} results each game's, true for a win */
 function formatRecord(results) {
   const wins = results.filter(Boolean).length;
   return `${wins}-${results.length - wins}`;
-}
-
-/** @param {boolean[]} results each game's, oldest first, true for a win */
-function formatStreak(results) {
-  const last = results.at(-1);
-  const length = results.length - results.findLastIndex((isWin) => isWin !== last) - 1;
-  return `${last ? "W" : "L"} ${length}`;
 }
 
 /** @param {StandingsRow} row */
@@ -165,13 +159,7 @@ const readRegularSeason = (row) => ({
   margin: row.margin ?? null,
   home: row.home ?? null,
   road: row.road ?? null,
-  lastTen: row.lastTen,
-  streak: row.streak,
 });
-
-/** @param {Game[]} games */
-const sortByStart = (games) =>
-  games.toSorted((first, second) => (first.start ?? "").localeCompare(second.start ?? ""));
 
 /**
  * A team's numbers through the playoff games it has finished, or null before its first.
@@ -181,7 +169,7 @@ const sortByStart = (games) =>
  */
 function readPlayoffs(finished, team) {
   if (!finished.length) return null;
-  const games = sortByStart(finished).map((game) => {
+  const games = finished.map((game) => {
     const place = findPlace(game, team) ?? "home";
     const own = game[place].score ?? 0;
     const theirs = game[OTHER_PLACE[place]].score ?? 0;
@@ -200,8 +188,6 @@ function readPlayoffs(finished, team) {
     margin: pointsFor - pointsAgainst,
     home: recordAt("home"),
     road: recordAt("away"),
-    lastTen: formatRecord(results.slice(-10)),
-    streak: formatStreak(results),
   };
 }
 
@@ -243,8 +229,6 @@ function readLeagueRegularSeason(standings) {
     margin: averageAll((row) => row.margin),
     home: addAll((row) => row.home),
     road: addAll((row) => row.road),
-    lastTen: null,
-    streak: null,
   };
 }
 
@@ -270,25 +254,20 @@ function readLeaguePlayoffs(games) {
     margin: 0,
     home: homeRecord,
     road: roadRecord,
-    lastTen: null,
-    streak: null,
   };
 }
 
 /**
- * A row for a streak, which has no bar, since a winning streak and a losing one don't compare by
- * length.
- * @param {(string | null)[]} streaks
- * @returns {import("#shared/tape.js").TapeRow}
+ * A measure the league has no side of, a record, keeps its number without a bar: a bar's
+ * brightness says which side is ahead, and alone the team is neither.
+ * @param {import("#shared/tape.js").TapeRow} row
  */
-function describeStreaks(streaks) {
-  const [away, home] = streaks.map((streak) => (streak ? { value: renderStreak(streak) } : null));
-  return { label: "Streak", away, home, leader: null };
-}
+const dropUnmatchedBar = (row) =>
+  row.home || !row.away ? row : { ...row, away: { ...row.away, bar: null } };
 
 /**
  * The team across from the league, measure by measure, leaving out a measure the team doesn't
- * have. The league has no record, last ten, or streak, so those show for the team alone.
+ * have. The league has no record, so the team's shows alone, without a bar.
  * @param {PhaseStats} team
  * @param {PhaseStats | null} league
  */
@@ -306,10 +285,8 @@ function describeStatRows(team, league) {
     describeNumbers("Margin", pick("margin"), { format: formatMargin }),
     describeRecords("Home", pick("home")),
     describeRecords("Road", pick("road")),
-    describeRecords("Last 10", pick("lastTen")),
-    describeStreaks(pick("streak")),
   ];
-  return rows.filter((row) => row.away);
+  return rows.filter((row) => row.away).map(dropUnmatchedBar);
 }
 
 /**
@@ -327,8 +304,22 @@ const renderAgainstLeague = (code, team, league, leagueName) =>
   </div>`;
 
 /**
- * The team's regular season across from the league's, from the standings, then its leading
- * scorers.
+ * How the team ended the regular season: its last ten games and its streak, as the standings
+ * show them, each on its own line, or nothing while it has neither.
+ * @param {StandingsRow} row
+ */
+function renderRecentForm(row) {
+  const lastTen = row.lastTen && html`<span class="tabular">${row.lastTen}</span>`;
+  const streak = row.streak && html`<span class="tabular">${renderStreak(row.streak)}</span>`;
+  if (!lastTen && !streak) return false;
+  return html`<div class="team-form">
+    ${lastTen && renderTeamDetail("Last 10", lastTen)}${streak && renderTeamDetail("Streak", streak)}
+  </div>`;
+}
+
+/**
+ * The team's regular season across from the league's, from the standings, then its last ten and
+ * its streak, then its leading scorers.
  * @param {string} code
  * @param {StandingsRow[]} standings
  * @param {Leader[]} leaders
@@ -341,7 +332,9 @@ function renderRegularSeason(code, standings, leaders) {
     renderAgainstLeague(code, readRegularSeason(row), readLeagueRegularSeason(standings), "League");
   return renderSheetPart(
     "Regular season",
-    html`<div class="team-season">${numbers}${renderLeadingScorers(leaders)}</div>`,
+    html`<div class="team-season">
+      ${numbers}${row && renderRecentForm(row)}${renderLeadingScorers(leaders)}
+    </div>`,
   );
 }
 
@@ -405,8 +398,9 @@ function renderNextGame(game, team, now) {
 }
 
 /**
- * The team's playoff numbers across from the whole playoff field's, then its games, under its run
- * so far, or only the run for a team that missed them.
+ * The team's playoff games under its run so far, then its numbers across from the whole playoff
+ * field's, or only the run for a team that missed them. The games come first, so the run's chip
+ * heads them rather than the field's side of the numbers.
  * @param {string} team
  * @param {{ finished: Game[], next: Game | null }} games
  * @param {{ label: string, kind: string } | null} chip
@@ -419,11 +413,11 @@ function renderPlayoffs(team, { finished, next }, chip, { isPlaying, field, now 
   return renderSheetPart(
     "Playoffs",
     html`<div class="team-season">
-      ${stats && renderAgainstLeague(team, stats, field, "Playoff field")}
       <div class="team-playoffs">
         ${finished.map((game) => renderFinishedGame(game, team))}
         ${shownNext && renderNextGame(shownNext, team, now)}
       </div>
+      ${stats && renderAgainstLeague(team, stats, field, "Playoff field")}
     </div>`,
     renderChip(chip),
   );

@@ -492,11 +492,11 @@ test("a team's sheet shows its playoffs, then its regular season, each across fr
   inEastern(() => {
     assert.equal(
       readTeam(SEASON, "ATL").body,
-      "Playoffs 1st Rd today Dream Playoff field 1-0 Record 92.0 PPG 87.7 77.0 Opp PPG 87.7 " +
-        "+15.0 Margin 0.0 1-0 Home 5-1 0-0 Road 1-5 1-0 Last 10 W 1 Streak " +
-        "G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
-        "Regular season Dream League 30-14 Record 91.3 PPG 87.1 84.5 Opp PPG 87.1 " +
-        "+6.9 Margin 0.0 15-7 Home 178-152 15-7 Road 152-178 9-1 Last 10 W 5 Streak " +
+      "Playoffs 1st Rd today G1 W vs Mystics 1st Rd 92-77 G2 &rsaquo; at Mystics 1st Rd Today 7:00 PM " +
+        "Dream Playoff field 1-0 Record 92.0 PPG 87.7 77.0 Opp PPG 87.7 +15.0 Margin 0.0 " +
+        "1-0 Home 5-1 0-0 Road 1-5 " +
+        "Regular season Dream League 30-14 Record 91.3 PPG 87.1 84.5 Opp PPG 87.1 +6.9 Margin 0.0 " +
+        "15-7 Home 178-152 15-7 Road 152-178 Last 10 9-1 Streak W 5 " +
         "Leading scorers Pts Reb Ast Allisha Gray 19.0 3.5 2.6 Rhyne Howard 17.7 3.8 3.7 " +
         "Angel Reese 16.4 12.1 2.8 Titles None yet",
     );
@@ -506,7 +506,7 @@ test("a team's sheet shows its playoffs, then its regular season, each across fr
     );
     assert.match(
       readTeam(SEASON, "MIN").body,
-      /^Playoffs Out 1st Rd Lynx Playoff field 0-2 Record .* G1 L vs Liberty 1st Rd 75-91 G2 L at Liberty 1st Rd 71-87 Regular season /,
+      /^Playoffs Out 1st Rd G1 L vs Liberty 1st Rd 75-91 G2 L at Liberty 1st Rd 71-87 Lynx Playoff field 0-2 Record .* Regular season /,
     );
     assert.match(readTeam(SEASON, "SEA").body, /^Regular season .* Playoffs Missed Titles /);
   }));
@@ -564,15 +564,15 @@ const ATLANTA_GAMES = ATLANTA_RESULTS.map((isWin, index) =>
 const ATLANTA_SEASON = {
   ...SEASON,
   games: [
-    ...ATLANTA_GAMES.toReversed(),
+    ...ATLANTA_GAMES,
     makeAtlantaGame({ number: 13, day: 13, place: "home", own: 60, theirs: 2, state: "live" }),
   ],
 };
 
-test("a team's playoff numbers count its finished playoff games: its averages, its records at home, on the road, and over its last ten, and its streak", () => {
+test("a team's playoff numbers count its finished playoff games: its record, its averages, and its records at home and on the road", () => {
   assert.match(
     readTeam(ATLANTA_SEASON, "ATL").body,
-    /^Playoffs 1st Rd live Dream Playoff field 8-4 Record 86\.7 PPG .* 83\.3 Opp PPG .* \+3\.3 Margin .* 3-3 Home .* 5-1 Road .* 6-4 Last 10 L 2 Streak G12 /,
+    / Dream Playoff field 8-4 Record 86\.7 PPG .* 83\.3 Opp PPG .* \+3\.3 Margin .* 3-3 Home .* 5-1 Road .* Regular season /,
   );
 });
 
@@ -596,20 +596,31 @@ test("on each measure, the side ahead has the lead bar, and fewer points allowed
   assert.equal(findLead(ATLANTA_SEASON, "ATL", "PPG"), "away");
   assert.equal(findLead(ATLANTA_SEASON, "ATL", "Opp PPG"), "away");
   assert.equal(findLead(ATLANTA_SEASON, "ATL", "Road"), "away");
-  assert.equal(findLead(ATLANTA_SEASON, "ATL", "Last 10"), undefined);
   assert.equal(findLead(SEASON, "SEA", "PPG"), "home");
   assert.equal(findLead(SEASON, "SEA", "Opp PPG"), "home");
   assert.equal(findLead(SEASON, "SEA", "Home"), "home");
 });
 
-test("a streak has no bar, and a winning one is marked", () => {
+test("a record shows without a bar, since the league has none to measure it against", () => {
   const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
-  const streaks = [...body.text.matchAll(/<span class="streak-won">(.*?)<\/span>/g)];
+  const records = body.text
+    .split('<div class="tape-row">')
+    .filter((row) => row.includes(">Record</span>"));
   assert.deepEqual(
-    streaks.map(([, streak]) => streak),
-    ["W 1", "W 5"],
+    records.map((row) => row.match(/\d+-\d+/)?.[0]),
+    ["1-0", "30-14"],
   );
-  assert.doesNotMatch(findTapeRow("Streak", body.text), /tape-bar/);
+  for (const record of records) assert.doesNotMatch(record, /tape-bar/);
+});
+
+test("Last 10 and Streak show only for the regular season, under its numbers, with a winning streak marked", () => {
+  const { body } = renderTeamSheet(SEASON, "ATL", { year: 2026, now: NOW });
+  assert.deepEqual(
+    [...body.text.matchAll(/<span class="streak-won">(.*?)<\/span>/g)].map(([, streak]) => streak),
+    ["W 5"],
+  );
+  assert.doesNotMatch(body.text, /tape-label">(Last 10|Streak)</);
+  assert.match(readTeam(SEASON, "ATL").body, / 152-178 Last 10 9-1 Streak W 5 Leading scorers /);
   assert.doesNotMatch(
     renderTeamSheet(SEASON, "SEA", { year: 2026, now: NOW }).body.text,
     /streak-won/,
@@ -626,7 +637,7 @@ test("a team's next game is in the round it's playing, not one left over from a 
   inEastern(() => {
     assert.match(
       readTeam(SEASON, "NYL").body,
-      /^Playoffs Semis .* G1 &rsaquo; at TBD Semis Sun, Oct 4 Regular season /,
+      /^Playoffs Semis .* G1 &rsaquo; at TBD Semis Sun, Oct 4 Liberty Playoff field /,
     );
   }));
 
@@ -665,7 +676,7 @@ test("before the playoffs, a team has no seed or playoff run, and its season sho
   assert.equal(minnesota.note, "West | 33-11");
   assert.equal(
     minnesota.body,
-    "Regular season Lynx League 33-11 Record 6-4 Last 10 Titles 4 | 2011, 2013, 2015, 2017",
+    "Regular season Lynx League 33-11 Record Last 10 6-4 Titles 4 | 2011, 2013, 2015, 2017",
   );
 });
 

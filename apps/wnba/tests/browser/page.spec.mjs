@@ -785,7 +785,7 @@ test.describe("a team's sheet", () => {
       season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
       return season;
     });
-    await expect(sheet).toContainText(/9-1\s*Last 10/);
+    await expect(sheet.locator(".team-form")).toContainText(/Last 10\s*9-1/);
 
     await sheet.getByRole("button", { name: "Done" }).click();
     await expect(sheet).toBeHidden();

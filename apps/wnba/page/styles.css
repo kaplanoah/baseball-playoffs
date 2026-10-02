@@ -1508,8 +1508,7 @@ table.standings tr.playoff-line + tr td {
   font-weight: 600;
 }
 /* Each part's numbers face off like a game preview's: the team on the left in its color for the
-   theme, which js/sheet-colors.js hands it, across from the league's in gray, with a winning
-   streak marked like a win. */
+   theme, which js/sheet-colors.js hands it, across from the league's in gray. */
 .team-tape {
   --team: var(--team-light, var(--ink-dim));
   display: grid;
@@ -1527,8 +1526,9 @@ table.standings tr.playoff-line + tr td {
 .team-tape .tape-side.home {
   --side: var(--ink-dim);
 }
-.team-tape .streak-won {
-  color: var(--teal);
+.team-form {
+  display: grid;
+  gap: 4px;
 }
 .team-titles {
   margin: 0;
