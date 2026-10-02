@@ -1,6 +1,6 @@
-// The sheet a team opens from the standings or the bracket: its conference, seed, and record, its
+// The sheet a team's name or dot opens wherever it shows: its conference, seed, and record, its
 // season, and how far it got. Phones show it as a sheet from the bottom, wider screens as a modal,
-// like a game's sheet.
+// like a game's sheet, over a game's sheet it opens from, and in place of another team's.
 
 import { setHtml } from "#shared/html.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
@@ -53,6 +53,5 @@ export function startTeamSheet() {
   dialog.addEventListener("close", () => {
     shownTeam = null;
   });
-  findElement("view-standings").addEventListener("click", openFromTap);
-  findElement("bracketWrap").addEventListener("click", openFromTap);
+  document.addEventListener("click", openFromTap);
 }

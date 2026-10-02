@@ -6,7 +6,7 @@ import { readEasternDay } from "#shared/days.js";
 import { isTouchDevice } from "#shared/device.js";
 import { html } from "#shared/html.js";
 import { showUpdates } from "#shared/updates.js";
-import { nameTeam } from "./series.js";
+import { renderTeamName } from "./clubs.js";
 import { session } from "./session.js";
 import { ROUNDS } from "./snapshot.js";
 
@@ -103,7 +103,7 @@ function describeWin(game, games) {
   const wins = countSeriesWins(games, game);
   const own = wins[winner.team ?? ""] ?? 0;
   const theirs = wins[loser.team ?? ""] ?? 0;
-  const result = html`<b>${nameTeam(winner.team)}</b> beat the <b>${nameTeam(loser.team)}</b> ${winner.score}-${loser.score}`;
+  const result = html`<b>${renderTeamName(winner.team)}</b> beat the <b>${renderTeamName(loser.team)}</b> ${winner.score}-${loser.score}`;
   const score = html`<span class="series-score">${own}&ndash;${theirs}</span>`;
   if (own === Math.ceil(round.bestOf / 2)) return html`${result} to win the ${round.name} ${score}`;
   return html`${result} in Game&nbsp;${game.number}&nbsp;&mdash; ${describeStanding(own, theirs)} the ${round.name} ${score}`;

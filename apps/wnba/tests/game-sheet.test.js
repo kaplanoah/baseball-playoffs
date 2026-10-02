@@ -80,6 +80,22 @@ test("every game with both teams known opens its sheet, named for the game", () 
   assert.ok(SEASON.games.some((game) => !game.home.team));
 });
 
+/** @param {{ text: string }} markup */
+const listTeamButtons = (markup) =>
+  [...markup.text.matchAll(/<button type="button" class="club team-open" data-team="(\w+)"/g)].map(
+    ([, team]) => team,
+  );
+
+test("each team in a box score opens its sheet: its line score row, its team stats, and its scorers", () => {
+  const box = readBoxScore("1042600122");
+  const teams = [box.away.team, box.home.team];
+  assert.deepEqual(listTeamButtons(renderBoxScore(box)), [...teams, ...teams, ...teams]);
+  assert.deepEqual(
+    listTeamButtons(renderPendingBoxScore({ away: box.away.team, home: box.home.team })),
+    [...teams, ...teams, ...teams],
+  );
+});
+
 test("a final's line score gives every quarter, and dims the loser's total", () => {
   const [lineScore] = listRows(renderBoxScore(readBoxScore("1042600122")), "line-score");
   assert.deepEqual(lineScore, ["1 2 3 4 T", "Aces 26 17 17 29 89", "Fever 18 30 24 27 99"]);
@@ -157,6 +173,14 @@ const renderFeverAtAces = (parts = {}) =>
     isLoading: false,
     ...parts,
   });
+
+test("each team in a preview opens its sheet: each meeting's winner, the season stats, and the leading scorers", () =>
+  checkInTimeZone(EASTERN, () => {
+    const buttons = listTeamButtons(renderFeverAtAces());
+    assert.deepEqual(buttons.slice(-4), ["IND", "LVA", "IND", "LVA"]);
+    assert.deepEqual([...new Set(buttons)].sort(), ["IND", "LVA"]);
+    assert.equal(buttons.length, 7);
+  }));
 
 test("a preview lists the regular season's meetings, each by its winner, with the season series", () =>
   checkInTimeZone(EASTERN, () => {

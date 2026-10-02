@@ -475,6 +475,37 @@ test("before the playoffs, a team has no seed or playoff run, and its season sho
   assert.equal(minnesota.body, "Season Last 10 6-4 Titles 4 | 2011, 2013, 2015, 2017");
 });
 
+/** @param {{ text: string }} markup */
+const listTeamButtons = (markup) =>
+  [...markup.text.matchAll(/<button type="button" class="[^"]*team-open" data-team="(\w+)"/g)].map(
+    ([, team]) => team,
+  );
+
+test("each team in the Games lists opens its sheet, and a team still TBD opens nothing", () => {
+  const lists = renderGames(SEASON, NOW);
+  const markup = {
+    text: Object.values(lists)
+      .map((list) => list.text)
+      .join(""),
+  };
+  const sides = SEASON.games
+    .filter((game) => game.away.team || game.home.team)
+    .flatMap((game) => [game.away.team, game.home.team]);
+  assert.deepEqual(listTeamButtons(markup).sort(), sides.filter(Boolean).sort());
+  assert.match(markup.text, /<span class="club tbd">/);
+  assert.match(
+    lists.previous.text,
+    /<button type="button" class="club team-open" data-team="LVA" aria-label="Team details: Las Vegas Aces">/,
+  );
+});
+
+test("a team's sheet names each opponent with a button to its own sheet", () => {
+  const { body } = renderTeamSheet(SEASON, "IND", { year: 2026, now: NOW });
+  const matchups = [...body.text.matchAll(/<span class="team-matchup">([\s\S]*?)<\/span>\n/g)];
+  assert.ok(matchups.length > 0);
+  for (const [matchup] of matchups) assert.deepEqual(listTeamButtons({ text: matchup }), ["LVA"]);
+});
+
 test("each standings row and each team in the bracket opens its team's sheet", () => {
   const rows = renderStandings(SEASON)
     .text.split("<tr")
@@ -485,7 +516,10 @@ test("each standings row and each team in the bracket opens its team's sheet", (
     SEASON.standings.map((row) => row.team),
   );
   for (const row of rows)
-    assert.match(row, /<button type="button" class="team-open" aria-label="Team details: /);
+    assert.match(
+      row,
+      /<button type="button" class="team-open" data-team="\w+" aria-label="Team details: /,
+    );
   assert.match(rows[0], /aria-label="Team details: Minnesota Lynx"/);
   const bracket = renderBracket(SEASON, NOW).text;
   assert.match(
