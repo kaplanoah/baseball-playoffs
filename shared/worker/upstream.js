@@ -1,4 +1,4 @@
-import { runWithTimeout } from "./timeout.js";
+import { abortAfter } from "./timeout.js";
 
 // Reading a league's own feeds, which every app's Worker does the same way.
 
@@ -13,7 +13,7 @@ export const UPSTREAM_TIMEOUT_MS = 8000;
  * @returns {Promise<Response>}
  */
 export const fetchUpstream = (fetchImpl, url, { headers, cacheSeconds }) =>
-  runWithTimeout(UPSTREAM_TIMEOUT_MS, async (signal) => {
+  abortAfter(UPSTREAM_TIMEOUT_MS, async (signal) => {
     const response = await fetchImpl(url, {
       headers,
       signal,

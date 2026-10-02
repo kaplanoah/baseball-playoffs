@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { runWithTimeout } from "../shared/worker/timeout.js";
+import { abortAfter } from "../shared/worker/timeout.js";
 
 const TIMEOUT_MS = 8000;
 
@@ -13,7 +13,7 @@ const waitForAbort = (signal) =>
 test("a call that doesn't answer in time is aborted as a timeout", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   let isSettled = false;
-  const result = runWithTimeout(TIMEOUT_MS, waitForAbort).finally(() => {
+  const result = abortAfter(TIMEOUT_MS, waitForAbort).finally(() => {
     isSettled = true;
   });
 
@@ -28,12 +28,12 @@ test("a call that doesn't answer in time is aborted as a timeout", async (contex
 test("a call that answers, or fails, stops its timer, so nothing is left waiting on it", async (context) => {
   context.mock.timers.enable({ apis: ["setTimeout"] });
   const signals = [];
-  const answer = await runWithTimeout(TIMEOUT_MS, async (signal) => {
+  const answer = await abortAfter(TIMEOUT_MS, async (signal) => {
     signals.push(signal);
     return "answer";
   });
   await assert.rejects(
-    runWithTimeout(TIMEOUT_MS, async (signal) => {
+    abortAfter(TIMEOUT_MS, async (signal) => {
       signals.push(signal);
       throw new Error("refused");
     }),
