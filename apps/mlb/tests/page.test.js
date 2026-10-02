@@ -924,7 +924,7 @@ test("games list: only today's postseason games carry a series label", () => {
   assert.deepEqual(readSeriesLabels(wildCards, slate, "next"), []);
 });
 
-test("games list: a game still to play names its starters, with their arm and ERA", () => {
+test("games list: a game still to play names its starters with their arm, leaving the ERA to the matchup", () => {
   const slate = {
     today: {
       date: "2026-09-29",
@@ -951,7 +951,7 @@ test("games list: a game still to play names its starters, with their arm and ER
   };
   assert.deepEqual(describeGameList(slate, "today"), [
     "Tue, Sep 29",
-    "Red Sox 8:08 PM Yankees Tolle L 3.03 ERA Schlittler R 1.95 ERA",
+    "Red Sox 8:08 PM Yankees Tolle L Schlittler R",
     "Cubs 10:08 PM Padres King R",
   ]);
   const rendered = String(renderGameList(slate, "today"));

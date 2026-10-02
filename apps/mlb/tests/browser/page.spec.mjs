@@ -477,12 +477,14 @@ test("a postseason game today names its round and the series, away wins first, o
   expect(Math.abs(time.x + time.width / 2 - (row.x + row.width / 2))).toBeLessThan(1);
 });
 
-test("with starters named, each sits under its club, its arm and ERA on its name's baseline", async ({
+test("with starters named, each sits under its club with his arm, clear of the row's edges", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();
   const row = page.locator("#games-today .game-row:has(.starter:not(.pending))");
+  const box = await row.boundingBox();
   const clubs = await row.locator(".game-side.away").boundingBox();
   const time = await row.locator(".game-time").boundingBox();
   const facts = await row.locator(".game-side.away .game-facts").boundingBox();
@@ -490,27 +492,42 @@ test("with starters named, each sits under its club, its arm and ERA on its name
 
   const home = await row.locator(".game-side.home").boundingBox();
 
-  await expect(row.locator(".starter")).toHaveText(["BlubaughR3.66 ERA", "SpringsL4.02 ERA"]);
-  const readBaselines = () =>
-    row.locator(".starter.away").evaluate((starter) =>
-      [".starter-name", ".starter-era b", ".starter-era-label"].map((selector) => {
-        const marker = document.createElement("span");
-        marker.style.cssText = "display: inline-block; vertical-align: baseline";
-        starter.querySelector(selector).append(marker);
-        const { top } = marker.getBoundingClientRect();
-        marker.remove();
-        return top;
-      }),
-    );
-  const [nameBaseline, eraBaseline, labelBaseline] = await readBaselines();
-  expect(labelBaseline).toBeCloseTo(eraBaseline, 2);
-  expect(nameBaseline - eraBaseline).toBeCloseTo(0.25, 2);
+  await expect(row.locator(".starter")).toHaveText(["BlubaughR", "SpringsL"]);
   expect(clubs.x).toBeLessThan(time.x);
   expect(time.x + time.width).toBeLessThan(home.x);
-  expect(starter.y - (facts.y + facts.height)).toBeCloseTo(3.25, 1);
+  expect(starter.y - (facts.y + facts.height)).toBeCloseTo(4, 1);
+  expect(clubs.y - box.y).toBeGreaterThan(8);
+  expect(box.y + box.height - (starter.y + starter.height)).toBeGreaterThan(8);
 });
 
-test("on a phone, a long starter's name keeps his arm and ERA on its line", async ({ page }) => {
+test("on the narrowest phone, a club's race letter stays on its record's line, clear of the score", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator("#games-today .game-row:has(.game-side.home .race)").first();
+  const facts = row.locator(".game-side.home .game-facts");
+  await facts.locator(".tabular").evaluate((record) => (record.textContent = "103-59"));
+  const tops = await facts.evaluate((element) =>
+    [...element.children].map((child) => Math.round(child.getBoundingClientRect().top)),
+  );
+  expect(new Set(tops).size).toBe(1);
+  const middle = await row.locator(".game-headline").boundingBox();
+  expect((await facts.boundingBox()).x).toBeGreaterThan(middle.x + middle.width);
+});
+
+test("a clinched club's race letter is gold at the facts' own weight", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const race = page.locator("#games-today .race.clinched").first();
+  await expect(race).toHaveCSS("color", await readColor(page, "--gold"));
+  await expect(race).toHaveCSS("font-weight", "400");
+});
+
+test("on a phone, a long starter's name keeps his arm on its line", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openApp(page, { snapshots: { 2026: buildSnapshotWithStarters() } });
   await page.getByRole("tab", { name: "Games" }).click();

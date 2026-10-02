@@ -355,14 +355,23 @@ test("changing the appearance says how to match the home-screen icon", async ({ 
   await expect(note).toHaveText(/Apple sets a home-screen icon only when the page is added/);
 });
 
-test("settings credit NBA.com for the data", async ({ page }) => {
+test("settings end with the release, NBA.com's credit for the data, and the copyright", async ({
+  page,
+}) => {
+  await serveReleases(page);
   await openApp(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(page.locator("#settingsDialog")).toContainText("Data from NBA.com");
+  const footer = page.locator("#settingsDialog .settings-body > :last-child");
+  await expect(footer.locator(".settings-version")).toHaveText([
+    /^v\d/,
+    "Includes data from NBA.com",
+    "\u00a9 2026 Noah Kaplan",
+  ]);
+  await expect(page.locator("#settingsDialog .sheet-top")).not.toContainText("NBA.com");
 });
 
 /**
- * Opens settings with the release named under the title, and waits for the sheet to settle.
+ * Opens settings with the release named at their foot, and waits for the sheet to settle.
  * @param {import("@playwright/test").Page} page
  */
 async function openSettingsWithRelease(page) {
@@ -384,6 +393,9 @@ const readSettingsBoxes = (page) =>
       head: readBox(".sheet-head"),
       grabber: readBox(".sheet-grabber"),
       title: readBox("h2"),
+      done: readBox(".sheet-done"),
+      controls: readBox(".settings-controls"),
+      footer: readBox(".settings-footer"),
     };
   });
 
@@ -398,14 +410,16 @@ test.describe("on a phone, settings", () => {
     expect(sheet.height).toBeLessThan(844 * 0.6);
   });
 
-  test("set their title 12px under the grabber, with the release and NBA.com inside the header", async ({
+  test("set their title 12px under the grabber and 21px over the first setting, and end 17px over the bottom", async ({
     page,
   }) => {
     await openSettingsWithRelease(page);
-    const { top, head, grabber, title } = await readSettingsBoxes(page);
+    const { sheet, top, head, grabber, title, controls, footer } = await readSettingsBoxes(page);
     expect(grabber.height).toBe(5);
     expect(title.top - grabber.bottom).toBe(12);
     expect(head.bottom).toBeLessThanOrEqual(top.bottom);
+    expect(Math.round(controls.top - title.bottom)).toBe(21);
+    expect(Math.round(sheet.bottom - footer.bottom)).toBe(17);
   });
 });
 
@@ -420,12 +434,11 @@ test.describe("on a wide screen, settings", () => {
     expect(Math.abs(sheet.top + sheet.height / 2 - 450)).toBeLessThan(1);
   });
 
-  test("leave 10px above their title, with the release and NBA.com inside the header", async ({
-    page,
-  }) => {
+  test("set their title level with Done, inside the header", async ({ page }) => {
     await openSettingsWithRelease(page);
-    const { top, head, title } = await readSettingsBoxes(page);
-    expect(title.top - top.top).toBe(10);
+    const { top, head, title, done } = await readSettingsBoxes(page);
+    const findMiddle = (box) => box.top + box.height / 2;
+    expect(Math.abs(findMiddle(title) - findMiddle(done))).toBeLessThan(1);
     expect(head.bottom).toBeLessThanOrEqual(top.bottom);
   });
 });
