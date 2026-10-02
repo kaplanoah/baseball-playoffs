@@ -29,6 +29,40 @@ const findPlace = (game, team) =>
 export const findTeamLeaders = (season, team) =>
   (season?.leaders ?? []).filter((leader) => leader.team === team);
 
+/** @param {number} value */
+const formatAverage = (value) => value.toFixed(1);
+
+/**
+ * A table of players' averages a game, under a heading over their names.
+ * @param {import("#shared/html.js").Markup | string} heading
+ * @param {Leader[]} leaders
+ */
+export const renderLeaderTable = (heading, leaders) =>
+  html`<table class="players tabular">
+    <thead>
+      <tr>
+        <th scope="col">${heading}</th>
+        <th scope="col" title="Points per game">Pts</th>
+        <th scope="col" title="Rebounds per game">Reb</th>
+        <th scope="col" title="Assists per game">Ast</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${leaders.map(
+        (leader) => html`<tr>
+          <th scope="row"><span class="first-name">${leader.firstName}</span> ${leader.lastName}</th>
+          <td>${formatAverage(leader.points)}</td>
+          <td>${formatAverage(leader.rebounds)}</td>
+          <td>${formatAverage(leader.assists)}</td>
+        </tr>`,
+      )}
+    </tbody>
+  </table>`;
+
+/** @param {Leader[]} leaders */
+const renderLeadingScorers = (leaders) =>
+  leaders.length > 0 && renderLeaderTable("Leading scorers", leaders);
+
 const OTHER_PLACE = { home: "away", away: "home" };
 
 /**
@@ -122,27 +156,6 @@ function renderStats(row) {
     )}
   </div>`;
 }
-
-/**
- * @param {number} value
- * @param {string} label
- */
-const renderAverage = (value, label) =>
-  html`<span class="tabular">${value.toFixed(1)} <span class="team-label">${label}</span></span>`;
-
-// The name and the averages each keep to one line, and the averages move under the name together
-// when both don't fit.
-/** @param {Leader | undefined} leader */
-const renderLeadingScorer = (leader) =>
-  leader &&
-  html`<p class="team-detail team-scorer">
-    <span class="team-label">Leading scorer</span><b>${leader.firstName} ${leader.lastName}</b
-    ><span class="team-averages">${joinWithSeparator([
-      renderAverage(leader.points, "Pts"),
-      renderAverage(leader.rebounds, "Reb"),
-      renderAverage(leader.assists, "Ast"),
-    ])}</span>
-  </p>`;
 
 /**
  * @param {string} code
@@ -258,7 +271,7 @@ export function renderTeamSheet(season, code, { year, now }) {
     body: html`${renderSheetPart(
       "Season",
       html`<div class="team-season">
-        ${renderStats(row)}${renderLeadingScorer(findTeamLeaders(season, code)[0])}${renderTitles(code, titles)}
+        ${renderStats(row)}${renderLeadingScorers(findTeamLeaders(season, code))}${renderTitles(code, titles)}
       </div>`,
     )}
     ${renderPlayoffs(code, games, chip, { isPlaying, now })}`,

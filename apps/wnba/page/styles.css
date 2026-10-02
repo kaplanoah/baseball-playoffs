@@ -1442,19 +1442,6 @@ body.kbd .team-open:focus {
 .team-detail .tabular {
   white-space: nowrap;
 }
-.team-scorer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: 8px;
-}
-.team-scorer > .team-label {
-  margin-right: 0;
-}
-.team-scorer b,
-.team-averages {
-  white-space: nowrap;
-}
 .team-playoffs {
   display: grid;
   gap: 4px;

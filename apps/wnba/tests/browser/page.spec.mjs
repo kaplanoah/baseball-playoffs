@@ -62,7 +62,7 @@ test("no text is heavier than 600 but the calendar's day numbers", async ({ page
   await expect(page.locator("#standings-league tr").nth(2)).toBeVisible();
   expect(await listHeavyText(page)).toEqual([]);
   await page.getByRole("button", { name: "Team details: Minnesota Lynx" }).first().click();
-  await expect(page.locator("#teamDialog .team-scorer")).toBeVisible();
+  await expect(page.locator("#teamDialog table.players")).toBeVisible();
   expect(await listHeavyText(page)).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(page.locator("#teamDialog")).toBeHidden();
@@ -659,7 +659,7 @@ test.describe("on a phone, a team's sheet", () => {
     await page.getByRole("tab", { name: "Standings" }).click();
     await page.locator('#standings-league tr[data-team="ATL"] td.season').first().click();
     const sheet = page.locator("#teamDialog");
-    await expect(sheet.locator(".team-scorer")).toBeVisible();
+    await expect(sheet.locator("table.players")).toBeVisible();
 
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-weight", "600");
     await expect(sheet.locator("#teamTitle")).toHaveCSS("font-size", "16px");
@@ -701,7 +701,7 @@ test.describe("a team's sheet", () => {
 
     await expect(sheet.locator("#teamTitle")).toHaveText("Las Vegas Aces");
     await expect(sheet.locator("#teamNote")).toHaveText("West\u20223 seed\u202231-13");
-    await expect(sheet).toContainText("Leading scorer");
+    await expect(sheet).toContainText("Leading scorers");
     await app.changeSeason((season) => {
       season.standings.find((row) => row.team === "LVA").lastTen = "9-1";
       return season;
@@ -751,7 +751,7 @@ test.describe("a team's sheet", () => {
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 360, height: 780 }, contextOptions: { reducedMotion: "reduce" } });
 
-  test("a team's leading scorer keeps their name on one line, and its averages fit their tiles", async ({
+  test("a team's leading scorers keep their names on one line, and its averages fit their tiles", async ({
     page,
   }) => {
     await openApp(page);
@@ -759,9 +759,16 @@ test.describe("on a phone", () => {
     const sheet = page.locator("#teamDialog");
     for (const code of ["LVA", "LAS", "CON"]) {
       await page.locator(`#standings-league tr[data-team="${code}"] td.season`).first().click();
-      const name = sheet.locator(".team-scorer b");
-      await expect(name).toBeVisible();
-      expect(await name.evaluate((element) => element.getClientRects().length), code).toBe(1);
+      const names = sheet.locator("table.players tbody th");
+      await expect(names).toHaveCount(3);
+      const lineCounts = await names.evaluateAll((cells) =>
+        cells.map((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.bottom))).size;
+        }),
+      );
+      expect(lineCounts, code).toEqual([1, 1, 1]);
       const overflowing = await sheet
         .locator(".team-stat")
         .evaluateAll((stats) =>
