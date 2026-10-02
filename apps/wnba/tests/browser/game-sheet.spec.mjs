@@ -631,3 +631,25 @@ test("a team's name in a game's sheet opens its sheet over the game's, and Done 
     await expect(gameSheet).toBeVisible();
   }
 });
+
+test("closing a team's sheet over a game's sheet leaves no focus ring around the game's", async ({
+  page,
+}) => {
+  await openApp(page);
+  await (await findGameButton(page, ACES_AT_FEVER)).click();
+  const gameSheet = page.locator("#gameDialog");
+  await expect(gameSheet.locator(".line-score")).toBeVisible();
+  // On an iPhone a tapped button never takes focus, so the game's sheet keeps it.
+  await gameSheet.evaluate((dialog) => dialog.focus());
+  await gameSheet
+    .locator(".faceoff")
+    .getByRole("button", { name: "Team details: Las Vegas Aces" })
+    .dispatchEvent("click");
+  const teamSheet = page.locator("#teamDialog");
+  await expect(teamSheet.locator("#teamTitle")).toHaveText("Las Vegas Aces");
+
+  await page.keyboard.press("Escape");
+  await expect(teamSheet).toBeHidden();
+  await expect(gameSheet).toBeFocused();
+  await expect(gameSheet).toHaveCSS("outline-style", "none");
+});

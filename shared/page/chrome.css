@@ -133,10 +133,13 @@ nav.tabs button.active {
 }
 
 /* :focus-visible counts a bare Shift press, so focus rings key off body.kbd instead. A scroll area
-   takes focus so the keyboard can scroll it, which Safari doesn't give it. */
+   takes focus so the keyboard can scroll it, which Safari doesn't give it. A sheet takes focus
+   itself when nothing in it has it, as when one over it closes on a phone, where a tapped button
+   never takes focus, and a ring around the whole sheet would show nothing. */
 button:focus,
 select:focus,
-[role="region"]:focus {
+[role="region"]:focus,
+dialog:focus {
   outline: none;
 }
 body.kbd button:focus,
