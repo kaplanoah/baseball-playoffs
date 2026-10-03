@@ -578,7 +578,7 @@ table.st .seed-cell {
 }
 /* A character width from the word, like the number, and a pixel low so it reads level with the text. */
 .seed-lock {
-  width: 0.8em;
+  width: 0.66em;
   height: 0.9em;
   margin-left: 1ch;
   position: relative;

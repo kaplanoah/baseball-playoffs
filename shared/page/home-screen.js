@@ -18,17 +18,23 @@ const CLOSED_KEY = "homeScreenBarClosed";
 const TITLE = "Use this site like an app";
 const BENEFIT = "It opens full screen, without the browser's bars.";
 
-// Phosphor's export, at its Regular weight, the glyph on Safari's Share button.
-const SHARE_ICON = html`<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
-  <path
-    d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z"
-  />
+const SHARE_ICON = html`<svg
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  <path d="M8 9H6a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10a1 1 0 0 0-1-1h-2" />
+  <path d="M12 15V3" />
+  <path d="M8.5 6.5 12 3l3.5 3.5" />
 </svg>`;
-// Phosphor's dots-three-vertical, at its Regular weight, the glyph on Chrome's menu button.
-const MENU_ICON = html`<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
-  <path
-    d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM128,72a12,12,0,1,0-12-12A12,12,0,0,0,128,72Zm0,112a12,12,0,1,0,12,12A12,12,0,0,0,128,184Z"
-  />
+const MENU_ICON = html`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+  <circle cx="12" cy="5" r="2" />
+  <circle cx="12" cy="12" r="2" />
+  <circle cx="12" cy="19" r="2" />
 </svg>`;
 const CLOSE_ICON = html`<svg viewBox="0 0 256 256" fill="currentColor" aria-hidden="true">
   <path

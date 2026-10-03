@@ -50,13 +50,24 @@ function describeIconProblem(svg) {
   return null;
 }
 
-test("every icon on the pages is a Phosphor icon, copied path for path", () => {
-  const problems = PAGE_FOLDERS.flatMap(listPageFiles).flatMap((file) =>
-    [...readFileSync(join(ROOT, file), "utf8").matchAll(/<svg\b[\s\S]*?<\/svg>/g)]
-      .map((match) => match[0])
-      .filter((svg) => !isDrawing(svg))
-      .map((svg) => ({ file, problem: describeIconProblem(svg), start: svg.slice(0, 60) }))
-      .filter(({ problem }) => problem),
+// The Home Screen steps' Share and menu glyphs copy the browser's own buttons, so people find
+// them, and MLB's seed lock is drawn for its small size beside a seed.
+const HAND_DRAWN_ICONS = {
+  "apps/mlb/page/js/games-view.js": 1,
+  "shared/page/home-screen.js": 2,
+};
+
+/** @param {string} file */
+const countHandDrawnIcons = (file) =>
+  [...readFileSync(join(ROOT, file), "utf8").matchAll(/<svg\b[\s\S]*?<\/svg>/g)]
+    .map((match) => match[0])
+    .filter((svg) => !isDrawing(svg) && describeIconProblem(svg)).length;
+
+test("every icon on the pages is a Phosphor icon, copied path for path, but the named few drawn by hand", () => {
+  const counts = Object.fromEntries(
+    PAGE_FOLDERS.flatMap(listPageFiles)
+      .map((file) => /** @type {[string, number]} */ ([file, countHandDrawnIcons(file)]))
+      .filter(([, count]) => count > 0),
   );
-  assert.deepEqual(problems, []);
+  assert.deepEqual(counts, HAND_DRAWN_ICONS);
 });

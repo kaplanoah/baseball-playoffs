@@ -16,9 +16,8 @@ const CLINCH_TITLES = {
   w: "Clinched a wild card spot",
   x: "Clinched a playoff spot",
 };
-// Phosphor's lock-simple, at its Regular weight, trimmed to the drawing, so sized in em its base
-// sits on the text's baseline like a letter.
-const SEED_LOCK = html`<svg class="seed-lock" viewBox="32 8 192 216" fill="currentColor" role="img" aria-label="seed final"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg>`;
+// Trimmed to the drawing, so sized in em its base sits on the text's baseline like a letter.
+const SEED_LOCK = html`<svg class="seed-lock" viewBox="1.5 1.3 9 12.4" role="img" aria-label="seed final"><path d="M3.5 7V4.5a2.5 2.5 0 0 1 5 0V7" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="2.2" y="7.2" width="7.6" height="5.8" rx="1.3" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>`;
 const EMPTY_LIST_TEXT = {
   previous: "No earlier games this season",
   today: "No games today",
