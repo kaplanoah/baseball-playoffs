@@ -1,31 +1,56 @@
+import { readEasternDay } from "#shared/days.js";
 import { session } from "./session.js";
 
 // The Worker keeps each season in the store as it plays out, and pushes every change to the page.
+// It also says which season is current, so the page never goes by its own clock.
 
 const nameSeasonPath = (year) => `seasons/${year}`;
 const STATUS_PATH = "live/status";
+const CURRENT_PATH = "live/current";
 const UNREACHABLE = "Can't reach the page's server right now.";
 
-/** @param {number} year */
-async function readSeason(year) {
-  const snapshot = await session.db.doc(nameSeasonPath(year)).get();
+/** @param {string} path */
+async function readDoc(path) {
+  const snapshot = await session.db.doc(path).get();
   return snapshot.exists ? snapshot.data() : null;
 }
 
-// Before a new season's playoffs, the page shows the last one's.
+// A store that hasn't yet said which season is current has this year's, once it has games, and
+// otherwise last year's.
+async function readUnsaidSeason() {
+  const { year } = readEasternDay(Date.now());
+  const season = await readDoc(nameSeasonPath(year));
+  return season
+    ? { year, season }
+    : { year: year - 1, season: await readDoc(nameSeasonPath(year - 1)) };
+}
+
+async function readCurrentSeason() {
+  const current = await readDoc(CURRENT_PATH);
+  if (!current) return readUnsaidSeason();
+  return { year: current.season, season: await readDoc(nameSeasonPath(current.season)) };
+}
+
 export async function loadSeason() {
-  const thisYear = new Date().getFullYear();
   try {
-    session.season = await readSeason(thisYear);
-    session.year = thisYear;
-    if (!session.season) {
-      session.season = await readSeason(thisYear - 1);
-      if (session.season) session.year = thisYear - 1;
-    }
-    session.problem = "";
+    const { year, season } = await readCurrentSeason();
+    Object.assign(session, { year, season, problem: "" });
   } catch {
     session.problem = UNREACHABLE;
   }
+}
+
+/**
+ * Calls `onTurnover` when the store says a season other than the page's is current.
+ * @param {() => void} onTurnover
+ */
+export function watchCurrentSeason(onTurnover) {
+  session.db.doc(CURRENT_PATH).onSnapshot(
+    (snapshot) => {
+      if (snapshot.exists && snapshot.data().season !== session.year) onTurnover();
+    },
+    () => {},
+  );
 }
 
 /** @type {(() => void) | null} */

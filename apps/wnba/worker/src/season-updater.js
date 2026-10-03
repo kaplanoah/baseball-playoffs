@@ -1,4 +1,5 @@
 import { isSameJson } from "#shared/compare.js";
+import { readEasternDay } from "#shared/days.js";
 import { ROUNDS } from "../../page/js/snapshot.js";
 import { TEAMS } from "../../page/js/teams.js";
 import { capNotifications } from "../../../../shared/worker/notifications.js";
@@ -19,7 +20,7 @@ const hasSeasonStarted = (snapshot) =>
   snapshot.games.length > 0 || snapshot.standings.some((row) => row.wins + row.losses > 0);
 
 export async function loadCurrentSnapshot(loadSnapshot, now) {
-  const year = new Date(now).getUTCFullYear();
+  const { year } = readEasternDay(now);
   const upcoming = await loadSnapshot(year);
   return hasSeasonStarted(upcoming) ? upcoming : loadSnapshot(year - 1);
 }

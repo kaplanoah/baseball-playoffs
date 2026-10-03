@@ -36,6 +36,8 @@ const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_LISTED = 100;
 const STATUS_KEY = "live/status";
+// Which season the league's updates are for, so pages never go by their own clocks.
+const CURRENT_SEASON_KEY = "live/current";
 const BLANK_STATUS = { error: "", detail: "", write: "" };
 const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
 const UNWATCHED_DELAY_MS = 50e3;
@@ -301,6 +303,7 @@ export const createSeasonStore = (league) =>
       try {
         before = await league.readUpdates(this.docs, snapshot.season);
         await league.saveSnapshot(this.docs, snapshot);
+        await this.saveCurrentSeason(snapshot.season);
       } catch (error) {
         return this.recordFailure({ write: describeError(error) });
       }
@@ -332,6 +335,11 @@ export const createSeasonStore = (league) =>
       } catch (error) {
         console.error(`Reading ${key} failed: ${describeError(error)}`);
       }
+    }
+
+    async saveCurrentSeason(season) {
+      const stored = await this.docs.read(CURRENT_SEASON_KEY);
+      if (stored?.season !== season) await this.docs.write(CURRENT_SEASON_KEY, { season });
     }
 
     // A failed notification never holds up the next update.
