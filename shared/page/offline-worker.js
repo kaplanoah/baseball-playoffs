@@ -8,6 +8,7 @@
 const PAGE_CACHE = "page";
 const PAGE_FILE_PATH = /\.(?:js|css|woff2)$/;
 const PAGE_FILE_TAG = /<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g;
+const STYLESHEET_FILE = /url\(\s*["']?([^"')]+)["']?\s*\)/g;
 
 const findPageAddress = () => self.registration.scope;
 
@@ -33,6 +34,32 @@ function listPageFiles(page) {
     ([, address]) => new URL(address, findPageAddress()),
   );
   return [...new Set(addresses.filter(isPageFile).map((url) => url.href))];
+}
+
+/**
+ * Every file of the page's own that a kept stylesheet loads, like a font.
+ * @param {Cache} cache
+ * @param {string[]} files
+ */
+async function listStylesheetFiles(cache, files) {
+  const stylesheets = files.filter((file) => file.endsWith(".css"));
+  const texts = await Promise.all(
+    stylesheets.map(async (stylesheet) => (await cache.match(stylesheet))?.text() ?? ""),
+  );
+  const addresses = texts.flatMap((text, index) =>
+    [...text.matchAll(STYLESHEET_FILE)].map(([, address]) => new URL(address, stylesheets[index])),
+  );
+  return addresses.filter(isPageFile).map((url) => url.href);
+}
+
+/**
+ * Every file the copy of `page` opens with, once its stylesheets are kept.
+ * @param {Cache} cache
+ * @param {string} page
+ */
+async function listCopyFiles(cache, page) {
+  const files = listPageFiles(page);
+  return [...new Set([...files, ...(await listStylesheetFiles(cache, files))])];
 }
 
 /**
@@ -73,8 +100,9 @@ async function forgetOtherFiles(cache, files) {
 /** @param {Response} response */
 async function keepPage(response) {
   const page = await response.text();
-  const files = listPageFiles(page);
   const cache = await caches.open(PAGE_CACHE);
+  await keepMissingFiles(cache, listPageFiles(page));
+  const files = await listCopyFiles(cache, page);
   await keepMissingFiles(cache, files);
   const headers = { "content-type": response.headers.get("content-type") ?? "text/html" };
   await cache.put(findPageAddress(), new Response(page, { headers }));
@@ -124,8 +152,9 @@ async function openPage(event) {
 
 /** @param {string} file */
 async function isNamedByCopy(file) {
-  const kept = await caches.match(findPageAddress(), { cacheName: PAGE_CACHE });
-  return !!kept && listPageFiles(await kept.text()).includes(file);
+  const cache = await caches.open(PAGE_CACHE);
+  const kept = await cache.match(findPageAddress());
+  return !!kept && (await listCopyFiles(cache, await kept.text())).includes(file);
 }
 
 // A file the Worker no longer has belongs to a release it has replaced, so a copy that needs it

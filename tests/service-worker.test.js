@@ -185,6 +185,9 @@ const writePage = (commit) => `<!doctype html>
   <script type="module" src="release/${commit}/js/app.js"></script>
 `;
 const GATE = "<h1>Access code</h1>";
+const STYLESHEET = `@font-face { src: url("fonts/text.woff2") format("woff2"); }
+:root { --select-arrow: url("data:image/svg+xml,%3Csvg%3E%3C/svg%3E"); }
+`;
 
 /**
  * The Worker as the service worker reaches it, on one release at a time, or not at all.
@@ -199,7 +202,7 @@ const serveRelease = (server) => async (url) => {
     return new Response(writePage(server.release), { headers: { "cache-control": "no-cache" } });
   const path = url.slice(SCOPE.length);
   if (path.startsWith(`release/${server.release}/`) && !server.missing?.has(path))
-    return new Response(`file ${path}`);
+    return new Response(path.endsWith(".css") ? STYLESHEET : `file ${path}`);
   return new Response("Not found", { status: 404 });
 };
 
@@ -213,7 +216,12 @@ const readCopy = async (worker) => {
 
 /** @param {string} commit */
 const listReleaseFiles = (commit) =>
-  [SCOPE, `${SCOPE}release/${commit}/js/app.js`, `${SCOPE}release/${commit}/styles.css`].sort();
+  [
+    SCOPE,
+    `${SCOPE}release/${commit}/fonts/text.woff2`,
+    `${SCOPE}release/${commit}/js/app.js`,
+    `${SCOPE}release/${commit}/styles.css`,
+  ].sort();
 
 /** @param {ReturnType<typeof startServiceWorker>} worker */
 const listKept = (worker) => worker.caches.listKept("page").sort();
@@ -358,4 +366,17 @@ test("the next try on a weak connection reads only the files the last one missed
   const reads = (path) => worker.requests.filter(({ url }) => url === `${SCOPE}${path}`).length;
   assert.equal(reads("release/b/styles.css"), 1);
   assert.equal(reads("release/b/js/app.js"), 2);
+});
+
+test("a font the copy's stylesheet needs that the Worker no longer has forgets the copy", async () => {
+  const server = { release: "a" };
+  const worker = startServiceWorker({ answer: serveRelease(server) });
+  await worker.request(SCOPE, NAVIGATION);
+  server.release = "b";
+  await (await worker.caches.open("page")).delete(`${SCOPE}release/a/fonts/text.woff2`);
+
+  const font = await worker.request(`${SCOPE}release/a/fonts/text.woff2`);
+
+  assert.equal(font.status, 404);
+  assert.equal(await readCopy(worker), null);
 });
