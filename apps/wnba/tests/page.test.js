@@ -158,17 +158,25 @@ test("a game a finished series no longer needs is left off, and an empty list sa
     const season = { ...SEASON, games: [...SEASON.games, game3] };
     assert.doesNotMatch(readGameMarkup(season), /1042600103/);
     const onlyResults = { ...SEASON, games: SEASON.games.filter((game) => game.state === "final") };
-    assert.equal(readGameList(onlyResults, "today"), "No games today.");
-    assert.equal(readGameList(onlyResults, "next"), "No more games scheduled.");
+    assert.equal(readGameList(onlyResults, "today"), "No games today");
+    assert.equal(readGameList(onlyResults, "next"), "No more games scheduled");
     assert.match(readGameList(onlyResults, "previous"), /^Sep 29 Yest .* Final 2 Valkyries$/);
-    assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet.");
+    assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet");
     const nothingPlayed = {
       ...SEASON,
       games: SEASON.games.filter((game) => game.state !== "final"),
     };
-    assert.equal(readGameList(nothingPlayed, "previous"), "No results yet.");
+    assert.equal(readGameList(nothingPlayed, "previous"), "No results yet");
     assert.match(readGameList(nothingPlayed, "today"), /^Sep 30 Wed 4 Dream /);
   }));
+
+test("the bracket and standings say in a short note when they have nothing yet", () => {
+  assert.equal(
+    readText(renderBracket(null, NOW)),
+    "The bracket fills in once the playoff field is set",
+  );
+  assert.equal(readText(renderStandings(null)), "No standings yet");
+});
 
 test("each game's label counts its series as it stood at tip-off, or after the game once it's final", () =>
   inEastern(() => {

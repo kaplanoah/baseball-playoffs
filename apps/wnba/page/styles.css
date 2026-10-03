@@ -278,6 +278,10 @@ header.top h1 {
   color: var(--ink-dim);
   font-size: var(--size-read);
 }
+/* Level with where a list's first day starts under its pill. */
+.pager-page .empty-note {
+  margin-top: 0;
+}
 
 .dot {
   flex: none;

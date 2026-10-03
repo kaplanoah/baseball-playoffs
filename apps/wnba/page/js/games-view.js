@@ -242,7 +242,7 @@ const renderEmptyNote = (text) => html`<p class="empty-note">${text}</p>`;
 const renderToday = (today, allGames, now) =>
   today.length
     ? renderDay({ day: new Date(now), games: today }, allGames, now)
-    : renderEmptyNote("No games today.");
+    : renderEmptyNote("No games today");
 
 /**
  * The Games view's three lists: results, newest first, today's games, and the games ahead.
@@ -254,17 +254,15 @@ export function renderGames(season, now) {
   const allGames = season?.games ?? [];
   const shown = allGames.filter((game) => hasATeam(game) && !isCalledOff(game, seriesById));
   if (!shown.length) {
-    const note = renderEmptyNote("No playoff games yet.");
+    const note = renderEmptyNote("No playoff games yet");
     return { previous: note, today: note, next: note };
   }
   const { today, ahead, before } = sortGamesByDay(shown, now);
   return {
-    previous: before.length
-      ? renderDays(before, allGames, now)
-      : renderEmptyNote("No results yet."),
+    previous: before.length ? renderDays(before, allGames, now) : renderEmptyNote("No results yet"),
     today: renderToday(today, allGames, now),
     next: ahead.length
       ? renderDays(ahead, allGames, now)
-      : renderEmptyNote("No more games scheduled."),
+      : renderEmptyNote("No more games scheduled"),
   };
 }

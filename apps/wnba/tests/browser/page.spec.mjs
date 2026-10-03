@@ -584,6 +584,25 @@ test("the Games lists' days, series labels, and statuses are in Barlow, apart fr
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Barlow Condensed");
 });
 
+test("a Games list with nothing in it starts its note where a list's first day starts", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const readGapUnderPill = (selector) =>
+    page.evaluate((target) => {
+      const pill = document.querySelector("#gamePager .pager-tabs").getBoundingClientRect();
+      return document.querySelector(target).getBoundingClientRect().top - pill.bottom;
+    }, selector);
+  const dayGap = await readGapUnderPill("#games-previous .game-day");
+  await app.changeSeason((season) => ({
+    ...season,
+    games: season.games.filter((game) => game.state === "final"),
+  }));
+  await expect(page.locator("#games-today .empty-note")).toHaveText("No games today");
+  expect(await readGapUnderPill("#games-today .empty-note")).toBe(dayGap);
+});
+
 test("a game's series label and If needed read lighter than Final", async ({ page }) => {
   const app = await openApp(page);
   await page.getByRole("tab", { name: "Games" }).click();

@@ -1628,7 +1628,7 @@ test("with no field yet, the bracket says it fills in once MLB projects one", as
   await expect(page.getByRole("button", { name: "Set the field" })).toHaveCount(0);
   await openSettings(page);
   await expect(page.locator("#rankList")).toHaveText(
-    "The ranking fills in once there's a playoff field.",
+    "The ranking fills in once there's a playoff field",
   );
 });
 
