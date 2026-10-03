@@ -1,4 +1,5 @@
 import { test, expect, openApp } from "./harness.mjs";
+import { listAnimations } from "../../../../tests/browser/animations.mjs";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -50,6 +51,61 @@ test.describe("on a phone", () => {
     await app.changeSeason(finishDreamAtMystics);
 
     await expect(updates.locator(".updates-count")).toHaveText("1 update since earlier today");
+    await expect(updates.locator(".what")).toHaveText([
+      "Dream beat the Mystics 88-80 to win the First Round 2\u20130",
+    ]);
+  });
+});
+
+test.describe("on a phone, in full motion", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+    contextOptions: { reducedMotion: "no-preference" },
+  });
+
+  /** @param {{ element: string, first: Keyframe, last: Keyframe }} animation */
+  const isOpening = ({ element, first, last }) =>
+    element === "updates" &&
+    first.height === "0px" &&
+    first.marginBottom === "0px" &&
+    parseFloat(String(last.height)) > 0;
+  /** @param {{ element: string, first: Keyframe, last: Keyframe }} animation */
+  const isClosing = ({ element, first, last }) =>
+    element === "updates" && parseFloat(String(first.height)) > 0 && last.height === "0px";
+
+  test("the Updates box shrinks away when it's dismissed, and grows open for a new final", async ({
+    page,
+  }) => {
+    const readAnimations = await listAnimations(page);
+    const app = await openApp(page, { isShowingUpdates: true });
+    const updates = page.locator("#updates");
+    await expect(updates.locator(".updates-count")).toHaveText("2 updates since yesterday");
+
+    await page.getByRole("button", { name: "Dismiss updates" }).click();
+
+    expect((await readAnimations()).filter(isClosing)).toHaveLength(1);
+    await expect(updates).toBeHidden();
+
+    await app.changeSeason(finishDreamAtMystics);
+
+    await expect(updates.locator(".updates-count")).toHaveText("1 update since earlier today");
+    expect((await readAnimations()).filter(isOpening)).toHaveLength(1);
+  });
+
+  test("an Updates box that fills again as it shrinks away stays open", async ({ page }) => {
+    const app = await openApp(page, { isShowingUpdates: true });
+    const updates = page.locator("#updates");
+    await expect(updates.locator(".updates-count")).toHaveText("2 updates since yesterday");
+    await page.getByRole("button", { name: "Dismiss updates" }).click();
+    await page.evaluate(() => document.getAnimations().forEach((animation) => animation.pause()));
+
+    await app.changeSeason(finishDreamAtMystics);
+    await expect(updates.locator(".updates-count")).toHaveText("1 update since earlier today");
+    await page.evaluate(() => document.getAnimations().forEach((animation) => animation.finish()));
+
+    await expect(updates).toBeVisible();
     await expect(updates.locator(".what")).toHaveText([
       "Dream beat the Mystics 88-80 to win the First Round 2\u20130",
     ]);

@@ -18,12 +18,89 @@ const canEase = () => !document.hidden && !prefersReducedMotion();
 /** @param {Element} element */
 const readHeight = (element) => element.getBoundingClientRect().height;
 
-// Clipping, unlike hiding what overflows, leaves a sticky header inside the part stuck.
+// A part that appears or goes away grows from or shrinks to nothing with its padding, border, and
+// margin, since its height alone can't shrink below them. Clipping, unlike hiding what overflows,
+// leaves a sticky header inside the part stuck.
+const COLLAPSED = {
+  height: "0px",
+  paddingTop: "0px",
+  paddingBottom: "0px",
+  borderTopWidth: "0px",
+  borderBottomWidth: "0px",
+  marginTop: "0px",
+  marginBottom: "0px",
+  opacity: 0,
+  overflow: "clip",
+};
+
+/** @param {Element} element */
+function readOpenFrame(element) {
+  const style = getComputedStyle(element);
+  return {
+    height: style.height,
+    paddingTop: style.paddingTop,
+    paddingBottom: style.paddingBottom,
+    borderTopWidth: style.borderTopWidth,
+    borderBottomWidth: style.borderBottomWidth,
+    marginTop: style.marginTop,
+    marginBottom: style.marginBottom,
+    opacity: style.opacity,
+    overflow: "clip",
+  };
+}
+
+/** @param {Element} element */
+function easeOpen(element) {
+  const opening = element.animate([COLLAPSED, readOpenFrame(element)], {
+    duration: EASE_MS,
+    easing: EASING,
+  });
+  resizes.set(element, opening);
+}
+
+/**
+ * Stops whatever easing a part is under way, leaving it as its markup and styles have it.
+ * @param {Element} element
+ */
+export function stopEasing(element) {
+  resizes.get(element)?.cancel();
+}
+
+/**
+ * Shrinks a part to nothing and then calls `hide`, or calls it at once when motion is off. A part
+ * whose easing stops meanwhile isn't hidden.
+ * @param {Element} element
+ * @param {() => void} hide
+ */
+export function easeClosed(element, hide) {
+  if (!canEase()) {
+    hide();
+    return;
+  }
+  const closing = element.animate([readOpenFrame(element), COLLAPSED], {
+    duration: EASE_MS,
+    easing: EASING,
+    fill: "forwards",
+  });
+  resizes.set(element, closing);
+  closing.finished.then(
+    () => {
+      hide();
+      closing.cancel();
+    },
+    () => {},
+  );
+}
+
 /**
  * @param {{ element: Element, from: number, to: number }} size
  */
 function easeHeight({ element, from, to }) {
   if (Math.abs(to - from) < 1) return;
+  if (from === 0) {
+    easeOpen(element);
+    return;
+  }
   const resize = element.animate(
     [
       { height: `${from}px`, overflow: "clip" },
