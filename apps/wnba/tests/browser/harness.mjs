@@ -100,7 +100,7 @@ export async function openApp(page, { league = {}, isShowingUpdates = false } = 
     await page.addInitScript(() => localStorage.setItem("updatesSeenAt", String(Date.now() * 2)));
   const testStore = await createAfternoonStore();
   const { context, store } = testStore;
-  await connectToStore(page, testStore);
+  const openSockets = await connectToStore(page, testStore);
   const fetchImpl = createLeagueFetch(league);
   const boxScores = createBoxScoreServer({ fetchImpl });
   const previews = createPreviewServer({ fetchImpl, now: () => Date.parse(NOW) });
@@ -122,6 +122,7 @@ export async function openApp(page, { league = {}, isShowingUpdates = false } = 
   const readSeason = async () => structuredClone(await context.ctx.storage.get("seasons/2026"));
 
   return {
+    countOpenSockets: () => openSockets.length,
     /** @param {(season: any) => any} change */
     changeSeason: async (change) => {
       await store.docs.write("seasons/2026", change(await readSeason()));

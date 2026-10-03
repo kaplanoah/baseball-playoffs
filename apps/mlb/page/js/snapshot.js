@@ -1,6 +1,7 @@
 // Runs in both the browser page and the Worker, so it uses no DOM and no globals.
 
 import { addDays, readEasternDay } from "#shared/days.js";
+import * as PollSchedule from "#shared/poll-schedule.js";
 
 export const MLB_API = "https://statsapi.mlb.com";
 
@@ -345,8 +346,6 @@ const GAME_TYPES = new Set(["R", "F", "D", "L", "W"]);
 
 // MLB caches its responses for 20 seconds, so polling faster only refetches the same answer.
 export const POLL_LIVE_MS = 30 * 1000;
-const POLL_LEAD_MS = 15 * 60 * 1000;
-export const POLL_CHECK_MS = 60 * 60 * 1000;
 
 export function listMlbRequests(season, now, regularSeasonEnd = null) {
   const today = readEasternDay(now);
@@ -1015,17 +1014,17 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   };
 }
 
-// A start time passed with no first pitch is a delay, so it keeps the fast rate. The hourly
-// cap catches schedule changes made with no game on, like a rainout being rescheduled.
+// A season with no slate, like a past one, has nothing to follow, so it's null.
 export function choosePollDelay(snapshot, now = Date.now()) {
   const slate = snapshot && snapshot.slate;
   if (!slate) return null;
   const games = [slate.today, slate.nextDay].filter(Boolean).flatMap((day) => day.games);
-  if (games.some((game) => game.state === "live")) return POLL_LIVE_MS;
-  const starts = games
-    .filter((game) => game.state === "pre" && !game.tbd)
-    .map((game) => Date.parse(game.start))
-    .filter(Number.isFinite);
-  const untilLead = Math.min(...starts) - POLL_LEAD_MS - now;
-  return Math.min(Math.max(untilLead, POLL_LIVE_MS), POLL_CHECK_MS);
+  return PollSchedule.choosePollDelay({
+    isLive: games.some((game) => game.state === "live"),
+    starts: games
+      .filter((game) => game.state === "pre" && !game.tbd)
+      .map((game) => Date.parse(game.start)),
+    liveMs: POLL_LIVE_MS,
+    now,
+  });
 }

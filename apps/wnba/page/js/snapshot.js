@@ -4,6 +4,7 @@
 // scoreboard doesn't answer, ESPN's stands in for today's scores and clocks. The league's feeds
 // don't say where a game is on, so ESPN's scoreboard does.
 
+import * as PollSchedule from "#shared/poll-schedule.js";
 import { findTeamCode, findTeamCodeByEspnId, TEAMS } from "./teams.js";
 
 const WNBA_CDN = "https://cdn.wnba.com";
@@ -474,20 +475,15 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
 }
 
 export const POLL_LIVE_MS = 15 * 1000;
-const POLL_LEAD_MS = 15 * 60 * 1000;
-const POLL_CHECK_MS = 60 * 60 * 1000;
-const LATE_START_LIMIT_MS = 3 * 60 * 60 * 1000;
 
-// A start time passed with the game not under way is a late start, so it keeps the fast rate. A
-// game still waiting hours after its start was put off, or isn't needed and the schedule hasn't
-// dropped it yet.
 export function choosePollDelay(snapshot, now = Date.now()) {
   const games = snapshot?.games ?? [];
-  if (games.some((game) => game.state === "live")) return POLL_LIVE_MS;
-  const starts = games
-    .filter((game) => game.state === "pre" && game.isTimeSet)
-    .map((game) => Date.parse(game.start))
-    .filter((start) => start > now - LATE_START_LIMIT_MS);
-  const untilLead = Math.min(...starts) - POLL_LEAD_MS - now;
-  return Math.min(Math.max(untilLead, POLL_LIVE_MS), POLL_CHECK_MS);
+  return PollSchedule.choosePollDelay({
+    isLive: games.some((game) => game.state === "live"),
+    starts: games
+      .filter((game) => game.state === "pre" && game.isTimeSet)
+      .map((game) => Date.parse(game.start)),
+    liveMs: POLL_LIVE_MS,
+    now,
+  });
 }

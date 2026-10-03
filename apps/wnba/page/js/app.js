@@ -102,7 +102,7 @@ function catchUp() {
 
 async function boot() {
   startAppearance();
-  watchReturns({ catchUp });
+  watchReturns({ catchUp, pause: () => session.db.pause() });
   trackKeyboardFocus();
   startPageTabs();
   startGamePager();

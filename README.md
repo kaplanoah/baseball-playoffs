@@ -51,7 +51,8 @@ the one you pick in its settings. Added to the home screen, it keeps
 the icon of the look it had then.
 
 A Cloudflare Worker serves the page and reads the WNBA's own feeds on its own,
-every 15 seconds during games, and ESPN's for where each game is on. If the WNBA
+every 15 seconds during games while the page is open and a little less often
+while it isn't, and ESPN's for where each game is on. If the WNBA
 stops sending scores, ESPN's stand in.
 Saved to an iPhone's home screen, the page opens full screen like an app, and
 can send a notification with the score when any playoff game ends.
