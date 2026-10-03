@@ -37,9 +37,8 @@ export const readSeasonYear = () => session.currentSeason;
 
 const countDecidedGames = (record) => (record ? record.winsA + record.winsB : -1);
 
-// The Worker saves the season and answers the page's live reads from separate trips to MLB, so
-// either can be the one that has seen a game end. A series only moves forward, so each keeps
-// whichever record has counted more of its games.
+// The season and the live scores are saved apart, so either can be the one that has seen a game
+// end. A series only moves forward, so each keeps whichever record has counted more of its games.
 function pickLatestSeries(doc, live) {
   if (!isSameJson(doc.teams, live.teams)) return live.series;
   const saved = doc.series || {};
@@ -57,7 +56,7 @@ function overlayLiveSnapshot(doc) {
     return { ...doc, log: composeLog(doc.log, session.readings) };
   const slate = live.slate && {
     ...live.slate,
-    since: new Date(Date.parse(live.asOf) - FRESH_FINAL_MS).toISOString(),
+    since: new Date(Date.now() - FRESH_FINAL_MS).toISOString(),
   };
   const field = hasKnownField(live)
     ? { teams: live.teams, series: pickLatestSeries(doc, live), projected: live.projected }

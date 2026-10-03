@@ -1429,10 +1429,13 @@ test("on a laptop too narrow for the whole bracket, the stacked bracket fills do
   );
 });
 
-test("renders the bracket, standings and stamp from the Worker's snapshot", async ({ page }) => {
+test("renders the bracket, standings and stamp from the live scores the Worker saved", async ({
+  page,
+}) => {
   const app = await openApp(page);
 
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
+  expect(app.countSnapshotRequests()).toBe(0);
 
   const bracket = page.locator("#bracketWrap");
   for (const club of PLAYOFF_FIELD_2026) await expect(bracket).toContainText(club);
@@ -1507,15 +1510,37 @@ test("the leagues' standings sit side by side only when a game under way fits", 
   await expect.poll(async () => new Set(await readTops()).size).toBe(2);
 });
 
-test("says when live scores can't be reached, and tries again", async ({ page }) => {
+test("says when live scores can't be reached, and shows them once the Worker has them", async ({
+  page,
+}) => {
   const app = await openApp(page, { liveAvailable: false });
 
   await expect(page.locator("#stamp")).toContainText(
     "Couldn't reach live scores. Trying again shortly.",
   );
 
-  await page.clock.fastForward("00:30");
-  await expect.poll(() => app.countSnapshotRequests()).toBe(2);
+  await app.updateFromWorker();
+  await expect(page.locator("#stamp > span").first()).toHaveText(/^NOW\s*Reds @ Braves 5-5/);
+  await expect(page.locator("#stamp")).not.toContainText("Couldn't reach live scores");
+});
+
+test("while the Worker can't reach MLB, the page says so over the last scores it saved", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await expect(page.locator("#stamp > span").first()).toHaveText(/^NOW\s*Reds @ Braves 5-5/);
+
+  await app.writeFromAnotherDevice("live/status", {
+    error: "upstream_error",
+    detail: "MLB Stats API answered 503 for /api/v1/schedule",
+    write: "",
+    at: "2026-09-25T00:45:00.000Z",
+  });
+
+  await expect(page.locator("#stamp")).toContainText(
+    "Couldn't reach live scores. Trying again shortly.",
+  );
+  await expect(page.locator("#stamp > span").first()).toHaveText(/^NOW\s*Reds @ Braves 5-5/);
 });
 
 test("rebuilds updates from the saved readings as the Worker adds to them", async ({ page }) => {
@@ -1589,13 +1614,13 @@ test("a release note shows in the Updates box, headed New in the app, until it's
   await expect(updates).toBeHidden();
 });
 
-test("switching to 2025 shows the finished bracket and its champion, and stops polling", async ({
+test("switching to 2025 shows the finished bracket and its champion, read from the Worker once", async ({
   page,
 }) => {
   const app = await openApp(page, {
     store: { "seasons/2025": { year: 2025, teams: {}, series: {}, ranking: [], log: [] } },
   });
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
 
   await chooseSeason(page, "2025");
 
@@ -1604,17 +1629,17 @@ test("switching to 2025 shows the finished bracket and its champion, and stops p
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers win the World Series");
   await expect(page.locator("#updates")).toBeHidden();
 
-  const requestCount = app.countSnapshotRequests();
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   await page.clock.fastForward("02:00:00");
-  expect(app.countSnapshotRequests()).toBe(requestCount);
+  expect(app.countSnapshotRequests()).toBe(1);
 });
 
 test("warns under the title when MLB stops sending a field", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
 
   app.changeSnapshots((snapshot) => ({ ...snapshot, missing: ["wildCardRank"] }));
-  await page.clock.fastForward("00:30");
+  await app.updateFromWorker();
 
   await expect(page.locator("#stamp")).toContainText(
     "MLB stopped sending wildCardRank, so some details may be blank.",
@@ -1625,10 +1650,10 @@ test("warns under the title when MLB stops sending a field", async ({ page }) =>
 test("a warning MLB's feed brings eases the header to its new height", async ({ page }) => {
   const readAnimations = await listAnimations(page);
   const app = await openApp(page);
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
 
   app.changeSnapshots((snapshot) => ({ ...snapshot, missing: ["wildCardRank"] }));
-  await page.clock.fastForward("00:30");
+  await app.updateFromWorker();
 
   await expect(page.locator("#stamp")).toContainText("MLB stopped sending wildCardRank");
   const growth = (await readAnimations()).find(({ element }) => element === "stamp");
@@ -1661,7 +1686,7 @@ test("the bracket and standings scroll from the keyboard, even in Safari", async
 
 test("the ranking can be reordered from the keyboard, and saves", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
   await openSettings(page);
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
 
@@ -1679,7 +1704,7 @@ test("the ranking can be reordered from the keyboard, and saves", async ({ page 
 
 test("a save that fails says so under the title", async ({ page }) => {
   const app = await openApp(page);
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
   app.failWrites();
   await openSettings(page);
   await expect(page.locator("#rankList .rank-item")).toHaveCount(12);
@@ -1893,7 +1918,7 @@ test("a page left open turns over when spring training starts", async ({ page })
   });
   // Startup's own spring check requests a snapshot after setting the hourly timer, so the clock
   // can't jump ahead before the timer exists.
-  await expect.poll(() => app.countSnapshotRequests()).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   await expect(page.locator("#yearSel")).toHaveValue("2026");
 
   // 11:30 PM Eastern the night before; the hourly check runs after midnight.
@@ -1908,7 +1933,7 @@ test("until spring training starts, the latest season is last year's", async ({ 
     snapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
   });
 
-  await expect.poll(() => app.countSnapshotRequests()).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   await expect(page.locator("#yearSel")).toHaveValue("2026");
 });
 

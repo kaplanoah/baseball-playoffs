@@ -49,7 +49,9 @@ export { test, expect };
 const isWriteRequest = (request) => request.method() !== "GET";
 
 /**
- * The page as the Worker serves it, with the Worker's store and snapshot behind it.
+ * The page as the Worker serves it, with the Worker's store and snapshot behind it. The store
+ * starts with the current season's live scores, as the Worker's last update saved them, unless
+ * they aren't available, when the Worker's snapshot can't be read either.
  * @param {import("@playwright/test").Page} page
  * @param {object} [options]
  * @param {Record<string, object>} [options.store] documents by path
@@ -86,7 +88,14 @@ export async function openApp(
   };
   const loadSnapshot = async (season) =>
     harness.transformSnapshot(structuredClone(snapshotsBySeason[season]));
-  const testStore = createTestStore(SeasonStore, { loadSnapshot, now, stored: store });
+  const liveDocs = liveAvailable
+    ? { [`live/${EVENING_FIXTURE.season}`]: snapshotsBySeason[EVENING_FIXTURE.season] }
+    : {};
+  const testStore = createTestStore(SeasonStore, {
+    loadSnapshot,
+    now,
+    stored: { ...liveDocs, ...store },
+  });
   const { context, store: seasonStore } = testStore;
 
   const openSockets = await connectToStore(page, testStore);
@@ -145,6 +154,8 @@ export async function openApp(
     // What the Worker's alarm does on its own schedule.
     updateFromWorker: () => seasonStore.alarm(),
     countSnapshotRequests: () => harness.snapshotRequests,
+    countLiveReads: () =>
+      harness.storeReads.filter((path) => /^\/store\/live\/\d{4}$/.test(path)).length,
     listStoreReads: () => [...harness.storeReads],
     countSubscriptions: () =>
       [...context.stored.keys()].filter((key) => key.startsWith("push:subscription:")).length,

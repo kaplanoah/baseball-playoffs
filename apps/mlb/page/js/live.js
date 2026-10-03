@@ -1,35 +1,21 @@
-import * as MLBSnapshot from "./snapshot.js";
 import { isSameJson } from "#shared/compare.js";
 import { redrawEased } from "#shared/eased-redraw.js";
 import { describeLiveError } from "#shared/live-errors.js";
-import { fetchLive } from "./live-fetch.js";
+import { fetchLive, isReadableLive } from "./live-fetch.js";
 import { renderAll } from "./render.js";
 import { reloadIfReplaced } from "#shared/resume.js";
 import { session, composeState } from "./session.js";
 import { renderStamp } from "./stamp-view.js";
 
-const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
+// The Worker keeps the current season's live scores in the store as it reads MLB, and pushes each
+// change to the page. A season it never kept them for, or a page whose store didn't load, reads
+// them from the Worker once.
 
 let liveError = null;
 let liveWarning = null;
-let liveTimer;
-let liveDueAt = Infinity;
-let liveSequence = 0;
-let liveFailures = 0;
-
-function scheduleLive(ms) {
-  clearTimeout(liveTimer);
-  liveDueAt = ms == null ? Infinity : Date.now() + ms;
-  if (ms != null) liveTimer = setTimeout(refreshLive, ms);
-}
-
-// A page older than the Worker needs a reload, so it reloads if a deploy has replaced it, and
-// otherwise tries again only when it is shown again.
-function waitForReplacement() {
-  clearTimeout(liveTimer);
-  liveDueAt = Date.now();
-  reloadIfReplaced();
-}
+let statusProblem = null;
+/** @type {(() => void) | null} */
+let unwatchLive = null;
 
 function describeMissingFields(missing) {
   if (!missing.length) return null;
@@ -37,7 +23,7 @@ function describeMissingFields(missing) {
 }
 
 function updateLiveProblem() {
-  session.liveProblem = liveError ? liveError.message : liveWarning;
+  session.liveProblem = liveError ? liveError.message : (statusProblem ?? liveWarning);
 }
 
 function renderUnlessReordering() {
@@ -45,7 +31,6 @@ function renderUnlessReordering() {
 }
 
 function applyLive(snapshot) {
-  if (snapshot.season !== session.activeYear) return;
   const previous = session.live;
   session.live = snapshot;
   const { asOf: _asOf, ...current } = snapshot;
@@ -55,37 +40,33 @@ function applyLive(snapshot) {
   else redrawEased(renderUnlessReordering);
 }
 
-function acceptLiveSnapshot(snapshot) {
-  liveError = null;
-  liveFailures = 0;
-  const missing = snapshot.missing || [];
-  liveWarning = describeMissingFields(missing);
-  updateLiveProblem();
-  applyLive(snapshot);
-  scheduleLive(MLBSnapshot.choosePollDelay(snapshot));
-}
-
+// A page older than the Worker can't read what it sends, so it reloads once a deploy has
+// replaced it.
 function recordLiveFailure(error) {
   liveError = describeLiveError(error);
   updateLiveProblem();
   renderStamp();
-  if (liveError.retry) scheduleLive(RETRY_MS[Math.min(liveFailures++, RETRY_MS.length - 1)]);
-  else waitForReplacement();
+  if (!liveError.retry) reloadIfReplaced();
 }
 
-async function refreshLive() {
-  clearTimeout(liveTimer);
-  if (document.hidden) {
-    liveDueAt = Math.min(liveDueAt, Date.now());
+function acceptLiveSnapshot(snapshot) {
+  if (!isReadableLive(snapshot, session.activeYear)) {
+    recordLiveFailure({ code: "bad_payload" });
     return;
   }
-  const season = session.activeYear;
-  const sequence = ++liveSequence;
+  liveError = null;
+  liveWarning = describeMissingFields(snapshot.missing || []);
+  updateLiveProblem();
+  applyLive(snapshot);
+}
+
+/** @param {number} season */
+async function loadUnkeptLive(season) {
   try {
     const snapshot = await fetchLive(season);
-    if (sequence === liveSequence) acceptLiveSnapshot(snapshot);
+    if (season === session.activeYear) acceptLiveSnapshot(snapshot);
   } catch (error) {
-    if (sequence === liveSequence) recordLiveFailure(error);
+    if (season === session.activeYear) recordLiveFailure(error);
   }
 }
 
@@ -94,15 +75,32 @@ export function startLive() {
   liveError = null;
   liveWarning = null;
   updateLiveProblem();
-  liveFailures = 0;
-  refreshLive();
+  unwatchLive?.();
+  unwatchLive = null;
+  const season = session.activeYear;
+  if (!session.db) {
+    loadUnkeptLive(season);
+    return;
+  }
+  let isUnkeptLoading = false;
+  unwatchLive = session.db.doc(`live/${season}`).onSnapshot((snapshot) => {
+    if (season !== session.activeYear) return;
+    if (snapshot.exists) acceptLiveSnapshot(snapshot.data());
+    else if (!isUnkeptLoading) {
+      isUnkeptLoading = true;
+      loadUnkeptLive(season);
+    }
+  });
 }
 
-export function watchPageVisibility() {
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && Date.now() >= liveDueAt) refreshLive();
-  });
-  addEventListener("online", () => {
-    if (liveDueAt !== Infinity) refreshLive();
+// The Worker saves why its last read of MLB failed, so while it can't reach MLB, the page says
+// so over the scores the Worker last had.
+export function watchLiveStatus() {
+  session.db?.doc("live/status").onSnapshot((snapshot) => {
+    const status = snapshot.exists ? snapshot.data() : null;
+    statusProblem =
+      status?.error === "upstream_error" ? describeLiveError({ code: status.error }).message : null;
+    updateLiveProblem();
+    renderStamp();
   });
 }
