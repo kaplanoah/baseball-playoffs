@@ -5,8 +5,7 @@
 import { fetchFromWorker } from "#shared/worker-fetch.js";
 
 const FETCH_TIMEOUT_MS = 15 * 1000;
-// A box score read as a finger comes down on its game serves the sheet that opens on the tap,
-// and a live game's next read, a poll later, is a new one.
+// A box score read as a finger comes down on its game serves the sheet that opens on the tap.
 const BOX_SCORE_REUSE_MS = 5 * 1000;
 // The meetings change at most a few times a day, so a sheet opened again soon reuses them.
 const PREVIEW_REUSE_MS = 10 * 60 * 1000;

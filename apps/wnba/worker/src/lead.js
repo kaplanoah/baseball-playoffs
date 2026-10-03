@@ -188,5 +188,5 @@ export function createLeadServer({ fetchImpl = (input, init) => fetch(input, ini
     }
   }
 
-  return { serveLead };
+  return { loadLead, serveLead };
 }

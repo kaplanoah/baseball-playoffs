@@ -23,7 +23,6 @@ import { describeSeriesStanding } from "./series.js";
 import { session } from "./session.js";
 import { formatSheetColors } from "./sheet-colors.js";
 import { renderSheetMessage } from "./sheet-parts.js";
-import { POLL_LIVE_MS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
 /** @typedef {{ id: string, kind: "box" | "preview", details: any, error: any, lead: any, isLeadLoading: boolean }} ShownGame */
@@ -32,7 +31,8 @@ import { POLL_LIVE_MS } from "./snapshot.js";
 // answer that arrives after it changed is dropped.
 /** @type {ShownGame | null} */
 let shown = null;
-let refreshTimer = 0;
+/** @type {(() => void) | null} */
+let unwatchDetails = null;
 
 const findDialog = () => /** @type {HTMLDialogElement} */ (document.getElementById("gameDialog"));
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -169,12 +169,43 @@ async function refreshLead(opened, game) {
   renderSheet();
 }
 
-// A live game's box score is read again as often as its score, until the sheet closes. A read
-// that fails keeps the box score already showing.
+/** @param {any} boxScore */
+const countPoints = (boxScore) => boxScore.away.score + boxScore.home.score;
+
+/**
+ * Takes the box score and lead the Worker read for the open game. Points only ever add up, so
+ * details the store saved before the sheet's own read are dropped.
+ * @param {ShownGame} opened
+ * @param {{ boxScore: any, lead: any }} pushed
+ */
+function applyPushedDetails(opened, { boxScore, lead }) {
+  if (shown !== opened || !boxScore) return;
+  if (opened.details && countPoints(boxScore) < countPoints(opened.details)) return;
+  opened.details = boxScore;
+  opened.error = null;
+  if (lead) Object.assign(opened, { lead, isLeadLoading: false });
+  renderSheet();
+}
+
+function stopWatchingDetails() {
+  unwatchDetails?.();
+  unwatchDetails = null;
+}
+
+// While a live game's box score is open, the Worker reads it and its lead with each update, and
+// pushes them to the page.
+/** @param {ShownGame} opened */
+function watchLiveDetails(opened) {
+  stopWatchingDetails();
+  unwatchDetails = session.db.doc(`games/${opened.id}`).onSnapshot((snapshot) => {
+    if (snapshot.exists) applyPushedDetails(opened, snapshot.data());
+  });
+}
+
+// A read that fails keeps the box score already showing.
 async function refreshDetails() {
   const opened = shown;
   const game = findGame(opened.id);
-  clearTimeout(refreshTimer);
   if (!game) return;
   refreshLead(opened, game);
   try {
@@ -187,7 +218,7 @@ async function refreshDetails() {
     if (!opened.details) opened.error = error;
   }
   renderSheet();
-  if (isLiveBoxScore(opened)) refreshTimer = window.setTimeout(refreshDetails, POLL_LIVE_MS);
+  if (isLiveBoxScore(opened)) watchLiveDetails(opened);
 }
 
 /** @param {string} id */
@@ -195,6 +226,7 @@ function showGame(id) {
   const game = findGame(id);
   const kind = chooseKind(game);
   shown = { id, kind, details: null, error: null, lead: null, isLeadLoading: hasLead(game, kind) };
+  stopWatchingDetails();
   renderSheet();
   refreshDetails();
 }
@@ -232,7 +264,7 @@ function prepareFromRow(button) {
 
 function forgetGame() {
   shown = null;
-  clearTimeout(refreshTimer);
+  stopWatchingDetails();
 }
 
 export function startGameSheet() {

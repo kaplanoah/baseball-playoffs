@@ -102,5 +102,5 @@ export function createBoxScoreServer({ fetchImpl = (input, init) => fetch(input,
     }
   }
 
-  return { serveBoxScore };
+  return { loadBoxScore, serveBoxScore };
 }

@@ -122,19 +122,3 @@ test("a reused loader forgets a load that failed, so the next call tries again",
   assert.equal(await loadReused(2026), "answered");
   assert.equal(attempts, 2);
 });
-
-test("a read logs whether Cloudflare's edge kept the answer, and nothing when it had no part", async (context) => {
-  const logged = context.mock.method(console, "log", () => {});
-  const answer = (headers) => async () => new Response("{}", { headers });
-
-  await fetchUpstream(answer({ "cf-cache-status": "HIT" }), "https://feed.example/a", {
-    headers: HEADERS,
-    cacheSeconds: 15,
-  });
-  await fetchUpstream(answer({}), "https://feed.example/a", { headers: HEADERS, cacheSeconds: 15 });
-
-  assert.deepEqual(
-    logged.mock.calls.map((call) => call.arguments),
-    [["feed.example cache: HIT"]],
-  );
-});

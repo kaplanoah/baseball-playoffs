@@ -20,7 +20,7 @@ export { expect };
 /**
  * An app's store in a stand-in Durable Object, holding `stored`, whose clock reads `now`, and whose
  * pushes all succeed.
- * @template {{ fetch: (request: Request) => Promise<Response> }} Store
+ * @template {{ fetch: (request: Request) => Promise<Response>, webSocketMessage: (socket: any, message: string | Buffer) => void }} Store
  * @param {new (ctx: any, env: object, options: object) => Store} SeasonStore the app's store class
  * @param {object} options
  * @param {(season: string) => Promise<object>} options.loadSnapshot
@@ -92,16 +92,25 @@ function removeItem(list, item) {
 /**
  * @param {import("@playwright/test").Page} page
  * @param {ReturnType<typeof createDurableObjectContext>["ctx"]} ctx
+ * @param {{ webSocketMessage: (socket: any, message: string | Buffer) => void }} store
  * @returns {Promise<import("@playwright/test").WebSocketRoute[]>} the sockets the page has open
  */
-async function routeWatchSockets(page, ctx) {
+async function routeWatchSockets(page, ctx, store) {
   const openSockets = [];
   await page.routeWebSocket(
     (url) => url.pathname === "/watch",
     (socket) => {
-      const accepted = { send: (message) => socket.send(message) };
+      let attachment = null;
+      const accepted = {
+        send: (message) => socket.send(message),
+        serializeAttachment: (value) => {
+          attachment = structuredClone(value);
+        },
+        deserializeAttachment: () => attachment,
+      };
       openSockets.push(socket);
       ctx.acceptWebSocket(accepted);
+      socket.onMessage((message) => store.webSocketMessage(accepted, message));
       socket.onClose(() => {
         removeItem(openSockets, socket);
         removeItem(ctx.getWebSockets(), accepted);
@@ -120,7 +129,7 @@ async function routeWatchSockets(page, ctx) {
 export async function connectToStore(page, { context, store }) {
   await blockOtherHosts(page);
   await routeStoreRequests(page, store);
-  return routeWatchSockets(page, context.ctx);
+  return routeWatchSockets(page, context.ctx, store);
 }
 
 /**

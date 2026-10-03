@@ -5,17 +5,6 @@ import { abortAfter } from "./timeout.js";
 export const UPSTREAM_TIMEOUT_MS = 8000;
 
 /**
- * Logs whether Cloudflare's edge kept the answer, since it may not for a Worker on workers.dev. An
- * answer the edge had no part in has no status, and isn't logged.
- * @param {string} url
- * @param {Response} response
- */
-function logCacheStatus(url, response) {
-  const status = response.headers.get("cf-cache-status");
-  if (status) console.log(`${new URL(url).host} cache: ${status}`);
-}
-
-/**
  * Asks a feed for `url` and reads its whole answer, giving up after UPSTREAM_TIMEOUT_MS, and
  * letting Cloudflare's edge keep the answer for `cacheSeconds`, or not at all when it's null.
  * @param {(input: string, init: object) => Promise<Response>} fetchImpl
@@ -30,7 +19,6 @@ export const fetchUpstream = (fetchImpl, url, { headers, cacheSeconds }) =>
       signal,
       ...(cacheSeconds !== null && { cf: { cacheTtl: cacheSeconds, cacheEverything: true } }),
     });
-    logCacheStatus(url, response);
     const body = response.body ? await response.arrayBuffer() : null;
     return new Response(body, response);
   });

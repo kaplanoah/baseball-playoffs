@@ -5,6 +5,7 @@ import { recordSheetResizes } from "../../../../tests/browser/sheet-resizes.mjs"
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 import { readOklab } from "../../page/js/sheet-colors.js";
 import { TEAMS } from "../../page/js/teams.js";
+import { describeBoxScore } from "../../worker/src/box-score.js";
 
 const ACES_AT_FEVER = "Game details: Aces at Fever, First Round Game 2";
 const FEVER_AT_ACES = "Game details: Fever at Aces, First Round Game 3";
@@ -446,20 +447,53 @@ test("a team's sheet draws the team's side in its color on each theme, across fr
   }
 });
 
-test("a live game's sheet reads its lead again with its box score", async ({ page }) => {
-  const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
-  await app.changeSeason(startValkyriesAtWings);
+/** @param {import("@playwright/test").Page} page */
+function countLeadReads(page) {
   const reads = { count: 0 };
   page.on("request", (request) => {
     if (new URL(request.url()).pathname === "/lead") reads.count += 1;
   });
+  return reads;
+}
+
+test("a live game's sheet reads its box score and lead once, then takes what the Worker pushes", async ({
+  page,
+}) => {
+  const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
+  await app.changeSeason(startValkyriesAtWings);
+  const boxScoreReads = countBoxScoreReads(page);
+  const leadReads = countLeadReads(page);
   const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
   await expect(sheet.locator(".lead-chart")).toBeVisible();
-  await expect.poll(() => reads.count).toBe(1);
+  await expect.poll(() => app.listWatchedPaths()).toContain("games/1042600112");
 
+  await page.clock.runFor(POLL_LIVE_MS * 2);
+  expect([boxScoreReads.count, leadReads.count]).toEqual([1, 1]);
+
+  const boxScore = describeBoxScore(liveBoxScore);
+  boxScore.away.players[0].points = 41;
+  boxScore.away.score += 2;
+  await app.saveGameDetails("1042600112", { boxScore, lead: null });
+  await expect(sheet.locator(".player-tables")).toContainText("41");
+  await expect(sheet.locator(".lead-chart")).toBeVisible();
+});
+
+test("details saved before the sheet's own read don't take a live box score back", async ({
+  page,
+}) => {
+  const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
+  await app.changeSeason(startValkyriesAtWings);
+  const earlier = describeBoxScore(liveBoxScore);
+  earlier.away.players[0].points = 41;
+  earlier.away.score -= 10;
+  await app.saveGameDetails("1042600112", { boxScore: earlier, lead: null });
+
+  const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
+  await expect(sheet.locator(".line-score")).toBeVisible();
+  await expect.poll(() => app.listWatchedPaths()).toContain("games/1042600112");
   await page.clock.runFor(POLL_LIVE_MS);
 
-  await expect.poll(() => reads.count).toBe(2);
+  await expect(sheet.locator(".player-tables")).not.toContainText("41");
 });
 
 for (const { screen, viewport } of [
@@ -493,12 +527,11 @@ for (const { screen, viewport } of [
   });
 }
 
-test("a live game's sheet reads its box score again as often as the score, until it closes", async ({
+test("a live game's sheet shows its game as it goes, and stops watching it once it closes", async ({
   page,
 }) => {
   const app = await openApp(page, { league: { boxScores: { 1042600112: liveBoxScore } } });
   await app.changeSeason(startValkyriesAtWings);
-  const reads = countBoxScoreReads(page);
   const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
 
   await expect(sheet.locator(".faceoff .clock")).toHaveText("Q3 4:32");
@@ -508,10 +541,7 @@ test("a live game's sheet reads its box score again as often as the score, until
     "So far",
   );
   await expect(sheet.locator(".foul-chip")).toHaveText(["Fouled out", "5 fouls", "4 fouls"]);
-  await expect.poll(() => reads.count).toBe(1);
-
-  await page.clock.runFor(POLL_LIVE_MS);
-  await expect.poll(() => reads.count).toBe(2);
+  await expect.poll(() => app.listWatchedPaths()).toContain("games/1042600112");
 
   await app.changeSeason((season) => {
     season.games.find((each) => each.id === "1042600112").away.score = 77;
@@ -520,8 +550,7 @@ test("a live game's sheet reads its box score again as often as the score, until
   await expect(sheet.locator(".faceoff .score")).toHaveText(/77\s*72/);
 
   await sheet.getByRole("button", { name: "Done" }).click();
-  await page.clock.runFor(POLL_LIVE_MS * 2);
-  expect(reads.count).toBe(2);
+  await expect.poll(() => app.listWatchedPaths()).not.toContain("games/1042600112");
 });
 
 test("a game that hasn't started previews the meetings, the season stats, and the leading scorers", async ({

@@ -123,6 +123,16 @@ export async function openApp(page, { league = {}, isShowingUpdates = false } = 
 
   return {
     countOpenSockets: () => openSockets.length,
+    // What the Worker reads for a game a page has open, and pushes to the pages watching it.
+    /**
+     * @param {string} id
+     * @param {{ boxScore: any, lead: any }} details
+     */
+    saveGameDetails: (id, details) => store.docs.write(`games/${id}`, details),
+    listWatchedPaths: () =>
+      context.ctx
+        .getWebSockets()
+        .flatMap((socket) => socket.deserializeAttachment()?.watching ?? []),
     /** @param {(season: any) => any} change */
     changeSeason: async (change) => {
       await store.docs.write("seasons/2026", change(await readSeason()));
