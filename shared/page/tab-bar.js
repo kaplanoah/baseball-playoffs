@@ -375,6 +375,7 @@ function fitBar() {
       glass.offsetHeight,
     );
   if (!motion.frame) snapPillToSelectedTab();
+  bar.classList.add("placed");
 }
 
 function copyTabsIntoPill() {
