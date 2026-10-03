@@ -15,7 +15,7 @@ const PAGE_FIELDS = {
 
 export const SeasonStore = createSeasonStore({
   pageFields: PAGE_FIELDS,
-  createLoadSnapshot: () => createSnapshotServer().loadSnapshot,
+  createLoadSnapshot: (storage) => createSnapshotServer({ storage }).loadSnapshot,
   loadCurrentSnapshot: SeasonUpdater.loadCurrentSnapshot,
   readUpdates: SeasonUpdater.readUpdates,
   saveSnapshot: SeasonUpdater.saveSnapshot,

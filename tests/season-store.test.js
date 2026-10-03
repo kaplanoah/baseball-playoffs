@@ -332,3 +332,18 @@ test("a store saves which season is current, and saves it again only when it cha
     ["live/current", "live/current"],
   );
 });
+
+test("a league keeps what it reads in the store's storage, under keys its paths can't name", async () => {
+  const context = createDurableObjectContext();
+  const SeasonStore = createSeasonStore({
+    ...QUIET_LEAGUE,
+    createLoadSnapshot: (storage) => async () => {
+      await storage.put("standings", { read: 1 });
+      return storage.get("standings");
+    },
+  });
+  const store = new SeasonStore(context.ctx, {});
+
+  assert.deepEqual(await store.loadSnapshot(2026), { read: 1 });
+  assert.deepEqual(await context.ctx.storage.get("feed:standings"), { read: 1 });
+});

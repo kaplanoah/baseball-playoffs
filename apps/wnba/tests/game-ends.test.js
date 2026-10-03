@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createMemoryStorage } from "../../../shared/worker/feed-keeper.js";
 import { createGameEnds } from "../worker/src/game-ends.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -58,4 +59,24 @@ test("until ESPN has the game's last play, it's asked every two minutes, for hal
     await gameEnds.addEnds([showGame("final")]);
   }
   assert.equal(lookups.length, 15);
+});
+
+test("a game seen live before the Durable Object left memory still gets its end after", async () => {
+  const storage = createMemoryStorage();
+  const lookups = [];
+  const createEndsOnStorage = () =>
+    createGameEnds({
+      loadEndTime: async (game) => {
+        lookups.push(game.id);
+        return END;
+      },
+      now: () => 0,
+      storage,
+    });
+  await createEndsOnStorage().addEnds([showGame("live")]);
+  const [ended] = await createEndsOnStorage().addEnds([showGame("final")]);
+  const [later] = await createEndsOnStorage().addEnds([showGame("final")]);
+  assert.equal(ended.end, END);
+  assert.equal(later.end, END);
+  assert.deepEqual(lookups, ["1042600112"]);
 });
