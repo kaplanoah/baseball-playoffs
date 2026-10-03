@@ -3,7 +3,8 @@
  * are Barlow's: a font's size-adjust makes its size look like Barlow's at that size, and Chivo
  * Mono reads heavier, so its weights count 50 more. Nothing is under 13px, capitals under 16px are
  * at least 500, weights are 400 to 600 under 24px and 300 to 700 from there, and Barlow Condensed
- * never goes over 600. The tab bar's labels keep the phone's own size, and text hidden for screen
+ * never goes over 600. Text keeps a text-size-adjust of 100%, so Safari never enlarges it on its
+ * own. The tab bar's labels keep the phone's own size, and text hidden for screen
  * readers is left out.
  * @param {import("@playwright/test").Page} page
  */
@@ -42,10 +43,12 @@ export const listOffScaleText = (page) =>
       const size = parseFloat(style.fontSize) * readDrawnScale(element);
       const weight = Number(style.fontWeight) + (WEIGHT_SHIFTS[family] ?? 0);
       const isUppercase = style.textTransform === "uppercase";
+      const sizeAdjust = style.getPropertyValue("text-size-adjust");
       return [
         size < SMALLEST_SIZE - 0.01 ? `size ${size.toFixed(1)}px under ${SMALLEST_SIZE}px` : "",
         describeWeightProblem(size, weight),
         isUppercase && size < SMALL_CAPS_SIZE && weight < 500 ? `uppercase at ${weight}` : "",
+        sizeAdjust === "100%" ? "" : `text-size-adjust ${sizeAdjust}`,
         family === "Barlow Condensed" && weight > HEAVIEST_CONDENSED
           ? `Barlow Condensed at ${weight}`
           : "",

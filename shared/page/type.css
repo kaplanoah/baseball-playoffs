@@ -16,4 +16,8 @@
   --size-glance: 0.875rem;
   /* Capital labels, chips, and the smallest text there is. */
   --size-small: 0.8125rem;
+  /* Safari on an iPhone otherwise enlarges some text on a turn to landscape and can keep it big
+     on the turn back, off the scale. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
