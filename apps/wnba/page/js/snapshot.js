@@ -474,7 +474,7 @@ export function buildSnapshot(responses, { season, now = Date.now() }) {
   };
 }
 
-export const POLL_LIVE_MS = 15 * 1000;
+const POLL_LIVE_MS = 15 * 1000;
 
 export function choosePollDelay(snapshot, now = Date.now()) {
   const games = snapshot?.games ?? [];

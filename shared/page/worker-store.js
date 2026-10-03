@@ -76,6 +76,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // Each watched collection keeps its documents by id, so a push changes one without a new listing.
   const collectionWatches = new Map();
   let socket = null;
+  let isSocketOpen = false;
   let handshakeTimer = null;
   let reconnectTimer = null;
   let reconnectDelay = RECONNECT_FIRST_MS;
@@ -137,6 +138,18 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     }
   }
 
+  // The Worker sends the page only changes to what it watches, so the page says what that is as
+  // its socket opens and whenever it changes.
+  function sendWatching() {
+    if (!isSocketOpen) return;
+    const collections = [...collectionWatches.keys()].map((name) => `${name}/`);
+    try {
+      socket.send(JSON.stringify({ watching: [...listenersByPath.keys(), ...collections] }));
+    } catch {
+      // A socket that closed mid-send reconnects and says it again.
+    }
+  }
+
   const refreshWatchedPaths = () =>
     Promise.all([
       ...[...listenersByPath.keys()].map(refreshPath),
@@ -165,6 +178,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   // While the socket is down, each reconnect attempt also reads the watched documents again.
   function scheduleReconnect() {
     socket = null;
+    isSocketOpen = false;
     clearTimeout(handshakeTimer);
     handshakeTimer = null;
     if (reconnectTimer || !hasWatchers()) return;
@@ -181,6 +195,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const opened = new WebSocket(url);
     socket = opened;
+    isSocketOpen = false;
     clearTimeout(handshakeTimer);
     handshakeTimer = setTimeout(() => {
       handshakeTimer = null;
@@ -188,9 +203,11 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     }, HANDSHAKE_WAIT_MS);
     opened.addEventListener("open", () => {
       if (socket !== opened) return;
+      isSocketOpen = true;
       clearTimeout(handshakeTimer);
       handshakeTimer = null;
       reconnectDelay = RECONNECT_FIRST_MS;
+      sendWatching();
       refreshWatchedPaths();
     });
     opened.addEventListener("message", receivePush);
@@ -209,6 +226,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     reconnectDelay = RECONNECT_FIRST_MS;
     const stale = socket;
     socket = null;
+    isSocketOpen = false;
     stale?.close();
     openSocket();
   }
@@ -222,6 +240,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     handshakeTimer = null;
     const open = socket;
     socket = null;
+    isSocketOpen = false;
     open?.close();
   }
 
@@ -235,19 +254,25 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
 
   function watchPath(path, onNext, onError) {
     const listener = { onNext, onError };
-    if (!listenersByPath.has(path)) listenersByPath.set(path, new Set());
+    if (!listenersByPath.has(path)) {
+      listenersByPath.set(path, new Set());
+      sendWatching();
+    }
     listenersByPath.get(path).add(listener);
     readWhenWatching(() => refreshPath(path));
     return () => {
       const listeners = listenersByPath.get(path);
       listeners?.delete(listener);
-      if (listeners && !listeners.size) listenersByPath.delete(path);
+      if (listeners && !listeners.size) {
+        listenersByPath.delete(path);
+        sendWatching();
+      }
     };
   }
 
   function watchCollection(name, limit, onNext, onError) {
     const listener = { onNext, onError };
-    if (!collectionWatches.has(name))
+    if (!collectionWatches.has(name)) {
       collectionWatches.set(name, {
         limit,
         listeners: new Set(),
@@ -255,12 +280,17 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
         listedAt: 0,
         pushes: new Map(),
       });
+      sendWatching();
+    }
     collectionWatches.get(name).listeners.add(listener);
     readWhenWatching(() => refreshCollection(name));
     return () => {
       const watch = collectionWatches.get(name);
       watch?.listeners.delete(listener);
-      if (watch && !watch.listeners.size) collectionWatches.delete(name);
+      if (watch && !watch.listeners.size) {
+        collectionWatches.delete(name);
+        sendWatching();
+      }
     };
   }
 

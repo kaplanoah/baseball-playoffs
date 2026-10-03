@@ -1,4 +1,4 @@
-import test from "node:test";
+import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import { createSeasonStore } from "../shared/worker/season-store.js";
 import { createDurableObjectContext } from "./durable-object-context.js";
@@ -216,4 +216,96 @@ test("a store answers a page's close, so the socket stops counting as an open pa
     },
   });
   assert.equal(closes, 1);
+});
+
+/** A page's socket, as the store sees it, keeping what the page said it watches. */
+function createPageSocket() {
+  const sent = [];
+  let attachment = null;
+  return {
+    sent,
+    send: (message) => sent.push(JSON.parse(message).path),
+    serializeAttachment: (value) => {
+      attachment = structuredClone(value);
+    },
+    deserializeAttachment: () => attachment,
+  };
+}
+
+test("a page that says what it watches hears only of changes to those documents", async () => {
+  const context = createDurableObjectContext();
+  const SeasonStore = createSeasonStore(QUIET_LEAGUE);
+  const store = new SeasonStore(context.ctx, {});
+  const watching = createPageSocket();
+  const unsaid = createPageSocket();
+  context.ctx.acceptWebSocket(watching);
+  context.ctx.acceptWebSocket(unsaid);
+
+  store.webSocketMessage(
+    watching,
+    JSON.stringify({ watching: ["seasons/2026", "readings-2026/"] }),
+  );
+  store.webSocketMessage(watching, JSON.stringify({ watching: ["not a path!"] }));
+  store.webSocketMessage(watching, "not JSON");
+  for (const path of ["seasons/2026", "readings-2026/2026-09-30-01", "standings/2026"])
+    await store.docs.write(path, { year: 2026 });
+
+  assert.deepEqual(watching.sent, ["seasons/2026", "readings-2026/2026-09-30-01"]);
+  assert.deepEqual(unsaid.sent, ["seasons/2026", "readings-2026/2026-09-30-01", "standings/2026"]);
+});
+
+test("each update reads the details of the games pages have open, and saves them when they change", async () => {
+  const context = createDurableObjectContext();
+  const loads = [];
+  const details = { 1: { score: 10 }, 2: { score: 20 } };
+  const SeasonStore = createSeasonStore({ ...QUIET_LEAGUE, detailsCollection: "games" });
+  const store = new SeasonStore(
+    context.ctx,
+    {},
+    {
+      now: () => NOW,
+      loadDetails: async (id, snapshot, stored) => {
+        loads.push({ id, season: snapshot.season, stored });
+        return details[id];
+      },
+    },
+  );
+  const page = createPageSocket();
+  context.ctx.acceptWebSocket(page);
+  store.webSocketMessage(page, JSON.stringify({ watching: ["games/1", "seasons/2026"] }));
+
+  await store.alarm();
+  assert.deepEqual(loads, [{ id: "1", season: 2026, stored: null }]);
+  assert.deepEqual(await context.ctx.storage.get("games/1"), { score: 10 });
+  assert.deepEqual(page.sent, ["games/1"]);
+
+  await store.alarm();
+  assert.deepEqual(loads[1].stored, { score: 10 });
+  assert.deepEqual(page.sent, ["games/1"]);
+});
+
+test("a game's details that fail to load leave the saved ones and don't hold up the update", async () => {
+  const context = createDurableObjectContext();
+  const SeasonStore = createSeasonStore({ ...QUIET_LEAGUE, detailsCollection: "games" });
+  const store = new SeasonStore(
+    context.ctx,
+    {},
+    {
+      now: () => NOW,
+      loadDetails: async () => {
+        throw new Error("The league answered 503");
+      },
+    },
+  );
+  context.stored.set("games/1", { score: 10 });
+  const page = createPageSocket();
+  context.ctx.acceptWebSocket(page);
+  store.webSocketMessage(page, JSON.stringify({ watching: ["games/1"] }));
+  const logged = mock.method(console, "error", () => {});
+
+  await store.alarm();
+
+  logged.mock.restore();
+  assert.deepEqual(await context.ctx.storage.get("games/1"), { score: 10 });
+  assert.equal(await context.ctx.storage.getAlarm(), NOW + 60_000);
 });

@@ -1,3 +1,4 @@
+import { isSameJson } from "../page/compare.js";
 import { createPushService } from "./push.js";
 import { describeError, respondError, respondJson } from "./responses.js";
 
@@ -6,7 +7,10 @@ import { describeError, respondError, respondJson } from "./responses.js";
 // any document, but saves only its league's page fields of a season: each whole, with null
 // removing one. An alarm keeps the current season up to date from the league while no page is
 // open, and tells subscribed devices about new updates. With no page open, only notifications need
-// the updates, and those can wait a little, so updates come less often until a page opens.
+// the updates, and those can wait a little, so updates come less often until a page opens. Each
+// page says which documents it watches, and hears only of changes to those. A league can keep
+// details of the games pages have open, like a box score, read with each update while they need
+// it.
 
 /**
  * What a league hands the store.
@@ -23,6 +27,9 @@ import { describeError, respondError, respondJson } from "./responses.js";
  * @property {(snapshot: any, now: number) => number} choosePollDelay the wait until the next
  *   update
  * @property {(change: { before: any, after: any, snapshot: any, now: number }) => object[]} listNotifications
+ * @property {string} [detailsCollection] where the details of the games pages have open are kept
+ * @property {() => (id: string, snapshot: any, stored: any) => Promise<any>} [createLoadDetails]
+ *   reads a game's details, or answers null while it needs none
  */
 
 const NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
@@ -36,6 +43,7 @@ const UNWATCHED_DELAY_MS = 50e3;
 const STALE_MS = 15 * 60e3;
 // When the last update ran and how long it said to wait, under a key the store's paths can't name.
 const SCHEDULE_KEY = "poll:schedule";
+const MAX_WATCHED = 50;
 
 const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
@@ -91,6 +99,36 @@ function readPath(pathname) {
 const isSameStatus = (stored, current) =>
   !!stored && Object.entries(current).every(([field, value]) => (stored[field] ?? "") === value);
 
+const isWatchedPath = (path) => {
+  const [collection, id, ...rest] = String(path).split("/");
+  return NAME_PATTERN.test(collection) && (id === "" || NAME_PATTERN.test(id)) && !rest.length;
+};
+
+// What a page says it watches: documents by path, and collections by name and a slash.
+function readWatching(message) {
+  let body;
+  try {
+    body = JSON.parse(String(message));
+  } catch {
+    return null;
+  }
+  const watching = body?.watching;
+  const isValid =
+    Array.isArray(watching) && watching.length <= MAX_WATCHED && watching.every(isWatchedPath);
+  return isValid ? watching : null;
+}
+
+// A page that hasn't said what it watches hears of every change.
+const listWatched = (socket) => socket.deserializeAttachment?.()?.watching ?? null;
+
+function isWatching(socket, path) {
+  const watching = listWatched(socket);
+  return (
+    !watching ||
+    watching.some((entry) => entry === path || (entry.endsWith("/") && path.startsWith(entry)))
+  );
+}
+
 function openWatchSocket(ctx) {
   const [client, server] = Object.values(new WebSocketPair());
   ctx.acceptWebSocket(server);
@@ -108,11 +146,13 @@ export const createSeasonStore = (league) =>
         loadSnapshot = league.createLoadSnapshot(),
         now = () => Date.now(),
         fetchImpl = (input, init) => fetch(input, init),
+        loadDetails = league.createLoadDetails?.() ?? null,
       } = {},
     ) {
       this.ctx = ctx;
       this.openSocket = openSocket;
       this.loadSnapshot = loadSnapshot;
+      this.loadDetails = loadDetails;
       this.now = now;
       this.hasAlarm = false;
       this.failures = 0;
@@ -230,6 +270,11 @@ export const createSeasonStore = (league) =>
       await this.ctx.storage.setAlarm(this.now() + this.slowWhenUnwatched(delay));
     }
 
+    webSocketMessage(socket, message) {
+      const watching = readWatching(message);
+      if (watching) socket.serializeAttachment({ watching });
+    }
+
     // Answering a page's close ends the socket, so it no longer counts as a page that's open.
     webSocketClose(socket) {
       try {
@@ -263,7 +308,30 @@ export const createSeasonStore = (league) =>
       // The next update's `before` holds what this one saved, so notifying can't wait on the status.
       await this.notifyUpdates(before, snapshot);
       await this.saveStatus(league.describeSnapshotStatus(snapshot));
+      await this.refreshWatchedDetails(snapshot);
       return league.choosePollDelay(snapshot, this.now());
+    }
+
+    async refreshWatchedDetails(snapshot) {
+      if (!this.loadDetails) return;
+      const prefix = `${league.detailsCollection}/`;
+      const paths = this.ctx.getWebSockets().flatMap((socket) => listWatched(socket) ?? []);
+      const ids = new Set(
+        paths.filter((path) => path.startsWith(prefix)).map((path) => path.slice(prefix.length)),
+      );
+      await Promise.all([...ids].map((id) => this.refreshDetails(id, snapshot)));
+    }
+
+    // A game's details that fail to load leave the ones saved, and never hold up the update.
+    async refreshDetails(id, snapshot) {
+      const key = `${league.detailsCollection}/${id}`;
+      try {
+        const stored = await this.docs.read(key);
+        const details = await this.loadDetails(id, snapshot, stored);
+        if (details && !isSameJson(stored, details)) await this.putDoc(key, details);
+      } catch (error) {
+        console.error(`Reading ${key} failed: ${describeError(error)}`);
+      }
     }
 
     // A failed notification never holds up the next update.
@@ -302,6 +370,7 @@ export const createSeasonStore = (league) =>
     announceChange(path, data) {
       const message = JSON.stringify({ path, data });
       for (const socket of this.ctx.getWebSockets()) {
+        if (!isWatching(socket, path)) continue;
         try {
           socket.send(message);
         } catch {

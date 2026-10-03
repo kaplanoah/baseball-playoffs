@@ -19,7 +19,11 @@ function startStore() {
       constructor() {
         this.listeners = {};
         this.isClosed = false;
+        this.messages = [];
         sockets.push(this);
+      }
+      send(message) {
+        this.messages.push(JSON.parse(message));
       }
       addEventListener(type, listener) {
         this.listeners[type] = listener;
@@ -202,6 +206,27 @@ test("a paused store closes its socket, and opens another only once it catches u
 
   assert.equal(sockets.length, 2);
   assert.equal(reads.length, readCount + 1);
+});
+
+test("a store tells the Worker what it watches as its socket opens, and as that changes", () => {
+  const { store, sockets, openSocket } = startStore();
+  const unwatchSeason = store.doc("seasons/2026").onSnapshot(() => {});
+  store
+    .collection("readings-2026")
+    .limit(10)
+    .onSnapshot(() => {});
+  openSocket();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  const unwatchGame = store.doc("games/1").onSnapshot(() => {});
+  unwatchGame();
+
+  assert.deepEqual(sockets[0].messages, [
+    { watching: ["seasons/2026", "readings-2026/"] },
+    { watching: ["seasons/2026", "games/1", "readings-2026/"] },
+    { watching: ["seasons/2026", "readings-2026/"] },
+  ]);
+  unwatchSeason();
+  assert.equal(sockets[0].messages.length, 3);
 });
 
 test("a read the Worker turns away for want of the access code reloads the page", async () => {
