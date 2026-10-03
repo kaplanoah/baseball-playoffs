@@ -6,7 +6,7 @@ import { redrawEased } from "#shared/eased-redraw.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fetchLive, isReadableLive } from "./live-fetch.js";
-import { startLive, watchPageVisibility } from "./live.js";
+import { startLive, watchLiveStatus } from "./live.js";
 import { startGamePager } from "#shared/game-pager.js";
 import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
 import { endLoadNote } from "#shared/load-note.js";
@@ -154,10 +154,12 @@ function wireControls() {
     );
 }
 
-// The stamp's times and the bracket's countdowns to first pitch read the clock.
+// The stamp's times, which final is fresh, and the bracket's countdowns to first pitch read the
+// clock.
 function refreshClockEveryMinute() {
   setInterval(() => {
     try {
+      if (session.seasonDoc) composeState();
       renderStamp();
       renderBracket();
     } catch {
@@ -222,7 +224,7 @@ async function boot() {
   redrawEased(drawLoadedSeason);
   watchBracketSpace();
   refreshClockEveryMinute();
-  watchPageVisibility();
+  watchLiveStatus();
   startLive();
   startServiceWorker();
   startNotifications();

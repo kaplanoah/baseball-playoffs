@@ -59,7 +59,7 @@ test("an update saves the season, standings, and a reading, and tells open pages
   });
   assert.deepEqual(
     sent.map((message) => message.path),
-    ["seasons/2026", `readings-2026/${TODAY}-01`, "standings/2026", "live/status"],
+    ["seasons/2026", `readings-2026/${TODAY}-01`, "standings/2026", "live/2026", "live/status"],
   );
   // A game is live, so the next update is thirty seconds out.
   assert.equal(context.alarm.at, NOW + MLBSnapshot.POLL_LIVE_MS);
@@ -76,6 +76,25 @@ test("an update keeps what the page saved, and writes nothing when nothing chang
   sent.length = 0;
   await store.alarm();
   assert.deepEqual(sent, []);
+});
+
+test("the live scores are saved for the page, and saved again only when more than their time changed", async () => {
+  const { store, harness, sent, read } = createUpdatingStore();
+  await store.alarm();
+  assert.deepEqual(read("live/2026"), SNAPSHOT);
+
+  sent.length = 0;
+  harness.snapshot = { ...SNAPSHOT, asOf: "2026-09-25T00:45:13.489Z" };
+  await store.alarm();
+  assert.deepEqual(sent, []);
+
+  harness.snapshot = { ...SNAPSHOT, missing: ["wildCardRank"] };
+  await store.alarm();
+  assert.deepEqual(
+    sent.map((message) => message.path),
+    ["live/2026", "live/status"],
+  );
+  assert.deepEqual(read("live/2026").missing, ["wildCardRank"]);
 });
 
 test("a change in the field is saved as a new change in today's reading", async () => {

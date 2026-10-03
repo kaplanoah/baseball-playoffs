@@ -73,12 +73,21 @@ async function saveStandings(docs, year, snapshot) {
   await docs.write(key, { ...snapshot.standings, updatedAt: snapshot.asOf });
 }
 
+// The page's live scores, saved whole whenever more than the time of the read changed.
+async function saveLive(docs, year, snapshot) {
+  const key = `live/${year}`;
+  const { asOf: _asOf, ...current } = snapshot;
+  const { asOf: _storedAsOf, ...stored } = (await docs.read(key)) ?? {};
+  if (!isSameJson(stored, current)) await docs.write(key, snapshot);
+}
+
 export async function saveSnapshot(docs, snapshot) {
   const year = snapshot.season;
   await saveSeason(docs, year, snapshot);
   const parts = await saveReading(docs, year, snapshot);
   await removeExpiredReadings(docs, year, snapshot, parts);
   await saveStandings(docs, year, snapshot);
+  await saveLive(docs, year, snapshot);
 }
 
 // The updates the page would list: the saved log with what the readings rebuild.

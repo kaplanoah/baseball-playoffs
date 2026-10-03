@@ -214,8 +214,7 @@ test("live scores the page can't read reload it once a newer release is out", as
   served.release = NEXT_RELEASE;
   app.changeSnapshots((snapshot) => ({ ...snapshot, version: 2 }));
 
-  // Coming back online reads the scores at once.
-  await expectReload(page, () => page.evaluate(() => dispatchEvent(new Event("online"))));
+  await expectReload(page, () => app.updateFromWorker());
 });
 
 /**
@@ -235,7 +234,7 @@ test("a page that wakes mid-drag after half an hour keeps the drag and doesn't r
 }) => {
   await serveReleases(page);
   const app = await openApp(page);
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
   await startDrag(page);
   await markPage(page);
 
@@ -250,7 +249,7 @@ test("a page that wakes mid-drag after half an hour keeps the drag and doesn't r
 test("a deploy found mid-drag reloads the page once the drag ends", async ({ page }) => {
   const served = await serveReleases(page);
   const app = await openApp(page);
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countLiveReads()).toBe(1);
   await expect.poll(() => served.requests).toBe(1);
   await startDrag(page);
   await markPage(page);
