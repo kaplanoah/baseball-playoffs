@@ -5,6 +5,7 @@
 // tries again on each tick until one does.
 
 import { fetchRelease, loadRelease } from "./release.js";
+import { refreshPageCopy } from "./service-worker.js";
 
 // Timers stop while a phone suspends the page, so a tick this late means the page was asleep,
 // even when the phone never said it was hidden.
@@ -42,7 +43,10 @@ export async function reloadIfReplaced() {
   try {
     const [loaded, current] = await Promise.all([loadRelease(), fetchRelease()]);
     isReleaseCheckOwed = false;
-    if (isReplaced(loaded, current)) reloadPage();
+    if (!isReplaced(loaded, current)) return;
+    // A reload opens the service worker's copy, so it waits until the copy holds the newer page.
+    if (await refreshPageCopy()) reloadPage();
+    else isReleaseCheckOwed = true;
   } catch {
     isReleaseCheckOwed = true;
   } finally {

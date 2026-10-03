@@ -20,6 +20,7 @@
     "apps/*/page/js/sortable.min.js",
     "apps/*/page/sw.js",
     "shared/page/push-worker.js",
+    "shared/page/offline-worker.js",
     "apps/*/worker/dist"
   ]
 }

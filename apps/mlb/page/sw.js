@@ -1,2 +1,2 @@
 self.pageName = "MLB";
-importScripts("shared/push-worker.js");
+importScripts("shared/push-worker.js", "shared/offline-worker.js");

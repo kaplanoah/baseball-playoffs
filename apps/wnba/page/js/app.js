@@ -7,6 +7,7 @@ import { endLoadNote } from "#shared/load-note.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
+import { startServiceWorker } from "#shared/service-worker.js";
 import { startSettingsSheet } from "#shared/settings-sheet.js";
 import { refreshTeamSheet, startTeamSheet } from "#shared/team-sheet.js";
 import { fillStamp } from "#shared/stamp.js";
@@ -110,6 +111,7 @@ async function boot() {
   watchSeason(renderAll);
   watchStatus(renderStamp);
   refreshClockEveryMinute();
+  startServiceWorker();
   startNotifications();
 }
 
