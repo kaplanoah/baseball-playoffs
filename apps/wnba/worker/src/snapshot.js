@@ -1,23 +1,23 @@
 import * as WNBASnapshot from "../../page/js/snapshot.js";
 import { readEasternDay } from "#shared/days.js";
 import { serveSeasonSnapshot } from "../../../../shared/worker/seasons.js";
+import { createFeedKeeper } from "../../../../shared/worker/feed-keeper.js";
 import { createReusedLoader, fetchUpstream } from "../../../../shared/worker/upstream.js";
+import { createGameEnds } from "./game-ends.js";
+import { createEspnGameReader, readEndTime } from "./lead.js";
 import { ESPN_HEADERS, fetchWnbaJson, SEASON_PARAM } from "./wnba.js";
 
 const EDGE_CACHE_SECONDS = 5;
 const SNAPSHOT_REUSE_MS = 10000;
-// The schedule, standings, and players' averages change a few times a day, and the stats site is
-// slow and quick to turn away a busy caller, so they're read at most this often. The bracket
-// changes only when a game ends, so it's read again then, or after a while regardless.
-const SLOW_FEED_MS = {
-  schedule: 60 * 60 * 1000,
-  standings: 60 * 60 * 1000,
-  players: 60 * 60 * 1000,
-  bracket: 10 * 60 * 1000,
+const DAY_MS = 24 * 60 * 60 * 1000;
+// The schedule, bracket, standings, and players' averages change as games end, and otherwise
+// hardly at all, and the stats site is slow and quick to turn away a busy caller.
+const SLOW_FEEDS = {
+  schedule: { maxAgeMs: DAY_MS, changesWithGames: true },
+  standings: { maxAgeMs: DAY_MS, changesWithGames: true },
+  players: { maxAgeMs: DAY_MS, changesWithGames: true },
+  bracket: { maxAgeMs: DAY_MS, changesWithGames: true },
 };
-// A slow feed that didn't answer isn't asked again for a while, since a hung read holds up each
-// update until it times out.
-const FAILED_FEED_WAIT_MS = 5 * 60 * 1000;
 
 // Where each feed's answer keeps its data.
 const FEED_DATA = {
@@ -30,9 +30,8 @@ const FEED_DATA = {
 
 const hasFeedData = (name, answer) => Array.isArray(FEED_DATA[name](answer));
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 // Where a game is on rarely changes, so ESPN's scoreboard is read at most this often.
-const NETWORKS_MS = 10 * 60 * 1000;
+const NETWORKS_MS = 6 * 60 * 60 * 1000;
 
 const formatEspnDay = (ms) => readEasternDay(ms).date.replaceAll("-", "");
 const formatEspnMonth = (ms) => formatEspnDay(ms).slice(0, 6);
@@ -50,10 +49,16 @@ export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
 } = {}) {
-  const slowFeeds = new Map();
-  const failedFeeds = new Map();
-  let lastFinals = null;
+  const slowFeeds = createFeedKeeper({ feeds: SLOW_FEEDS, leagueName: "The WNBA", now });
   const networkMonths = new Map();
+  const espnGames = createEspnGameReader({ fetchImpl });
+  const gameEnds = createGameEnds({
+    loadEndTime: (game) =>
+      espnGames
+        .fetchSummary({ away: game.away.team, home: game.home.team, start: game.start })
+        .then(readEndTime),
+    now,
+  });
 
   /**
    * @param {keyof typeof FEED_DATA} name
@@ -63,36 +68,10 @@ export function createSnapshotServer({
     fetchWnbaJson(fetchImpl, url, EDGE_CACHE_SECONDS, (answer) => hasFeedData(name, answer));
 
   /**
-   * @param {keyof typeof SLOW_FEED_MS} name
+   * @param {keyof typeof SLOW_FEEDS} name
    * @param {string} url
-   * @param {boolean} isStale
    */
-  function isDueForRead(name, url, isStale) {
-    const failedAt = failedFeeds.get(url);
-    if (failedAt !== undefined && now() - failedAt < FAILED_FEED_WAIT_MS) return false;
-    const kept = slowFeeds.get(url);
-    return !kept || isStale || now() - kept.at >= SLOW_FEED_MS[name];
-  }
-
-  // A slow feed's last good answer stands in when a read fails or waits. Each season's are kept
-  // apart.
-  async function readSlowFeed(name, url, isStale) {
-    const kept = slowFeeds.get(url);
-    if (!isDueForRead(name, url, isStale)) {
-      if (kept) return kept.data;
-      throw new Error(`The WNBA didn't answer ${name} a moment ago`);
-    }
-    try {
-      const data = await fetchFeed(name, url);
-      slowFeeds.set(url, { at: now(), data });
-      failedFeeds.delete(url);
-      return data;
-    } catch (error) {
-      failedFeeds.set(url, now());
-      if (kept) return kept.data;
-      throw error;
-    }
-  }
+  const readSlowFeed = (name, url) => slowFeeds.readFeed(name, url, () => fetchFeed(name, url));
 
   async function fetchEspnJson(url) {
     const response = await fetchUpstream(fetchImpl, url, {
@@ -179,15 +158,12 @@ export function createSnapshotServer({
     const scoreboard = await fetchFeed("scoreboard", WNBASnapshot.REQUESTS.scoreboard).catch(
       () => null,
     );
-    // A scoreboard that didn't answer counts no finals, so it leaves the count as it was.
-    const finals = scoreboard ? countFinals(scoreboard) : lastFinals;
-    const hasNewFinal = lastFinals !== null && finals > lastFinals;
-    lastFinals = finals;
+    slowFeeds.noteFinalCount(scoreboard ? countFinals(scoreboard) : null);
     const [schedule, bracket, standings, players] = await Promise.all([
-      readSlowFeed("schedule", WNBASnapshot.REQUESTS.schedule, hasNewFinal).catch(() => null),
-      readSlowFeed("bracket", WNBASnapshot.REQUESTS.bracket(season), hasNewFinal).catch(() => null),
-      readSlowFeed("standings", WNBASnapshot.REQUESTS.standings(season), false).catch(() => null),
-      readSlowFeed("players", WNBASnapshot.REQUESTS.players(season), false).catch(() => null),
+      readSlowFeed("schedule", WNBASnapshot.REQUESTS.schedule).catch(() => null),
+      readSlowFeed("bracket", WNBASnapshot.REQUESTS.bracket(season)).catch(() => null),
+      readSlowFeed("standings", WNBASnapshot.REQUESTS.standings(season)).catch(() => null),
+      readSlowFeed("players", WNBASnapshot.REQUESTS.players(season)).catch(() => null),
     ]);
     if (!scoreboard && !schedule && !bracket)
       throw new Error("None of the WNBA's feeds answered with data");
@@ -198,14 +174,17 @@ export function createSnapshotServer({
     return { scoreboard, schedule, bracket, standings, players, backup, networks };
   }
 
-  const loadSnapshot = createReusedLoader(
-    (season, requestedAt) =>
-      fetchResponses(season).then((responses) =>
-        WNBASnapshot.buildSnapshot(responses, { season, now: requestedAt }),
-      ),
-    SNAPSHOT_REUSE_MS,
-    now,
-  );
+  /**
+   * @param {number} season
+   * @param {number} requestedAt
+   */
+  async function fetchSnapshot(season, requestedAt) {
+    const responses = await fetchResponses(season);
+    const snapshot = WNBASnapshot.buildSnapshot(responses, { season, now: requestedAt });
+    return { ...snapshot, games: await gameEnds.addEnds(snapshot.games) };
+  }
+
+  const loadSnapshot = createReusedLoader(fetchSnapshot, SNAPSHOT_REUSE_MS, now);
 
   /** @param {URL} url */
   const serveSnapshot = (url) =>

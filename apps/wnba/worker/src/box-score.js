@@ -70,19 +70,31 @@ export function describeBoxScore(response) {
   };
 }
 
+// A finished game's box score never changes, so it's read once and kept.
 export function createBoxScoreServer({ fetchImpl = (input, init) => fetch(input, init) } = {}) {
+  /** @type {Map<string, ReturnType<typeof describeBoxScore>>} */
+  const finishedBoxScores = new Map();
+
+  /** @param {string} id */
+  async function loadBoxScore(id) {
+    if (finishedBoxScores.has(id)) return finishedBoxScores.get(id);
+    const response = await fetchWnbaJson(
+      fetchImpl,
+      nameBoxScoreRequest(id),
+      BOX_SCORE_CACHE_SECONDS,
+      hasBoxScore,
+    );
+    const boxScore = describeBoxScore(response);
+    if (boxScore.state === "final") finishedBoxScores.set(id, boxScore);
+    return boxScore;
+  }
+
   /** @param {URL} url */
   async function serveBoxScore(url) {
     const id = url.searchParams.get("id") ?? "";
     if (!GAME_ID.test(id)) return respondJson({ error: "id must be a WNBA game id" }, 400);
     try {
-      const response = await fetchWnbaJson(
-        fetchImpl,
-        nameBoxScoreRequest(id),
-        BOX_SCORE_CACHE_SECONDS,
-        hasBoxScore,
-      );
-      return respondJson(describeBoxScore(response));
+      return respondJson(await loadBoxScore(id));
     } catch (error) {
       if (NOT_YET_STATUSES.includes(/** @type {{ status?: number }} */ (error).status))
         return respondJson({ error: "The WNBA has no box score for that game yet" }, 404);

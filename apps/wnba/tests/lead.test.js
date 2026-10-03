@@ -10,6 +10,7 @@ import {
   findEventId,
   nameScoreboardRequest,
   nameSummaryRequest,
+  readEndTime,
 } from "../worker/src/lead.js";
 
 // Valkyries at Wings, Game 2, which the Wings won 108-100 in overtime.
@@ -100,6 +101,34 @@ test("the Worker answers a game's lead, says when ESPN has no such game, and tur
   for (const params of [{ ...TEAMS }, { away: "GSV", home: "GSV", start: LEAD.game.start }]) {
     assert.equal((await askForLead(ESPN_ANSWERS, params)).status, 400);
   }
+});
+
+test("a finished game's lead is read from ESPN once and kept", async () => {
+  let reads = 0;
+  const answer = createFetch(ESPN_ANSWERS);
+  const server = createLeadServer({
+    fetchImpl: async (url) => {
+      reads += 1;
+      return answer(url);
+    },
+  });
+  const query = new URLSearchParams({ ...TEAMS, start: LEAD.game.start });
+  const askLead = () => server.serveLead(new URL(`https://wnba.test/lead?${query}`));
+
+  assert.equal((await askLead()).status, 200);
+  assert.equal(reads, 2);
+  assert.equal((await askLead()).status, 200);
+  assert.equal(reads, 2);
+});
+
+test("a game ended when ESPN logged its last play, and its end is unknown until then", () => {
+  const plays = [
+    { type: { text: "Jump Ball" }, wallclock: "2026-10-01T01:12:59Z" },
+    { type: { text: "End Game" }, wallclock: "2026-10-01T04:01:34Z" },
+  ];
+  assert.equal(readEndTime({ plays }), "2026-10-01T04:01:34Z");
+  assert.equal(readEndTime({ plays: plays.slice(0, 1) }), null);
+  assert.equal(readEndTime(null), null);
 });
 
 /**

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { NETWORKS_REQUEST, REQUESTS } from "../page/js/snapshot.js";
+import { TEAMS } from "../page/js/teams.js";
+import { nameScoreboardRequest, nameSummaryRequest } from "../worker/src/lead.js";
 import { createSnapshotServer } from "../worker/src/snapshot.js";
 
 const AFTERNOON = JSON.parse(
@@ -46,6 +48,10 @@ const isNetworksRequest = (url) => new URL(url).pathname === NETWORKS_PATH;
 function createLeague({ refuse = {}, answers = {}, espn = {} } = {}) {
   const reads = [];
   const fetchImpl = async (url, init) => {
+    if (url in espn) {
+      reads.push({ feed: "espn", headers: init.headers });
+      return new Response(JSON.stringify(espn[url]));
+    }
     if (isNetworksRequest(url)) {
       reads.push({ feed: "networks", url, headers: init.headers });
       return url in ESPN_SCOREBOARD.answers && !refuse.networks
@@ -185,25 +191,22 @@ test("a feed that answers JSON without its data counts as missing", async () => 
   assert.deepEqual(snapshot.missing, ["scoreboard"]);
 });
 
-test("the schedule, bracket, standings, and players' averages are read again only after a while", async () => {
+const SLOW_FEEDS = ["schedule", "bracket", "standings", "players"];
+const HOUR_MS = 60 * 60 * 1000;
+
+test("the schedule, bracket, standings, and players' averages are read again only after a day", async () => {
   const league = createLeague();
   let now = NOW;
   const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
 
   await server.loadSnapshot(2026);
-  now += 11 * 1000;
+  now += 23 * HOUR_MS;
   await server.loadSnapshot(2026);
-  assert.deepEqual(
-    ["scoreboard", "schedule", "bracket", "standings", "players"].map(league.countReads),
-    [2, 1, 1, 1, 1],
-  );
+  assert.deepEqual(["scoreboard", ...SLOW_FEEDS].map(league.countReads), [2, 1, 1, 1, 1]);
 
-  now += 11 * 60 * 1000;
+  now += HOUR_MS;
   await server.loadSnapshot(2026);
-  assert.deepEqual(
-    ["scoreboard", "schedule", "bracket", "standings", "players"].map(league.countReads),
-    [3, 1, 2, 1, 1],
-  );
+  assert.deepEqual(["scoreboard", ...SLOW_FEEDS].map(league.countReads), [3, 2, 2, 2, 2]);
 });
 
 /** @param {{ reads: { feed: string, url?: string }[] }} league */
@@ -248,7 +251,7 @@ test("a month that's over is read once more, and then keeps that answer", async 
     NETWORKS_REQUEST("202610"),
   ]);
 
-  now += 11 * 60 * 1000;
+  now += 6 * HOUR_MS;
   const snapshot = await server.loadSnapshot(2026);
   assert.deepEqual(listNetworksReads(league).slice(4), [NETWORKS_REQUEST("202610")]);
   assert.deepEqual(snapshot.games.find((game) => game.id === "1042600101").networks, ["ABC"]);
@@ -266,7 +269,7 @@ test("a month that's over and didn't answer keeps being read until it does", asy
   now = Date.parse("2026-10-05T16:00:00Z");
   await server.loadSnapshot(2026);
   delete refuse.networks;
-  now += 11 * 60 * 1000;
+  now += 6 * HOUR_MS;
   await server.loadSnapshot(2026);
 
   assert.deepEqual(listNetworksReads(league).slice(4), [
@@ -275,7 +278,7 @@ test("a month that's over and didn't answer keeps being read until it does", asy
   ]);
 });
 
-test("ESPN's scoreboard is read again only after 10 minutes, even after a failed read, and kept when it stops answering", async () => {
+test("ESPN's scoreboard is read again only after 6 hours, even after a failed read, and kept when it stops answering", async () => {
   /** @type {Record<string, "page" | "error">} */
   const refuse = {};
   const league = createLeague({ refuse });
@@ -288,7 +291,7 @@ test("ESPN's scoreboard is read again only after 10 minutes, even after a failed
   assert.equal(league.countReads("networks"), 2);
 
   refuse.networks = "error";
-  now += 10 * 60 * 1000;
+  now += 6 * HOUR_MS;
   const snapshot = await server.loadSnapshot(2026);
   assert.equal(league.countReads("networks"), 4);
   assert.deepEqual(snapshot.games.find((game) => game.id === "1042600132").networks, ["ESPN"]);
@@ -298,7 +301,7 @@ test("ESPN's scoreboard is read again only after 10 minutes, even after a failed
   assert.equal(league.countReads("networks"), 4, "a failed read waits too");
   assert.deepEqual(later.games.find((game) => game.id === "1042600132").networks, ["ESPN"]);
 
-  now += 10 * 60 * 1000;
+  now += 6 * HOUR_MS;
   await server.loadSnapshot(2026);
   assert.equal(league.countReads("networks"), 6);
 });
@@ -321,9 +324,9 @@ function finishFirstGame(scoreboard) {
   return finished;
 }
 
-const countSlowReads = (league) => ["schedule", "bracket"].map(league.countReads);
+const countSlowReads = (league) => SLOW_FEEDS.map(league.countReads);
 
-test("a game that ends has the schedule and bracket read again right away", async () => {
+test("a game that ends has the slow feeds read again at once, and once more ten minutes on", async () => {
   const answers = {};
   const league = createLeague({ answers });
   let now = NOW;
@@ -333,8 +336,47 @@ test("a game that ends has the schedule and bracket read again right away", asyn
   answers.scoreboard = finishFirstGame(AFTERNOON.responses.scoreboard);
   now += 11 * 1000;
   await server.loadSnapshot(2026);
+  assert.deepEqual(countSlowReads(league), [2, 2, 2, 2]);
 
-  assert.deepEqual(countSlowReads(league), [2, 2]);
+  now += 5 * 60 * 1000;
+  await server.loadSnapshot(2026);
+  assert.deepEqual(countSlowReads(league), [2, 2, 2, 2]);
+
+  now += 5 * 60 * 1000;
+  await server.loadSnapshot(2026);
+  assert.deepEqual(countSlowReads(league), [3, 3, 3, 3]);
+
+  now += 10 * 60 * 1000;
+  await server.loadSnapshot(2026);
+  assert.deepEqual(countSlowReads(league), [3, 3, 3, 3]);
+});
+
+test("a game seen live and then final ends when ESPN logged its last play", async () => {
+  const live = structuredClone(AFTERNOON.responses.scoreboard);
+  Object.assign(live.scoreboard.games[0], { gameStatus: 2, gameStatusText: "Q4 0:30" });
+  const start = live.scoreboard.games[0].gameTimeUTC;
+  const competitors = [
+    { homeAway: "away", team: { id: String(TEAMS.ATL.espnId) } },
+    { homeAway: "home", team: { id: String(TEAMS.WAS.espnId) } },
+  ];
+  const espn = {
+    [nameScoreboardRequest(start)]: { events: [{ id: "401", competitions: [{ competitors }] }] },
+    [nameSummaryRequest("401")]: {
+      plays: [{ type: { text: "End Game" }, wallclock: "2026-10-01T01:11:27Z" }],
+    },
+  };
+  const answers = { scoreboard: live };
+  const league = createLeague({ answers, espn });
+  let now = NOW;
+  const server = createSnapshotServer({ fetchImpl: league.fetchImpl, now: () => now });
+  await server.loadSnapshot(2026);
+
+  answers.scoreboard = finishFirstGame(AFTERNOON.responses.scoreboard);
+  now += 11 * 1000;
+  const snapshot = await server.loadSnapshot(2026);
+
+  const ended = snapshot.games.find((game) => game.id === "1042600132");
+  assert.equal(ended.end, "2026-10-01T01:11:27Z");
 });
 
 test("a scoreboard that misses a read doesn't look like a game ending once it's back", async () => {
@@ -353,7 +395,7 @@ test("a scoreboard that misses a read doesn't look like a game ending once it's 
   now += 11 * 1000;
   await server.loadSnapshot(2026);
 
-  assert.deepEqual(countSlowReads(league), [1, 1]);
+  assert.deepEqual(countSlowReads(league), [1, 1, 1, 1]);
 });
 
 test("each season's slow feeds are kept apart", async () => {
@@ -376,8 +418,9 @@ test("a slow feed that stops answering keeps its last good answer", async () => 
   await server.loadSnapshot(2026);
 
   refuse.bracket = "error";
-  now += 11 * 60 * 1000;
+  now += 24 * HOUR_MS;
   const snapshot = await server.loadSnapshot(2026);
+  assert.equal(league.countReads("bracket"), 2);
 
   assert.deepEqual(snapshot.missing, []);
   assert.equal(snapshot.series.find((series) => series.id === "1-0").winner, "NYL");

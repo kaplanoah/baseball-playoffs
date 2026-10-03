@@ -94,6 +94,27 @@ test("the box score route reads the league's CDN as its own site would, briefly 
   assert.equal(init.cf.cacheTtl, 5);
 });
 
+test("a finished game's box score is read once and kept, and a live one's every time", async () => {
+  const league = createLeague();
+  const server = createBoxScoreServer({ fetchImpl: league.fetchImpl });
+  await askBoxScore(server, `id=${ACES_AT_FEVER}`);
+  await askBoxScore(server, `id=${ACES_AT_FEVER}`);
+  assert.equal(league.reads.length, 1);
+
+  const live = structuredClone(GAMES.boxScores[VALKYRIES_AT_WINGS]);
+  live.game.gameStatus = 2;
+  let liveReads = 0;
+  const liveServer = createBoxScoreServer({
+    fetchImpl: async () => {
+      liveReads += 1;
+      return new Response(JSON.stringify(live));
+    },
+  });
+  await askBoxScore(liveServer, `id=${VALKYRIES_AT_WINGS}`);
+  await askBoxScore(liveServer, `id=${VALKYRIES_AT_WINGS}`);
+  assert.equal(liveReads, 2);
+});
+
 test("a game without a box score yet is a 404, and a league that fails is a 502", async () => {
   const notStarted = await askBoxScore(
     createBoxScoreServer({ fetchImpl: createLeague().fetchImpl }),

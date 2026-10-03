@@ -90,6 +90,19 @@ test("a game ends when it's first found final after being seen live, and keeps t
   assert.equal(findTonight(saved).end, "2026-10-01T01:12:00Z");
 });
 
+test("a game's end from ESPN replaces the one the Worker found", async () => {
+  const docs = createDocs();
+  await saveSnapshot(docs, setTonightsState(SNAPSHOT, "live"));
+  const ending = { ...finishTonight(SNAPSHOT, [80, 70]), asOf: "2026-10-01T01:12:00Z" };
+  await saveSnapshot(docs, ending);
+  const games = ending.games.map((game) =>
+    game.id === "1042600132" ? { ...game, end: "2026-10-01T01:11:27Z" } : game,
+  );
+  await saveSnapshot(docs, { ...ending, games, asOf: "2026-10-01T01:14:00Z" });
+  const saved = await readUpdates(docs, 2026);
+  assert.equal(findTonight(saved).end, "2026-10-01T01:11:27Z");
+});
+
 test("a game found final without being seen live has no end", async () => {
   const docs = createDocs();
   await saveSnapshot(docs, SNAPSHOT);

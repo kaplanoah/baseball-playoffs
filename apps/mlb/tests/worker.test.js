@@ -10,28 +10,37 @@ const EVENING = JSON.parse(
 );
 const NOW = Date.parse(EVENING.now);
 
-function createFakeMlb({ status = 200 } = {}) {
+/** @param {string} url */
+const nameRequest = (url) =>
+  url.includes("/seasons/")
+    ? "season"
+    : url.includes("/standings")
+      ? "standings"
+      : url.includes("/postseason")
+        ? "postseason"
+        : "schedule";
+
+/** @param {{ status?: number, answers?: Record<string, any> }} [options] */
+function createFakeMlb({ status = 200, answers = {} } = {}) {
   const calls = [];
   const fetchImpl = async (url, init) => {
     calls.push({ url, init });
-    const kind = url.includes("/seasons/")
-      ? "season"
-      : url.includes("/standings")
-        ? "standings"
-        : url.includes("/postseason")
-          ? "postseason"
-          : "schedule";
-    return new Response(JSON.stringify(EVENING.responses[kind]), { status });
+    const kind = nameRequest(url);
+    return new Response(JSON.stringify(answers[kind] ?? EVENING.responses[kind]), { status });
   };
-  return { fetchImpl, calls };
+  /** @param {string} kind */
+  const countCalls = (kind) => calls.filter((call) => nameRequest(call.url) === kind).length;
+  return { fetchImpl, calls, countCalls };
 }
 
+/** @param {Parameters<typeof createFakeMlb>[0]} [options] */
 function createTestServer(options = {}) {
   const mlb = createFakeMlb(options);
   let now = NOW;
   const server = createSnapshotServer({ fetchImpl: mlb.fetchImpl, now: () => now });
   return {
     mlb,
+    server,
     requestSnapshot: (query = "?season=2026") =>
       server.serveSnapshot(new URL(`https://mlb-live.example/k3y/snapshot${query}`)),
     advanceClock: (milliseconds) => {
@@ -63,7 +72,78 @@ test("pages polling together share one trip to MLB", async () => {
   assert.equal(mlb.calls.length, 4);
   advanceClock(11000);
   await requestSnapshot();
-  assert.equal(mlb.calls.length, 8);
+  assert.equal(mlb.calls.length, 5);
+});
+
+const HOUR_MS = 60 * 60 * 1000;
+const SLOW_REQUESTS = ["season", "standings", "postseason"];
+
+test("only the schedule is read every time, the postseason hourly, and the rest daily", async () => {
+  const { mlb, requestSnapshot, advanceClock } = createTestServer();
+  await requestSnapshot();
+
+  advanceClock(HOUR_MS);
+  await requestSnapshot();
+  assert.deepEqual(["schedule", ...SLOW_REQUESTS].map(mlb.countCalls), [2, 1, 1, 2]);
+
+  advanceClock(23 * HOUR_MS);
+  await requestSnapshot();
+  assert.deepEqual(["schedule", ...SLOW_REQUESTS].map(mlb.countCalls), [3, 2, 2, 3]);
+});
+
+/** @param {any} schedule */
+function finishLiveGame(schedule) {
+  const finished = structuredClone(schedule);
+  const live = finished.dates
+    .flatMap((day) => day.games)
+    .find((game) => game.status.abstractGameState === "Live");
+  Object.assign(live.status, { abstractGameState: "Final", codedGameState: "F" });
+  return finished;
+}
+
+test("a game that ends has the slow requests read again at once, and once more ten minutes on", async () => {
+  const answers = {};
+  const { mlb, requestSnapshot, advanceClock } = createTestServer({ answers });
+  await requestSnapshot();
+
+  answers.schedule = finishLiveGame(EVENING.responses.schedule);
+  advanceClock(30 * 1000);
+  await requestSnapshot();
+  await requestSnapshot();
+  advanceClock(30 * 1000);
+  await requestSnapshot();
+  assert.deepEqual(SLOW_REQUESTS.map(mlb.countCalls), [1, 2, 2]);
+
+  advanceClock(10 * 60 * 1000);
+  await requestSnapshot();
+  assert.deepEqual(SLOW_REQUESTS.map(mlb.countCalls), [1, 3, 3]);
+});
+
+test("a past season read whole is kept", async () => {
+  const { mlb, server, advanceClock } = createTestServer();
+  await server.loadSnapshot(2025);
+  const reads = mlb.calls.length;
+
+  advanceClock(24 * HOUR_MS);
+  await server.loadSnapshot(2025);
+  assert.equal(mlb.calls.length, reads);
+});
+
+test("a past season read while a request failed is read again, and kept once it's whole", async () => {
+  const answers = { standings: { records: "not standings" } };
+  const { mlb, server, advanceClock } = createTestServer({ answers });
+  const partial = await server.loadSnapshot(2025);
+  assert.ok(partial.missing.length > 0);
+
+  delete answers.standings;
+  advanceClock(25 * HOUR_MS);
+  const whole = await server.loadSnapshot(2025);
+  assert.deepEqual(whole.missing, []);
+  const reads = mlb.calls.length;
+
+  advanceClock(24 * HOUR_MS);
+  await server.loadSnapshot(2025);
+  assert.equal(mlb.calls.length, reads);
 });
 
 test("a season that isn't a whole year in range is refused before anything is fetched", async () => {
