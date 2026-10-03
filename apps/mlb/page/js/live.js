@@ -1,5 +1,6 @@
 import * as MLBSnapshot from "./snapshot.js";
 import { isSameJson } from "#shared/compare.js";
+import { redrawEased } from "#shared/eased-redraw.js";
 import { describeLiveError } from "#shared/live-errors.js";
 import { fetchLive } from "./live-fetch.js";
 import { renderAll } from "./render.js";
@@ -51,7 +52,7 @@ function applyLive(snapshot) {
   const { asOf: _previousAsOf, ...before } = previous || {};
   composeState();
   if (previous && isSameJson(current, before)) renderStamp();
-  else renderUnlessReordering();
+  else redrawEased(renderUnlessReordering);
 }
 
 function acceptLiveSnapshot(snapshot) {
