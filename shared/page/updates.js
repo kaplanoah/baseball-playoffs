@@ -3,7 +3,8 @@
 // updates and release notes are and where the dismissal is kept.
 
 import { countDaysBetween, formatClockTime, nameDay } from "./days.js";
-import { html, setHtml } from "./html.js";
+import { easeClosed, stopEasing } from "./eased-redraw.js";
+import { html, noteHeight, setHtml } from "./html.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
 /** @typedef {{ at: number, text: Markup }} Update when it happened, and what it says */
@@ -125,17 +126,72 @@ function listenForDismiss(panel) {
   });
 }
 
+/** @type {WeakSet<HTMLElement>} */
+const closingPanels = new WeakSet();
+
+// A box that appears with new data grows open, pushing what's under it down smoothly, and one
+// that fills again as it shrinks away stays open.
+/**
+ * @param {HTMLElement} panel
+ * @param {Markup} markup
+ */
+function openBox(panel, markup) {
+  if (closingPanels.delete(panel)) stopEasing(panel);
+  if (panel.hidden) noteHeight(panel);
+  panel.hidden = false;
+  setHtml(panel, markup);
+}
+
+/** @param {HTMLElement} panel */
+function hideBox(panel) {
+  closingPanels.delete(panel);
+  panel.hidden = true;
+  setHtml(panel, html``);
+}
+
+// A box that empties keeps what it said while it shrinks away.
+/** @param {HTMLElement} panel */
+function closeBox(panel) {
+  if (panel.hidden || closingPanels.has(panel)) return;
+  closingPanels.add(panel);
+  easeClosed(panel, () => hideBox(panel));
+}
+
+/**
+ * @param {HTMLElement} panel
+ * @param {Markup | null} markup null for a box with nothing to show
+ */
+function showBoxAtOnce(panel, markup) {
+  if (!markup) {
+    hideBox(panel);
+    return;
+  }
+  panel.hidden = false;
+  setHtml(panel, markup);
+}
+
+/**
+ * @param {HTMLElement} panel
+ * @param {Markup | null} markup null for a box with nothing to show
+ */
+function showBoxEased(panel, markup) {
+  if (markup) openBox(panel, markup);
+  else closeBox(panel);
+}
+
 /**
  * Shows the updates and release notes in the box, or hides it when there are none. Its dismiss
- * button calls `dismiss`, which forgets them.
+ * button calls `dismiss`, which forgets them. The box's first showing draws at once, as the rest
+ * of the page does, and later ones ease it open or closed.
  * @param {HTMLElement} panel
  * @param {Update[]} updates newest first
  * @param {{ dismiss: () => void, notes?: Note[] }} options
  */
 export function showUpdates(panel, updates, { dismiss, notes = [] }) {
-  if (!dismissals.has(panel)) listenForDismiss(panel);
+  const isFirstShowing = !dismissals.has(panel);
+  if (isFirstShowing) listenForDismiss(panel);
   dismissals.set(panel, dismiss);
-  const isEmpty = !updates.length && !notes.length;
-  panel.hidden = isEmpty;
-  setHtml(panel, isEmpty ? html`` : renderUpdates(updates, notes));
+  const markup = updates.length || notes.length ? renderUpdates(updates, notes) : null;
+  if (isFirstShowing) showBoxAtOnce(panel, markup);
+  else showBoxEased(panel, markup);
 }
