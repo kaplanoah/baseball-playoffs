@@ -8,6 +8,7 @@ import { fetchLive, isReadableLive } from "./live-fetch.js";
 import { startLive, watchPageVisibility } from "./live.js";
 import { startGamePager } from "#shared/game-pager.js";
 import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
+import { endLoadNote } from "#shared/load-note.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { startMatchups } from "./matchup.js";
@@ -182,6 +183,7 @@ function drawLastSeen() {
     Object.assign(session, pickShown({ ...lastSeen, live }));
     composeState();
     renderAll();
+    endLoadNote();
   } catch {
     Object.assign(session, before);
   }
@@ -207,6 +209,7 @@ async function boot() {
   const [years] = await Promise.all([listYears(), loadActiveSeason()]);
   fillYearPicker(years);
   renderAll();
+  endLoadNote();
   watchBracketSpace();
   refreshClockEveryMinute();
   watchPageVisibility();
