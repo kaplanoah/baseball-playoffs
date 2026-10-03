@@ -1,5 +1,6 @@
 import { startHomeScreen } from "#shared/home-screen.js";
 import { setHtml } from "#shared/html.js";
+import { redrawEased } from "#shared/eased-redraw.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fillGameLists, startGamePager } from "#shared/game-pager.js";
 import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
@@ -49,6 +50,15 @@ function renderAll() {
   refreshTeamSheet();
 }
 
+// What new data changes eases in, as does the season the store answers with after the one the page
+// last showed.
+const showNewData = () => redrawEased(renderAll);
+
+function drawLoadedSeason() {
+  renderAll();
+  endLoadNote();
+}
+
 // Times read as today or tomorrow, so they're redrawn as the clock moves on.
 function refreshClockEveryMinute() {
   setInterval(renderAll, CLOCK_REFRESH_MS);
@@ -80,14 +90,14 @@ const readShown = () => session.season && { year: session.year, season: session.
 async function reloadSeason() {
   const watchedYear = session.year;
   await loadSeason();
-  if (session.year !== watchedYear) watchSeason(renderAll);
-  renderAll();
+  if (session.year !== watchedYear) watchSeason(showNewData);
+  showNewData();
 }
 
 function catchUp() {
   session.db.catchUp();
   if (session.problem) reloadSeason();
-  else renderAll();
+  else showNewData();
 }
 
 async function boot() {
@@ -106,9 +116,8 @@ async function boot() {
   drawLastSeen();
   keepLastSeen(readShown);
   await loadSeason();
-  renderAll();
-  endLoadNote();
-  watchSeason(renderAll);
+  redrawEased(drawLoadedSeason);
+  watchSeason(showNewData);
   watchStatus(renderStamp);
   refreshClockEveryMinute();
   startServiceWorker();
