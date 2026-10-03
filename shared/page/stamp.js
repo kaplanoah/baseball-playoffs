@@ -43,10 +43,13 @@ export const renderStampWhen = (date, now = new Date()) =>
   renderMeridiem(formatStampWhen(date, now));
 
 /**
- * A clock time within one of the stamp's sentences, set apart as a line's own time is.
+ * A clock time within one of the stamp's sentences, and the day after it when it has one, set apart
+ * as a line's own time is.
  * @param {Date} date
+ * @param {string} [day]
  */
-export const renderStampTime = (date) => html`<b>${renderMeridiem(formatClockTime(date))}</b>`;
+export const renderStampTime = (date, day = "") =>
+  html`<b>${renderMeridiem(formatClockTime(date))}${day && ` ${day}`}</b>`;
 
 /** Leads a line about the games under way, set apart as a time is. */
 export const renderStampNow = () => html`<b class="now">NOW</b>`;
