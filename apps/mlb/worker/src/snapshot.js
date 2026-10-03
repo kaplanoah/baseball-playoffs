@@ -1,23 +1,63 @@
 import * as MLBSnapshot from "../../page/js/snapshot.js";
+import { guessSeasonYear } from "../../page/js/session.js";
 import { fetchMlbJson, SEASON_PARAM } from "./mlb.js";
+import { createFeedKeeper } from "../../../../shared/worker/feed-keeper.js";
 import { serveSeasonSnapshot } from "../../../../shared/worker/seasons.js";
 import { createReusedLoader } from "../../../../shared/worker/upstream.js";
 
 const EDGE_CACHE_SECONDS = 15; // under MLB's own 20-second cache
 const SNAPSHOT_REUSE_MS = 10000;
+const HOUR_MS = 60 * 60 * 1000;
+// The schedule's games are read every time. The rest change as games end, when they're read
+// again, and otherwise hardly at all: the season's dates a few times a year, the standings and
+// the starters' numbers with each game, and the postseason as its games are set.
+const SLOW_FEEDS = {
+  season: { maxAgeMs: 24 * HOUR_MS, changesWithGames: false },
+  standings: { maxAgeMs: 24 * HOUR_MS, changesWithGames: true },
+  pitchers: { maxAgeMs: 24 * HOUR_MS, changesWithGames: true },
+  postseason: { maxAgeMs: HOUR_MS, changesWithGames: true },
+};
 
-// Reads MLB for the page, so every open page shares one trip to MLB at a time.
+// Reads MLB for the page, so every open page shares one trip to MLB at a time. A season before
+// the one under way is over, so it's read once and kept.
 export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
 } = {}) {
-  const fetchSnapshotJson = (path) => fetchMlbJson(fetchImpl, path, EDGE_CACHE_SECONDS);
+  const slowFeeds = createFeedKeeper({ feeds: SLOW_FEEDS, leagueName: "MLB", now });
 
-  const loadSnapshot = createReusedLoader(
-    (season, requestedAt) => MLBSnapshot.fetchSnapshot(fetchSnapshotJson, season, requestedAt),
-    SNAPSHOT_REUSE_MS,
-    now,
-  );
+  /** @param {string} path */
+  const fetchFeed = (path) => fetchMlbJson(fetchImpl, path, EDGE_CACHE_SECONDS);
+
+  async function fetchSchedule(path) {
+    const schedule = await fetchFeed(path);
+    slowFeeds.noteFinalCount(MLBSnapshot.countFinals(schedule));
+    return schedule;
+  }
+
+  /**
+   * @param {string} path
+   * @param {string} name
+   */
+  function fetchSnapshotJson(path, name) {
+    if (name === "schedule") return fetchSchedule(path);
+    if (Object.hasOwn(SLOW_FEEDS, name))
+      return slowFeeds.readFeed(name, path, () => fetchFeed(path));
+    return fetchFeed(path);
+  }
+
+  /**
+   * @param {number} season
+   * @param {number} requestedAt
+   */
+  const fetchSnapshot = (season, requestedAt) =>
+    MLBSnapshot.fetchSnapshot(fetchSnapshotJson, season, requestedAt);
+  const loadCurrentSnapshot = createReusedLoader(fetchSnapshot, SNAPSHOT_REUSE_MS, now);
+  const loadPastSnapshot = createReusedLoader(fetchSnapshot, Infinity, now);
+
+  /** @param {number} season */
+  const loadSnapshot = (season) =>
+    season < guessSeasonYear(now()) ? loadPastSnapshot(season) : loadCurrentSnapshot(season);
 
   /** @param {URL} url */
   const serveSnapshot = (url) =>

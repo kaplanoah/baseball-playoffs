@@ -36,14 +36,15 @@ function keepFurtherGames(savedGames, games) {
   });
 }
 
-// The feeds give no time a game ended, so it's when the Worker, checking every few seconds while
-// the game is live, first finds it final. A game found final without being seen live has no end.
+// A game's end is the time ESPN logged its last play, once the snapshot has it. Until then it's
+// when the Worker, checking while the game is live, first finds it final. A game found final
+// without being seen live has no end.
 function addEndTimes(savedGames, games, asOf) {
   const savedById = new Map((savedGames ?? []).map((game) => [game.id, game]));
   return games.map((game) => {
     if (game.state !== "final") return game;
     const saved = savedById.get(game.id);
-    const end = saved?.end ?? (saved?.state === "live" ? asOf : null);
+    const end = game.end ?? saved?.end ?? (saved?.state === "live" ? asOf : null);
     return end ? { ...game, end } : game;
   });
 }

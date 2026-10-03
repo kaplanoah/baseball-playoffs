@@ -105,7 +105,24 @@ function readGame(searchParams) {
   return isValid ? { away, home, start } : null;
 }
 
-export function createLeadServer({ fetchImpl = (input, init) => fetch(input, init) } = {}) {
+/** @param {{ away: string, home: string, start: string }} game */
+const nameGameKey = ({ away, home, start }) => `${away}-${home}-${start}`;
+
+/**
+ * When the game ended, from the time ESPN logged its last play, or null before ESPN has it.
+ * @param {any} summary ESPN's game summary
+ */
+export const readEndTime = (summary) =>
+  (summary?.plays ?? []).findLast((play) => play.type?.text === "End Game")?.wallclock ?? null;
+
+/**
+ * Reads ESPN's summary of a WNBA game, finding the game on ESPN's scoreboard for its day once.
+ * @param {{ fetchImpl?: (input: string, init: object) => Promise<Response> }} [options]
+ */
+export function createEspnGameReader({ fetchImpl = (input, init) => fetch(input, init) } = {}) {
+  /** @type {Map<string, string>} */
+  const eventIds = new Map();
+
   /**
    * @param {string} url
    * @param {number} cacheSeconds
@@ -116,19 +133,56 @@ export function createLeadServer({ fetchImpl = (input, init) => fetch(input, ini
     return response.json();
   }
 
+  /** @param {{ away: string, home: string, start: string }} game */
+  async function findGameEventId(game) {
+    const key = nameGameKey(game);
+    if (eventIds.has(key)) return eventIds.get(key);
+    const scoreboard = await fetchEspnJson(
+      nameScoreboardRequest(game.start),
+      SCOREBOARD_CACHE_SECONDS,
+    );
+    const eventId = findEventId(scoreboard, game);
+    if (eventId) eventIds.set(key, eventId);
+    return eventId;
+  }
+
+  return {
+    /**
+     * The game's summary, or null when ESPN has no such game that day.
+     * @param {{ away: string, home: string, start: string }} game
+     */
+    async fetchSummary(game) {
+      const eventId = await findGameEventId(game);
+      return eventId && fetchEspnJson(nameSummaryRequest(eventId), SUMMARY_CACHE_SECONDS);
+    },
+  };
+}
+
+// A finished game's lead never changes, so it's read once and kept.
+export function createLeadServer({ fetchImpl = (input, init) => fetch(input, init) } = {}) {
+  const espnGames = createEspnGameReader({ fetchImpl });
+  /** @type {Map<string, object>} */
+  const finishedLeads = new Map();
+
+  /** @param {{ away: string, home: string, start: string }} game */
+  async function loadLead(game) {
+    const key = nameGameKey(game);
+    if (finishedLeads.has(key)) return finishedLeads.get(key);
+    const summary = await espnGames.fetchSummary(game);
+    if (!summary) return null;
+    const lead = { ...game, ...describeLead(summary) };
+    if (lead.isOver) finishedLeads.set(key, lead);
+    return lead;
+  }
+
   /** @param {URL} url */
   async function serveLead(url) {
     const game = readGame(url.searchParams);
     if (!game) return respondJson({ error: "away, home, and start must name a WNBA game" }, 400);
     try {
-      const scoreboard = await fetchEspnJson(
-        nameScoreboardRequest(game.start),
-        SCOREBOARD_CACHE_SECONDS,
-      );
-      const eventId = findEventId(scoreboard, game);
-      if (!eventId) return respondJson({ error: "ESPN has no such game that day" }, 404);
-      const summary = await fetchEspnJson(nameSummaryRequest(eventId), SUMMARY_CACHE_SECONDS);
-      return respondJson({ ...game, ...describeLead(summary) });
+      const lead = await loadLead(game);
+      if (!lead) return respondJson({ error: "ESPN has no such game that day" }, 404);
+      return respondJson(lead);
     } catch (error) {
       return respondJson({ error: `Couldn't read ESPN: ${describeError(error)}` }, 502);
     }

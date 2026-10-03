@@ -396,7 +396,7 @@ function listStarterIds(slate) {
 async function fetchPitchers(getJson, season, ids) {
   if (!ids.length) return null;
   try {
-    return await getJson(listPitcherRequest(season, ids));
+    return await getJson(listPitcherRequest(season, ids), "pitchers");
   } catch {
     return null;
   }
@@ -405,21 +405,36 @@ async function fetchPitchers(getJson, season, ids) {
 const readUnlessFailed = (promise) => promise.catch(() => null);
 
 // The season's dates come first because they decide how far back the schedule reaches, and the
-// games come before their starters. The bracket and the games can't do without the postseason and
-// the schedule, but they can without the season's dates or the standings, which the snapshot then
-// lists as missing.
+// games come before the standings and their starters, since a game that just ended is what makes
+// those worth reading again. `getJson` is handed each request's name as well as its path. The
+// bracket and the games can't do without the postseason and the schedule, but they can without
+// the season's dates or the standings, which the snapshot then lists as missing.
 export async function fetchResponses(getJson, season, now = Date.now()) {
-  const seasonDates = await readUnlessFailed(getJson(listMlbRequests(season, now).season));
+  const seasonDates = await readUnlessFailed(
+    getJson(listMlbRequests(season, now).season, "season"),
+  );
   const requests = listMlbRequests(season, now, readRegularSeasonEnd(seasonDates));
-  const [standings, postseason, schedule] = await Promise.all([
-    readUnlessFailed(getJson(requests.standings)),
-    getJson(requests.postseason),
-    requests.schedule ? getJson(requests.schedule) : null,
+  const [postseason, schedule] = await Promise.all([
+    getJson(requests.postseason, "postseason"),
+    requests.schedule ? getJson(requests.schedule, "schedule") : null,
   ]);
-  const responses = { season: seasonDates, standings, postseason, schedule };
+  const responses = { season: seasonDates, standings: null, postseason, schedule };
   const { slate } = buildSnapshot(responses, { season, now });
-  return { ...responses, pitchers: await fetchPitchers(getJson, season, listStarterIds(slate)) };
+  const [standings, pitchers] = await Promise.all([
+    readUnlessFailed(getJson(requests.standings, "standings")),
+    fetchPitchers(getJson, season, listStarterIds(slate)),
+  ]);
+  return { ...responses, standings, pitchers };
 }
+
+/**
+ * How many of the schedule's games have ended.
+ * @param {any} schedule MLB's schedule
+ */
+export const countFinals = (schedule) =>
+  (schedule?.dates ?? [])
+    .flatMap((day) => day.games ?? [])
+    .filter((game) => readGameState(game.status ?? {}) === "final").length;
 
 export async function fetchSnapshot(getJson, season, now = Date.now()) {
   return buildSnapshot(await fetchResponses(getJson, season, now), { season, now });
