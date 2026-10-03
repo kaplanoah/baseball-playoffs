@@ -24,6 +24,8 @@ export default defineConfig({
     // Tests expect Eastern times unless they pick another zone with test.use({ timezoneId }).
     timezoneId: "America/New_York",
     locale: "en-US",
+    // A service worker's requests skip the routes tests answer, so only tests about it allow it.
+    serviceWorkers: "block",
     trace: "retain-on-failure",
   },
   projects: appsWithBrowserTests.map((app, index) => ({

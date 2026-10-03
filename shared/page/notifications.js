@@ -3,6 +3,7 @@
 import { reloadWhenSignedOut } from "./access.js";
 
 import { isIos, isOnHomeScreen } from "./device.js";
+import { registerServiceWorker } from "./service-worker.js";
 
 const NOTES = {
   blockedOnIos:
@@ -163,7 +164,7 @@ export async function startNotifications() {
     return;
   }
   try {
-    registration = await navigator.serviceWorker.register("sw.js");
+    registration = await registerServiceWorker();
     subscription = await registration.pushManager.getSubscription();
   } catch {
     setStatus("unsupported");

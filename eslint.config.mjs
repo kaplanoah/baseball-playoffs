@@ -49,7 +49,7 @@ export default [
     languageOptions: { sourceType: "script" },
   },
   {
-    files: ["apps/*/page/sw.js", "shared/page/push-worker.js"],
+    files: ["apps/*/page/sw.js", "shared/page/push-worker.js", "shared/page/offline-worker.js"],
     languageOptions: { globals: globals.serviceworker },
   },
   {

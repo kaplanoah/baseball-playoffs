@@ -1,5 +1,8 @@
 import { test, expect, openApp, openSettings } from "./harness.mjs";
 
+// The switch subscribes through the page's service worker.
+test.use({ serviceWorkers: "allow" });
+
 const DEVICE_ENDPOINT = "https://fcm.googleapis.com/fcm/send/test-device";
 
 // Headless Chromium has no push service, and its headless shell denies notifications outright,

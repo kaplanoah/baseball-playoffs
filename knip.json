@@ -9,6 +9,7 @@
     "tests/*.test.js",
     "tests/browser/serve.mjs",
     "shared/page/push-worker.js",
+    "shared/page/offline-worker.js",
     "shared/page/open-last-tab.js",
     "shared/page/slow-load.js",
     "shared/page/gate.js",

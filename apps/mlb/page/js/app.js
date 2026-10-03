@@ -15,6 +15,7 @@ import { startMatchups } from "./matchup.js";
 import { REORDER_EVENT } from "./ranking.js";
 import { renderAll } from "./render.js";
 import { reloadPage, watchReturns } from "#shared/resume.js";
+import { startServiceWorker } from "#shared/service-worker.js";
 import {
   applyDeferredSeason,
   loadSeasonList,
@@ -214,6 +215,7 @@ async function boot() {
   refreshClockEveryMinute();
   watchPageVisibility();
   startLive();
+  startServiceWorker();
   startNotifications();
   watchSpringTraining();
   await followSpringTraining();
