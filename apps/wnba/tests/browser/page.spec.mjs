@@ -603,7 +603,7 @@ test("a Games list with nothing in it starts its note where a list's first day s
   expect(await readGapUnderPill("#games-today .empty-note")).toBe(dayGap);
 });
 
-test("a game's series label reads smaller, and it and If needed lighter, than Final", async ({
+test("a game's series label is on the type scale's small step, and it and If needed read lighter than Final", async ({
   page,
 }) => {
   const app = await openApp(page);
@@ -618,7 +618,7 @@ test("a game's series label reads smaller, and it and If needed lighter, than Fi
   const final = page.locator("#gamePager .game-status", { hasText: "Final" }).first();
   await expect(final).toHaveCSS("font-weight", "600");
   await expect(page.locator("#gamePager .series-label").first()).toHaveCSS("font-weight", "500");
-  await expect(page.locator("#gamePager .series-label").first()).toHaveCSS("font-size", "12px");
+  await expect(page.locator("#gamePager .series-label").first()).toHaveCSS("font-size", "13px");
 });
 
 test("a break between periods reads in the status's capitals, in the live game's orange", async ({
