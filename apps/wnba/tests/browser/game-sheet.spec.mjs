@@ -184,7 +184,7 @@ test("a final's sheet charts the lead through the game under its quarters, and o
   const chart = sheet.locator(".lead-chart");
   await expect(chart.getByRole("img")).toHaveAttribute(
     "aria-label",
-    "The Wings led by as many as 8, the Valkyries led by as many as 8",
+    "The Valkyries led by as many as 8, the Wings led by as many as 8",
   );
   await expect(sheet.locator(".sheet-part h3")).toHaveText([
     "By quarter",
@@ -212,7 +212,7 @@ test("the lead chart keeps each biggest lead's label on its tile and each team's
   await app.changeSeason(finishValkyriesAtWings);
   const sheet = await openSheet(page, VALKYRIES_AT_WINGS);
   const chart = sheet.locator(".lead-chart");
-  await expect(chart.locator(".lead-peak-label")).toHaveText(["Wings +8", "Valkyries +8"]);
+  await expect(chart.locator(".lead-peak-label")).toHaveText(["Valkyries +8", "Wings +8"]);
 
   const readBox = (/** @type {import("@playwright/test").Locator} */ locator) =>
     locator.evaluateAll((elements) =>
@@ -222,10 +222,13 @@ test("the lead chart keeps each biggest lead's label on its tile and each team's
       }),
     );
   const [tile] = await readBox(chart.locator(".lead-tile"));
-  const [homeName, awayName] = await readBox(chart.locator(".lead-side"));
+  const [awayName, homeName] = await readBox(chart.locator(".lead-side"));
   const labels = await readBox(chart.locator(".lead-peak-label"));
-  expect(tile.top - homeName.bottom).toBeGreaterThanOrEqual(NAME_GAP_PX);
-  expect(awayName.top - tile.bottom).toBeGreaterThanOrEqual(NAME_GAP_PX);
+  const [awayPeak, homePeak] = await readBox(chart.locator(".lead-peak"));
+  expect(tile.top - awayName.bottom).toBeGreaterThanOrEqual(NAME_GAP_PX);
+  expect(homeName.top - tile.bottom).toBeGreaterThanOrEqual(NAME_GAP_PX);
+  expect(labels[0].bottom).toBeLessThanOrEqual(awayPeak.top);
+  expect(labels[1].top).toBeGreaterThanOrEqual(homePeak.bottom);
   for (const label of labels) {
     expect(label.left).toBeGreaterThanOrEqual(tile.left);
     expect(label.right).toBeLessThanOrEqual(tile.right);

@@ -854,10 +854,10 @@ header.top h1 {
   font-weight: 600;
   color: var(--side);
 }
-.lead-peak-label.home {
+.lead-peak-label.away {
   translate: -50% calc(-100% - 6px);
 }
-.lead-peak-label.away {
+.lead-peak-label.home {
   translate: -50% 6px;
 }
 .lead-periods {
