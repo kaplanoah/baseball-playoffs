@@ -13,7 +13,7 @@ function describeFinal(game, day) {
       ? [game.away, awayScore, game.home, homeScore]
       : [game.home, homeScore, game.away, awayScore];
   const score = `${formatStampName(winner)} ${winnerScore} ${formatStampName(loser)} ${loserScore}`;
-  return html`${score} final at ${renderStampTime(new Date(game.end))}${day ? ` ${day}` : ""}`;
+  return html`${score} final at ${renderStampTime(new Date(game.end), day)}`;
 }
 function describeLive(game) {
   const [awayScore, homeScore] = game.score || [0, 0];

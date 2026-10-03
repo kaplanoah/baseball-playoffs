@@ -2,6 +2,7 @@ import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { readEasternDay } from "#shared/days.js";
 import { startHomeScreen } from "#shared/home-screen.js";
+import { redrawEased } from "#shared/eased-redraw.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fetchLive, isReadableLive } from "./live-fetch.js";
@@ -39,13 +40,16 @@ const SPRING_CHECK_MS = 60 * 60 * 1000;
 
 const findYearPicker = () => /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
 
+function redrawStandings() {
+  renderStandings();
+  renderStamp();
+}
+
+// What new data changes eases in rather than jumps.
 const YEAR_REDRAWS = {
-  onSeasonChange: renderAll,
-  onStandingsChange: () => {
-    renderStandings();
-    renderStamp();
-  },
-  onReadingsChange: renderUpdates,
+  onSeasonChange: () => redrawEased(renderAll),
+  onStandingsChange: () => redrawEased(redrawStandings),
+  onReadingsChange: () => redrawEased(renderUpdates),
 };
 
 // Watching a year reads each of its documents, so the watches' first answers are its load.
@@ -197,7 +201,13 @@ function catchUp() {
     return;
   }
   session.db.catchUp();
-  if (session.state && !session.isReordering) renderAll();
+  if (session.state && !session.isReordering) redrawEased(renderAll);
+}
+
+// The season the store and MLB answer with eases in over the one the page last showed.
+function drawLoadedSeason() {
+  renderAll();
+  endLoadNote();
 }
 
 async function boot() {
@@ -209,8 +219,7 @@ async function boot() {
   keepLastSeen(readShown);
   const [years] = await Promise.all([listYears(), loadActiveSeason()]);
   fillYearPicker(years);
-  renderAll();
-  endLoadNote();
+  redrawEased(drawLoadedSeason);
   watchBracketSpace();
   refreshClockEveryMinute();
   watchPageVisibility();
