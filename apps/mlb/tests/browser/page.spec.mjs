@@ -9,6 +9,7 @@ import {
   EVENING_FIXTURE,
 } from "./harness.mjs";
 import { createReading } from "../../page/js/readings.js";
+import { listAnimations } from "../../../../tests/browser/animations.mjs";
 import { listOffScaleText } from "../../../../tests/browser/type-scale.mjs";
 import { listTapFlashes, listTouchHoverRules } from "../../../../tests/browser/tap-states.mjs";
 
@@ -1619,6 +1620,21 @@ test("warns under the title when MLB stops sending a field", async ({ page }) =>
     "MLB stopped sending wildCardRank, so some details may be blank.",
   );
   await expect(page.locator("#bracketWrap")).toContainText("Dodgers");
+});
+
+test("a warning MLB's feed brings eases the header to its new height", async ({ page }) => {
+  const readAnimations = await listAnimations(page);
+  const app = await openApp(page);
+  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+
+  app.changeSnapshots((snapshot) => ({ ...snapshot, missing: ["wildCardRank"] }));
+  await page.clock.fastForward("00:30");
+
+  await expect(page.locator("#stamp")).toContainText("MLB stopped sending wildCardRank");
+  const growth = (await readAnimations()).find(({ element }) => element === "stamp");
+  expect(parseFloat(String(growth.last.height))).toBeGreaterThan(
+    parseFloat(String(growth.first.height)),
+  );
 });
 
 test("with no field yet, the bracket says it fills in once MLB projects one", async ({ page }) => {
