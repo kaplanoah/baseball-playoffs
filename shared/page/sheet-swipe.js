@@ -66,7 +66,8 @@ function slideClosedOnCancel(event) {
 
 /**
  * Moves the sheet with a finger swiping down from its top, and closes it at the end of a far or
- * fast enough swipe. Touches on the sheet's own gestures, and any other swipe, scroll it instead.
+ * fast enough swipe. A swipe down the scrolled content scrolls it to its top, then moves the
+ * sheet. Touches on the sheet's own gestures, and any other swipe, scroll it instead.
  * @param {HTMLDialogElement} dialog
  * @param {(target: EventTarget) => boolean} [isOwnGesture]
  */
@@ -93,21 +94,24 @@ export function closeOnSwipeDown(dialog, isOwnGesture = () => false) {
     swipe.lastTime = time;
   }
 
+  // Until the sheet moves, the swipe counts from the finger's highest point since the content
+  // last scrolled, so a swipe that scrolls the content back to its top goes on to move the sheet.
+  function startsDragging(clientY) {
+    if (dialog.scrollTop > 0 || clientY < swipe.startY) swipe.startY = clientY;
+    return clientY - swipe.startY >= SWIPE_START_PX;
+  }
+
   function followSwipe(event) {
     if (!swipe) return;
     const { clientY } = event.touches[0];
-    const distance = clientY - swipe.startY;
-    if (!swipe.isDragging) {
-      if (Math.abs(distance) < SWIPE_START_PX) return;
-      if (distance < 0 || dialog.scrollTop > 0) {
-        swipe = null;
-        return;
-      }
-      swipe.isDragging = true;
+    if (!swipe.isDragging && !startsDragging(clientY)) {
+      trackSwipeSpeed(clientY, event.timeStamp);
+      return;
     }
-    event.preventDefault();
+    swipe.isDragging = true;
+    if (event.cancelable) event.preventDefault();
     trackSwipeSpeed(clientY, event.timeStamp);
-    dialog.style.transform = `translateY(${Math.max(0, distance)}px)`;
+    dialog.style.transform = `translateY(${Math.max(0, clientY - swipe.startY)}px)`;
   }
 
   function endSwipe(event) {

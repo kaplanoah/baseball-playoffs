@@ -1217,19 +1217,19 @@ body.kbd .rank-item .grip:focus {
   height: 100%;
   container-type: size;
   scroll-snap-type: y proximity;
-  scroll-padding-top: calc(var(--head-height) + var(--section-gap));
+  scroll-padding-top: var(--section-gap);
 }
-.settings-controls {
+.settings-panel .sheet-top {
   scroll-snap-align: start;
 }
-/* The ranking section is exactly one sheet tall, less the pinned header, the gap above it, and
-   the bottom padding, so scrolling down to it shows all twelve rows at once. */
+/* The ranking section is exactly one sheet tall, less the gap above it and the bottom padding, so
+   scrolling down to it shows all twelve rows at once. */
 .settings-ranking {
   flex: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  height: calc(100cqh - var(--head-height) - var(--section-gap) - var(--bottom-padding));
+  height: calc(100cqh - var(--section-gap) - var(--bottom-padding));
   scroll-snap-align: start;
 }
 .ranking-heading {
@@ -1280,7 +1280,6 @@ body.kbd .rank-item .grip:focus {
   .settings-body .sheet-top {
     grid-column: 1 / -1;
     grid-row: 1;
-    position: static;
     box-shadow: 0 1px 0 var(--divider);
   }
   .settings-main {

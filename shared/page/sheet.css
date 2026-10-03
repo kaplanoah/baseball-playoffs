@@ -2,8 +2,9 @@
  * A sheet that a tap on the page opens over it, like a game's details: a modal on wide screens,
  * and on phones a sheet from the bottom as tall as its content, up to nearly the screen's height,
  * that sheet-swipe.js closes with a swipe down. Its dialog has the sheet-panel class, and holds a
- * .sheet-content with chrome.css's pinned .sheet-top over the rest. Apps link it after chrome.css,
- * before their own styles.css, and theme it with chrome.css's tokens.
+ * .sheet-content with chrome.css's .sheet-top over the rest, which scrolls with it and never past
+ * its top or bottom. Apps link it after chrome.css, before their own styles.css, and theme it with
+ * chrome.css's tokens.
  *
  * Its content falls in titled parts, as sheet-part.js builds them, each with an optional note
  * across from its title, which takes the app's --sheet-part-head color. A short status beside a
@@ -35,7 +36,7 @@
   border: 1px solid var(--card-border);
   border-radius: 12px;
   box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 .sheet-panel::backdrop {
   background: rgba(0, 0, 0, 0.6);

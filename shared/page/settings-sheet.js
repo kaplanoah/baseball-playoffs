@@ -1,6 +1,6 @@
 // The settings panel behind the page's settings button, and which release of the page this is.
 // Phones show it as a sheet from the bottom that a swipe down closes, wider screens as a modal.
-// The page supplies the button (#settingsBtn) and the dialog (#settingsDialog), with its pinned
+// The page supplies the button (#settingsBtn) and the dialog (#settingsDialog), with its
 // .sheet-top, its Done button (#settingsDoneBtn), and a place for the release (#versionNote).
 
 import { joinWithSeparator, setHtml } from "./html.js";

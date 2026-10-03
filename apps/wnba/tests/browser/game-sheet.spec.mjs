@@ -60,7 +60,8 @@ const readPaintedBackground = (locator) =>
   });
 
 /**
- * Shows the Games list that has the game a button names, and finds the button.
+ * Shows the Games list that has the game a button names, and finds the button once the list has
+ * come to rest, before which a tap on it does nothing.
  * @param {import("@playwright/test").Page} page
  * @param {string} name
  */
@@ -68,8 +69,11 @@ async function findGameButton(page, name) {
   await page.getByRole("tab", { name: "Games" }).click();
   for (const list of ["Today", "Previous", "Next"]) {
     await page.getByRole("tab", { name: list }).click();
-    const button = page.locator(`#games-${list.toLowerCase()}`).getByRole("button", { name });
-    if (await button.count()) return button;
+    const games = page.locator(`#games-${list.toLowerCase()}`);
+    const button = games.getByRole("button", { name });
+    if (!(await button.count())) continue;
+    await expect(games).not.toHaveAttribute("inert");
+    return button;
   }
   throw new Error(`No game is named ${name}`);
 }
@@ -745,6 +749,20 @@ test.describe("on a phone", () => {
     expect(Math.round(box.y + box.height)).toBe(844);
     expect(box.width).toBe(390);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  });
+
+  test("the game sheet's title scrolls away with the rest, and the sheet never scrolls past its ends", async ({
+    page,
+  }) => {
+    await openApp(page);
+    const sheet = await openSheet(page, ACES_AT_FEVER);
+    await expect(sheet.locator(".tape-row").first()).toBeVisible();
+    await expect(sheet).toHaveCSS("overscroll-behavior-y", "none");
+
+    await sheet.evaluate((dialog) => {
+      dialog.scrollTop = dialog.scrollHeight;
+    });
+    await expect(sheet.locator(".sheet-top")).not.toBeInViewport();
   });
 
   test("the game sheet's backdrop fades in, and Done, a tap outside, or Escape slides the sheet down as the backdrop fades out", async ({
