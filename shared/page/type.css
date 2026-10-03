@@ -14,8 +14,11 @@
   --size-read: 1rem;
   /* Short facts read in passing: times, dates, records, the header's lines. */
   --size-glance: 0.875rem;
-  /* Capital labels, chips, and the smallest text there is. */
+  /* Capital labels and chips, and the smallest text that isn't in capitals. */
   --size-small: 0.8125rem;
+  /* A capital tag over a figure, like the series label over a game's score: the smallest text
+     there is. */
+  --size-tag: 0.75rem;
   /* Safari on an iPhone otherwise enlarges some text on a turn to landscape and can keep it big
      on the turn back, off the scale. */
   -webkit-text-size-adjust: 100%;
