@@ -11,6 +11,7 @@
     "shared/page/push-worker.js",
     "shared/page/offline-worker.js",
     "shared/page/open-last-tab.js",
+    "shared/page/show-last-drawn.js",
     "shared/page/slow-load.js",
     "shared/page/gate.js",
     "shared/page/release-guard.js",

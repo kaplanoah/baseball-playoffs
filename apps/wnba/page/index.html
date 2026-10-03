@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script src="js/pick-theme.js"></script>
   <script src="shared/open-last-tab.js"></script>
+  <script src="shared/show-last-drawn.js"></script>
   <script src="shared/slow-load.js"></script>
   <script type="importmap">
     { "imports": { "#shared/": "./shared/" } }
@@ -44,7 +45,7 @@
       <h1>WNBA</h1>
     </div>
     <div class="head-right">
-      <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
+      <span class="stamp" id="stamp" role="status" aria-live="polite" hidden data-last-drawn></span>
       <button
         type="button"
         class="settings-btn"
@@ -119,23 +120,24 @@
   </nav>
   <div class="edge-fade" aria-hidden="true"></div>
 
-  <div id="updates" class="updates" hidden></div>
+  <div id="updates" class="updates" hidden data-last-drawn></div>
 
   <p id="loadNote" class="load-note" role="status" hidden></p>
 
   <section id="view-bracket" role="tabpanel" aria-labelledby="tab-bracket" class="view active">
-    <div id="bracketWrap"></div>
+    <div id="bracketWrap" data-last-drawn></div>
   </section>
 
   <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="view">
-    <div id="gamePager"></div>
+    <div id="gamePager" data-last-drawn></div>
   </section>
 
   <section id="view-standings" role="tabpanel" aria-labelledby="tab-standings" class="view">
-    <div id="standingsPager"></div>
+    <div id="standingsPager" data-last-drawn></div>
   </section>
 
   <script>
+    showLastDrawn();
     openLastTab();
     watchSlowLoad();
   </script>

@@ -85,3 +85,16 @@ test("a reload that draws what the page last showed says nothing of a slow store
   await expect(page.locator("#loadNote")).toHaveCount(0);
   release();
 });
+
+test("a reload shows the bracket the page last drew before its code arrives", async ({ page }) => {
+  await openApp(page);
+  await expect(page.locator("#bracketWrap .matchup-row")).toHaveCount(22);
+  const release = await holdPageCode(page);
+
+  await page.reload({ waitUntil: "commit" });
+
+  await expect(page.locator("#bracketWrap .matchup-row")).toHaveCount(22);
+  await page.clock.runFor(4000);
+  await expect(page.locator("#loadNote")).toHaveCount(0);
+  release();
+});
