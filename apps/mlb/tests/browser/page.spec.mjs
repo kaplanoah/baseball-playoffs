@@ -316,6 +316,39 @@ test("the Games tab keeps its list after another tab was shown", async ({ page }
   await expectGameList(page, "Next", 2);
 });
 
+for (const list of ["Previous", "Next"]) {
+  test(`on a phone, tapping the Games tab while it shows ${list} goes back to today's list`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(PHONE);
+    await openApp(page);
+    await page.getByRole("tab", { name: "Games" }).click();
+    await page.getByRole("tab", { name: list }).click();
+    await expectGameList(page, list, list === "Previous" ? 0 : 2);
+
+    await page.getByRole("tab", { name: "Games" }).click();
+
+    await expectGameList(page, "Today", 1);
+    await expect(page.locator("#view-games")).toBeVisible();
+  });
+}
+
+test("on a phone, tapping the Games tab while it shows today's list scrolls back to the top", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await expectGameList(page, "Today", 1);
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+
+  await page.getByRole("tab", { name: "Games" }).click();
+
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+  await expectGameList(page, "Today", 1);
+});
+
 test("the Games tab keeps its list when the page comes back within the hour", async ({ page }) => {
   await page.setViewportSize(PHONE);
   await openApp(page);

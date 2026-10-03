@@ -1,3 +1,4 @@
+import { isTodayListShown, showTodayList } from "./game-pager.js";
 import { saveLastTab } from "./last-tab.js";
 import { scrollToTop } from "./scroll-to-top.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
@@ -23,10 +24,17 @@ function switchTab(tab) {
   saveLastTab(tab);
 }
 
-// As on iPhone, choosing the tab that's already showing scrolls it back to the top.
+// As on iPhone, choosing the tab that's already showing takes it back to where it starts: the
+// Games tab to today's list, then to the top.
+/** @param {string} tab */
+function returnToStart(tab) {
+  if (tab === "games" && !isTodayListShown()) showTodayList();
+  else scrollToTop();
+}
+
 /** @param {string} tab */
 function chooseTab(tab) {
-  if (tab === readSelectedTab(findTabButtons())) scrollToTop();
+  if (tab === readSelectedTab(findTabButtons())) returnToStart(tab);
   else switchTab(tab);
 }
 
