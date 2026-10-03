@@ -135,7 +135,7 @@ const describeUnlisted = (id) => ({
 export function renderBracket(season, now) {
   const allSeries = season?.series ?? [];
   if (!allSeries.length)
-    return html`<p class="empty-note">The bracket fills in once the playoff field is set.</p>`;
+    return html`<p class="empty-note">The bracket fills in once the playoff field is set</p>`;
   const seriesById = new Map(allSeries.map((series) => [series.id, series]));
   const games = season?.games ?? [];
   const rounds = Object.values(BRACKET_ORDER).map((ids) =>

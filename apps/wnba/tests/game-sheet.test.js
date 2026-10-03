@@ -241,6 +241,10 @@ test("a preview missing a part says so, and a split season series says that", ()
   assert.match(readText(renderFeverAtAces({ meetings: split })), /Season series split 1-1/);
 });
 
+test("a preview of teams yet to meet says so in a short note", () => {
+  assert.match(readText(renderFeverAtAces({ meetings: [] })), /They haven't met this season(?!\.)/);
+});
+
 /**
  * The titles of a sheet's parts, and the names of its measures, in order.
  * @param {any} markup

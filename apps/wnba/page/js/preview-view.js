@@ -74,7 +74,7 @@ function renderMeetings(meetings, teams) {
   if (!meetings)
     return renderSheetPart("Meetings", renderSheetMessage("Couldn't load this season's meetings."));
   if (!meetings.length)
-    return renderSheetPart("Meetings", renderSheetMessage("They haven't met this season."));
+    return renderSheetPart("Meetings", renderSheetMessage("They haven't met this season"));
   return renderSheetPart(
     "Meetings",
     html`<ul class="meetings">

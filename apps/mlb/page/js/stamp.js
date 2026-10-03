@@ -71,7 +71,7 @@ const describeFinalDay = (final, now) =>
 
 function describeLastFinal(lastFinal, now) {
   if (!lastFinal || !lastFinal.end) return "";
-  return html`No games since ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
+  return html`Last game ${describeFinal(lastFinal, describeFinalDay(lastFinal, now))}`;
 }
 
 // With three or more games, one leads the line: a fresh final, else a live game, else the latest final.

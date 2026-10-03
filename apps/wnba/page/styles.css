@@ -251,6 +251,7 @@ header.top h1 {
 }
 .stamp b.now {
   margin-right: 0.25ch;
+  font-size: var(--size-small);
 }
 .stamp .sep {
   margin: 0 3px;
@@ -276,6 +277,10 @@ header.top h1 {
   margin: 8px 0 18px;
   color: var(--ink-dim);
   font-size: var(--size-read);
+}
+/* Level with where a list's first day starts under its pill. */
+.pager-page .empty-note {
+  margin-top: 0;
 }
 
 .dot {
@@ -519,21 +524,25 @@ header.top h1 {
 }
 .game-status,
 .series-label {
-  font-weight: 600;
+  font-size: var(--size-small);
   text-transform: uppercase;
   color: var(--ink-dim);
   line-height: 1;
 }
 .game-status {
   font-family: var(--display);
-  font-size: var(--size-small);
+  font-weight: 600;
   letter-spacing: 0.08em;
+}
+/* A game that may never happen reads quieter than one that's over. */
+.if-needed {
+  font-weight: 500;
 }
 /* Labels in the text face stand apart from the condensed team names around them. */
 .series-label {
   font-family: var(--text);
-  font-size: var(--size-small);
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 .series-count {
   color: var(--ink-mid);

@@ -158,17 +158,25 @@ test("a game a finished series no longer needs is left off, and an empty list sa
     const season = { ...SEASON, games: [...SEASON.games, game3] };
     assert.doesNotMatch(readGameMarkup(season), /1042600103/);
     const onlyResults = { ...SEASON, games: SEASON.games.filter((game) => game.state === "final") };
-    assert.equal(readGameList(onlyResults, "today"), "No games today.");
-    assert.equal(readGameList(onlyResults, "next"), "No more games scheduled.");
+    assert.equal(readGameList(onlyResults, "today"), "No games today");
+    assert.equal(readGameList(onlyResults, "next"), "No more games scheduled");
     assert.match(readGameList(onlyResults, "previous"), /^Sep 29 Yest .* Final 2 Valkyries$/);
-    assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet.");
+    assert.equal(readGameList({ games: [] }, "previous"), "No playoff games yet");
     const nothingPlayed = {
       ...SEASON,
       games: SEASON.games.filter((game) => game.state !== "final"),
     };
-    assert.equal(readGameList(nothingPlayed, "previous"), "No results yet.");
+    assert.equal(readGameList(nothingPlayed, "previous"), "No results yet");
     assert.match(readGameList(nothingPlayed, "today"), /^Sep 30 Wed 4 Dream /);
   }));
+
+test("the bracket and standings say in a short note when they have nothing yet", () => {
+  assert.equal(
+    readText(renderBracket(null, NOW)),
+    "The bracket fills in once the playoff field is set",
+  );
+  assert.equal(readText(renderStandings(null)), "No standings yet");
+});
 
 test("each game's label counts its series as it stood at tip-off, or after the game once it's final", () =>
   inEastern(() => {
@@ -237,7 +245,7 @@ test("a game that may not be needed says so under its time", () =>
   inEastern(() => {
     assert.match(
       readGameMarkup(SEASON),
-      /<span class="time tabular">TBD<\/span><\/span\s*><span class="game-status">If needed<\/span>/,
+      /<span class="time tabular">TBD<\/span><\/span\s*><span class="game-status"><span class="if-needed">If needed<\/span><\/span>/,
     );
   }));
 
@@ -791,12 +799,12 @@ function changeGame(season, id, change) {
 test("the header says how the latest game ended and when the next one tips off, not when the page last saved", () =>
   inEastern(() => {
     assert.deepEqual(readStampLines(SEASON, NOW), [
-      "No games since Liberty 87 Lynx 71 final last night - Liberty won series 2-0",
+      "Last game Liberty 87 Lynx 71 final yesterday - Liberty won series 2-0",
       "Next tip-off 7:00 PM - Dream @ Mystics",
     ]);
     const nextMorning = Date.parse("2026-10-01T14:00:00Z");
     assert.deepEqual(readStampLines(SEASON, nextMorning), [
-      "No games since Liberty 87 Lynx 71 final Tuesday - Liberty won series 2-0",
+      "Last game Liberty 87 Lynx 71 final Tuesday - Liberty won series 2-0",
       "Next tip-off yesterday 7:00 PM - Dream @ Mystics",
     ]);
   }));
@@ -808,11 +816,11 @@ test("a game the Worker saw end says when, its time set apart as the next tip-of
     });
     assert.equal(
       readStampLines(ended, NOW)[0],
-      "No games since Liberty 87 Lynx 71 final at 10:41 PM last night - Liberty won series 2-0",
+      "Last game Liberty 87 Lynx 71 final at 10:41 PM yesterday - Liberty won series 2-0",
     );
     assert.match(
       normalizeSpaces(renderStampLines(ended, NOW)[0]),
-      /final at <b>10:41<span class="ap">PM<\/span><\/b> last night/,
+      /final at <b>10:41<span class="ap">PM<\/span><\/b> yesterday/,
     );
     const endedToday = changeGame(SEASON, "1042600132", (game) => {
       Object.assign(game, { start: "2026-09-30T17:00:00Z", state: "final", status: "Final" });

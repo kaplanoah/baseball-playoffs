@@ -27,11 +27,11 @@ const describeLastFinal = () =>
     ),
   );
 
-test("a late final is last night only where it ended after dark", () => {
+test("a late final names the day it ended where the viewer is", () => {
   const expected = {
-    "America/New_York": "final at 1:30 AM last night",
-    "America/Los_Angeles": "final at 10:30 PM last night",
-    "Pacific/Honolulu": "final at 7:30 PM last night",
+    "America/New_York": "final at 1:30 AM today",
+    "America/Los_Angeles": "final at 10:30 PM yesterday",
+    "Pacific/Honolulu": "final at 7:30 PM yesterday",
     "Europe/London": "final at 6:30 AM today",
     "Asia/Kolkata": "final at 11:00 AM today",
     "Asia/Tokyo": "final at 2:30 PM yesterday",
@@ -40,7 +40,7 @@ test("a late final is last night only where it ended after dark", () => {
   for (const [zone, when] of Object.entries(expected))
     assert.equal(
       checkInTimeZone(zone, describeLastFinal),
-      `No games since Mariners 6 Astros 5 ${when}`,
+      `Last game Mariners 6 Astros 5 ${when}`,
       zone,
     );
 });

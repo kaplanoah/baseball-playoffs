@@ -16,7 +16,7 @@ test("the page opens on the bracket the Worker saved, and each tab shows its vie
   await expect(page.locator("header.top .title-row")).toHaveText("WNBA");
   const stampLines = page.locator("#stamp > span");
   await expect(stampLines.nth(0)).toHaveText(
-    "No games since Liberty 87 Lynx 71 final last night \u2014 Liberty won series 2-0",
+    "Last game Liberty 87 Lynx 71 final yesterday \u2014 Liberty won series 2-0",
   );
   await expect(stampLines.nth(1)).toHaveText(/^Next tip-off 7:00\s?PM \u2014 Dream @ Mystics$/);
   const [last, next] = [
@@ -93,6 +93,8 @@ test("a score the Worker saves shows up without a reload", async ({ page }) => {
   await expect(page.locator("#stamp > span").first()).toHaveText(
     /^NOW\s*Dream @ Mystics 30-27 with 5:10 in Q2$/,
   );
+  await expect(page.locator("#stamp b.now")).toHaveCSS("font-size", "13px");
+  await expect(page.locator("#stamp")).toHaveCSS("font-size", "14px");
 });
 
 test("the Games tab opens on today's games, and its pill moves to the results and the games ahead", async ({
@@ -580,6 +582,40 @@ test("the Games lists' days, series labels, and statuses are in Barlow, apart fr
   expect(await readFirstFont(page.locator("#gamePager .series-label"))).toBe("Barlow");
   expect(await readFirstFont(page.locator("#gamePager .game-status"))).toBe("Barlow");
   expect(await readFirstFont(page.locator("#gamePager .game-side .club"))).toBe("Barlow Condensed");
+});
+
+test("a Games list with nothing in it starts its note where a list's first day starts", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const readGapUnderPill = (selector) =>
+    page.evaluate((target) => {
+      const pill = document.querySelector("#gamePager .pager-tabs").getBoundingClientRect();
+      return document.querySelector(target).getBoundingClientRect().top - pill.bottom;
+    }, selector);
+  const dayGap = await readGapUnderPill("#games-previous .game-day");
+  await app.changeSeason((season) => ({
+    ...season,
+    games: season.games.filter((game) => game.state === "final"),
+  }));
+  await expect(page.locator("#games-today .empty-note")).toHaveText("No games today");
+  expect(await readGapUnderPill("#games-today .empty-note")).toBe(dayGap);
+});
+
+test("a game's series label and If needed read lighter than Final", async ({ page }) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await app.changeSeason((season) => {
+    season.games.find((each) => each.id === "1042600132").isIfNeeded = true;
+    return season;
+  });
+  const ifNeeded = page.locator('[data-game="1042600132"] .game-status');
+  await expect(ifNeeded).toHaveText("If needed");
+  await expect(ifNeeded.locator(".if-needed")).toHaveCSS("font-weight", "500");
+  const final = page.locator("#gamePager .game-status", { hasText: "Final" }).first();
+  await expect(final).toHaveCSS("font-weight", "600");
+  await expect(page.locator("#gamePager .series-label").first()).toHaveCSS("font-weight", "500");
 });
 
 test("a break between periods reads in the status's capitals, in the live game's orange", async ({

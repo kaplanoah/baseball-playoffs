@@ -38,7 +38,7 @@ export function renderRanking() {
     setHtml(numbers, html``);
     setHtml(
       list,
-      html`<li class="rank-empty">The ranking fills in once there's a playoff field.</li>`,
+      html`<li class="rank-empty">The ranking fills in once there's a playoff field</li>`,
     );
     return;
   }

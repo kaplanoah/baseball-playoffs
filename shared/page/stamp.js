@@ -4,37 +4,20 @@ import { html, setHtml } from "./html.js";
 /** @typedef {import("./html.js").Markup} Markup */
 
 // The header's stamp: a few short lines on what last happened and what's next, in the viewer's
-// own words for days ("last night", "tomorrow").
-
-const NIGHT_BEGINS_HOUR = 18;
-const NIGHT_ENDS_HOUR = 6;
-
-/** @param {Date} date */
-const isAfterDark = (date) =>
-  date.getHours() >= NIGHT_BEGINS_HOUR || date.getHours() < NIGHT_ENDS_HOUR;
-
-// A game in the small hours belongs to the evening before it, as the viewer's clock tells it.
-/** @param {Date} date */
-function findEveningOf(date) {
-  const evening = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  if (date.getHours() < NIGHT_ENDS_HOUR) evening.setDate(evening.getDate() - 1);
-  return evening;
-}
+// own words for days ("yesterday", "tomorrow").
 
 /**
- * When a finished game was played, as a few words: "last night", "today", "yesterday", a weekday
- * within the week, and a date before that.
+ * When a finished game ended, as a few words: "today", "yesterday", the weekday it was played
+ * within the week, and its date before that.
  * @param {Date} end when the game ended, or the nearest time known to it
  * @param {Date} played when the game started, which names its weekday or date
  * @param {Date} now
  */
-export function describeFinishedDay(end, played, now) {
-  if (isAfterDark(end) && countDaysBetween(findEveningOf(end), now) === 1) return "last night";
-  return nameDay(end, now, {
+export const describeFinishedDay = (end, played, now) =>
+  nameDay(end, now, {
     nearDays: [-1, 0],
     nameOtherDay: (_end, daysAway) => formatWeekdayOrDate(played, daysAway),
   });
-}
 
 /**
  * @param {Date} date

@@ -69,7 +69,7 @@ function describeScore(game) {
 
 // A game saved final before the Worker saw it live has no end, so only its day is known.
 /**
- * Whether a final game ended today, and when: "at 10:41 PM last night", "at 4:02 PM", or a day.
+ * Whether a final game ended today, and when: "at 10:41 PM yesterday", "at 4:02 PM", or a day.
  * @param {Game} game
  * @param {Date} now
  */
@@ -90,7 +90,7 @@ function describeFinalWhen(game, now) {
  */
 function describeLatestFinal(game, seriesById, now) {
   const { isToday, when } = describeFinalWhen(game, now);
-  const lead = isToday ? "" : "No games since ";
+  const lead = isToday ? "" : "Last game ";
   const sentence = html`${lead}${describeScore(game)} final${when && html` ${when}`}`;
   const standing = describeSeriesAfter(seriesById.get(game.series ?? ""));
   return standing ? html`${sentence} &mdash; ${standing}` : sentence;

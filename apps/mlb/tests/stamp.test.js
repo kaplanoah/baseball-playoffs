@@ -118,7 +118,7 @@ test("the night's last final, with the day's clause", () => {
   });
 });
 
-test("a morning with nothing on: last night's final", () => {
+test("a morning with nothing on: the final in the small hours", () => {
   const slate = {
     since: toEasternIso(TODAY, "02:21"),
     today: {
@@ -133,7 +133,7 @@ test("a morning with nothing on: last night's final", () => {
   };
   assert.equal(
     describeLast(slate, createContext({ now: toEasternIso(TODAY, "13:17") })),
-    "No games since Mariners 6 Astros 5 final at 1:30 AM last night",
+    "Last game Mariners 6 Astros 5 final at 1:30 AM today",
   );
   assert.deepEqual(describeUpNext(slate), {
     at: toEasternIso(TODAY, "16:05"),
@@ -343,7 +343,7 @@ test("an off day, and a final from days back", () => {
   };
   assert.equal(
     describeLast(slate, createContext({ now: toEasternIso(TODAY, "13:15") })),
-    "No games since Orioles 4 Blue Jays 3 final at 10:01 PM Monday",
+    "Last game Orioles 4 Blue Jays 3 final at 10:01 PM Monday",
   );
   assert.equal(describeUpNext(slate), null);
 });
@@ -356,7 +356,7 @@ test("a final from over a week back gives its date", () => {
   };
   assert.equal(
     describeLast(slate, createContext({ now: toEasternIso(TODAY, "13:15") })),
-    "No games since Orioles 4 Blue Jays 3 final at 10:01 PM Sep 14",
+    "Last game Orioles 4 Blue Jays 3 final at 10:01 PM Sep 14",
   );
 });
 
