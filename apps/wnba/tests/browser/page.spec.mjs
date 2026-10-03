@@ -157,6 +157,21 @@ test.describe("on a phone, the Games lists", () => {
     await expect(page.locator("#games-previous")).toBeInViewport();
   });
 
+  test("go back to today's when the Games tab is tapped while another shows", async ({ page }) => {
+    await openApp(page);
+    await page.getByRole("tab", { name: "Games" }).click();
+    await page.getByRole("tab", { name: "Previous" }).click();
+    await expect(page.getByRole("tab", { name: "Previous" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await page.getByRole("tab", { name: "Games" }).click();
+
+    await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#games-today")).toBeInViewport();
+  });
+
   test("reach the screen's edges, so a swiped list slides off the screen", async ({ page }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Games" }).click();

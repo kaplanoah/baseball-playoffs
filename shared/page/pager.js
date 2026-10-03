@@ -28,6 +28,7 @@ const chooseScrollBehavior = () => (prefersReducedMotion() ? "instant" : "smooth
  * @returns {{
  *   fill: (renderList: (key: string) => Markup) => void,
  *   readShownList: () => string,
+ *   showList: (key: string) => void,
  *   switchToList: (key: string) => void,
  * }}
  */
@@ -266,6 +267,7 @@ export function createPager(root, { label, idPrefix, lists, openOn }) {
       for (const key of keys) setHtml(findPage(key), renderList(key));
     },
     readShownList: () => shownList,
+    showList,
     switchToList,
   };
 }

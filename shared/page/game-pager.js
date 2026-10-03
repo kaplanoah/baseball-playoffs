@@ -32,6 +32,13 @@ function showTodayAfterLongAway(awayMs) {
   if (isAwayLong(awayMs)) gamePager.switchToList("today");
 }
 
+export const isTodayListShown = () => gamePager.readShownList() === "today";
+
+/** Slides the shown Games view over to today's list, as a tap on its name in the pill does. */
+export function showTodayList() {
+  gamePager.showList("today");
+}
+
 /** Builds the pill and the three lists inside the page's #gamePager, and wires them. */
 export function startGamePager() {
   gamePager = createPager(/** @type {HTMLElement} */ (document.getElementById("gamePager")), {
