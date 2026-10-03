@@ -802,6 +802,7 @@ test("the header says how the latest game ended and when the next one tips off, 
       "Last game Liberty 87 Lynx 71 final yesterday - Liberty won series 2-0",
       "Next tip-off 7:00 PM - Dream @ Mystics",
     ]);
+    assert.match(normalizeSpaces(renderStampLines(SEASON, NOW)[0]), /final <b>yesterday<\/b>/);
     const nextMorning = Date.parse("2026-10-01T14:00:00Z");
     assert.deepEqual(readStampLines(SEASON, nextMorning), [
       "Last game Liberty 87 Lynx 71 final Tuesday - Liberty won series 2-0",
@@ -809,7 +810,7 @@ test("the header says how the latest game ended and when the next one tips off, 
     ]);
   }));
 
-test("a game the Worker saw end says when, its time set apart as the next tip-off's is", () =>
+test("a game the Worker saw end says when, its time and day set apart as the next tip-off's are", () =>
   inEastern(() => {
     const ended = changeGame(SEASON, "1042600102", (game) => {
       game.end = "2026-09-30T02:41:00Z";
@@ -820,7 +821,7 @@ test("a game the Worker saw end says when, its time set apart as the next tip-of
     );
     assert.match(
       normalizeSpaces(renderStampLines(ended, NOW)[0]),
-      /final at <b>10:41<span class="ap">PM<\/span><\/b> yesterday/,
+      /final at <b>10:41<span class="ap">PM<\/span> yesterday<\/b>/,
     );
     const endedToday = changeGame(SEASON, "1042600132", (game) => {
       Object.assign(game, { start: "2026-09-30T17:00:00Z", state: "final", status: "Final" });
