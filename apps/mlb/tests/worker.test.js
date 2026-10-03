@@ -119,9 +119,26 @@ test("a game that ends has the slow requests read again at once, and once more t
   assert.deepEqual(SLOW_REQUESTS.map(mlb.countCalls), [1, 3, 3]);
 });
 
-test("a past season is read once and kept", async () => {
+test("a past season read whole is kept", async () => {
   const { mlb, server, advanceClock } = createTestServer();
   await server.loadSnapshot(2025);
+  const reads = mlb.calls.length;
+
+  advanceClock(24 * HOUR_MS);
+  await server.loadSnapshot(2025);
+  assert.equal(mlb.calls.length, reads);
+});
+
+test("a past season read while a request failed is read again, and kept once it's whole", async () => {
+  const answers = { standings: { records: "not standings" } };
+  const { mlb, server, advanceClock } = createTestServer({ answers });
+  const partial = await server.loadSnapshot(2025);
+  assert.ok(partial.missing.length > 0);
+
+  delete answers.standings;
+  advanceClock(25 * HOUR_MS);
+  const whole = await server.loadSnapshot(2025);
+  assert.deepEqual(whole.missing, []);
   const reads = mlb.calls.length;
 
   advanceClock(24 * HOUR_MS);
