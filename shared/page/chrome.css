@@ -435,8 +435,8 @@ body:has(> .home-screen-bar:not([hidden])) {
   color: var(--ink);
 }
 .home-screen-steps svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   margin: 0 1px;
   vertical-align: -2px;
   color: var(--ink);
