@@ -1,7 +1,7 @@
 // Finds a pull request's CI run that passed on exactly the code main now has, so main can deploy
-// without waiting for CI to run again. A pull request's CI tests it merged into main as main was
-// then, and records that code's git tree; when nothing else merged first, the squash merge has
-// the same tree.
+// without waiting for CI to run again. A pull request's CI tests it merged into its base branch as
+// that branch was then, and records that code's git tree; when the base is main and nothing else
+// merged first, the squash merge has the same tree.
 import { appendFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
