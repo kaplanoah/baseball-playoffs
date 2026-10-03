@@ -1,9 +1,9 @@
 /*
  * The chrome every app's page shares: the settings button, the tabs (a floating glass bar on
  * phones), the settings dialog (a sheet on phones) and the lines at its foot, a sideways
- * bracket's round dots (pinned above the tab bar on phones), and the bar and settings box that ask
- * a phone's browser to add the page to the Home Screen. Apps link it before their own styles.css,
- * which lays out the rest of the page and may refine these rules.
+ * bracket's round dots (pinned above the tab bar on phones), the bar and settings box that ask
+ * a phone's browser to add the page to the Home Screen, and the note a slow load shows. Apps link
+ * it before their own styles.css, which lays out the rest of the page and may refine these rules.
  *
  * An app's :root defines these tokens:
  *   --bg, --card, --card-border, --divider    the page, card, and line colors
@@ -155,6 +155,12 @@ section.view {
 }
 section.view.active {
   display: block;
+}
+
+.load-note {
+  margin: 8px 0 18px;
+  color: var(--ink-dim);
+  font-size: var(--size-read);
 }
 
 /* Settings are as tall as what they hold, up to nearly the screen's height, and their header

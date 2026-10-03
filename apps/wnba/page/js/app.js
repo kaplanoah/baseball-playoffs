@@ -3,6 +3,7 @@ import { setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fillGameLists, startGamePager } from "#shared/game-pager.js";
 import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
+import { endLoadNote } from "#shared/load-note.js";
 import { startNotifications } from "#shared/notifications.js";
 import { startPageTabs } from "#shared/page-tabs.js";
 import { watchReturns } from "#shared/resume.js";
@@ -61,6 +62,7 @@ function drawLastSeen() {
   try {
     Object.assign(session, { year: lastSeen.year, season: lastSeen.season });
     renderAll();
+    endLoadNote();
   } catch {
     Object.assign(session, { year, season });
   }
@@ -104,6 +106,7 @@ async function boot() {
   keepLastSeen(readShown);
   await loadSeason();
   renderAll();
+  endLoadNote();
   watchSeason(renderAll);
   watchStatus(renderStamp);
   refreshClockEveryMinute();

@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="styles.css" />
   <script src="js/pick-theme.js"></script>
   <script src="shared/open-last-tab.js"></script>
+  <script src="shared/slow-load.js"></script>
   <script type="importmap">
     { "imports": { "#shared/": "./shared/" } }
   </script>
@@ -120,6 +121,8 @@
 
   <div id="updates" class="updates" hidden></div>
 
+  <p id="loadNote" class="load-note" role="status" hidden></p>
+
   <section id="view-bracket" role="tabpanel" aria-labelledby="tab-bracket" class="view active">
     <div id="bracketWrap"></div>
   </section>
@@ -134,6 +137,7 @@
 
   <script>
     openLastTab();
+    watchSlowLoad();
   </script>
 
   <dialog id="settingsDialog" class="settings-panel" aria-labelledby="settingsTitle">
