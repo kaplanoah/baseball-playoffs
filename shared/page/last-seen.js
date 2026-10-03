@@ -17,11 +17,37 @@ export function readLastSeen() {
   }
 }
 
+/**
+ * The child indexes that lead from `part` down to `element`.
+ * @param {Element} part
+ * @param {Element} element
+ */
+function readPath(part, element) {
+  const path = [];
+  for (let node = element; node !== part; node = /** @type {Element} */ (node.parentElement))
+    path.unshift([.../** @type {Element} */ (node.parentElement).children].indexOf(node));
+  return path;
+}
+
+// A list or bracket that scrolls sideways shows where it was, rather than its start.
+/** @param {Element} part */
+const readScrolls = (part) =>
+  [...part.querySelectorAll("*")]
+    .filter((element) => element.scrollLeft > 0)
+    .map((element) => ({ path: readPath(part, element), left: element.scrollLeft }));
+
+// A part's classes can come from its code rather than its markup, like a pager's.
+/** @param {HTMLElement} part */
+const readDrawnPart = (part) => ({
+  markup: part.innerHTML,
+  hidden: part.hidden,
+  classes: part.className,
+  scrolls: readScrolls(part),
+});
+
 function readDrawnParts() {
   const parts = /** @type {HTMLElement[]} */ ([...document.querySelectorAll("[data-last-drawn]")]);
-  return Object.fromEntries(
-    parts.map((part) => [part.id, { markup: part.innerHTML, hidden: part.hidden }]),
-  );
+  return Object.fromEntries(parts.map((part) => [part.id, readDrawnPart(part)]));
 }
 
 /**

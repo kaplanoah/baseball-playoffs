@@ -235,7 +235,8 @@ test("games already finished, or found finished long after, aren't news", () => 
 });
 
 test("the new year's season is followed only once it has games or standings with games played", async () => {
-  const newYear = Date.parse("2027-01-01T00:30:00Z");
+  // Half past midnight on New Year's Day, Eastern.
+  const newYear = Date.parse("2027-01-01T05:30:00Z");
   const unplayed = SNAPSHOT.standings.map((row) => ({ ...row, wins: 0, losses: 0 }));
   const seasons = {
     2026: SNAPSHOT,

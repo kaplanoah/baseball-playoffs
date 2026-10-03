@@ -309,3 +309,26 @@ test("a game's details that fail to load leave the saved ones and don't hold up 
   assert.deepEqual(await context.ctx.storage.get("games/1"), { score: 10 });
   assert.equal(await context.ctx.storage.getAlarm(), NOW + 60_000);
 });
+
+test("a store saves which season is current, and saves it again only when it changes", async () => {
+  const context = createDurableObjectContext();
+  let season = 2026;
+  const SeasonStore = createSeasonStore({
+    ...QUIET_LEAGUE,
+    loadCurrentSnapshot: async () => ({ season }),
+  });
+  const store = new SeasonStore(context.ctx, {}, { now: () => NOW });
+  const page = createPageSocket();
+  context.ctx.acceptWebSocket(page);
+
+  await store.alarm();
+  await store.alarm();
+  season = 2027;
+  await store.alarm();
+
+  assert.deepEqual(await context.ctx.storage.get("live/current"), { season: 2027 });
+  assert.deepEqual(
+    page.sent.filter((path) => path === "live/current"),
+    ["live/current", "live/current"],
+  );
+});

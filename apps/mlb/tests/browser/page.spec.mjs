@@ -1901,9 +1901,10 @@ const buildEmptySeasonSnapshot = (season, springStart) => ({
   slate: null,
 });
 
-test("the new season starts on the day spring training does", async ({ page }) => {
+test("the page shows the season the store says is current", async ({ page }) => {
   await openApp(page, {
     now: "2027-02-19T15:00:00Z",
+    store: { "live/current": { season: 2027 } },
     snapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
   });
 
@@ -1911,30 +1912,36 @@ test("the new season starts on the day spring training does", async ({ page }) =
   await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
 });
 
-test("a page left open turns over when spring training starts", async ({ page }) => {
+test("a page left open turns over when the store moves on to a new season", async ({ page }) => {
   const app = await openApp(page, {
-    now: "2027-02-19T04:30:00Z",
+    now: "2027-02-19T15:00:00Z",
+    store: { "live/current": { season: 2026 } },
     snapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
   });
-  // Startup's own spring check requests a snapshot after setting the hourly timer, so the clock
-  // can't jump ahead before the timer exists.
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
   await expect(page.locator("#yearSel")).toHaveValue("2026");
 
-  // 11:30 PM Eastern the night before; the hourly check runs after midnight.
-  await page.clock.fastForward("01:00:00");
+  // What the Worker's update saves once spring training has started.
+  await app.writeFromAnotherDevice("live/current", { season: 2027 });
 
   await expect(page.locator("#yearSel")).toHaveValue("2027");
+  await expect(page.getByRole("heading", { name: "No playoff field yet" })).toBeVisible();
 });
 
-test("until spring training starts, the latest season is last year's", async ({ page }) => {
+test("while the store says last year's season is current, the page shows it and asks about no other", async ({
+  page,
+}) => {
   const app = await openApp(page, {
     now: "2027-02-18T15:00:00Z",
+    store: { "live/current": { season: 2026 } },
     snapshots: { 2027: buildEmptySeasonSnapshot(2027, "2027-02-19") },
   });
-
-  await expect.poll(() => app.countSnapshotRequests()).toBe(1);
   await expect(page.locator("#yearSel")).toHaveValue("2026");
+
+  await page.clock.fastForward("02:00:00");
+
+  await expect(page.locator("#yearSel")).toHaveValue("2026");
+  expect(app.countSnapshotRequests()).toBe(0);
 });
 
 test("on a phone, the tabs float at the bottom and stay there while the page scrolls", async ({

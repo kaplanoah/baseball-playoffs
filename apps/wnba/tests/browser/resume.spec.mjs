@@ -110,6 +110,24 @@ test("a page hidden a minute closes its socket, and opens another when it's show
   await expect.poll(() => app.countOpenSockets()).toBe(1);
 });
 
+test("a page turns over to the season the store says is current", async ({ page }) => {
+  const app = await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  const row = page.locator('[data-game="1042600132"]');
+  await expect(row).toBeVisible();
+
+  await app.writeDocument("seasons/2027", {
+    year: 2027,
+    games: [],
+    series: [],
+    standings: [],
+    leaders: [],
+  });
+  await app.writeDocument("live/current", { season: 2027 });
+
+  await expect(row).toHaveCount(0);
+});
+
 test("a page whose first load failed loads the last season once the store answers", async ({
   page,
 }) => {

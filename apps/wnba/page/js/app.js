@@ -18,7 +18,7 @@ import { placeBracket, readBracketScroll, startBracket } from "./bracket-tree.js
 import { renderBracket } from "./bracket-view.js";
 import { refreshGameSheet, startGameSheet } from "./game-sheet.js";
 import { renderGames } from "./games-view.js";
-import { loadSeason, watchSeason, watchStatus } from "./season-data.js";
+import { loadSeason, watchCurrentSeason, watchSeason, watchStatus } from "./season-data.js";
 import { session } from "./session.js";
 import { describeStampProblem, renderStampLines } from "./stamp.js";
 import { drawStandings, startStandings } from "./standings-view.js";
@@ -85,8 +85,8 @@ const renderShownTeam = (team) =>
 
 const readShown = () => session.season && { year: session.year, season: session.season };
 
-// A page whose first load failed may be watching a season the store doesn't have yet, so it
-// loads the season again.
+// A page whose first load failed may be watching a season the store doesn't have yet, and the
+// store may have moved on to a new season, so it loads the season again.
 async function reloadSeason() {
   const watchedYear = session.year;
   await loadSeason();
@@ -118,6 +118,7 @@ async function boot() {
   await loadSeason();
   redrawEased(drawLoadedSeason);
   watchSeason(showNewData);
+  watchCurrentSeason(reloadSeason);
   watchStatus(renderStamp);
   refreshClockEveryMinute();
   startServiceWorker();

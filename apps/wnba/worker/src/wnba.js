@@ -1,3 +1,4 @@
+import { readEasternDay } from "#shared/days.js";
 import { createSeasonParam } from "../../../../shared/worker/seasons.js";
 import { fetchUpstream } from "../../../../shared/worker/upstream.js";
 
@@ -5,7 +6,7 @@ import { fetchUpstream } from "../../../../shared/worker/upstream.js";
 
 export const SEASON_PARAM = createSeasonParam({
   firstSeason: 1997,
-  readCurrentSeason: (now) => new Date(now).getUTCFullYear(),
+  readCurrentSeason: (now) => readEasternDay(now).year,
 });
 
 // The league's feeds answer only what looks like its own site in a browser: without these, the

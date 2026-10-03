@@ -55,6 +55,42 @@ test("saved markup that can't be read leaves the page to open as it would", asyn
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
+  test("a reload on the Games view shows the list it was on before the page's code arrives", async ({
+    page,
+  }) => {
+    await storeBeforeLoad(page, { lastTab: "games" });
+    await openApp(page);
+    await expect(page.locator("#games-today")).toBeInViewport();
+    const release = await holdPageCode(page);
+
+    await page.reload({ waitUntil: "commit" });
+
+    await expect(page.locator("#games-today")).toBeInViewport();
+    await expect(page.locator("#games-previous")).not.toBeInViewport();
+    release();
+  });
+
+  test("the standings sit as far under their pill before the page's code arrives as after", async ({
+    page,
+  }) => {
+    await storeBeforeLoad(page, { lastTab: "standings" });
+    await openApp(page);
+    const readGap = async () => {
+      const pill = await page.locator("#standingsPager [role=tablist]").boundingBox();
+      const table = await page.locator("#standingsPager table").first().boundingBox();
+      return table.y - (pill.y + pill.height);
+    };
+    await expect(page.locator("#standingsPager table").first()).toBeVisible();
+    const placedGap = await readGap();
+    const release = await holdPageCode(page);
+
+    await page.reload({ waitUntil: "commit" });
+
+    await expect(page.locator("#standingsPager table").first()).toBeVisible();
+    expect(await readGap()).toBeCloseTo(placedGap, 0);
+    release();
+  });
+
   test("the tab bar's pill rests on the last tab before the page's code arrives, where the code keeps it", async ({
     page,
   }) => {
