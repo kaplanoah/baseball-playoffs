@@ -86,6 +86,30 @@ test("a page asleep half an hour reads what it missed when it wakes, without rel
   expect(await isSameLoad(page)).toBe(true);
 });
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {boolean} hidden
+ */
+const setHidden = (page, hidden) =>
+  page.evaluate((isHidden) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => isHidden });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
+
+test("a page hidden a minute closes its socket, and opens another when it's shown", async ({
+  page,
+}) => {
+  const app = await openApp(page);
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
+
+  await setHidden(page, true);
+  await page.clock.runFor(60 * 1000);
+  await expect.poll(() => app.countOpenSockets()).toBe(0);
+
+  await setHidden(page, false);
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
+});
+
 test("a page whose first load failed loads the last season once the store answers", async ({
   page,
 }) => {

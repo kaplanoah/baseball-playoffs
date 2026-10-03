@@ -208,6 +208,7 @@ test("an update's news goes out even when saving its status fails", async () => 
 
 test("a push service that fails doesn't stop the season update", async () => {
   const { store, env, context, harness } = createPushStore();
+  context.ctx.acceptWebSocket({ send: () => {} });
   await subscribe(env);
   context.stored.set("seasons/2026", { year: 2026, ranking: ["PHI"] });
   await store.alarm();

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as MLBSnapshot from "../page/js/snapshot.js";
+import { OFF_DAY_CHECK_MS } from "#shared/poll-schedule.js";
 
 const readFixture = (name) =>
   JSON.parse(readFileSync(`${import.meta.dirname}/fixtures/${name}.json`, "utf8"));
@@ -576,6 +577,8 @@ test("a postseason game counts as next before its opponent is known", () => {
   assert.ok(slate.previous.some((game) => listClubsIn([game]).includes("TB")));
 });
 
+const GAME_DAY_CHECK_MS = 3 * 60 * 60 * 1000;
+
 test("when to ask again: closely during games, otherwise sleep until the next", () => {
   const computePollDelay = (games, now = "2026-09-24T22:00:00Z") =>
     MLBSnapshot.choosePollDelay({ slate: { today: { games }, nextDay: null } }, Date.parse(now));
@@ -600,12 +603,12 @@ test("when to ask again: closely during games, otherwise sleep until the next", 
   );
   assert.equal(
     computePollDelay([{ state: "final" }, { state: "pre", start: "2026-09-25T17:05:00Z" }]),
-    MLBSnapshot.POLL_CHECK_MS,
+    GAME_DAY_CHECK_MS,
   );
-  assert.equal(computePollDelay([]), MLBSnapshot.POLL_CHECK_MS);
+  assert.equal(computePollDelay([]), OFF_DAY_CHECK_MS);
   assert.equal(
     computePollDelay([{ state: "pre", start: "2026-09-24T22:05:00Z", tbd: true }]),
-    MLBSnapshot.POLL_CHECK_MS,
+    OFF_DAY_CHECK_MS,
   );
   assert.equal(MLBSnapshot.choosePollDelay({ slate: null }), null);
 });
@@ -617,18 +620,18 @@ test("a game with no start time doesn't make the next ask come at once", () => {
       { slate: { today: { games }, nextDay: null } },
       Date.parse("2026-09-24T22:00:00Z"),
     ),
-    MLBSnapshot.POLL_CHECK_MS,
+    GAME_DAY_CHECK_MS,
   );
 });
 
-test("an off day with the page open: one look an hour, not a poll", () => {
+test("an off day with the page open: one look every few hours, not a poll", () => {
   const snapshot = MLBSnapshot.buildSnapshot(EVENING.responses, {
     season: 2026,
     now: Date.parse("2026-09-25T11:00:00Z"),
   });
   assert.equal(
     MLBSnapshot.choosePollDelay(snapshot, Date.parse("2026-09-25T11:00:00Z")),
-    MLBSnapshot.POLL_CHECK_MS,
+    GAME_DAY_CHECK_MS,
   );
 });
 

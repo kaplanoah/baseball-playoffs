@@ -118,6 +118,7 @@ test("a store that can't read its league says why and waits longer after each fa
     },
   });
   const store = new SeasonStore(context.ctx, {}, { now: () => NOW });
+  context.ctx.acceptWebSocket({ send: () => {} });
 
   const waits = [];
   for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -132,4 +133,87 @@ test("a store that can't read its league says why and waits longer after each fa
     error: "upstream_error",
     write: "",
   });
+});
+
+const MINUTE_MS = 60 * 1000;
+
+/**
+ * A store with the clock at `clock.now`, and pages that open through `openPage`.
+ * @param {Partial<typeof QUIET_LEAGUE>} league
+ */
+function createWatchedStore(league) {
+  const context = createDurableObjectContext();
+  const SeasonStore = createSeasonStore({ ...QUIET_LEAGUE, ...league });
+  const clock = { now: NOW };
+  const openSocket = (ctx) => {
+    ctx.acceptWebSocket({ send: () => {} });
+    return new Response(null);
+  };
+  const store = new SeasonStore(context.ctx, {}, { now: () => clock.now, openSocket });
+  const openPage = () =>
+    store.fetch(new Request(`${ORIGIN}/watch`, { headers: { upgrade: "websocket" } }));
+  return { context, clock, store, openPage };
+}
+
+test("with no page open, a store updates at most every fifty seconds", async () => {
+  const { context, store, openPage } = createWatchedStore({ choosePollDelay: () => 15_000 });
+
+  await store.alarm();
+  assert.equal(context.alarm.at, NOW + 50_000);
+
+  await openPage();
+  await store.alarm();
+  assert.equal(context.alarm.at, NOW + 15_000);
+});
+
+test("a page that opens brings the next update to when an open page would have had it", async () => {
+  const { context, clock, store, openPage } = createWatchedStore({
+    choosePollDelay: () => 15_000,
+  });
+  await store.alarm();
+
+  clock.now = NOW + 5_000;
+  await openPage();
+  assert.equal(context.alarm.at, NOW + 15_000);
+});
+
+test("a page that opens has the season updated once it's fifteen minutes old", async () => {
+  for (const [openedAfter, updatedAfter] of [
+    [5 * MINUTE_MS, 15 * MINUTE_MS],
+    [20 * MINUTE_MS, 20 * MINUTE_MS],
+  ]) {
+    const { context, clock, store, openPage } = createWatchedStore({
+      choosePollDelay: () => 24 * 60 * MINUTE_MS,
+    });
+    await store.alarm();
+
+    clock.now = NOW + openedAfter;
+    await openPage();
+    assert.equal(context.alarm.at, NOW + updatedAfter);
+  }
+});
+
+test("a page that opens while the league isn't answering still waits out the retry", async () => {
+  const { context, clock, store, openPage } = createWatchedStore({
+    loadCurrentSnapshot: async () => {
+      throw new Error("The league answered 503");
+    },
+  });
+  await store.alarm();
+  assert.equal(context.alarm.at, NOW + 50_000);
+
+  clock.now = NOW + 10_000;
+  await openPage();
+  assert.equal(context.alarm.at, NOW + 30_000);
+});
+
+test("a store answers a page's close, so the socket stops counting as an open page", () => {
+  const { store } = createWatchedStore({});
+  let closes = 0;
+  store.webSocketClose({
+    close: () => {
+      closes += 1;
+    },
+  });
+  assert.equal(closes, 1);
 });
