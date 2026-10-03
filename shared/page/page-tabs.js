@@ -1,4 +1,4 @@
-import { isTodayListShown, showTodayList } from "./game-pager.js";
+import { isTodayListChosen, showTodayList } from "./game-pager.js";
 import { saveLastTab } from "./last-tab.js";
 import { scrollToTop } from "./scroll-to-top.js";
 import { moveTabSelection, startTabBar } from "./tab-bar.js";
@@ -28,7 +28,7 @@ function switchTab(tab) {
 // Games tab to today's list, then to the top.
 /** @param {string} tab */
 function returnToStart(tab) {
-  if (tab === "games" && !isTodayListShown()) showTodayList();
+  if (tab === "games" && !isTodayListChosen()) showTodayList();
   else scrollToTop();
 }
 

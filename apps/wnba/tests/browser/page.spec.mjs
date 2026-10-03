@@ -172,6 +172,34 @@ test.describe("on a phone, the Games lists", () => {
     await expect(page.locator("#games-today")).toBeInViewport();
   });
 
+  for (const { when, waitForTap } of [
+    { when: "before the lists move", waitForTap: "" },
+    { when: "while the lists slide away from it", waitForTap: "scroll" },
+  ]) {
+    test(`go back to today's when the Games tab is tapped ${when}`, async ({ page }) => {
+      await openApp(page);
+      await page.getByRole("tab", { name: "Games" }).dispatchEvent("click");
+      await expect(page.locator("#games-today")).toBeInViewport();
+
+      await page.locator("#games-pages").evaluate(async (pages, waitForTap) => {
+        const waitFor = (/** @type {string} */ type) =>
+          new Promise((resolve) => pages.addEventListener(type, resolve, { once: true }));
+        const slideStarts = waitForTap ? waitFor(waitForTap) : Promise.resolve();
+        document.getElementById("games-tab-previous").click();
+        await slideStarts;
+        const slideEnds = waitFor("scrollend");
+        document.getElementById("tab-games").click();
+        await slideEnds;
+      }, waitForTap);
+
+      await expect(page.getByRole("tab", { name: "Today" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+      );
+      await expect(page.locator("#games-today")).toBeInViewport();
+    });
+  }
+
   test("reach the screen's edges, so a swiped list slides off the screen", async ({ page }) => {
     await openApp(page);
     await page.getByRole("tab", { name: "Games" }).click();
