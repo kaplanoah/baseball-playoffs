@@ -51,3 +51,28 @@ test("saved markup that can't be read leaves the page to open as it would", asyn
 
   await expect(page.locator("#view-games")).toBeVisible();
 });
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("the tab bar's pill rests on the last tab before the page's code arrives, where the code keeps it", async ({
+    page,
+  }) => {
+    await storeBeforeLoad(page, { lastTab: "games" });
+    await openApp(page);
+    const pill = page.locator(".tab-pill");
+    await expect(page.locator("#tabBar")).toHaveClass(/\bplaced\b/);
+    const placed = await pill.boundingBox();
+    const release = await holdPageCode(page);
+
+    await page.reload({ waitUntil: "commit" });
+
+    await expect(page.locator("#view-games")).toBeVisible();
+    await expect(page.locator("#tabBar")).not.toHaveClass(/\bplaced\b/);
+    const resting = await pill.boundingBox();
+    expect(resting.x).toBeCloseTo(placed.x, 0);
+    expect(resting.width).toBeCloseTo(placed.width, 0);
+    await expect(pill).toHaveCSS("backdrop-filter", "none");
+    release();
+  });
+});

@@ -76,8 +76,12 @@ let patchLog = null;
 
 // A changed line of text rarely changes a height, and measuring before each would lay the page
 // out again for every changed number, so only adding, removing, or hiding an element counts.
-/** @param {Node} element */
-function noteHeight(element) {
+/**
+ * Notes how tall an element is before a redraw changes it, so a logged redraw eases it to its new
+ * height. Showing an element outside setHtml notes it the same way.
+ * @param {Node} element
+ */
+export function noteHeight(element) {
   if (patchLog && element instanceof Element && !patchLog.heights.has(element))
     patchLog.heights.set(element, element.getBoundingClientRect().height);
 }
