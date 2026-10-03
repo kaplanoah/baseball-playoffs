@@ -179,7 +179,7 @@ function listViewRows(league, view) {
  */
 export function renderStandings(season, view = "League") {
   const rows = season?.standings ?? [];
-  if (!rows.length) return html`<p class="empty-note">No standings yet.</p>`;
+  if (!rows.length) return html`<p class="empty-note">No standings yet</p>`;
   const league = [...rows].sort((first, second) => first.place - second.place);
   const form = chooseFormColumns(season);
   return html`<table class="standings" aria-label="${view} standings">

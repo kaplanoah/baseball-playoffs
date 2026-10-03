@@ -32,15 +32,16 @@ test("the time as markup sets its AM/PM apart and leaves the rest alone", () =>
     assert.equal(renderHtml("2026-09-25T17:08:00Z"), 'tomorrow 1:08<span class="ap">PM</span>');
   }));
 
-test("a finished game reads as last night only when it ended after dark the evening before", () =>
+test("a finished game names the day it ended, and the weekday or date it was played", () =>
   inEastern(() => {
     const describeDay = (endIso, playedIso = endIso) =>
       describeFinishedDay(new Date(endIso), new Date(playedIso), NOON);
-    assert.equal(describeDay("2026-09-24T05:30:00Z", "2026-09-24T01:40:00Z"), "last night");
-    assert.equal(describeDay("2026-09-24T01:00:00Z"), "last night");
+    assert.equal(describeDay("2026-09-24T05:30:00Z", "2026-09-24T01:40:00Z"), "today");
+    assert.equal(describeDay("2026-09-24T01:00:00Z"), "yesterday");
     assert.equal(describeDay("2026-09-23T20:00:00Z"), "yesterday");
     assert.equal(describeDay("2026-09-24T15:00:00Z"), "today");
     assert.equal(describeDay("2026-09-21T23:00:00Z"), "Monday");
+    assert.equal(describeDay("2026-09-22T05:00:00Z", "2026-09-22T01:00:00Z"), "Monday");
     assert.equal(describeDay("2026-09-14T23:00:00Z"), "Sep 14");
   }));
 
