@@ -5,7 +5,8 @@ import { describeError, respondError, respondJson } from "./responses.js";
 // Documents come back with sorted keys, and a missing one reads as null. The page can read
 // any document, but saves only its league's page fields of a season: each whole, with null
 // removing one. An alarm keeps the current season up to date from the league while no page is
-// open, and tells subscribed devices about new updates.
+// open, and tells subscribed devices about new updates. With no page open, only notifications need
+// the updates, and those can wait a little, so updates come less often until a page opens.
 
 /**
  * What a league hands the store.
@@ -30,6 +31,11 @@ const MAX_LISTED = 100;
 const STATUS_KEY = "live/status";
 const BLANK_STATUS = { error: "", detail: "", write: "" };
 const RETRY_MS = [30e3, 60e3, 2 * 60e3, 5 * 60e3, 10 * 60e3];
+const UNWATCHED_DELAY_MS = 50e3;
+// A page that opens on a season this old has the update it would have had if it had been open.
+const STALE_MS = 15 * 60e3;
+// When the last update ran and how long it said to wait, under a key the store's paths can't name.
+const SCHEDULE_KEY = "poll:schedule";
 
 const isPlainObject = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
@@ -143,10 +149,23 @@ export const createSeasonStore = (league) =>
       return this.savePageFields(key, Number(path.id), request);
     }
 
-    acceptWatcher(request) {
+    async acceptWatcher(request) {
       if (request.headers.get("upgrade") !== "websocket")
         return respondError(426, "upgrade_required", "Open this path as a WebSocket.");
-      return this.openSocket(this.ctx);
+      const response = this.openSocket(this.ctx);
+      await this.bringUpdateForward();
+      return response;
+    }
+
+    // The update an open page would have had comes now, rather than when the store, with no page
+    // open, would next have looked.
+    async bringUpdateForward() {
+      const schedule = await this.ctx.storage.get(SCHEDULE_KEY);
+      if (!schedule) return;
+      const dueAt = schedule.at + Math.min(schedule.delay, STALE_MS);
+      const alarmAt = await this.ctx.storage.getAlarm();
+      if (alarmAt === null || alarmAt > dueAt)
+        await this.ctx.storage.setAlarm(Math.max(this.now(), dueAt));
     }
 
     async listDocs(collection, searchParams) {
@@ -207,7 +226,22 @@ export const createSeasonStore = (league) =>
         // Cloudflare would retry a failed alarm on its own schedule, on top of the one set here.
         console.error(`The season update failed: ${describeError(error)}`);
       }
-      await this.ctx.storage.setAlarm(this.now() + delay);
+      await this.ctx.storage.put(SCHEDULE_KEY, { at: this.now(), delay });
+      await this.ctx.storage.setAlarm(this.now() + this.slowWhenUnwatched(delay));
+    }
+
+    // Answering a page's close ends the socket, so it no longer counts as a page that's open.
+    webSocketClose(socket) {
+      try {
+        socket.close();
+      } catch {
+        // The runtime already ended it.
+      }
+    }
+
+    slowWhenUnwatched(delay) {
+      const isWatched = this.ctx.getWebSockets().length > 0;
+      return isWatched ? delay : Math.max(delay, UNWATCHED_DELAY_MS);
     }
 
     // Returns how long to wait before the next update.

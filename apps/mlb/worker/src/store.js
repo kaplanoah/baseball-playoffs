@@ -1,4 +1,5 @@
-import { choosePollDelay, POLL_CHECK_MS } from "../../page/js/snapshot.js";
+import { OFF_DAY_CHECK_MS } from "#shared/poll-schedule.js";
+import { choosePollDelay } from "../../page/js/snapshot.js";
 import { createSeasonStore } from "../../../../shared/worker/season-store.js";
 import { findNotableUpdates, listNotifications } from "./notifications.js";
 import * as SeasonUpdater from "./season-updater.js";
@@ -19,7 +20,7 @@ export const SeasonStore = createSeasonStore({
   readUpdates: SeasonUpdater.readUpdates,
   saveSnapshot: SeasonUpdater.saveSnapshot,
   describeSnapshotStatus: SeasonUpdater.describeSnapshotStatus,
-  choosePollDelay: (snapshot, now) => choosePollDelay(snapshot, now) ?? POLL_CHECK_MS,
+  choosePollDelay: (snapshot, now) => choosePollDelay(snapshot, now) ?? OFF_DAY_CHECK_MS,
   listNotifications: ({ before, after, snapshot, now }) => {
     const updates = findNotableUpdates({ before, after, state: snapshot, now });
     const context = { teams: snapshot.teams, standings: snapshot.standings };

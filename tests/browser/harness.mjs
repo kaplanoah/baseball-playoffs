@@ -80,17 +80,32 @@ const routeStoreRequests = (page, store) =>
   );
 
 /**
+ * @template Item
+ * @param {Item[]} list
+ * @param {Item} item
+ */
+function removeItem(list, item) {
+  const index = list.indexOf(item);
+  if (index >= 0) list.splice(index, 1);
+}
+
+/**
  * @param {import("@playwright/test").Page} page
  * @param {ReturnType<typeof createDurableObjectContext>["ctx"]} ctx
- * @returns {Promise<import("@playwright/test").WebSocketRoute[]>} the sockets the page opens
+ * @returns {Promise<import("@playwright/test").WebSocketRoute[]>} the sockets the page has open
  */
 async function routeWatchSockets(page, ctx) {
   const openSockets = [];
   await page.routeWebSocket(
     (url) => url.pathname === "/watch",
     (socket) => {
+      const accepted = { send: (message) => socket.send(message) };
       openSockets.push(socket);
-      ctx.acceptWebSocket({ send: (message) => socket.send(message) });
+      ctx.acceptWebSocket(accepted);
+      socket.onClose(() => {
+        removeItem(openSockets, socket);
+        removeItem(ctx.getWebSockets(), accepted);
+      });
     },
   );
   return openSockets;

@@ -213,6 +213,18 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     openSocket();
   }
 
+  // A page no one is looking at closes its socket, so the Worker can update less often, and
+  // catches up when it's back.
+  function pause() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    clearTimeout(handshakeTimer);
+    handshakeTimer = null;
+    const open = socket;
+    socket = null;
+    open?.close();
+  }
+
   // A read sent before the socket opens can miss a change saved before the socket could hear of
   // it, so while a socket's handshake is under way, the read waits for the one the socket makes
   // as it opens, or for the one made once the handshake has taken too long.
@@ -278,5 +290,5 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     };
   }
 
-  return { doc, collection, catchUp };
+  return { doc, collection, catchUp, pause };
 }

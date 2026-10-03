@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as MLBSnapshot from "../page/js/snapshot.js";
+import { OFF_DAY_CHECK_MS } from "#shared/poll-schedule.js";
 import { createReading } from "../page/js/readings.js";
 import { loadCurrentSnapshot } from "../worker/src/season-updater.js";
 import { SeasonStore } from "../worker/src/store.js";
@@ -175,10 +176,10 @@ test("the status names the fields MLB stopped sending", async () => {
   });
 });
 
-test("with no games to follow, the next update is an hour out", async () => {
+test("with no games to follow, the next update is a day out", async () => {
   const { store, context } = createUpdatingStore({ snapshot: { ...SNAPSHOT, slate: null } });
   await store.alarm();
-  assert.equal(context.alarm.at, NOW + MLBSnapshot.POLL_CHECK_MS);
+  assert.equal(context.alarm.at, NOW + OFF_DAY_CHECK_MS);
 });
 
 test("before April, the new season is followed once spring training has started", async () => {

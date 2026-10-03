@@ -184,6 +184,26 @@ test("catching up swaps a socket that may have gone quiet for a new one", () => 
   assert.ok(!sockets[1].isClosed);
 });
 
+test("a paused store closes its socket, and opens another only once it catches up", () => {
+  const { store, reads, sockets, openSocket } = startStore();
+  store.doc("seasons/2026").onSnapshot(() => {});
+  openSocket();
+  const readCount = reads.length;
+
+  store.pause();
+  mock.timers.tick(60 * 1000);
+
+  assert.equal(sockets.length, 1);
+  assert.ok(sockets[0].isClosed);
+  assert.equal(reads.length, readCount);
+
+  store.catchUp();
+  openSocket();
+
+  assert.equal(sockets.length, 2);
+  assert.equal(reads.length, readCount + 1);
+});
+
 test("a read the Worker turns away for want of the access code reloads the page", async () => {
   const { store, reads, openSocket } = startStore();
   let reloads = 0;

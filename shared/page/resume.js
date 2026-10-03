@@ -11,6 +11,8 @@ import { refreshPageCopy } from "./service-worker.js";
 // even when the phone never said it was hidden.
 const TICK_MS = 15 * 1000;
 const ASLEEP_MS = 60 * 1000;
+// A page hidden this long stops listening for changes, so the Worker knows no one is looking.
+const HIDDEN_PAUSE_MS = 60 * 1000;
 
 let activeAt = Date.now();
 let wasHidden = false;
@@ -21,6 +23,10 @@ let isReloadPending = false;
 let isBusy = () => false;
 /** @type {() => void} */
 let catchUp = () => {};
+/** @type {() => void} */
+let pause = () => {};
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let pauseTimer;
 /** @type {((awayMs: number) => void)[]} */
 const awayWatchers = [];
 
@@ -88,19 +94,26 @@ export function watchTimeAway(watcher) {
   awayWatchers.push(watcher);
 }
 
-// iOS doesn't always report a home-screen page coming back, so every sign of it counts.
-/** @param {{ isBusy?: () => boolean, catchUp?: () => void }} [options] */
+function noteHidden() {
+  activeAt = Date.now();
+  wasHidden = true;
+  pauseTimer = setTimeout(pause, HIDDEN_PAUSE_MS);
+}
+
+// iOS doesn't always report a home-screen page coming back, so every sign of it counts. `pause`
+// runs once the page has been hidden a while, and `catchUp` when it's back.
+/** @param {{ isBusy?: () => boolean, catchUp?: () => void, pause?: () => void }} [options] */
 export function watchReturns(options = {}) {
   isBusy = options.isBusy ?? isBusy;
   catchUp = options.catchUp ?? catchUp;
+  pause = options.pause ?? pause;
   loadRelease().catch(() => {
     isReleaseCheckOwed = true;
   });
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      activeAt = Date.now();
-      wasHidden = true;
-    } else catchUpOnReturn();
+    clearTimeout(pauseTimer);
+    if (document.hidden) noteHidden();
+    else catchUpOnReturn();
   });
   addEventListener("pageshow", (event) => {
     if (event.persisted) catchUpOnReturn();

@@ -86,14 +86,21 @@ async function reverseRankingWhileAway(app) {
   return reversed;
 }
 
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {boolean} hidden
+ */
+const setHidden = (page, hidden) =>
+  page.evaluate((isHidden) => {
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => isHidden });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
+
 /** @param {import("@playwright/test").Page} page */
-const hideAndShow = (page) =>
-  page.evaluate(() => {
-    for (const hidden of [true, false]) {
-      Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
-      document.dispatchEvent(new Event("visibilitychange"));
-    }
-  });
+async function hideAndShow(page) {
+  await setHidden(page, true);
+  await setHidden(page, false);
+}
 
 test("a page asleep half an hour reads what it missed when it wakes, without reloading", async ({
   page,
@@ -119,6 +126,21 @@ test("a page hidden for a moment reads what it missed when it's shown again", as
 
   await expect(readFirstRanked(page)).toHaveAttribute("data-id", reversed[0]);
   expect(await isSameLoad(page)).toBe(true);
+});
+
+test("a page hidden a minute closes its socket, and opens another when it's shown", async ({
+  page,
+}) => {
+  await serveReleases(page);
+  const app = await openApp(page);
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
+
+  await setHidden(page, true);
+  await page.clock.runFor(MINUTE_MS);
+  await expect.poll(() => app.countOpenSockets()).toBe(0);
+
+  await setHidden(page, false);
+  await expect.poll(() => app.countOpenSockets()).toBe(1);
 });
 
 test("a page whose saved data couldn't load loads again when it comes back", async ({ page }) => {
