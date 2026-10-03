@@ -722,6 +722,22 @@ body:has(> .home-screen-bar:not([hidden])) {
     pointer-events: none;
     will-change: transform;
   }
+  /*
+   * Until tab-bar.js places the pill, it rests on the selected tab, reaching past it by the pill's
+   * overhang as tab-bar.js places it, so the page's first paint shows it where it will stay. Its
+   * frost waits too: without the copy of the tab that tab-bar.js lays over it, it would blur the
+   * label under it.
+   */
+  nav.tabs .tab-list button.active {
+    anchor-name: --selected-tab;
+  }
+  .tab-bar:not(.placed) .tab-pill {
+    position-anchor: --selected-tab;
+    left: calc(anchor(left) - 4px);
+    width: calc(anchor-size(width) + 8px);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
   /* The pill hides the tab under it, so a keyboard focus ring shows on the pill instead. */
   body.kbd .tab-list:has(button.active:focus) ~ .tab-pill {
     outline: 2px solid var(--focus-ring);
