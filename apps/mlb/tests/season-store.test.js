@@ -60,8 +60,12 @@ function createStore(documents, { failUpdates = false, unreadable = [], isHeld =
     listeners[path]?.onNext(readStored(path));
   };
   const deliverListing = (name) => listeners[name]?.onNext(listStored(name));
+  const deliverMissing = (path) => {
+    delete documents[path];
+    listeners[path]?.onNext(readStored(path));
+  };
   const answerHeld = (index) => heldAnswers[index]();
-  return { database, writes, deliver, deliverListing, answerHeld };
+  return { database, writes, deliver, deliverListing, deliverMissing, answerHeld };
 }
 
 function countRedraws() {
@@ -128,6 +132,46 @@ test("answers that come in before the whole year has loaded don't redraw, and la
 
   deliver("standings/2026", { ...STANDINGS, updatedAt: "2026-10-01T01:00:00Z" });
   assert.deepEqual(redraws, { season: 0, standings: 1, readings: 0 });
+});
+
+test("once a year has loaded, a season or standings that answers it doesn't exist leaves what the page shows", async () => {
+  const documents = { "seasons/2026": structuredClone(STORED), "standings/2026": STANDINGS };
+  const { database, deliverMissing } = createStore(documents);
+  session.db = database;
+  const { redraws, onChanges } = countRedraws();
+  await watchYear(2026, onChanges);
+
+  deliverMissing("seasons/2026");
+  deliverMissing("standings/2026");
+
+  assert.deepEqual(session.seasonDoc, STORED);
+  assert.deepEqual(session.storedStandings, STANDINGS);
+  assert.deepEqual(redraws, { season: 0, standings: 0, readings: 0 });
+});
+
+test("once a year has loaded, a listing of its readings that comes back empty leaves them", async () => {
+  const documents = {
+    "seasons/2026": structuredClone(STORED),
+    "readings-2026/2026-10-01-01": READING_PART,
+  };
+  const { database, deliverListing } = createStore(documents);
+  session.db = database;
+  const { redraws, onChanges } = countRedraws();
+  await watchYear(2026, onChanges);
+
+  delete documents["readings-2026/2026-10-01-01"];
+  deliverListing("readings-2026");
+
+  assert.deepEqual(session.readings, [READING_PART]);
+  assert.deepEqual(redraws, { season: 0, standings: 0, readings: 0 });
+});
+
+test("a season that doesn't exist yet loads as an empty one", async () => {
+  session.db = createStore({}).database;
+
+  await watchYear(2026, IGNORED_REDRAWS);
+
+  assert.deepEqual(session.seasonDoc, { year: 2026, teams: {}, series: {}, ranking: [], log: [] });
 });
 
 test("standings and readings that can't be read are left out of the year's load", async () => {
