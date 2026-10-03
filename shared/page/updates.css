@@ -50,9 +50,10 @@
   color: color-mix(in srgb, var(--ink-dim) 62%, transparent);
   cursor: pointer;
 }
+/* Phosphor draws inside a wide margin, so the X reads at about 10px. */
 .updates-x svg {
-  width: 10px;
-  height: 10px;
+  width: 16px;
+  height: 16px;
   display: block;
 }
 @media (hover: hover) {
