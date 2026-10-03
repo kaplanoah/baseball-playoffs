@@ -16,8 +16,9 @@ export default [
   {
     // Markup reaches the page only through setHtml, which escapes whatever html`` didn't build,
     // and lists of facts only through joinWithSeparator, so they all read the same way.
+    // show-last-drawn.js only puts back markup setHtml wrote.
     files: ["apps/*/page/js/**/*.js", "shared/page/**/*.js"],
-    ignores: ["shared/page/html.js"],
+    ignores: ["shared/page/html.js", "shared/page/show-last-drawn.js"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -39,7 +40,11 @@ export default [
   },
   {
     // A plain script the page loads before its modules, whose functions the page calls.
-    files: ["shared/page/open-last-tab.js", "shared/page/slow-load.js"],
+    files: [
+      "shared/page/open-last-tab.js",
+      "shared/page/show-last-drawn.js",
+      "shared/page/slow-load.js",
+    ],
     languageOptions: { sourceType: "script" },
     rules: { "no-unused-vars": ["error", { vars: "local" }] },
   },

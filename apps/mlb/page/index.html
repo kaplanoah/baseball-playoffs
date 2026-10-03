@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="shared/updates.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="shared/open-last-tab.js"></script>
+  <script src="shared/show-last-drawn.js"></script>
   <script src="shared/slow-load.js"></script>
   <script type="importmap">
     { "imports": { "#shared/": "./shared/" } }
@@ -38,7 +39,14 @@
     </div>
     <div class="head-right">
       <div class="stamp-wrap">
-        <span class="stamp" id="stamp" role="status" aria-live="polite" hidden></span>
+        <span
+          class="stamp"
+          id="stamp"
+          role="status"
+          aria-live="polite"
+          hidden
+          data-last-drawn
+        ></span>
       </div>
       <button
         type="button"
@@ -115,7 +123,7 @@
   </nav>
   <div class="edge-fade" aria-hidden="true"></div>
 
-  <div id="updates" class="updates" hidden></div>
+  <div id="updates" class="updates" hidden data-last-drawn></div>
 
   <p id="loadNote" class="load-note" role="status" hidden></p>
 
@@ -124,17 +132,18 @@
       <h2>No playoff field yet</h2>
       <p>The bracket fills in once MLB's standings project a field.</p>
     </div>
-    <div id="bracketWrap"></div>
+    <div id="bracketWrap" data-last-drawn></div>
   </section>
 
   <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="view">
-    <div id="gamePager"></div>
+    <div id="gamePager" data-last-drawn></div>
   </section>
 
   <section id="view-standings" role="tabpanel" aria-labelledby="tab-standings" class="view">
-    <div id="standingsWrap"></div>
+    <div id="standingsWrap" data-last-drawn></div>
   </section>
   <script>
+    showLastDrawn();
     openLastTab();
     watchSlowLoad();
   </script>
