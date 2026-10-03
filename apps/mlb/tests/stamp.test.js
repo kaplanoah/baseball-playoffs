@@ -142,7 +142,7 @@ test("a morning with nothing on: the final in the small hours", () => {
   });
 });
 
-test("a final's time is set apart as the stamp's times are", () => {
+test("a final's time, and its day when it isn't today, are set apart as the stamp's times are", () => {
   const slate = {
     today: {
       date: TODAY,
@@ -154,6 +154,14 @@ test("a final's time is set apart as the stamp's times are", () => {
   };
   const markup = normalizeSpaces(describeLastStamp(slate, createContext()));
   assert.match(markup, /final at <b>3:30<span class="ap">PM<\/span><\/b>/);
+  const lastFinal = createFinal("HOU", "SEA", "18:40", [5, 6], "21:30", YESTERDAY, YESTERDAY);
+  const yesterday = { today: { date: TODAY, games: [] }, lastFinal };
+  assert.match(
+    normalizeSpaces(
+      describeLastStamp(yesterday, createContext({ now: toEasternIso(TODAY, "13:17") })),
+    ),
+    /final at <b>9:30<span class="ap">PM<\/span> yesterday<\/b>/,
+  );
 });
 
 test("early afternoon: one game on, and the next first pitch still shows", () => {

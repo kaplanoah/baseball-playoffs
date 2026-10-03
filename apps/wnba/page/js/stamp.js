@@ -79,8 +79,8 @@ function describeFinalWhen(game, now) {
   const day = describeFinishedDay(end ?? start, start, now);
   const isToday = day === "today";
   const shownDay = isToday ? "" : day;
-  if (!end) return { isToday, when: shownDay };
-  return { isToday, when: html`at ${renderStampTime(end)}${shownDay && ` ${shownDay}`}` };
+  if (!end) return { isToday, when: shownDay && html`<b>${shownDay}</b>` };
+  return { isToday, when: html`at ${renderStampTime(end, shownDay)}` };
 }
 
 /**
