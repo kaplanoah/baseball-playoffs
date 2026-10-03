@@ -19,7 +19,7 @@ const SLOW_FEEDS = {
 };
 
 // Reads MLB for the page, so every open page shares one trip to MLB at a time. A season before
-// the one under way is over, so it's read once and kept.
+// the one under way is over, so once it's read whole, it's kept.
 export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
@@ -53,7 +53,16 @@ export function createSnapshotServer({
   const fetchSnapshot = (season, requestedAt) =>
     MLBSnapshot.fetchSnapshot(fetchSnapshotJson, season, requestedAt);
   const loadCurrentSnapshot = createReusedLoader(fetchSnapshot, SNAPSHOT_REUSE_MS, now);
-  const loadPastSnapshot = createReusedLoader(fetchSnapshot, Infinity, now);
+  /** @type {Map<number, any>} */
+  const pastSnapshots = new Map();
+
+  /** @param {number} season */
+  async function loadPastSnapshot(season) {
+    if (pastSnapshots.has(season)) return pastSnapshots.get(season);
+    const snapshot = await loadCurrentSnapshot(season);
+    if (!snapshot.missing.length) pastSnapshots.set(season, snapshot);
+    return snapshot;
+  }
 
   /** @param {number} season */
   const loadSnapshot = (season) =>
