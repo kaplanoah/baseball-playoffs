@@ -1,11 +1,10 @@
 import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
-import { readEasternDay } from "#shared/days.js";
 import { startHomeScreen } from "#shared/home-screen.js";
 import { redrawEased } from "#shared/eased-redraw.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
-import { fetchLive, isReadableLive } from "./live-fetch.js";
+import { isReadableLive } from "./live-fetch.js";
 import { startLive, watchLiveStatus } from "./live.js";
 import { startGamePager } from "#shared/game-pager.js";
 import { keepLastSeen, readLastSeen } from "#shared/last-seen.js";
@@ -25,7 +24,7 @@ import {
   stopSavingAfterFailedLoad,
   watchYear,
 } from "./season-store.js";
-import { composeState, hasSpringStarted, session, readSeasonYear } from "./session.js";
+import { composeState, session, readSeasonYear } from "./session.js";
 import { startSettings } from "./settings.js";
 import { renderTeamSheet } from "./team-view.js";
 import { TEAMS } from "./teams.js";
@@ -36,7 +35,6 @@ import { startTeamSheet } from "#shared/team-sheet.js";
 import { createWorkerStore } from "#shared/worker-store.js";
 
 const CLOCK_REFRESH_MS = 60 * 1000;
-const SPRING_CHECK_MS = 60 * 60 * 1000;
 
 const findYearPicker = () => /** @type {HTMLSelectElement} */ (document.getElementById("yearSel"));
 
@@ -93,39 +91,20 @@ function fillYearPicker(years) {
   setHtml(findYearPicker(), html`${options}`);
 }
 
-// Before April the new season starts on the day MLB says spring training does.
-async function checkSpringTraining() {
-  const year = readEasternDay(Date.now()).year;
-  if (session.currentSeason === year) return;
-  let springStart;
-  try {
-    ({ springStart } = await fetchLive(year));
-  } catch {
-    return;
-  }
-  if (!hasSpringStarted(springStart) || session.currentSeason === year) return;
+// The store says which season is current, as the Worker decides it from MLB, so a page left open
+// turns over when the new season starts.
+/** @param {number} year */
+async function adoptCurrentSeason(year) {
+  if (year === session.currentSeason) return;
   const wasShowingLatest = session.activeYear === session.currentSeason;
   session.currentSeason = year;
   if (wasShowingLatest) await switchYear(year);
   fillYearPicker(await listYears());
 }
 
-let springCheck = null;
-
-function followSpringTraining() {
-  springCheck ??= checkSpringTraining().finally(() => {
-    springCheck = null;
-  });
-  return springCheck;
-}
-
-// A page left open across the first day of spring training still turns over.
-function watchSpringTraining() {
-  setInterval(() => {
-    if (!document.hidden) followSpringTraining();
-  }, SPRING_CHECK_MS);
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) followSpringTraining();
+function followCurrentSeason() {
+  session.db?.doc("live/current").onSnapshot((snapshot) => {
+    if (snapshot.exists) adoptCurrentSeason(snapshot.data().season);
   });
 }
 
@@ -228,8 +207,7 @@ async function boot() {
   startLive();
   startServiceWorker();
   startNotifications();
-  watchSpringTraining();
-  await followSpringTraining();
+  followCurrentSeason();
 }
 
 boot();

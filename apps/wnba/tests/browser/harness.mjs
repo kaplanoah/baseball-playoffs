@@ -129,6 +129,12 @@ export async function openApp(page, { league = {}, isShowingUpdates = false } = 
      * @param {{ boxScore: any, lead: any }} details
      */
     saveGameDetails: (id, details) => store.docs.write(`games/${id}`, details),
+    // A document the Worker saves, which the store pushes to the pages watching it.
+    /**
+     * @param {string} path
+     * @param {any} data
+     */
+    writeDocument: (path, data) => store.docs.write(path, data),
     listWatchedPaths: () =>
       context.ctx
         .getWebSockets()
@@ -152,6 +158,7 @@ export async function openApp(page, { league = {}, isShowingUpdates = false } = 
     moveSeasonTo: async (year) => {
       await context.ctx.storage.put(`seasons/${year}`, await readSeason());
       await context.ctx.storage.delete("seasons/2026");
+      await context.ctx.storage.put("live/current", { season: year });
     },
   };
 }

@@ -59,7 +59,14 @@ test("an update saves the season, standings, and a reading, and tells open pages
   });
   assert.deepEqual(
     sent.map((message) => message.path),
-    ["seasons/2026", `readings-2026/${TODAY}-01`, "standings/2026", "live/2026", "live/status"],
+    [
+      "seasons/2026",
+      `readings-2026/${TODAY}-01`,
+      "standings/2026",
+      "live/2026",
+      "live/current",
+      "live/status",
+    ],
   );
   // A game is live, so the next update is thirty seconds out.
   assert.equal(context.alarm.at, NOW + MLBSnapshot.POLL_LIVE_MS);

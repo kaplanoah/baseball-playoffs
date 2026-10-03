@@ -26,6 +26,7 @@ test("loading the page reads each saved document once", async ({ page }) => {
 
   expect(app.listStoreReads().sort()).toEqual([
     "/store/live/2026",
+    "/store/live/current",
     "/store/live/status",
     "/store/readings-2026?limit=100",
     "/store/seasons/2026",
