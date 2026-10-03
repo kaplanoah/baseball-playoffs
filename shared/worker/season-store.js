@@ -17,7 +17,8 @@ import { describeError, respondError, respondJson } from "./responses.js";
  * @typedef {object} League
  * @property {Record<string, (value: unknown) => boolean>} pageFields the season fields the page
  *   saves, each with its check
- * @property {() => (season: number) => Promise<any>} createLoadSnapshot
+ * @property {(storage: import("./feed-keeper.js").FeedStorage) => (season: number) => Promise<any>} createLoadSnapshot
+ *   reads the league, keeping what it may read again in `storage`
  * @property {(loadSnapshot: (season: number) => Promise<any>, now: number) => Promise<any>} loadCurrentSnapshot
  * @property {(docs: any, season: number) => Promise<any>} readUpdates
  * @property {(docs: any, snapshot: any) => Promise<void>} saveSnapshot
@@ -131,6 +132,12 @@ function isWatching(socket, path) {
   );
 }
 
+// What a league's reads keep between updates, under keys the store's paths can't name.
+const createFeedStorage = (storage) => ({
+  get: (key) => storage.get(`feed:${key}`),
+  put: (key, value) => storage.put(`feed:${key}`, value),
+});
+
 function openWatchSocket(ctx) {
   const [client, server] = Object.values(new WebSocketPair());
   ctx.acceptWebSocket(server);
@@ -145,7 +152,7 @@ export const createSeasonStore = (league) =>
       env,
       {
         openSocket = openWatchSocket,
-        loadSnapshot = league.createLoadSnapshot(),
+        loadSnapshot = league.createLoadSnapshot(createFeedStorage(ctx.storage)),
         now = () => Date.now(),
         fetchImpl = (input, init) => fetch(input, init),
         loadDetails = league.createLoadDetails?.() ?? null,

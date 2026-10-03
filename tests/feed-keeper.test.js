@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createFeedKeeper } from "../shared/worker/feed-keeper.js";
+import { createFeedKeeper, createMemoryStorage } from "../shared/worker/feed-keeper.js";
 
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -93,4 +93,35 @@ test("a feed that fails stands in with its last answer, and waits five minutes t
   assert.equal(await keeper.readFeed("standings", "/standings", async () => "answer"), "answer");
   clock.now = 6 * MINUTE_MS;
   assert.equal(await keeper.readFeed("standings", "/standings", fail), "answer");
+});
+
+test("what a keeper kept outlasts it, as a Durable Object's storage outlasts its memory", async () => {
+  const storage = createMemoryStorage();
+  const clock = { now: 0 };
+  let reads = 0;
+  const createKeeperOnStorage = () =>
+    createFeedKeeper({
+      feeds: { standings: { maxAgeMs: 24 * HOUR_MS, changesWithGames: true } },
+      leagueName: "The league",
+      now: () => clock.now,
+      storage,
+    });
+  const read = (keeper) =>
+    keeper.readFeed("standings", "/standings", async () => {
+      reads += 1;
+      return reads;
+    });
+
+  const first = createKeeperOnStorage();
+  await first.noteFinalCount(3);
+  await read(first);
+  clock.now = MINUTE_MS;
+  assert.equal(await read(createKeeperOnStorage()), 1);
+
+  const afterFinal = createKeeperOnStorage();
+  await afterFinal.noteFinalCount(4);
+  await read(afterFinal);
+  clock.now = 2 * MINUTE_MS;
+  await read(createKeeperOnStorage());
+  assert.equal(reads, 2);
 });

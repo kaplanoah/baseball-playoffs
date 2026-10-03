@@ -1,11 +1,41 @@
+import { describeError } from "./responses.js";
+
 // A league's slower feeds, each read again only when it may have changed: as a game ends, for a
-// feed that changes with games, or once its answer is older than the feed's own limit. A game's end reaches a league's stats a little
-// after its scoreboard, so a feed is read as a game ends and once more a few minutes later. Each
-// keeps its last good answer to stand in when a read fails, and one that didn't answer isn't asked
-// again for a while, since a hung read holds up each update until it times out.
+// feed that changes with games, or once its answer is older than the feed's own limit. A game's
+// end reaches a league's stats a little after its scoreboard, so a feed is read as a game ends
+// and once more a few minutes later. Each keeps its last good answer to stand in when a read
+// fails, and one that didn't answer isn't asked again for a while, since a hung read holds up
+// each update until it times out. What it keeps goes in `storage`, since a Durable Object leaves
+// memory between updates.
 
 const SETTLE_MS = 10 * 60 * 1000;
 const FAILED_FEED_WAIT_MS = 5 * 60 * 1000;
+const FINALS_KEY = "finals";
+
+/**
+ * What a keeper keeps its answers in.
+ * @typedef {{ get: (key: string) => Promise<any>, put: (key: string, value: any) => Promise<void> }} FeedStorage
+ */
+
+/** @returns {FeedStorage} */
+export function createMemoryStorage() {
+  const values = new Map();
+  return {
+    get: async (key) => values.get(key),
+    put: async (key, value) => {
+      values.set(key, value);
+    },
+  };
+}
+
+// A request can be longer than a storage key may be, so each is kept under its digest.
+/** @param {string} key */
+async function digestKey(key) {
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key)),
+  );
+  return [...digest.subarray(0, 16)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 /**
  * @param {object} options
@@ -13,31 +43,51 @@ const FAILED_FEED_WAIT_MS = 5 * 60 * 1000;
  *   each feed's answer may get, and whether a game's end changes it
  * @param {string} options.leagueName the league as an error names it, as in "MLB didn't answer"
  * @param {() => number} options.now
+ * @param {FeedStorage} [options.storage]
  */
-export function createFeedKeeper({ feeds, leagueName, now }) {
-  /** @type {Map<string, { at: number, data: any }>} */
-  const kept = new Map();
-  /** @type {Map<string, number>} */
-  const failedAt = new Map();
-  /** @type {number | null} */
-  let lastFinalCount = null;
-  let lastFinalAt = -Infinity;
+export function createFeedKeeper({ feeds, leagueName, now, storage = createMemoryStorage() }) {
+  /** @type {Map<string, any>} */
+  const records = new Map();
 
-  /** @param {number} readAt */
-  const isReadBeforeFinalSettled = (readAt) =>
+  /** @param {string} key */
+  async function readRecord(key) {
+    if (!records.has(key)) records.set(key, (await storage.get(await digestKey(key))) ?? null);
+    return records.get(key);
+  }
+
+  // An answer too big to store is still kept until the Durable Object leaves memory.
+  /**
+   * @param {string} key
+   * @param {any} record
+   */
+  async function saveRecord(key, record) {
+    records.set(key, record);
+    try {
+      await storage.put(await digestKey(key), record);
+    } catch (error) {
+      console.error(`Keeping ${key} failed: ${describeError(error)}`);
+    }
+  }
+
+  /**
+   * @param {number} readAt
+   * @param {number} lastFinalAt
+   */
+  const isReadBeforeFinalSettled = (readAt, lastFinalAt) =>
     readAt < lastFinalAt || (readAt < lastFinalAt + SETTLE_MS && now() >= lastFinalAt + SETTLE_MS);
 
   /**
    * @param {string} name
-   * @param {string} key
+   * @param {any} record
    */
-  function isDue(name, key) {
-    const failed = failedAt.get(key);
-    if (failed !== undefined && now() - failed < FAILED_FEED_WAIT_MS) return false;
-    const answer = kept.get(key);
+  async function isDue(name, record) {
+    if (record?.failedAt !== undefined && now() - record.failedAt < FAILED_FEED_WAIT_MS)
+      return false;
     const { maxAgeMs, changesWithGames } = feeds[name];
-    if (!answer || now() - answer.at >= maxAgeMs) return true;
-    return changesWithGames && isReadBeforeFinalSettled(answer.at);
+    if (!record?.answer || now() - record.answer.at >= maxAgeMs) return true;
+    if (!changesWithGames) return false;
+    const finals = await readRecord(FINALS_KEY);
+    return isReadBeforeFinalSettled(record.answer.at, finals?.at ?? -Infinity);
   }
 
   return {
@@ -46,10 +96,12 @@ export function createFeedKeeper({ feeds, leagueName, now }) {
      * couldn't be read is null, and leaves the last one standing.
      * @param {number | null} count
      */
-    noteFinalCount(count) {
+    async noteFinalCount(count) {
       if (count === null) return;
-      if (lastFinalCount !== null && count > lastFinalCount) lastFinalAt = now();
-      lastFinalCount = count;
+      const finals = await readRecord(FINALS_KEY);
+      if (finals?.count === count) return;
+      const hasNewFinal = finals !== null && count > finals.count;
+      await saveRecord(FINALS_KEY, { count, at: hasNewFinal ? now() : (finals?.at ?? null) });
     },
 
     /**
@@ -59,18 +111,18 @@ export function createFeedKeeper({ feeds, leagueName, now }) {
      * @param {() => Promise<any>} load
      */
     async readFeed(name, key, load) {
-      const answer = kept.get(key);
-      if (!isDue(name, key)) {
+      const record = await readRecord(`${name} ${key}`);
+      const answer = record?.answer;
+      if (!(await isDue(name, record))) {
         if (answer) return answer.data;
         throw new Error(`${leagueName} didn't answer ${name} a moment ago`);
       }
       try {
         const data = await load();
-        kept.set(key, { at: now(), data });
-        failedAt.delete(key);
+        await saveRecord(`${name} ${key}`, { answer: { at: now(), data } });
         return data;
       } catch (error) {
-        failedAt.set(key, now());
+        await saveRecord(`${name} ${key}`, { answer, failedAt: now() });
         if (answer) return answer.data;
         throw error;
       }

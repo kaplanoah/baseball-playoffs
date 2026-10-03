@@ -20,18 +20,25 @@ const SLOW_FEEDS = {
 
 // Reads MLB for the page, so every open page shares one trip to MLB at a time. A season before
 // the one under way is over, so once it's read whole, it's kept.
+/**
+ * @param {object} [options]
+ * @param {(input: string, init: object) => Promise<Response>} [options.fetchImpl]
+ * @param {() => number} [options.now]
+ * @param {import("../../../../shared/worker/feed-keeper.js").FeedStorage} [options.storage]
+ */
 export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
+  storage = undefined,
 } = {}) {
-  const slowFeeds = createFeedKeeper({ feeds: SLOW_FEEDS, leagueName: "MLB", now });
+  const slowFeeds = createFeedKeeper({ feeds: SLOW_FEEDS, leagueName: "MLB", now, storage });
 
   /** @param {string} path */
   const fetchFeed = (path) => fetchMlbJson(fetchImpl, path, EDGE_CACHE_SECONDS);
 
   async function fetchSchedule(path) {
     const schedule = await fetchFeed(path);
-    slowFeeds.noteFinalCount(MLBSnapshot.countFinals(schedule));
+    await slowFeeds.noteFinalCount(MLBSnapshot.countFinals(schedule));
     return schedule;
   }
 

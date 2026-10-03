@@ -45,11 +45,18 @@ const countFinals = (scoreboard) =>
   (scoreboard?.scoreboard?.games ?? []).filter((game) => game.gameStatus === 3).length;
 
 // Reads the league for the page, so every open page shares one trip to it at a time.
+/**
+ * @param {object} [options]
+ * @param {(input: string, init: object) => Promise<Response>} [options.fetchImpl]
+ * @param {() => number} [options.now]
+ * @param {import("../../../../shared/worker/feed-keeper.js").FeedStorage} [options.storage]
+ */
 export function createSnapshotServer({
   fetchImpl = (input, init) => fetch(input, init),
   now = () => Date.now(),
+  storage = undefined,
 } = {}) {
-  const slowFeeds = createFeedKeeper({ feeds: SLOW_FEEDS, leagueName: "The WNBA", now });
+  const slowFeeds = createFeedKeeper({ feeds: SLOW_FEEDS, leagueName: "The WNBA", now, storage });
   const networkMonths = new Map();
   const espnGames = createEspnGameReader({ fetchImpl });
   const gameEnds = createGameEnds({
@@ -58,6 +65,7 @@ export function createSnapshotServer({
         .fetchSummary({ away: game.away.team, home: game.home.team, start: game.start })
         .then(readEndTime),
     now,
+    storage,
   });
 
   /**
@@ -158,7 +166,7 @@ export function createSnapshotServer({
     const scoreboard = await fetchFeed("scoreboard", WNBASnapshot.REQUESTS.scoreboard).catch(
       () => null,
     );
-    slowFeeds.noteFinalCount(scoreboard ? countFinals(scoreboard) : null);
+    await slowFeeds.noteFinalCount(scoreboard ? countFinals(scoreboard) : null);
     const [schedule, bracket, standings, players] = await Promise.all([
       readSlowFeed("schedule", WNBASnapshot.REQUESTS.schedule).catch(() => null),
       readSlowFeed("bracket", WNBASnapshot.REQUESTS.bracket(season)).catch(() => null),
