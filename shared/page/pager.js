@@ -28,6 +28,7 @@ const chooseScrollBehavior = () => (prefersReducedMotion() ? "instant" : "smooth
  * @returns {{
  *   fill: (renderList: (key: string) => Markup) => void,
  *   readShownList: () => string,
+ *   readChosenList: () => string,
  *   showList: (key: string) => void,
  *   switchToList: (key: string) => void,
  * }}
@@ -195,7 +196,7 @@ export function createPager(root, { label, idPrefix, lists, openOn }) {
   /** @param {string} key */
   function showList(key) {
     if (isAtList(findPages(), key)) {
-      markShownList(key);
+      jumpToList(key);
       return;
     }
     selectTab(findTabs(), key);
@@ -267,6 +268,7 @@ export function createPager(root, { label, idPrefix, lists, openOn }) {
       for (const key of keys) setHtml(findPage(key), renderList(key));
     },
     readShownList: () => shownList,
+    readChosenList: () => scrollTarget ?? shownList,
     showList,
     switchToList,
   };

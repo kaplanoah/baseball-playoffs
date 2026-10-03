@@ -32,7 +32,8 @@ function showTodayAfterLongAway(awayMs) {
   if (isAwayLong(awayMs)) gamePager.switchToList("today");
 }
 
-export const isTodayListShown = () => gamePager.readShownList() === "today";
+// Today's list counts while a tapped pill is still sliding to it, and not while it slides away.
+export const isTodayListChosen = () => gamePager.readChosenList() === "today";
 
 /** Slides the shown Games view over to today's list, as a tap on its name in the pill does. */
 export function showTodayList() {
