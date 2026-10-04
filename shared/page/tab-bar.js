@@ -388,6 +388,23 @@ function copyTabsIntoPill() {
   findPillRow().replaceChildren(...copies);
 }
 
+// iOS can drop the frame a motion waits on, or the end of a press, while the page is off the
+// screen, which would leave the pill lifted for good, so leaving puts it at rest on its tab.
+function restPill() {
+  cancelAnimationFrame(motion.frame);
+  Object.assign(press, { isActive: false, isDragging: false, lastMoveTime: 0 });
+  motion.isReleased = true;
+  motion.lift.target = 0;
+  motion.platter.target = 1;
+  Object.assign(motion.glow, { value: 0, velocity: 0, target: 0 });
+  motion.x.target = findPillX(readSelectedTab(findTabButtons()));
+  finishMotion();
+}
+
+function restPillWhenHidden() {
+  if (document.hidden) restPill();
+}
+
 /**
  * Moves the selection pill to a tab chosen some other way, like the keyboard.
  * @param {string} tab
@@ -414,6 +431,8 @@ export function startTabBar(onChoose) {
   bar.addEventListener("pointerup", endPress);
   bar.addEventListener("pointercancel", endPress);
   bar.addEventListener("click", ignorePressClicks, true);
+  document.addEventListener("visibilitychange", restPillWhenHidden);
+  addEventListener("pagehide", restPill);
   FLOATING_QUERY.addEventListener("change", fitBar);
   new ResizeObserver(fitBar).observe(findList());
   fitBar();

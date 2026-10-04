@@ -1429,6 +1429,34 @@ test("on a laptop too narrow for the whole bracket, the stacked bracket fills do
   );
 });
 
+test("on a phone, the banner's club reads as a name, without the tabs' outline and capitals", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const club = page.locator("#banner .banner-team .club");
+  await expect(club).toBeVisible();
+
+  const look = await club.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      border: style.borderTopWidth,
+      padding: style.paddingLeft,
+      textTransform: style.textTransform,
+      color: style.color,
+      bannerColor: getComputedStyle(document.getElementById("banner")).color,
+    };
+  });
+
+  expect(look).toEqual({
+    border: "0px",
+    padding: "0px",
+    textTransform: "none",
+    color: look.bannerColor,
+    bannerColor: look.bannerColor,
+  });
+});
+
 test("renders the bracket, standings and stamp from the live scores the Worker saved", async ({
   page,
 }) => {
@@ -2042,6 +2070,61 @@ test("on a phone, dragging back to the tab that's showing leaves the page where 
   expect(await page.evaluate(() => scrollY)).toBe(scrolled);
 });
 
+/** How far the tab bar's pill sits from resting on a tab: its center's offset and its extra height. */
+const measurePillFromRest = (page, name) =>
+  page.evaluate((name) => {
+    const pill = document.querySelector(".tab-pill").getBoundingClientRect();
+    const tab = [...document.querySelectorAll("[role=tab]")]
+      .find((button) => button.textContent.trim() === name)
+      .getBoundingClientRect();
+    return {
+      offset: Math.round(pill.left + pill.width / 2 - (tab.left + tab.width / 2)),
+      extraHeight: Math.round(pill.height - tab.height),
+    };
+  }, name);
+
+test("on a phone, leaving the page mid-press puts the tab bar's pill back at rest", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  const games = await page.getByRole("tab", { name: "Games" }).boundingBox();
+  await page.mouse.move(games.x + games.width / 2, games.y + games.height / 2);
+  await page.mouse.down();
+  await page.clock.runFor(400);
+
+  await setHidden(page, true);
+
+  expect(await measurePillFromRest(page, "Bracket")).toEqual({ offset: 0, extraHeight: 0 });
+});
+
+test("on a phone, the tab bar's pill still moves after a motion's frame was lost while away", async ({
+  page,
+}) => {
+  await page.setViewportSize(PHONE);
+  await openApp(page);
+  await page.getByRole("tab", { name: "Games" }).click();
+  await page.evaluate(() => {
+    const requestFrame = window.requestAnimationFrame;
+    window.requestAnimationFrame = () => 1;
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        window.requestAnimationFrame = requestFrame;
+      },
+      { once: true },
+    );
+  });
+  await page.clock.runFor(100);
+  await setHidden(page, true);
+  await setHidden(page, false);
+
+  await page.getByRole("tab", { name: "Standings" }).click();
+  await page.clock.runFor(2000);
+
+  expect(await measurePillFromRest(page, "Standings")).toEqual({ offset: 0, extraHeight: 0 });
+});
+
 const readBracketFit = (page) =>
   page.evaluate(() => {
     const scroller = document.querySelector(".tree-scroll");
@@ -2087,7 +2170,7 @@ test("on a phone, the bracket fills the height above the tab bar and swipes side
 test("on a phone a little short of room, the bracket's spaces shrink so it fits above the round dots", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 830 });
+  await page.setViewportSize({ width: 390, height: 820 });
   await openApp(page);
   await expect(page.locator(".bracket-stage")).toBeVisible();
   await expectBracketToFillHeight(page);
