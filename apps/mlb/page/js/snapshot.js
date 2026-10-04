@@ -522,6 +522,11 @@ function listScheduledGames(...responses) {
   return [...gamesByPk.values()];
 }
 
+// The Worker reads the postseason feed again only now and then, so a game's listing in the
+// schedule, read with each update, counts over it.
+const listPostseasonGames = (responses) =>
+  listScheduledGames(responses.postseason, responses.schedule).filter((game) => game.type !== "R");
+
 const hasBothClubs = (game) => !!(game.away.id && game.home.id);
 const hasClub = (game) => !!(game.away.id || game.home.id);
 const isPlayedBy = (game, club) => game.away.id === club || game.home.id === club;
@@ -987,7 +992,7 @@ const listPitchers = (responses) =>
 
 export function buildSnapshot(responses, { season, now = Date.now() }) {
   const games = responses.schedule ? listScheduledGames(responses.schedule) : [];
-  const postseasonGames = listScheduledGames(responses.postseason);
+  const postseasonGames = listPostseasonGames(responses);
   const { records, clinches } = readRecords(responses.standings);
   const gamesBySeries = groupPostseason(postseasonGames, clinches);
   const official = readOfficialField(gamesBySeries, records);

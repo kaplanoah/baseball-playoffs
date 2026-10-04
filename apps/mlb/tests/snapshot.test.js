@@ -189,6 +189,24 @@ test("a series counts as started once its first game is under way, with no wins 
   assert.equal(series.AL_DS1.started, undefined);
 });
 
+test("a series counts as started once the schedule shows its first game under way", () => {
+  const fixture = rewindFixture(SEASON_2025, "2025-09-30T00:00:00Z", {
+    unsetRounds: ["CS", "WS"],
+    unsetWildCardWinners: true,
+  });
+  const gameOne = fixture.responses.postseason.dates
+    .flatMap((day) => day.games)
+    .find((game) => game.gameDate === "2025-09-30T17:08:00Z");
+  const liveGameOne = {
+    ...structuredClone(gameOne),
+    status: { abstractGameState: "Live", codedGameState: "I", detailedState: "In Progress" },
+  };
+  fixture.responses.schedule = { dates: [{ date: "2025-09-30", games: [liveGameOne] }] };
+  const { series } = buildSnapshot(fixture, Date.parse("2025-09-30T17:30:00Z"));
+  assert.equal(series.AL_WC1.started, true);
+  assert.equal(series.AL_WC2.started, undefined);
+});
+
 test("every series of a finished postseason counts as started", () => {
   const { series } = buildSnapshot(SEASON_2025);
   assert.ok(Object.values(series).every((seriesRecord) => seriesRecord.started));
