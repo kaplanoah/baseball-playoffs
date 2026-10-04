@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { listShownPitches, namePitch, renderPitchMix } from "../page/js/pitch-mix.js";
+import {
+  listShownPitches,
+  measureSpeedRange,
+  namePitch,
+  renderPitchMix,
+} from "../page/js/pitch-mix.js";
 
 const pitch = (code, share, mph, name = code) => ({ code, name, share, mph });
 
@@ -48,16 +53,20 @@ test("pitches at nearly the same speed sit side by side on the line, slowest fir
   assert.doesNotMatch(svg, /pitch-stem/);
 });
 
-const readSpeedLabels = (pitches) =>
+const readSpeedLabels = (pitches, range) =>
   [
-    ...String(renderPitchMix(pitches)).matchAll(
+    ...String(renderPitchMix(pitches, range)).matchAll(
       /<span class="speed-label" style="left: ([\d.]+)%">(\d+)(?:<span class="speed-unit">([^<]*)<\/span>)?<\/span>/g,
     ),
   ].map(([, left, mph, unit = ""]) => ({ left: Number(left), text: `${mph}${unit}` }));
 
-test("the speed line is labeled every 10 mph, with the unit on the slowest", () => {
+test("the speed line runs from his slowest pitch to his fastest, labeled every 10 mph with the unit on the slowest", () => {
   const labels = (pitches) => readSpeedLabels(pitches).map((label) => label.text);
-  assert.deepEqual(labels([pitch("FF", 0.5, 94.2)]), ["70 mph", "80", "90", "100"]);
+  assert.deepEqual(labels([pitch("CU", 0.2, 81.6), pitch("FF", 0.5, 94.2)]), [
+    "80 mph",
+    "90",
+    "100",
+  ]);
   assert.deepEqual(labels([pitch("EP", 0.1, 58.0), pitch("FF", 0.5, 101.2)]), [
     "50 mph",
     "60",
@@ -69,10 +78,29 @@ test("the speed line is labeled every 10 mph, with the unit on the slowest", () 
   ]);
 });
 
+test("a range of speeds spans every pitcher's slowest and fastest shown pitches", () => {
+  const ray = [pitch("KC", 0.12, 80.4), pitch("FF", 0.31, 93.1)];
+  const misiorowski = [pitch("CU", 0.1, 88.2), pitch("FF", 0.63, 101.3), pitch("CS", 0.01, 70.5)];
+  assert.deepEqual(measureSpeedRange([ray, misiorowski]), { low: 80, high: 110 });
+  assert.deepEqual(measureSpeedRange([[pitch("FF", 1, 90)]]), { low: 90, high: 100 });
+});
+
+test("a speed line drawn on a range it's handed puts each speed where any other on it would", () => {
+  const range = { low: 70, high: 110 };
+  const ray = [pitch("KC", 0.12, 80.4), pitch("FF", 0.31, 93.1)];
+  const misiorowski = [pitch("CU", 0.1, 88.2), pitch("FF", 0.63, 101.3)];
+  const expected = ["70 mph", "80", "90", "100", "110"];
+  for (const pitches of [ray, misiorowski])
+    assert.deepEqual(
+      readSpeedLabels(pitches, range).map((label) => label.text),
+      expected,
+    );
+});
+
 test("each speed label is page text under the line, at its speed's share of the line's width", () => {
   const pitches = [pitch("FF", 0.5, 94.2)];
   assert.deepEqual(
-    readSpeedLabels(pitches).map((label) => label.left),
+    readSpeedLabels(pitches, { low: 70, high: 100 }).map((label) => label.left),
     [3.1, 34.4, 65.6, 96.9],
   );
   const markup = String(renderPitchMix(pitches));

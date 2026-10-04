@@ -1,6 +1,7 @@
 // A pitcher's pitches: a bar split by how often he throws each and a line that places each by its
 // speed over a label every 10 mph, both slowest to fastest, then a row for each from fastest to
-// slowest, keyed by a dot the size of the line's. Until they load, gray rows stand in.
+// slowest, keyed by a dot the size of the line's. The line spans a range of speeds the sheet hands
+// it, so two pitchers' lines match. Until they load, gray rows stand in.
 
 import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
@@ -45,13 +46,21 @@ export function listShownPitches(pitches) {
     .sort((first, second) => first.mph - second.mph);
 }
 
-// The line runs from 70 to 100 mph, wider only for a pitch outside that.
-function measureScale(pitches) {
-  const speeds = pitches.map((pitch) => pitch.mph);
-  const low = Math.min(70, Math.floor(Math.min(...speeds) / LABEL_STEP_MPH) * LABEL_STEP_MPH);
-  const high = Math.max(100, Math.ceil(Math.max(...speeds) / LABEL_STEP_MPH) * LABEL_STEP_MPH);
-  const toX = (mph) => EDGE + ((mph - low) / (high - low)) * (WIDTH - 2 * EDGE);
-  return { low, high, toX };
+/**
+ * The slowest and fastest of these pitchers' shown pitches, out to the nearest labels.
+ * @param {{ mph: number, share: number }[][]} pitchLists
+ */
+export function measureSpeedRange(pitchLists) {
+  const speeds = pitchLists.flatMap((pitches) =>
+    listShownPitches(pitches).map((pitch) => pitch.mph),
+  );
+  const low = Math.floor(Math.min(...speeds) / LABEL_STEP_MPH) * LABEL_STEP_MPH;
+  const high = Math.ceil(Math.max(...speeds) / LABEL_STEP_MPH) * LABEL_STEP_MPH;
+  return { low, high: Math.max(high, low + LABEL_STEP_MPH) };
+}
+
+function measureX({ low, high }) {
+  return (mph) => EDGE + ((mph - low) / (high - low)) * (WIDTH - 2 * EDGE);
 }
 
 const spreadDots = (group) => {
@@ -108,8 +117,8 @@ function renderSpeedLabels(low, high, toX) {
   return html`<div class="speed-labels" aria-hidden="true">${labels}</div>`;
 }
 
-function renderSpeedLine(pitches) {
-  const { low, high, toX } = measureScale(pitches);
+function renderSpeedLine(pitches, range) {
+  const toX = measureX(range);
   const speeds = pitches.map((pitch) => pitch.mph);
   const [first, last] = [toX(Math.min(...speeds)), toX(Math.max(...speeds))];
   return html`<svg class="speed-line" viewBox="0 0 ${WIDTH} ${LINE_HEIGHT}" aria-hidden="true">
@@ -117,7 +126,7 @@ function renderSpeedLine(pitches) {
     <line class="speed-range" x1="${formatNumber(first)}" y1="${LINE_Y}" x2="${formatNumber(last)}" y2="${LINE_Y}"/>
     ${placeDots(pitches, toX).map(renderDot)}
   </svg>
-  ${renderSpeedLabels(low, high, toX)}`;
+  ${renderSpeedLabels(range.low, range.high, toX)}`;
 }
 
 const renderSlice = (pitch) =>
@@ -134,13 +143,16 @@ const renderPitchRow = (pitch) =>
     <span class="pitch-speed tabular">${Math.round(pitch.mph)} mph</span>
   </li>`;
 
-/** @param {{ code: string, name: string, share: number, mph: number }[]} allPitches */
-export function renderPitchMix(allPitches) {
+/**
+ * @param {{ code: string, name: string, share: number, mph: number }[]} allPitches
+ * @param {{ low: number, high: number }} [range]
+ */
+export function renderPitchMix(allPitches, range = measureSpeedRange([allPitches])) {
   const pitches = listShownPitches(allPitches);
   if (!pitches.length) return html``;
   return html`<div class="pitch-mix" style="${LINE_SCALE}">
     ${renderUsage(pitches)}
-    ${renderSpeedLine(pitches)}
+    ${renderSpeedLine(pitches, range)}
     <ol class="pitch-rows">${[...pitches].reverse().map(renderPitchRow)}</ol>
   </div>`;
 }

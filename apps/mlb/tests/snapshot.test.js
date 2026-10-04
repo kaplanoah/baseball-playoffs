@@ -509,6 +509,23 @@ test("a rainout is neither a final nor on the slate", () => {
   );
 });
 
+test("a live game's starter still in is pitching, and one pulled isn't", () => {
+  const responses = JSON.parse(JSON.stringify(EVENING.responses));
+  const live = responses.schedule.dates
+    .flatMap((date) => date.games)
+    .find((game) => game.status.abstractGameState === "Live");
+  live.teams.away.probablePitcher = { id: 501 };
+  live.teams.home.probablePitcher = { id: 502 };
+  live.linescore = {
+    ...live.linescore,
+    defense: { pitcher: { id: 502 }, team: { id: live.teams.home.team.id } },
+    offense: { pitcher: { id: 777 }, team: { id: live.teams.away.team.id } },
+  };
+  const { slate } = buildSnapshot({ ...EVENING, responses });
+  const game = slate.today.games.find((summary) => summary.start === live.gameDate);
+  assert.deepEqual(game.starters, [{ id: 501 }, { id: 502, pitching: true }]);
+});
+
 test("a game in warmup hasn't started, though MLB calls it live", () => {
   const fixture = JSON.parse(JSON.stringify(EVENING));
   const day = fixture.responses.schedule.dates.find(
