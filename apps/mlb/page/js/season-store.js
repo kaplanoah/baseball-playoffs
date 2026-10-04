@@ -109,8 +109,14 @@ function keepNewerRanking(incoming) {
   return unechoedRankings.length ? { ...incoming, ranking: session.seasonDoc.ranking } : incoming;
 }
 
+// A loaded year's documents are never deleted and its readings never all go at once, so a document
+// that answers it doesn't exist, or a listing that comes back empty, as a store restarting for a
+// deploy can, is a gap, and the page keeps what it shows.
+const isGapInLoadedYear = (snapshot) => isYearLoaded && !snapshot?.exists;
+
 // A drag keeps the order it shows, so a season that arrives during one waits for it to end.
 function applySeasonAnswer(snapshot, year) {
+  if (isGapInLoadedYear(snapshot)) return false;
   const incoming = keepNewerRanking(normalizeSeason(readDoc(snapshot), year));
   if (!session.isReordering) return replaceSeason(incoming);
   deferredSeason = incoming;
@@ -118,6 +124,7 @@ function applySeasonAnswer(snapshot, year) {
 }
 
 function applyStandingsAnswer(snapshot) {
+  if (isGapInLoadedYear(snapshot)) return false;
   const incoming = readDoc(snapshot);
   if (isSameJson(incoming, session.storedStandings)) return false;
   session.storedStandings = incoming;
@@ -126,6 +133,7 @@ function applyStandingsAnswer(snapshot) {
 
 // The Worker saves a reading whenever the standings change, and updates are rebuilt from them.
 function applyReadingsAnswer({ docs }) {
+  if (isYearLoaded && !docs.length) return false;
   const incoming = readParts(docs);
   if (isSameJson(incoming, session.readings)) return false;
   session.readings = incoming;
