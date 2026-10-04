@@ -25,7 +25,7 @@ export function describeDrought(id) {
   const crowned = isCurrentShown ? buildBracket(state).ws?.winner : null;
   if (won === year - 1 && !crowned) return "Defending";
   const years = year - won;
-  return years + (years === 1 ? " yr" : " yrs");
+  return `${years} ${years === 1 ? "yr" : "yrs"} ago`;
 }
 
 /** The last World Series a club won, or that it never has, and how long ago. */

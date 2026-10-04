@@ -654,6 +654,17 @@ test("a club that has never won counts its drought from its first season", () =>
   assert.equal(describeDrought("MIL"), "Since 1969");
 });
 
+test("a club that has won counts its drought in years since its last title", () => {
+  const { currentSeason } = session;
+  try {
+    Object.assign(session, { currentSeason: 2026, trackedTitles: {} });
+    assert.equal(describeDrought("NYY"), "17 yrs ago");
+    assert.equal(describeDrought("MIA"), "23 yrs ago");
+  } finally {
+    Object.assign(session, { currentSeason });
+  }
+});
+
 test("a live answer without standings leaves the saved field showing", () => {
   const saved = { NYY: { league: "AL", seed: 4 } };
   const { activeYear } = session;
