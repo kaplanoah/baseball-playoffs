@@ -98,7 +98,8 @@ nav.tabs {
   width: 0;
   height: 0;
 }
-nav.tabs button {
+/* Only the tabs themselves: the tabs' row can hold other buttons too. */
+.tab-list button {
   font: inherit;
   font-size: var(--size-glance);
   text-transform: uppercase;
@@ -110,7 +111,7 @@ nav.tabs button {
   border-radius: 6px;
   cursor: pointer;
 }
-nav.tabs button.active {
+.tab-list button.active {
   background: var(--accent);
   color: var(--accent-ink);
   border-color: var(--accent);

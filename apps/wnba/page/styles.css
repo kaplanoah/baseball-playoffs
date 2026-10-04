@@ -220,7 +220,7 @@ header.top h1 {
 /* On a wide screen, the tabs that aren't open read as buttons, with a firmer outline and darker
    text than the shared chrome gives them. Phones keep their glass tab bar. */
 @media (min-width: 780px) {
-  nav.tabs button:not(.active) {
+  .tab-list button:not(.active) {
     border-color: color-mix(in srgb, var(--card-border), var(--ink) 35%);
     color: color-mix(in srgb, var(--ink-dim), var(--ink) 60%);
   }
