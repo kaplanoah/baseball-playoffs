@@ -1212,15 +1212,20 @@ body.kbd .rank-item .grip:focus {
   gap: var(--section-gap);
 }
 /* Settings fill the whole sheet, so the ranking can be one sheet tall, and a scroll settles on the
-   settings or the ranking. */
+   settings, the ranking, or the copyright at their end, which would otherwise be close enough to
+   the ranking for the scroll to settle back on it. */
 .settings-panel {
   height: 100%;
   container-type: size;
   scroll-snap-type: y proximity;
   scroll-padding-top: var(--section-gap);
+  scroll-padding-bottom: var(--bottom-padding);
 }
 .settings-panel .sheet-top {
   scroll-snap-align: start;
+}
+.settings-footer {
+  scroll-snap-align: end;
 }
 /* The ranking section is exactly one sheet tall, less the gap above it and the bottom padding, so
    scrolling down to it shows all twelve rows at once. */

@@ -173,6 +173,33 @@ test("on a phone, settings end with the copyright, centered under the ranking", 
   expect(copyright.y).toBeGreaterThan(ranking.y + ranking.height);
 });
 
+test("on a phone, a scroll to the end of settings rests there, with the copyright in full view", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize(PHONE);
+  await serveRelease(page, RELEASE);
+  await openApp(page);
+  await openSettings(page);
+  await expect(page.locator("#versionNote")).toBeVisible();
+  const settings = page.locator("#settingsDialog");
+  await settings.evaluate((dialog) =>
+    dialog.addEventListener("scrollend", () => dialog.setAttribute("data-scrolled", ""), {
+      once: true,
+    }),
+  );
+
+  await page.mouse.move(PHONE.width / 2, PHONE.height / 2);
+  await page.mouse.wheel(0, 2000);
+  await expect(settings).toHaveAttribute("data-scrolled");
+
+  await expect(page.getByText("\u00a9 2026 Noah Kaplan")).toBeInViewport({ ratio: 1 });
+  const distanceToEnd = await settings.evaluate(
+    (dialog) => dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight,
+  );
+  expect(distanceToEnd).toBeLessThan(1);
+});
+
 test("a release the Worker no longer has, named only by its commit, leaves the version out", async ({
   page,
 }) => {
