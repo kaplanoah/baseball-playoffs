@@ -70,8 +70,10 @@ async function loadUnkeptLive(season) {
   }
 }
 
+// Scores the page already shows for this season stay until the store sends newer ones, so a
+// redraw meanwhile doesn't drop them.
 export function startLive() {
-  session.live = null;
+  if (session.live?.season !== session.activeYear) session.live = null;
   liveError = null;
   liveWarning = null;
   updateLiveProblem();
