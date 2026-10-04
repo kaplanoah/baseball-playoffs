@@ -1,18 +1,20 @@
 // The Updates box: each playoff game finished since this device last dismissed it, with where its
-// series stood after it, and the release notes out since then. Nobody signs in, and people share the page's address, so each device
-// keeps its own dismissal, and only phones and tablets show the box.
+// series stood after it, each opening the game's sheet, and the release notes out since then.
+// Nobody signs in, and people share the page's address, so each device keeps its own dismissal,
+// and only phones and tablets show the box.
 
 import { readEasternDay } from "#shared/days.js";
 import { isTouchDevice } from "#shared/device.js";
 import { html } from "#shared/html.js";
 import { listFreshNotes, showUpdates } from "#shared/updates.js";
 import { renderTeamName } from "./clubs.js";
+import { renderOpenButton } from "./games-view.js";
 import { RELEASE_NOTES } from "./release-notes.js";
 import { session } from "./session.js";
 import { ROUNDS } from "./snapshot.js";
 
 /** @typedef {import("./games-view.js").Game} Game */
-/** @typedef {{ at: number, day: string, text: import("#shared/html.js").Markup }} PlayoffWin */
+/** @typedef {{ at: number, day: string, text: import("#shared/html.js").Markup, action: import("#shared/html.js").Markup | false }} PlayoffWin */
 
 const SEEN_KEY = "updatesSeenAt";
 
@@ -117,7 +119,12 @@ function describeWin(game, games) {
  */
 function describePlayoffWin(game, games) {
   const at = readFinishedAt(game);
-  return { at, day: readLeagueDay(game, at), text: describeWin(game, games) };
+  return {
+    at,
+    day: readLeagueDay(game, at),
+    text: describeWin(game, games),
+    action: renderOpenButton(game),
+  };
 }
 
 /**

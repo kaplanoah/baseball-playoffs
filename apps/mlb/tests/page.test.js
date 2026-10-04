@@ -10,7 +10,7 @@ import { renderGameList } from "../page/js/games-view.js";
 import { html } from "../../../shared/page/html.js";
 import { buildSnapshot } from "../page/js/snapshot.js";
 import { formatStampName } from "../page/js/stamp.js";
-import { renderEntryText, renderUpdateText } from "../page/js/updates.js";
+import { findUpdateGame, renderEntryText, renderUpdateText } from "../page/js/updates.js";
 import { normalizeSpaces, stripTags } from "../../../tests/text.js";
 import { EASTERN, useTimeZone } from "../../../tests/time-zone.js";
 
@@ -1270,4 +1270,64 @@ test("a club's name in the games list, the standings, and the updates opens its 
     ["NYY", "BAL"],
   );
   assert.deepEqual(listTeamButtons(update), ["BAL Orioles"]);
+});
+
+const GAMES_VIEW = {
+  today: { date: "2026-10-04", games: [] },
+  previous: [
+    {
+      date: "2026-10-03",
+      away: "NYY",
+      home: "TB",
+      state: "final",
+      score: [0, 1],
+      end: "2026-10-04T01:08:00Z",
+      starters: [{ id: 1, name: "Cole" }],
+    },
+    {
+      date: "2026-10-03",
+      away: "CWS",
+      home: "CLE",
+      state: "final",
+      score: [3, 0],
+      end: "2026-10-03T23:40:00Z",
+    },
+  ],
+};
+
+test("a series game's update finds its final in the Games view, whichever club is home, and none for a game it doesn't list", () => {
+  const update = [
+    {
+      at: "2026-10-04T01:08:00Z",
+      kind: "game",
+      series: "AL_DS1",
+      won: "TB",
+      lost: "NYY",
+      game: 1,
+      score: [1, 0],
+      runs: [1, 0],
+    },
+  ];
+
+  assert.equal(findUpdateGame(update, GAMES_VIEW)?.away, "NYY");
+  assert.equal(findUpdateGame([{ ...update[0], game: 2, runs: [5, 2] }], GAMES_VIEW), null);
+});
+
+test("an update finds the one game all its entries came from, and none when they came from several or no longer show", () => {
+  const berth = {
+    at: "2026-10-03T23:45:00Z",
+    kind: "berth",
+    team: "CWS",
+    what: "playoff",
+    via: [{ team: "CWS", won: true, opp: "CLE", score: [3, 0] }],
+  };
+  const fromTwo = {
+    ...berth,
+    via: [...berth.via, { team: "NYY", won: false, opp: "TB", score: [0, 1] }],
+  };
+
+  assert.equal(findUpdateGame([berth], GAMES_VIEW)?.home, "CLE");
+  assert.equal(findUpdateGame([fromTwo], GAMES_VIEW), null);
+  assert.equal(findUpdateGame([{ at: berth.at, kind: "lock" }], GAMES_VIEW), null);
+  assert.equal(findUpdateGame([berth], { today: { date: "2026-10-09", games: [] } }), null);
 });

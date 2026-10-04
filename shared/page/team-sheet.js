@@ -3,7 +3,8 @@
 // of another team's. Each league hands it which teams it knows and what a team's sheet shows, and
 // builds the buttons that open it with renderTeamSheetButton.
 
-import { html, setHtml } from "./html.js";
+import { html, joinWithSeparator, setHtml } from "./html.js";
+import { renderSheetPart } from "./sheet-part.js";
 import { redrawSheet } from "./sheet-resize.js";
 import { openSheet, wireSheet } from "./sheet.js";
 
@@ -15,6 +16,9 @@ import { openSheet, wireSheet } from "./sheet.js";
 let league = null;
 /** @type {string | null} */
 let shownTeam = null;
+let areAllTitlesShown = false;
+
+const TITLES_SHOWN = 3;
 
 const findDialog = () => /** @type {HTMLDialogElement} */ (document.getElementById("teamDialog"));
 const findElement = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
@@ -33,6 +37,7 @@ function renderSheet() {
 function openTeamSheet(team) {
   if (!league?.isTeam(team)) return;
   shownTeam = team;
+  areAllTitlesShown = false;
   renderSheet();
   openSheet(findDialog());
 }
@@ -48,11 +53,19 @@ function openFromTap(event) {
   if (button?.dataset.team) openTeamSheet(button.dataset.team);
 }
 
+/** @param {Event} event */
+function showAllTitlesOnTap(event) {
+  if (!(/** @type {Element} */ (event.target).closest(".team-titles-more"))) return;
+  areAllTitlesShown = true;
+  renderSheet();
+}
+
 /** @param {League} teams */
 export function startTeamSheet(teams) {
   league = teams;
   const dialog = findDialog();
   wireSheet(dialog, { doneButton: findElement("teamDoneBtn") });
+  findElement("teamBody").addEventListener("click", showAllTitlesOnTap);
   dialog.addEventListener("close", () => {
     shownTeam = null;
   });
@@ -92,3 +105,28 @@ export function renderTeamStats(stats) {
  */
 export const renderTeamDetail = (label, content) =>
   html`<p class="team-detail"><span class="team-label">${label}</span>${content}</p>`;
+
+/** @param {(Markup | string | number)[]} years */
+const joinYears = (years) => html`${years.map((year, index) => html`${index > 0 && ", "}${year}`)}`;
+
+/** @param {(Markup | string | number)[]} years newest first */
+function renderTitleYears(years) {
+  const hidden = areAllTitlesShown ? 0 : Math.max(years.length - TITLES_SHOWN, 0);
+  const shown = joinYears(years.slice(0, years.length - hidden));
+  if (!hidden) return html`<span class="tabular">${shown}</span>`;
+  return html`<span class="tabular">${shown}</span>
+    <button type="button" class="team-titles-more">and ${hidden} more</button>`;
+}
+
+/**
+ * A team's titles part: how many it has won and the latest few, with a button for the rest that
+ * lists them all until the sheet shows another team.
+ * @param {(Markup | string | number)[]} years newest first
+ * @param {Markup | string | false} [aside] across from the part's title
+ */
+export function renderTitles(years, aside = false) {
+  const body = years.length
+    ? joinWithSeparator([html`<b>${years.length}</b>`, renderTitleYears(years)])
+    : html`<span class="team-titles-none">None yet</span>`;
+  return renderSheetPart("Titles", html`<p class="team-titles">${body}</p>`, aside);
+}

@@ -1,4 +1,12 @@
-import { test, expect, openApp, openSettings, buildSnapshotWithStarters } from "./harness.mjs";
+import {
+  test,
+  expect,
+  openApp,
+  openSettings,
+  buildFixtureSnapshot,
+  buildSnapshotWithStarters,
+  EVENING_FIXTURE,
+} from "./harness.mjs";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -34,8 +42,62 @@ test("a club's name in a game's row opens its sheet, and the rest of the row ope
   await expect(teamSheet).toBeHidden();
 });
 
+// The White Sox clinching with their 9-1 win at Kansas City, one of the evening's finals.
+function buildSnapshotWithClinch() {
+  const snapshot = buildFixtureSnapshot(EVENING_FIXTURE);
+  snapshot.log = [
+    {
+      at: "2026-09-24T20:50:00Z",
+      kind: "berth",
+      team: "CWS",
+      what: "playoff",
+      via: [{ team: "CWS", won: true, opp: "KC", score: [9, 1] }],
+    },
+  ];
+  return snapshot;
+}
+
+/** @param {import("@playwright/test").Page} page */
+async function showClinch(page) {
+  await openApp(page, { snapshots: { 2026: buildSnapshotWithClinch() } });
+  const update = page.locator("#updates li").first();
+  await expect(update.locator(".what")).toContainText("White Sox");
+  return update;
+}
+
+test("an update about a game opens its matchup, and a club's name in it opens the club's sheet", async ({
+  page,
+}) => {
+  const update = await showClinch(page);
+  const matchup = page.locator("#matchupDialog");
+
+  await update.getByRole("button", { name: "Team details: White Sox" }).click();
+  const teamSheet = page.locator("#teamDialog");
+  await expect(teamSheet.locator("#teamTitle")).toContainText("White Sox");
+  await expect(matchup).toBeHidden();
+  await teamSheet.getByRole("button", { name: "Done" }).click();
+  await expect(teamSheet).toBeHidden();
+
+  await update.getByRole("button", { name: /^Pitching matchup/ }).click();
+  await expect(matchup.locator("#matchupBody")).toContainText(/White Sox[\s\S]*Royals/);
+  await expect(teamSheet).toBeHidden();
+});
+
 test.describe("on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("a tap on a club's name in an update about a game opens the game's matchup", async ({
+    page,
+  }) => {
+    const update = await showClinch(page);
+    const whiteSox = update.getByRole("button", { name: "Team details: White Sox" });
+    await whiteSox.scrollIntoViewIfNeeded();
+    const box = await whiteSox.boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+
+    await expect(page.locator("#matchupBody")).toContainText(/White Sox[\s\S]*Royals/);
+    await expect(page.locator("#teamDialog")).toBeHidden();
+  });
 
   test("a tap on a club's name in a game's row opens the matchup, since a thumb lands on a name easily", async ({
     page,

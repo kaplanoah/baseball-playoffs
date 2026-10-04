@@ -1,4 +1,4 @@
-import { html } from "./html.js";
+import { convertToText, html } from "./html.js";
 import { renderPlaceholder } from "./placeholder.js";
 
 /** @typedef {import("./html.js").Markup} Markup */
@@ -11,7 +11,7 @@ import { renderPlaceholder } from "./placeholder.js";
 
 /**
  * One measure facing off across its name, as sheet.css lays it out. A side that's null is left
- * blank, and the leader's bar is drawn in the accent color.
+ * blank, and the leader's bar is drawn in the accent color, unless the two numbers read the same.
  * @typedef {{ label: Markup | string, away: TapeSide | null, home: TapeSide | null, leader: "away" | "home" | null }} TapeRow
  */
 
@@ -31,13 +31,24 @@ function renderTapeSide(side, place, leader) {
   </div>`;
 }
 
+// Numbers are rounded to be shown, so two that differ unrounded can read the same, and marking
+// either as ahead would look wrong.
+/**
+ * @param {TapeSide | null} away
+ * @param {TapeSide | null} home
+ */
+const isShownTie = (away, home) =>
+  !!away && !!home && convertToText(away.value) === convertToText(home.value);
+
 /** @param {TapeRow} row */
-export const renderTapeRow = ({ label, away, home, leader }) =>
-  html`<div class="tape-row">
-    ${renderTapeSide(away, "away", leader)}
+export function renderTapeRow({ label, away, home, leader }) {
+  const shownLeader = isShownTie(away, home) ? null : leader;
+  return html`<div class="tape-row">
+    ${renderTapeSide(away, "away", shownLeader)}
     <span class="tape-label">${label}</span>
-    ${renderTapeSide(home, "home", leader)}
+    ${renderTapeSide(home, "home", shownLeader)}
   </div>`;
+}
 
 /**
  * A side whose number is still loading: a stand-in for it over an empty bar.

@@ -14,7 +14,11 @@ const DISMISS_ICON = html`<svg viewBox="0 0 256 256" fill="currentColor" aria-hi
 </svg>`;
 
 /** @typedef {import("./html.js").Markup} Markup */
-/** @typedef {{ at: number, text: Markup }} Update when it happened, and what it says */
+/**
+ * When it happened, what it says, and for an update about one game, the button that opens the
+ * game, as its row in the Games view does.
+ * @typedef {{ at: number, text: Markup, action?: Markup | false }} Update
+ */
 /** @typedef {{ at: string, text: string }} ReleaseNote when it went out, as an ISO time, and what it says */
 /** @typedef {{ at: number, text: string }} Note a release note to show */
 
@@ -93,7 +97,7 @@ function renderUpdateList(updates, now) {
     <ul class="updates-list">
       ${shown.map(
         (update, index) =>
-          html`<li><span class="when">${times[index]}</span><span class="what">${update.text}</span></li>`,
+          html`<li><span class="when">${times[index]}</span><span class="what">${update.text}</span>${update.action}</li>`,
       )}
       ${extra > 0 && html`<li class="more">and ${extra} more</li>`}
     </ul>`;

@@ -85,10 +85,7 @@ test("a division leader in September: its division, seed, record, and percentage
   assert.deepEqual(listParts(sheet.body), ["Season", "Titles"]);
   assert.deepEqual(readStats(sheet.body), ["NL West 1st", "Lead +6.0", "M# 7"]);
   assert.match(readPart(sheet.body, "Season"), /^12 left .* Next Today 7:10 vs SD$/);
-  assert.equal(
-    readPart(sheet.body, "Titles"),
-    "Defending 9 | 1955, 1959, 1963, 1965, 1981, 1988, 2020, 2024, 2025",
-  );
+  assert.equal(readPart(sheet.body, "Titles"), "Defending 9 | 2025, 2024, 2020 and 6 more");
 });
 
 test("a club chasing a wild card has a row for each race, each starting with its place, and a club that never won says so", () => {
@@ -146,6 +143,21 @@ test("once the season is over, the Season part counts no games left", () => {
 
   assert.deepEqual(readStats(leader), ["NL Central 1st", "Lead +4.0", "M# -"]);
   assert.doesNotMatch(readPart(leader, "Season"), /left/);
+});
+
+test("once the field is set, a game rained out and never made up counts as none left", () => {
+  session.state = { ...session.state, projected: false };
+  session.standings = {
+    divisions: {
+      "NL East": [
+        row("PHI", 97, 64, { gb: "-", elim: "-", lead: true, clinched: true }),
+        row("NYM", 87, 75, { gb: "9.5", elim: "E", wcgb: "-", wce: "-", wcrank: "3" }),
+      ],
+    },
+  };
+  const sheet = renderTeamSheet("PHI", { now: OCTOBER_NOON }).body;
+
+  assert.doesNotMatch(readPart(sheet, "Season"), /left/);
 });
 
 const NL_CENTRAL_IN_OCTOBER = {
@@ -246,7 +258,7 @@ test("a club the standings don't list yet still shows its league and its titles"
 test("a season the store tracked adds its champion's title, whether the page kept one year or a list", () => {
   session.currentSeason = 2028;
   session.trackedTitles = { SEA: [2026, 2027] };
-  assert.equal(readPart(renderTeamSheet("SEA").body, "Titles"), "Defending 2 | 2026, 2027");
+  assert.equal(readPart(renderTeamSheet("SEA").body, "Titles"), "Defending 2 | 2027, 2026");
   session.trackedTitles = { SEA: 2027 };
   assert.equal(readPart(renderTeamSheet("SEA").body, "Titles"), "Defending 1 | 2027");
 });

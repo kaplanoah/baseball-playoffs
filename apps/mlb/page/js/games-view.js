@@ -147,11 +147,12 @@ function renderStatus(game) {
   return Boolean(status) && html`${status}${renderOutLights(game)}`;
 }
 
-// The whole row opens the matchup sheet, which needs only what the row shows, and whether the game
-// is today's, when a club yet to name its starter shows who it might be.
-function renderMatchupButton(game, [awayStarter, homeStarter], isToday) {
-  const { date, start, state, tbd, doubleheader, away, home, starters } = game;
-  const names = [awayStarter, homeStarter].map((starter) => starter?.name || "TBD");
+// The whole row, or an update about the game, opens the matchup sheet, which needs only what the
+// row shows, and whether the game is today's, when a club yet to name its starter shows who it
+// might be.
+export function renderMatchupButton(game, isToday) {
+  const { date, start, state, tbd, doubleheader, away, home, starters = [] } = game;
+  const names = [starters[0], starters[1]].map((starter) => starter?.name || "TBD");
   const details = JSON.stringify({
     date,
     start,
@@ -188,7 +189,7 @@ function renderGame(game, series, isToday) {
     label: Boolean(series) && renderSeriesLabel(game, series),
     headline: renderHeadline(game, awayLost, homeLost),
     status: renderStatus(game),
-    action: renderMatchupButton(game, [awayStarter, homeStarter], isToday),
+    action: renderMatchupButton(game, isToday),
   });
 }
 

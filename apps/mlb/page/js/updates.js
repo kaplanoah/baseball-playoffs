@@ -7,7 +7,8 @@ import { saveSeenAt } from "./season-store.js";
 import { session, readSeasonYear } from "./session.js";
 import { showSaveResult } from "./stamp-view.js";
 import { TEAMS } from "./teams.js";
-import { groupUpdates } from "./update-groups.js";
+import { renderMatchupButton } from "./games-view.js";
+import { describeGame, findCommonGames, groupUpdates, isResult } from "./update-groups.js";
 
 function renderClubChip(id) {
   return TEAMS[id] ? html`${renderRankTag(id)}${renderClub(id)}` : html``;
@@ -47,11 +48,56 @@ function listFreshUpdates() {
   );
 }
 
+// A series game's entry has its own result, winner first, and any other update is about one game
+// only when every entry in it came from the same one.
+function readSeriesResult(entry) {
+  if (entry.kind === "game") return { team: entry.won, opp: entry.lost, score: entry.runs };
+  if (entry.kind === "clinch") return { team: entry.team, opp: entry.over, score: entry.runs };
+  return null;
+}
+
+function nameUpdateGame(group) {
+  const result = readSeriesResult(group[0]);
+  if (result) return isResult(result) ? describeGame(result) : null;
+  const games = findCommonGames(group);
+  return games.length === 1 ? games[0] : null;
+}
+
+const describeSlateGame = (game) =>
+  describeGame({ team: game.away, opp: game.home, score: game.score });
+
+function listSlateFinals(slate) {
+  const today = slate.today.games.map((game) => ({ date: slate.today.date, ...game }));
+  return [...today, ...(slate.previous || [])].filter(
+    (game) => game.state === "final" && game.score,
+  );
+}
+
+/**
+ * The final in the Games view that an update is about, or null for an update about no one game,
+ * or one the Games view no longer lists. The same clubs with the same score again is the latest.
+ */
+export function findUpdateGame(group, slate) {
+  const name = nameUpdateGame(group);
+  if (!name || !slate) return null;
+  const matches = listSlateFinals(slate).filter((game) => describeSlateGame(game) === name);
+  return (
+    matches.sort((first, second) => Date.parse(first.end) - Date.parse(second.end)).pop() ?? null
+  );
+}
+
+function renderUpdateAction(group) {
+  const { slate } = session.state;
+  const game = findUpdateGame(group, slate);
+  return Boolean(game) && renderMatchupButton(game, game.date === slate.today.date);
+}
+
 export function renderUpdates() {
   const fresh = isCurrentSeason() ? listFreshUpdates() : [];
   const updates = fresh.map((group) => ({
     at: findHappenedAt(group),
     text: renderUpdateText(group),
+    action: renderUpdateAction(group),
   }));
   showUpdates(/** @type {HTMLElement} */ (document.getElementById("updates")), updates, {
     dismiss: dismissUpdates,

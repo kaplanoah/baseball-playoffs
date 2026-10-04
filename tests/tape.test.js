@@ -43,3 +43,14 @@ test("a measure still loading keeps its name, with a placeholder over an empty b
     assert.match(readSide(row, place), /<i class="" style="width: 0%">/);
   }
 });
+
+test("two numbers that read the same mark neither bar, whichever was ahead unrounded", () => {
+  const row = renderTapeRow({
+    label: "Fastball mph",
+    away: { value: "95.8", bar: 74 },
+    home: { value: "95.8", bar: 76 },
+    leader: "home",
+  });
+
+  assert.doesNotMatch(row.text, /class="lead"/);
+});

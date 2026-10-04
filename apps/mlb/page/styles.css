@@ -239,6 +239,12 @@ header.top h1 {
   position: relative;
   top: -0.5px;
 }
+/* Centered beside the smaller capitals of the label, the club's name sits a pixel above their
+   baseline. */
+.banner .banner-team .team-name {
+  position: relative;
+  top: 1px;
+}
 
 .stand-head {
   font-weight: 450;

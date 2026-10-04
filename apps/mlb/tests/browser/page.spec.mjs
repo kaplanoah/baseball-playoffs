@@ -1457,6 +1457,35 @@ test("on a phone, the banner's club reads as a name, without the tabs' outline a
   });
 });
 
+for (const { layout, viewport } of [
+  { layout: "a phone", viewport: PHONE },
+  { layout: "a wide screen", viewport: { width: 1024, height: 800 } },
+]) {
+  test(`on ${layout}, the banner's club sits on the same baseline as its label`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await openApp(page);
+    const banner = page.locator("#banner");
+    await expect(banner.locator(".banner-team .team-name")).toBeVisible();
+
+    // A zero-height box set inline after a text has its top on the text's baseline.
+    const baselines = await banner.evaluate((element) =>
+      [".banner-label", ".team-name"].map((selector) => {
+        const text = /** @type {HTMLElement} */ (element.querySelector(selector));
+        const line = document.createElement("span");
+        const probe = document.createElement("span");
+        probe.style.cssText = "display: inline-block; width: 0; height: 0";
+        line.append(...text.childNodes, probe);
+        text.append(line);
+        return probe.getBoundingClientRect().top;
+      }),
+    );
+
+    expect(baselines[1]).toBe(baselines[0]);
+  });
+}
+
 test("renders the bracket, standings and stamp from the live scores the Worker saved", async ({
   page,
 }) => {

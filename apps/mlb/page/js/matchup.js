@@ -318,6 +318,7 @@ function prepareFromRow(button) {
 }
 
 export function startMatchups() {
-  watchGameOpens(findElement("games-pages"), { open: openFromRow, prepare: prepareFromRow });
+  for (const holder of ["games-pages", "updates"])
+    watchGameOpens(findElement(holder), { open: openFromRow, prepare: prepareFromRow });
   wireSheet(findDialog(), { doneButton: findElement("matchupDoneBtn") });
 }

@@ -268,7 +268,11 @@ test("the pitch rows run fastest to slowest, leaving out the ones he barely thro
 }) => {
   const sheet = await openMatchup(page);
   const pitches = sheet.locator(".pitch-mix").first();
-  await expect(pitches.locator(".pitch-name")).toHaveText(["Four-seam", "Changeup", "Slider"]);
+  await expect(pitches.locator(".pitch-name")).toHaveText([
+    "Four-seam fastball",
+    "Changeup",
+    "Slider",
+  ]);
   await expect(pitches.locator(".pitch-share")).toHaveText(["52%", "17%", "30%"]);
 });
 
@@ -561,7 +565,11 @@ test("each pitch is a row with its dot, name, share, and speed", async ({ page }
   const sheet = await openMatchup(page);
   const rows = sheet.locator(".pitch-mix").first().locator(".pitch-rows li");
   await expect(rows.locator(".pitch-key")).toHaveCount(3);
-  await expect(rows.locator(".pitch-name")).toHaveText(["Four-seam", "Changeup", "Slider"]);
+  await expect(rows.locator(".pitch-name")).toHaveText([
+    "Four-seam fastball",
+    "Changeup",
+    "Slider",
+  ]);
   await expect(rows.locator(".pitch-share")).toHaveText(["52%", "17%", "30%"]);
   await expect(rows.locator(".pitch-speed")).toHaveText(["95 mph", "87 mph", "86 mph"]);
 });

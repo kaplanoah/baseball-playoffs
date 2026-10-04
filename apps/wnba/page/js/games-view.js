@@ -136,13 +136,13 @@ function describeSide(game, place) {
 export const nameGame = (game) =>
   game.round ? `${ROUNDS[game.round].name} Game ${game.number}` : "Game";
 
-// The whole row opens the game's sheet, once both its teams are known.
+// The whole row, or an update about the game, opens the game's sheet, once both its teams are known.
 /** @param {Game} game */
-function renderOpenButton(game) {
+export function renderOpenButton(game) {
   if (!game.away.team || !game.home.team) return false;
   const teams = `${nameTeam(game.away.team)} at ${nameTeam(game.home.team)}`;
   const label = `Game details: ${teams}, ${nameGame(game)}`;
-  return html`<button type="button" class="game-open" aria-label="${label}"></button>`;
+  return html`<button type="button" class="game-open" aria-label="${label}" data-game="${game.id}"></button>`;
 }
 
 /**
