@@ -1,6 +1,7 @@
 import { renderBracket, watchBracketSpace } from "./bracket-view.js";
 import { listRankedOrder } from "./clubs.js";
 import { startHomeScreen } from "#shared/home-screen.js";
+import { startDiagnostics } from "#shared/diagnostics.js";
 import { redrawEased } from "#shared/eased-redraw.js";
 import { html, setHtml } from "#shared/html.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
@@ -195,6 +196,7 @@ async function boot() {
   watchReturns({ isBusy: () => session.isReordering, catchUp, pause: () => session.db?.pause() });
   trackKeyboardFocus();
   wireControls();
+  startDiagnostics();
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);

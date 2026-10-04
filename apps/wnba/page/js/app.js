@@ -1,5 +1,6 @@
 import { startHomeScreen } from "#shared/home-screen.js";
 import { setHtml } from "#shared/html.js";
+import { startDiagnostics } from "#shared/diagnostics.js";
 import { redrawEased } from "#shared/eased-redraw.js";
 import { trackKeyboardFocus } from "#shared/keyboard-focus.js";
 import { fillGameLists, startGamePager } from "#shared/game-pager.js";
@@ -112,6 +113,7 @@ async function boot() {
   startHomeScreen();
   startBracket();
   startStandings();
+  startDiagnostics();
   session.db = createWorkerStore();
   drawLastSeen();
   keepLastSeen(readShown);

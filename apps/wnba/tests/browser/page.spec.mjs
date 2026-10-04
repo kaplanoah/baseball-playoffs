@@ -346,7 +346,7 @@ test("settings list Notifications above Appearance, with one line between them",
 }) => {
   await openApp(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const rows = page.locator("#settingsDialog .control-row");
+  const rows = page.locator("#settingsDialog .settings-controls .control-row");
   await expect(rows.locator(".control-label > span:first-child")).toHaveText([
     "Notifications",
     "Appearance",
@@ -428,7 +428,7 @@ test("settings end with the release, NBA.com's credit for the data, and the copy
   await serveReleases(page);
   await openApp(page);
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const footer = page.locator("#settingsDialog .settings-body > :last-child");
+  const footer = page.locator("#settingsDialog .settings-footer");
   await expect(footer.locator(".settings-version")).toHaveText([
     /^v\d/,
     "Includes data from NBA.com",

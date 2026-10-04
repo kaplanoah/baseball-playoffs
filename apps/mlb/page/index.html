@@ -206,6 +206,22 @@
         <p class="settings-version" id="versionNote" hidden></p>
         <p class="settings-version">&copy; 2026 Noah Kaplan</p>
       </footer>
+      <section class="diagnostics-area" aria-labelledby="diagnosticsTitle">
+        <div class="control-row">
+          <span id="diagnosticsTitle">Diagnostics</span>
+          <button
+            type="button"
+            role="switch"
+            class="switch"
+            id="diagnosticsSwitch"
+            aria-checked="false"
+            aria-labelledby="diagnosticsTitle"
+          >
+            <span class="switch-knob" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="diagnostics" id="diagnostics" hidden></div>
+      </section>
     </div>
   </dialog>
 
