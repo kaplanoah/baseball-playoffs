@@ -8,7 +8,7 @@ import { isTouchDevice } from "#shared/device.js";
 import { html } from "#shared/html.js";
 import { listFreshNotes, showUpdates } from "#shared/updates.js";
 import { renderTeamName } from "./clubs.js";
-import { renderOpenButton } from "./games-view.js";
+import { renderGameOpenButton } from "./games-view.js";
 import { RELEASE_NOTES } from "./release-notes.js";
 import { session } from "./session.js";
 import { ROUNDS } from "./snapshot.js";
@@ -123,7 +123,7 @@ function describePlayoffWin(game, games) {
     at,
     day: readLeagueDay(game, at),
     text: describeWin(game, games),
-    action: renderOpenButton(game),
+    action: renderGameOpenButton(game),
   };
 }
 
