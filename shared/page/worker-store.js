@@ -1,5 +1,6 @@
 // The page's saved data, kept by the Worker that serves the page and pushed to it as it changes.
 import { reloadWhenSignedOut } from "./access.js";
+import { noteStep } from "./diagnostics.js";
 
 const RECONNECT_FIRST_MS = 1000;
 const RECONNECT_MAX_MS = 30 * 1000;
@@ -90,10 +91,12 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
   const hasWatchers = () => listenersByPath.size > 0 || collectionWatches.size > 0;
 
   function deliverSnapshot(path, snapshot) {
+    noteStep(`Store sent ${path}${snapshot.exists ? "" : ", not found"}`);
     for (const listener of listenersByPath.get(path) || []) listener.onNext(snapshot);
   }
 
   function deliverError(path, error) {
+    noteStep(`Store couldn't read ${path}`);
     for (const listener of listenersByPath.get(path) || []) listener.onError(error);
   }
 
@@ -115,6 +118,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
 
   function deliverCollection(watch) {
     const docs = [...watch.docsById].sort(compareIds).map(([id, data]) => createSnapshot(id, data));
+    noteStep(`Store sent ${watch.name}, ${docs.length} in all`);
     for (const listener of watch.listeners) listener.onNext({ docs });
   }
 
@@ -203,6 +207,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     }, HANDSHAKE_WAIT_MS);
     opened.addEventListener("open", () => {
       if (socket !== opened) return;
+      noteStep("Store connected");
       isSocketOpen = true;
       clearTimeout(handshakeTimer);
       handshakeTimer = null;
@@ -212,6 +217,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     });
     opened.addEventListener("message", receivePush);
     opened.addEventListener("close", () => {
+      noteStep("Store connection closed");
       if (socket === opened) scheduleReconnect();
     });
   }
@@ -274,6 +280,7 @@ export function createWorkerStore(baseUrl = new URL("./", location.href)) {
     const listener = { onNext, onError };
     if (!collectionWatches.has(name)) {
       collectionWatches.set(name, {
+        name,
         limit,
         listeners: new Set(),
         docsById: null,

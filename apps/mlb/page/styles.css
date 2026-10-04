@@ -1194,14 +1194,19 @@ body.kbd .rank-item .grip:focus {
 .home-screen-icon {
   background-image: url(icon-180.png);
 }
-/* The mono face runs heavy, so the Home Screen bar and box take lighter weights than the shared
-   ones. */
+/* The mono face runs heavy, so the Home Screen bar and box and Diagnostics take lighter weights
+   than the shared ones. */
 .home-screen-title,
 .home-screen-steps b {
   font-weight: 500;
 }
 .home-screen-install {
   font-weight: 400;
+}
+.diagnostics-head h3,
+.diagnostics-copy,
+.diagnostics-flag {
+  font-weight: 450;
 }
 
 /* The settings and, on a phone, the box under them that says how to add the page to the Home
@@ -1212,8 +1217,8 @@ body.kbd .rank-item .grip:focus {
   gap: var(--section-gap);
 }
 /* Settings fill the whole sheet, so the ranking can be one sheet tall, and a scroll settles on the
-   settings, the ranking, or the copyright at their end, which would otherwise be close enough to
-   the ranking for the scroll to settle back on it. */
+   settings, the ranking, the copyright at their end, or Diagnostics past it, each of which would
+   otherwise be close enough to the one before for the scroll to settle back on that. */
 .settings-panel {
   height: 100%;
   container-type: size;
@@ -1224,7 +1229,8 @@ body.kbd .rank-item .grip:focus {
 .settings-panel .sheet-top {
   scroll-snap-align: start;
 }
-.settings-footer {
+.settings-footer,
+.diagnostics-area {
   scroll-snap-align: end;
 }
 /* The ranking section is exactly one sheet tall, less the gap above it and the bottom padding, so
@@ -1261,12 +1267,12 @@ body.kbd .rank-item .grip:focus {
 }
 /* Wide screens show everything at once: the settings on the left, the ranking filling the right.
    The ranking's heading gets its own grid row so the list can fill the rest; the settings start
-   level with that heading, under the header's line. */
+   level with that heading, under the header's line. Only Diagnostics, past the sheet's end, need
+   a scroll. */
 @media (min-width: 900px) {
   .settings-panel {
     width: min(920px, calc(100% - 48px));
     max-width: none;
-    overflow: hidden;
     scroll-snap-type: none;
   }
   .settings-body {

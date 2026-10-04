@@ -164,7 +164,7 @@ test("on a phone, settings end with the copyright, centered under the ranking", 
   await openApp(page);
   await openSettings(page);
 
-  const footer = page.locator("#settingsDialog .settings-body > :last-child");
+  const footer = page.locator("#settingsDialog .settings-footer > :last-child");
   await expect(footer).toHaveText("\u00a9 2026 Noah Kaplan");
   await expect(footer).toHaveCSS("text-align", "center");
   const [ranking, copyright] = await Promise.all(
@@ -173,7 +173,7 @@ test("on a phone, settings end with the copyright, centered under the ranking", 
   expect(copyright.y).toBeGreaterThan(ranking.y + ranking.height);
 });
 
-test("on a phone, a scroll to the end of settings rests there, with the copyright in full view", async ({
+test("on a phone, a scroll just past the end of settings rests at their end, with the copyright in full view", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -189,13 +189,19 @@ test("on a phone, a scroll to the end of settings rests there, with the copyrigh
     }),
   );
 
+  const copyright = page.getByText("\u00a9 2026 Noah Kaplan");
+  const copyrightBottom = await copyright.evaluate((line) => line.getBoundingClientRect().bottom);
+
   await page.mouse.move(PHONE.width / 2, PHONE.height / 2);
-  await page.mouse.wheel(0, 2000);
+  await page.mouse.wheel(0, copyrightBottom - PHONE.height + 40);
   await expect(settings).toHaveAttribute("data-scrolled");
 
-  await expect(page.getByText("\u00a9 2026 Noah Kaplan")).toBeInViewport({ ratio: 1 });
+  await expect(copyright).toBeInViewport({ ratio: 1 });
   const distanceToEnd = await settings.evaluate(
-    (dialog) => dialog.scrollHeight - dialog.scrollTop - dialog.clientHeight,
+    (dialog) =>
+      /** @type {HTMLElement} */ (dialog.querySelector(".settings-body")).offsetHeight -
+      dialog.scrollTop -
+      dialog.clientHeight,
   );
   expect(distanceToEnd).toBeLessThan(1);
 });
@@ -348,7 +354,8 @@ const SEASON_2025 = { year: 2025, teams: {}, series: {}, ranking: [], log: [] };
 /** @param {import("@playwright/test").Page} page */
 const scrollSettingsToEnd = (page) =>
   page.locator("#settingsDialog").evaluate((dialog) => {
-    dialog.scrollTop = dialog.scrollHeight;
+    const settings = /** @type {HTMLElement} */ (dialog.querySelector(".settings-body"));
+    dialog.scrollTop = settings.offsetHeight - dialog.clientHeight;
   });
 
 /** @param {import("@playwright/test").Page} page */
@@ -471,9 +478,13 @@ test("on a wide screen, the settings and the whole ranking show side by side wit
   await openSettings(page);
 
   const dialog = page.locator("#settingsDialog");
-  expect(await dialog.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(
-    true,
-  );
+  expect(
+    await dialog.evaluate(
+      (element) =>
+        /** @type {HTMLElement} */ (element.querySelector(".settings-body")).offsetHeight <=
+        element.clientHeight,
+    ),
+  ).toBe(true);
   await expectWholeRankingInView(page);
   const controls = await page.locator(".settings-controls").boundingBox();
   const list = await page.locator("#rankList").boundingBox();
