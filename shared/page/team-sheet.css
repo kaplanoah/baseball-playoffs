@@ -113,3 +113,18 @@ body.kbd .team-open:focus {
 .team-detail .tabular {
   white-space: nowrap;
 }
+/* The rest of a team's titles open in place, so the button reads as part of the line, set off by
+   the accent. */
+.team-titles-more {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+body.kbd .team-titles-more:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

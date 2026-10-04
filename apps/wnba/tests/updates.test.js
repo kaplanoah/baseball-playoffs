@@ -91,6 +91,18 @@ test("each update's winner and loser open their teams' sheets", () => {
   );
 });
 
+test("each update opens its game's sheet, named for a screen reader", () => {
+  const [newest] = listPlayoffWins(SEASON);
+  const game = SEASON.games.find(
+    (each) => each.away.team === "MIN" && each.home.team === "NYL" && each.number === 2,
+  );
+
+  assert.equal(
+    newest.action && newest.action.text,
+    `<button type="button" class="game-open" aria-label="Game details: Lynx at Liberty, First Round Game 2" data-game="${game?.id}"></button>`,
+  );
+});
+
 test("a team down in a longer series trails it after a win, and games still to finish aren't news", () => {
   const semis = (number, away, home, state = "final") => ({
     id: `10426002${number}`,

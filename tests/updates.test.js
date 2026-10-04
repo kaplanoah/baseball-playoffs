@@ -42,6 +42,25 @@ test("one update today reads in the singular, since earlier today", () =>
     assert.deepEqual(readCells(markup, "updates-count"), ["1 update since earlier today"]);
   }));
 
+test("an update about one game carries the button that opens it, and one about none has no button", () => {
+  const markup = renderUpdates(
+    [
+      {
+        at: at("2026-10-01T22:30:00Z"),
+        text: html`<b>Liberty</b> won`,
+        action: html`<button type="button" class="game-open" data-game="401"></button>`,
+      },
+      { at: at("2026-10-01T22:00:00Z"), text: html`<b>Fever</b> clinched` },
+    ],
+    [],
+    NOW,
+  );
+  const items = [...markup.text.matchAll(/<li>([\s\S]*?)<\/li>/g)].map(([, item]) => item);
+
+  assert.match(items[0], /<button type="button" class="game-open" data-game="401"><\/button>$/);
+  assert.doesNotMatch(items[1], /<button/);
+});
+
 test("the box lists the newest dozen and counts the rest", () => {
   const updates = Array.from({ length: 15 }, (_, index) => ({
     at: at("2026-10-01T20:00:00Z") - index * 60 * 1000,

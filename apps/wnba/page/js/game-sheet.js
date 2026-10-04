@@ -269,7 +269,8 @@ function forgetGame() {
 
 export function startGameSheet() {
   const dialog = findDialog();
-  watchGameOpens(findElement("gamePager"), { open: openFromRow, prepare: prepareFromRow });
+  for (const holder of ["gamePager", "updates"])
+    watchGameOpens(findElement(holder), { open: openFromRow, prepare: prepareFromRow });
   wireSheet(dialog, { doneButton: findElement("gameDoneBtn") });
   dialog.addEventListener("close", forgetGame);
 }

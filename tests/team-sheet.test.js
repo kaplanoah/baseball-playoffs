@@ -7,6 +7,7 @@ import {
   renderTeamDetail,
   renderTeamSheetButton,
   renderTeamStats,
+  renderTitles,
   startTeamSheet,
 } from "../shared/page/team-sheet.js";
 import { stripTags } from "./text.js";
@@ -33,7 +34,7 @@ function createPage() {
     teamDialog: dialog,
     teamTitle: { innerHTML: "" },
     teamNote: { innerHTML: "" },
-    teamBody: { innerHTML: "" },
+    teamBody: Object.assign(new EventTarget(), { innerHTML: "" }),
     teamDoneBtn: new EventTarget(),
   };
   const document = Object.assign(new EventTarget(), { getElementById: (id) => elements[id] });
@@ -57,9 +58,18 @@ startTeamSheet({
   renderSheet: (team) => ({
     heading: html`<b>${team}</b>`,
     note: `${team} note`,
-    body: html`<p>${season}</p>`,
+    body: team === "BOS" ? renderTitles([2018, 2013, 2007, 2004]) : html`<p>${season}</p>`,
   }),
 });
+
+// A tap on the titles' button for the rest, or on something else in the sheet's body.
+function tapInBody(body, isOnMore) {
+  const event = new Event("click");
+  Object.defineProperty(event, "target", {
+    value: { closest: (selector) => (isOnMore && selector === ".team-titles-more" ? {} : null) },
+  });
+  body.dispatchEvent(event);
+}
 
 test("a tap on a team's button opens its sheet, and a tap on another's shows that one in its place", () => {
   tapTeam(page.document, "NYY");
@@ -127,6 +137,35 @@ test("a team's numbers leave out any it has none for, and show nothing when it h
 
 test("a team's line of facts follows its label", () => {
   assert.equal(stripTags(renderTeamDetail("Titles", html`<b>2</b> 2009`)), "Titles2 2009");
+});
+
+// What markup reads as, each separator a bar, and runs of space one.
+const readText = (markup) =>
+  stripTags(String(markup).replace(/&bull;/g, " | "))
+    .replace(/\s+/g, " ")
+    .trim();
+
+test("a team's titles show the latest three and how many more, and none yet for a team without", () => {
+  const titles = renderTitles([2024, 2018, 2013, 2007, 2004], "20 yrs");
+  assert.equal(readText(titles), "Titles 20 yrs 5 | 2024, 2018, 2013 and 2 more");
+  assert.match(titles.text, /<button type="button" class="team-titles-more">and 2 more<\/button>/);
+  assert.doesNotMatch(renderTitles([2024, 2018, 2013]).text, /team-titles-more/);
+  assert.match(renderTitles([]).text, /<span class="team-titles-none">None yet<\/span>/);
+});
+
+test("a tap on the titles' button lists them all until the sheet shows another team", () => {
+  const readBody = () => readText(page.elements.teamBody.innerHTML);
+  tapTeam(page.document, "BOS");
+  tapInBody(page.elements.teamBody, false);
+  assert.equal(readBody(), "Titles 4 | 2018, 2013, 2007 and 1 more");
+  tapInBody(page.elements.teamBody, true);
+  assert.equal(readBody(), "Titles 4 | 2018, 2013, 2007, 2004");
+  refreshTeamSheet();
+  assert.equal(readBody(), "Titles 4 | 2018, 2013, 2007, 2004");
+  tapTeam(page.document, "NYY");
+  tapTeam(page.document, "BOS");
+  assert.equal(readBody(), "Titles 4 | 2018, 2013, 2007 and 1 more");
+  page.dialog.close();
 });
 
 test("a sheet's part has its title, and a note across from it only when it has one", () => {

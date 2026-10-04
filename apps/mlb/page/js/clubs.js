@@ -7,13 +7,13 @@ import { session, readSeasonYear } from "./session.js";
 // A page saved before tracked titles were lists kept only a club's latest one, as a number.
 const listTrackedTitles = (id) => [].concat(session.trackedTitles[id] ?? []);
 
-/** Every season a club won the World Series, oldest first. */
+/** Every World Series a club won, newest first. */
 export const listTitles = (id) =>
   [...new Set([...TEAMS[id].titles, ...listTrackedTitles(id)])].sort(
-    (first, second) => first - second,
+    (first, second) => second - first,
   );
 
-const findLastTitle = (id) => listTitles(id).at(-1) ?? null;
+const findLastTitle = (id) => listTitles(id)[0] ?? null;
 
 export function describeDrought(id) {
   const won = findLastTitle(id);

@@ -136,14 +136,26 @@ function describeSide(game, place) {
 export const nameGame = (game) =>
   game.round ? `${ROUNDS[game.round].name} Game ${game.number}` : "Game";
 
+/** @param {Game} game */
+const hasBothTeams = (game) => !!game.away.team && !!game.home.team;
+
+/** @param {Game} game */
+function nameOpenButton(game) {
+  const teams = `${nameTeam(game.away.team)} at ${nameTeam(game.home.team)}`;
+  return `Game details: ${teams}, ${nameGame(game)}`;
+}
+
 // The whole row opens the game's sheet, once both its teams are known.
 /** @param {Game} game */
-function renderOpenButton(game) {
-  if (!game.away.team || !game.home.team) return false;
-  const teams = `${nameTeam(game.away.team)} at ${nameTeam(game.home.team)}`;
-  const label = `Game details: ${teams}, ${nameGame(game)}`;
-  return html`<button type="button" class="game-open" aria-label="${label}"></button>`;
-}
+const renderOpenButton = (game) =>
+  hasBothTeams(game) &&
+  html`<button type="button" class="game-open" aria-label="${nameOpenButton(game)}"></button>`;
+
+// Away from its row, as in an update, the button names its game itself.
+/** @param {Game} game */
+export const renderGameOpenButton = (game) =>
+  hasBothTeams(game) &&
+  html`<button type="button" class="game-open" aria-label="${nameOpenButton(game)}" data-game="${game.id}"></button>`;
 
 /**
  * @param {Game} game

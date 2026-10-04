@@ -106,3 +106,31 @@
   color: var(--ink-dim);
   padding-left: 92px;
 }
+/* An update about one game opens it with a button over the whole line, like a game's row, under
+   game-row.css's .game-open. The text sits above it and lets taps through, but for a team's name
+   under a mouse, which opens the team's sheet. */
+.updates-list li:has(> .game-open) {
+  position: relative;
+  --row-highlight: transparent;
+  background: var(--row-highlight);
+  box-shadow:
+    -8px 0 var(--row-highlight),
+    8px 0 var(--row-highlight);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+@media (hover: hover) {
+  .updates-list li:has(> .game-open:hover) {
+    --row-highlight: color-mix(in srgb, var(--ink) 5%, transparent);
+  }
+}
+.updates-list li:has(> .game-open) > :not(.game-open) {
+  z-index: 1;
+  pointer-events: none;
+}
+@media (hover: hover), (pointer: fine) {
+  .updates-list li:has(> .game-open) .team-open {
+    pointer-events: auto;
+  }
+}

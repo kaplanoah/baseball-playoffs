@@ -28,7 +28,7 @@ test("a pitcher with more than seven pitches shows his seven most-thrown", () =>
 });
 
 test("pitches get short names, and one MLB adds later keeps MLB's", () => {
-  assert.equal(namePitch(pitch("FF", 0.4, 95, "Four-seam FB")), "Four-seam");
+  assert.equal(namePitch(pitch("FF", 0.4, 95, "Four-seam FB")), "Four-seam fastball");
   assert.equal(namePitch(pitch("KC", 0.2, 82, "Knuckle Curve")), "Knuckle curve");
   assert.equal(namePitch(pitch("XX", 0.2, 82, "Gyroball")), "Gyroball");
 });
@@ -93,7 +93,7 @@ test("each pitch gets a row with its dot, name, share, and speed", () => {
     }),
   );
   assert.deepEqual(rows, [
-    { code: "FF", hasDot: true, text: "Four-seam 50% 94 mph" },
+    { code: "FF", hasDot: true, text: "Four-seam fastball 50% 94 mph" },
     { code: "KC", hasDot: true, text: "Knuckle curve 31% 82 mph" },
   ]);
   assert.doesNotMatch(markup, /pitch-bar/);

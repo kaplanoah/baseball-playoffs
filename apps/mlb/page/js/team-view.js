@@ -4,7 +4,7 @@
 import { html, joinWithSeparator } from "#shared/html.js";
 import { formatOrdinal } from "#shared/ordinal.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
-import { renderTeamDetail, renderTeamStats } from "#shared/team-sheet.js";
+import { renderTeamDetail, renderTeamStats, renderTitles } from "#shared/team-sheet.js";
 import { buildBracket, describeTeamStatus } from "./bracket.js";
 import {
   describeDrought,
@@ -42,6 +42,10 @@ function findDivision(id) {
 }
 
 const countGamesLeft = (row) => SEASON_GAMES - row.w - row.l;
+
+const isFieldSet = () => session.state?.projected === false;
+
+const isInSetField = (id) => isFieldSet() && !!session.state.teams?.[id];
 
 const renderGamesBack = (value) => (value === "-" ? html`&mdash;` : value || null);
 
@@ -88,34 +92,26 @@ const renderNextDetail = (next) =>
     html`<span class="${["team-next", ...next.classes].join(" ")}">${next.text}</span>`,
   );
 
+// A game rained out late in the season and never made up still counts as one left until the field
+// is set, which ends the regular season for every club.
+/** @param {ReturnType<typeof findDivision>} division */
+function renderGamesLeft(division) {
+  if (isFieldSet() || !division?.row) return false;
+  const left = countGamesLeft(division.row);
+  return left > 0 && html`<span class="tabular">${left} left</span>`;
+}
+
 /**
  * @param {ReturnType<typeof findDivision>} division
  * @param {{ isNextShown: boolean, now: number }} options
  */
 function renderSeason(division, { isNextShown, now }) {
   if (!division?.row) return false;
-  const left = countGamesLeft(division.row);
   const next = isNextShown && describeNextGame(division.row, { now });
   return renderSheetPart(
     "Season",
     html`<div class="team-season">${renderTeamStats(listStats(division))}${renderNextDetail(next)}</div>`,
-    left > 0 && html`<span class="tabular">${left} left</span>`,
-  );
-}
-
-/** @param {string} id */
-function renderTitles(id) {
-  const titles = listTitles(id);
-  const body = titles.length
-    ? joinWithSeparator([
-        html`<b>${titles.length}</b>`,
-        html`<span class="tabular">${titles.join(", ")}</span>`,
-      ])
-    : "None yet";
-  return renderSheetPart(
-    "Titles",
-    html`<p class="team-titles">${body}</p>`,
-    html`<span class="tabular">${describeDrought(id)}</span>`,
+    renderGamesLeft(division),
   );
 }
 
@@ -179,8 +175,6 @@ function renderPlayoffs(id, division, now) {
   );
 }
 
-const isInSetField = (id) => session.state?.projected === false && !!session.state.teams?.[id];
-
 /** @param {string} id @param {ReturnType<typeof findDivision>} division */
 function listFacts(id, division) {
   const seed = session.state?.teams?.[id]?.seed;
@@ -208,6 +202,6 @@ export function renderTeamSheet(id, { now = Date.now() } = {}) {
     note: joinWithSeparator(listFacts(id, division)),
     body: html`${isPlayoffShown && renderPlayoffs(id, division, now)}
       ${renderSeason(division, { isNextShown: !isPlayoffShown, now })}
-      ${renderTitles(id)}`,
+      ${renderTitles(listTitles(id), html`<span class="tabular">${describeDrought(id)}</span>`)}`,
   };
 }

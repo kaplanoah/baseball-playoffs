@@ -2,6 +2,7 @@ import { countDaysBetween, formatClockTime } from "#shared/days.js";
 import { html, joinWithSeparator } from "#shared/html.js";
 import { renderSheetPart } from "#shared/sheet-part.js";
 import { renderTapeRow } from "#shared/tape.js";
+import { renderTitles } from "#shared/team-sheet.js";
 import { renderDot, renderTeamName } from "./clubs.js";
 import { describeDay, readGameDay } from "./days.js";
 import { nameTeam, readPlayoffRuns } from "./series.js";
@@ -339,18 +340,18 @@ function renderRegularSeason(code, standings) {
 }
 
 /**
+ * The seasons a team won it all, newest first, the oldest it won under an earlier name saying so.
  * @param {string} code
  * @param {{ before: number[], now: number[] }} titles
  */
-function renderTitles(code, titles) {
-  const count = titles.before.length + titles.now.length;
+function listTitleYears(code, titles) {
   const formerTeam = TEAMS[code].titlesAs;
-  const before = titles.before.join(", ") + (formerTeam ? ` (as ${formerTeam})` : "");
-  const years = [titles.before.length ? before : "", ...titles.now].filter(Boolean).join(", ");
-  const body = count
-    ? joinWithSeparator([html`<b>${count}</b>`, html`<span class="tabular">${years}</span>`])
-    : html`<span class="team-titles-none">None yet</span>`;
-  return renderSheetPart("Titles", html`<p class="team-titles">${body}</p>`);
+  const before = [...titles.before]
+    .sort((first, second) => second - first)
+    .map((year, index, years) =>
+      formerTeam && index === years.length - 1 ? `${year} (as ${formerTeam})` : String(year),
+    );
+  return [...titles.now.map(String), ...before];
 }
 
 /**
@@ -467,6 +468,6 @@ export function renderTeamSheet(season, code, { year, now }) {
     heading: html`${renderDot(code)}<span>${team.city} ${team.name}</span>`,
     note: joinWithSeparator(listFacts(row, run)),
     body: html`${run ? html`${playoffs}${regularSeason}` : html`${regularSeason}${playoffs}`}
-    ${renderTitles(code, titles)}`,
+    ${renderTitles(listTitleYears(code, titles))}`,
   };
 }

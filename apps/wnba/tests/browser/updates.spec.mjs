@@ -57,6 +57,42 @@ test.describe("on a phone", () => {
   });
 });
 
+test.describe("on a phone, tapping an update", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  /**
+   * Taps the middle of a team's name in an update, as a thumb would.
+   * @param {import("@playwright/test").Page} page
+   * @param {number} index
+   * @param {string} name the team's full name
+   */
+  async function tapTeamName(page, index, name) {
+    const team = page
+      .locator("#updates li")
+      .nth(index)
+      .getByRole("button", { name: `Team details: ${name}` });
+    const box = await team.boundingBox();
+    if (!box) throw new Error(`${name} isn't in update ${index}`);
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  }
+
+  test("opens that update's game's sheet, even on a team's name", async ({ page }) => {
+    await openApp(page, { isShowingUpdates: true });
+    await expect(page.locator("#updates .what")).toHaveCount(2);
+    const sheet = page.locator("#gameDialog");
+
+    await tapTeamName(page, 0, "Minnesota Lynx");
+    await expect(sheet.locator("#gameWhen")).toContainText("Liberty won");
+    await expect(page.locator("#teamDialog")).toBeHidden();
+    await page.locator("#gameDoneBtn").dispatchEvent("click");
+    await expect(sheet).toBeHidden();
+
+    await tapTeamName(page, 1, "Indiana Fever");
+    await expect(sheet.locator("#gameWhen")).toContainText("Fever won");
+    await expect(page.locator("#teamDialog")).toBeHidden();
+  });
+});
+
 test.describe("on a phone, in full motion", () => {
   test.use({
     viewport: { width: 390, height: 844 },

@@ -6,7 +6,7 @@ import { html } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
 
 const PITCH_NAMES = {
-  FF: "Four-seam",
+  FF: "Four-seam fastball",
   SI: "Sinker",
   FC: "Cutter",
   SL: "Slider",
