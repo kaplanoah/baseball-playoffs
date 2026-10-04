@@ -452,10 +452,15 @@ test("with neither starter ranked, the sheet says why and drops the note about b
   ]);
 });
 
-test("a start in the game under way says Now instead of its date", async ({ page }) => {
+/**
+ * @param {import("@playwright/test").Page} page
+ * @param {{ isStillPitching: boolean }} options
+ */
+async function openLiveMatchup(page, { isStillPitching }) {
   const snapshot = buildSnapshotWithStarters();
   const game = snapshot.slate.today.games.find((candidate) => candidate.away === "HOU");
   Object.assign(game, { state: "live", score: [1, 0], inning: 3, half: "top", outs: 1 });
+  if (isStillPitching) game.starters[0] = { ...game.starters[0], pitching: true };
   const tonight = {
     date: snapshot.slate.today.date,
     opp: "ATH",
@@ -466,9 +471,20 @@ test("a start in the game under way says Now instead of its date", async ({ page
   };
   const blubaugh = { ...PITCHERS[1], starts: [tonight, ...PITCHERS[1].starts] };
   const sheet = await openMatchup(page, { ...PITCHERS, 1: blubaugh }, snapshot);
-  const starts = sheet.locator(".recent-starts").first().locator("li");
+  return sheet.locator(".recent-starts").first().locator("li");
+}
+
+test("a start in the game under way says Now while he's still pitching", async ({ page }) => {
+  const starts = await openLiveMatchup(page, { isStillPitching: true });
   await expect(starts.first()).toHaveText("Now@ Athletics2 IP, 0 R, 3 K");
+  await expect(starts.first().locator(".start-now")).toHaveCount(1);
   await expect(starts.nth(1)).toHaveText("Sep 19vs Mariners5 2/3 IP, 2 R, 6 K");
+});
+
+test("a start in the game under way says Today once he's pulled", async ({ page }) => {
+  const starts = await openLiveMatchup(page, { isStillPitching: false });
+  await expect(starts.first()).toHaveText("Today@ Athletics2 IP, 0 R, 3 K");
+  await expect(starts.first().locator(".start-now")).toHaveCount(0);
 });
 
 test("while the starters' numbers load, the matchup holds their shape, then fills it in", async ({
@@ -572,6 +588,17 @@ test("each pitch is a row with its dot, name, share, and speed", async ({ page }
   ]);
   await expect(rows.locator(".pitch-share")).toHaveText(["52%", "17%", "30%"]);
   await expect(rows.locator(".pitch-speed")).toHaveText(["95 mph", "87 mph", "86 mph"]);
+});
+
+test("both starters' speed lines share one scale, from the slowest pitch either throws to the fastest", async ({
+  page,
+}) => {
+  const sheet = await openMatchup(page);
+  const [blubaugh, springs] = [0, 1].map((index) =>
+    sheet.locator(".pitch-mix").nth(index).locator(".speed-label"),
+  );
+  await expect(blubaugh).toHaveText(["70 mph", "80", "90", "100"]);
+  await expect(springs).toHaveText(["70 mph", "80", "90", "100"]);
 });
 
 /** @param {import("@playwright/test").Locator} chart */

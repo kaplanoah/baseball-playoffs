@@ -86,6 +86,9 @@ const GAME_FIELDS = [
   "firstPitch",
   "gameDurationMinutes",
   "probablePitcher",
+  "defense",
+  "offense",
+  "pitcher",
 ].join(",");
 const SEASON_FIELDS = ["seasons", "springStartDate", "regularSeasonEndDate"].join(",");
 const PITCHER_FIELDS = [
@@ -227,6 +230,10 @@ export const CHECKED_FIELDS = [
   "stat",
   // MLB leaves the cause off some delays, so a missing one is never flagged.
   "reason",
+  // Who's pitching only tells a starter still in from one pulled, so the games show without it.
+  "defense",
+  "offense",
+  "pitcher",
   // A club names its starter a day or two ahead, so a game without one is never flagged.
   "probablePitcher",
 ];
@@ -475,6 +482,12 @@ function readHalfInning(linescore) {
 
 const isBatting = (game) => game.half === "top" || game.half === "bottom";
 
+// A live game's linescore names the pitcher in for each side, fielding and batting.
+function readPitcherIn(linescore, teamId) {
+  const side = [linescore?.defense, linescore?.offense].find((entry) => entry?.team?.id === teamId);
+  return side?.pitcher?.id ?? null;
+}
+
 function normalizeGame(game) {
   const readSide = (key) => {
     const side = (game.teams && game.teams[key]) || {};
@@ -484,6 +497,7 @@ function normalizeGame(game) {
       name: team.name || "",
       score: side.score,
       starter: side.probablePitcher?.id ?? null,
+      pitcherIn: readPitcherIn(game.linescore, team.id),
     };
   };
   const status = game.status || {};
@@ -547,12 +561,18 @@ function describeStarter(id, pitchers) {
   return { id, name: person.useLastName, hand: person.pitchHand?.code, era: line?.era || null };
 }
 
+const isStillPitching = (game, side) =>
+  game.state === "live" && side.starter !== null && side.pitcherIn === side.starter;
+
+function describeSideStarter(game, side, pitchers) {
+  const starter = describeStarter(side.starter, pitchers);
+  return starter && isStillPitching(game, side) ? { ...starter, pitching: true } : starter;
+}
+
 // MLB names a game's probable starters ahead of it, and once it starts, the ones who did.
 function listStarters(game, pitchers) {
   if (game.state === "off") return null;
-  const starters = [game.away.starter, game.home.starter].map((id) =>
-    describeStarter(id, pitchers),
-  );
+  const starters = [game.away, game.home].map((side) => describeSideStarter(game, side, pitchers));
   return starters.some(Boolean) ? starters : null;
 }
 

@@ -7,11 +7,11 @@
 
 import { nameTeam, renderClub, renderClubName } from "./clubs.js";
 import { describeStart, formatGameDay, renderArm } from "./games-view.js";
-import { formatShortDate, readCalendarDate } from "#shared/days.js";
+import { formatShortDate, readCalendarDate, readEasternDay } from "#shared/days.js";
 import { watchGameOpens } from "#shared/game-row.js";
 import { html, joinWithSeparator, setHtml } from "#shared/html.js";
 import { renderPlaceholder } from "#shared/placeholder.js";
-import { renderPendingPitchMix, renderPitchMix } from "./pitch-mix.js";
+import { measureSpeedRange, renderPendingPitchMix, renderPitchMix } from "./pitch-mix.js";
 import { fetchPitcher, fetchRotation } from "./pitcher-fetch.js";
 import { session } from "./session.js";
 import { redrawSheet } from "#shared/sheet-resize.js";
@@ -139,17 +139,24 @@ function formatInnings(innings) {
 
 const formatStartDay = (date) => formatShortDate(readCalendarDate(date));
 
-// A start in the game under way is still adding up, so it says so instead of giving its date.
 const isUnderWay = (start, side, game) =>
   game.state === "live" && start.date === game.date && start.opp === side.opponent;
 
-function renderStart(start, isNow) {
+const isToday = (date) => date === readEasternDay(Date.now()).date;
+
+// A start still adding up says Now while he pitches, and once he's pulled, Today, like any other
+// start from today.
+function renderStartDay(start, side, game) {
+  const isUnderWayStart = isUnderWay(start, side, game);
+  if (isUnderWayStart && side.starter?.pitching) return html`<span class="start-now">Now</span>`;
+  if (isUnderWayStart || isToday(start.date)) return html`<span>Today</span>`;
+  return html`<span class="tabular">${formatStartDay(start.date)}</span>`;
+}
+
+function renderStart(start, side, game) {
   const opponent = start.opp ? `${start.home ? "vs" : "@"} ${nameTeam(start.opp)}` : "";
   const line = `${formatInnings(start.ip)} IP, ${start.runs} R, ${start.k} K`;
-  const day = isNow
-    ? html`<span class="start-now">Now</span>`
-    : html`<span class="tabular">${formatStartDay(start.date)}</span>`;
-  return html`<li>${day}<span>${opponent}</span><span class="tabular">${line}</span></li>`;
+  return html`<li>${renderStartDay(start, side, game)}<span>${opponent}</span><span class="tabular">${line}</span></li>`;
 }
 
 function describeRest(rest) {
@@ -216,7 +223,7 @@ const renderCheckBack = (sides, game) =>
     ? html`<p class="check-back">Check back for pitchers</p>`
     : html``;
 
-function renderScouting(side, game) {
+function renderScouting(side, game, speedRange) {
   if (isAwaitingStarter(side, game)) return renderRotation(side, game);
   if (!side.starter?.name) return html``;
   const name = side.starter.name;
@@ -226,10 +233,10 @@ function renderScouting(side, game) {
   const { pitcher } = side;
   const starts =
     pitcher.starts.length &&
-    html`<h4>Last starts</h4><ul class="recent-starts">${pitcher.starts.map((start) => renderStart(start, isUnderWay(start, side, game)))}</ul>`;
+    html`<h4>Last starts</h4><ul class="recent-starts">${pitcher.starts.map((start) => renderStart(start, side, game))}</ul>`;
   return html`<section class="scout">
     <h3>${name}<span>What he throws</span></h3>
-    ${renderPitchMix(pitcher.pitches)}
+    ${renderPitchMix(pitcher.pitches, speedRange)}
     ${starts}
   </section>`;
 }
@@ -250,11 +257,16 @@ function renderPendingScouting(name) {
   </section>`;
 }
 
+// Both starters' speed lines share one range, so a dot sits at the same place for the same speed.
+const measureSidesSpeedRange = (sides) =>
+  measureSpeedRange(sides.filter((side) => side.pitcher).map((side) => side.pitcher.pitches));
+
 function renderBody(game, sides) {
+  const speedRange = measureSidesSpeedRange(sides);
   return html`<div class="faceoff">${sides.map(renderPitcherId)}</div>
     ${renderCheckBack(sides, game)}
     ${renderTape(sides)}
-    ${sides.map((side) => renderScouting(side, game))}`;
+    ${sides.map((side) => renderScouting(side, game, speedRange))}`;
 }
 
 const isLoadingSide = (side, game) =>
